@@ -16,7 +16,7 @@ export default function App() {
         <Route path="/counter" element={<Counter />} />
         <Route path="/fetch-data" element={<FetchData />} />
         <Route path="/sign-in" element={<SignIn />} />
-        {/* <Route path="/sign-up" element={<SignUp />} /> */}
+        <Route path="/sign-up" element={<SignUp />} />
         {/* <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/dashboard" element={<Dashboard />} /> */}
         <Route path="*" element={<div className="p-3">Not found</div>} />

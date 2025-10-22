@@ -14,6 +14,8 @@ namespace Bloom.Models
         public int StudentId { get; set; }
         [Required]
         public int LessonId { get; set; }
+        [Required]
+        public Guid AssignedById { get; set; }
         public DateTime AssignedDate { get; set; }
         public DateTime? DueDate { get; set; }
         public bool IsCompleted { get; set; }
@@ -21,5 +23,6 @@ namespace Bloom.Models
         // Navigation properties
         public required StudentUser Student { get; set; }
         public required Lesson Lesson { get; set; }
+        public required Account AssignedBy { get; set; }
     }
 }

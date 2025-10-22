@@ -3,18 +3,21 @@
 // StudentUser model representing a student user.
 // Created: 10/21/2025
 
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 
 namespace Bloom.Models
 {
-    public class StudentUser : IdentityUser
+    public class StudentUser : Account
     {
-        public int Id { get; set; }
-        public string Email { get; set; }
-        public DateTime CreatedDate { get; set; }
-        public DateTime? UpdatedDate { get; set; }
+        public required string AccessId { get; set; }
+
+        
+        [Required]
+        public Guid CreatedById { get; set; }
+        public required Account CreatedBy { get; set; }
 
         // Navigation properties
-        public ICollection<Assignment> Assignments { get; set; }
+        public ICollection<Assignment>? Assignments { get; set; }
     }
 }

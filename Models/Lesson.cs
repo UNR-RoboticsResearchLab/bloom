@@ -21,6 +21,10 @@ namespace Bloom.Models
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
 
+        [Required]
+        public int CreatedById { get; set; }
+        public required Account CreatedBy { get; set; }
+
         public LessonType LessonType { get; set; }
 
         // Navigation properties

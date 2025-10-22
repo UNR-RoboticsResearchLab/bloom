@@ -8,16 +8,12 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Bloom.Models
 {
-    public class FacilitatorUser : IdentityUser
-    {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Email { get; set; }
-        public string PhoneNumber { get; set; }
-        public DateTime CreatedDate { get; set; }
-        public DateTime? UpdatedDate { get; set; }
+    public class FacilitatorUser : Account
+    {  
+        public ICollection<Assignment>? Assignments { get; set; }
+        public ICollection<Lesson>? Lessons { get; set; }
 
         // Navigation properties
-        public ICollection<StudentUser> Students { get; set; }
+        public ICollection<StudentUser>? Students { get; set; }
     }
 }

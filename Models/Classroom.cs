@@ -8,7 +8,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Bloom.Models
 {
-    public class Class
+    public class Classroom
     {
         public int Id { get; set; }
         [Required]
@@ -19,7 +19,7 @@ namespace Bloom.Models
         public string? BackgroundImageUrl {get; set; }
 
         // Navigation properties
-        public ICollection<StudentUser> Students { get; set; }
-        public ICollection<SLPUser> SLPUsers { get; set; }
+        public ICollection<StudentUser>? Students { get; set; }
+        public required ICollection<AdminUser> AdminUsers { get; set; }
     }
 }

@@ -1,8 +1,67 @@
+using System.Net;
+using Bloom.Data;
+using Bloom.Models;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Pomelo.EntityFrameworkCore.MySql.Internal;
+
 var builder = WebApplication.CreateBuilder(args);
 
+// Get ConnectionString
+var build_environmment = builder.Environment.EnvironmentName;
+var ConnectionString = build_environmment == "Production"
+        ? builder.Configuration.GetConnectionString("Production") : builder.Configuration.GetConnectionString("Development");
+
+Console.WriteLine($"ConnectionString: {ConnectionString}");
 // Add services to the container.
 
+// Add DB
+builder.Services.AddDbContext<BloomDbContext>(options =>
+    options.UseMySql(ConnectionString,
+        new MySqlServerVersion(new Version(11, 7, 2)),
+        mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null
+
+    )));
+    
+builder.Services.AddIdentity<Account, IdentityRole>(options =>
+{
+    // Optional: customize password, lockout, and user settings
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 6;
+    options.Password.RequireNonAlphanumeric = false;
+})
+.AddEntityFrameworkStores<BloomDbContext>()
+.AddDefaultTokenProviders();
+
+
+// Add MVC model
 builder.Services.AddControllersWithViews();
+
+// Add Cookie Auth
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = builder.Configuration.GetValue<string>("LoginPath");
+        options.LogoutPath = builder.Configuration.GetValue<string>("LogoutPath");
+        options.Cookie.HttpOnly = true;
+
+        //TODO: development comment lul
+        //options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        //options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.Name = "bloom_cookie";
+    });
+
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
 
 var app = builder.Build();
 
@@ -18,6 +77,9 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 
 app.MapControllerRoute(

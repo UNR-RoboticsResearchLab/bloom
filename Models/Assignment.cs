@@ -11,11 +11,11 @@ namespace Bloom.Models
     {
         public int Id { get; set; }
         [Required]
-        public int StudentId { get; set; }
+        public string StudentId { get; set; }
         [Required]
         public int LessonId { get; set; }
         [Required]
-        public Guid AssignedById { get; set; }
+        public string AssignedById { get; set; }
         public DateTime AssignedDate { get; set; }
         public DateTime? DueDate { get; set; }
         public bool IsCompleted { get; set; }

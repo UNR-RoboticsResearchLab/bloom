@@ -14,7 +14,7 @@ namespace Bloom.Models
 
         
         [Required]
-        public Guid CreatedById { get; set; }
+        public string CreatedById { get; set; }
         public required Account CreatedBy { get; set; }
 
         // Navigation properties

@@ -29,21 +29,7 @@ namespace Bloom.Data
             builder.Entity<FacilitatorUser>(entity => { entity.ToTable("FacilitatorUsers"); });
 
 
-            // configure adminuser relationships
-            builder.Entity<AdminUser>()
-                .HasMany(s => s.Students)
-                .WithOne()
-                .HasForeignKey(s => s.CreatedById);
-
-            builder.Entity<AdminUser>()
-                .HasMany(l => l.Lessons)
-                .WithOne()
-                .HasForeignKey(l => l.CreatedById);
-
-            builder.Entity<AdminUser>()
-                .HasMany(a => a.Assignments)
-                .WithOne()
-                .HasForeignKey(a => a.AssignedById);
+            
 
             // configure facilitatoruser relationships
             
@@ -56,12 +42,34 @@ namespace Bloom.Data
                 .WithOne()
                 .HasForeignKey(l => l.CreatedById);
             
-            builder.Entity<FacilitatorUser>()
-                .HasMany(a => a.Assignments)
-                .WithOne()
-                .HasForeignKey(a => a.AssignedById);
-            
+
             // configure studentuser relationships
+            builder.Entity<StudentUser>()
+                .HasMany(a => a.Assignments)
+                .WithOne(a => a.Student)
+                .HasForeignKey(a => a.StudentId);
+
+            builder.Entity<StudentUser>()
+                .HasOne(a => a.CreatedBy)
+                .WithMany()
+                .HasForeignKey(s => s.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+            //configure lesson relationships
+            builder.Entity<Lesson>()
+                .HasOne(a => a.CreatedBy)
+                .WithMany()
+                .HasForeignKey(s => s.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+
+            //configure classroom relationship
+            
+
+    
+
 
         }
     }

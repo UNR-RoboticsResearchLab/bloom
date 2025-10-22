@@ -22,7 +22,7 @@ namespace Bloom.Models
         public DateTime? UpdatedDate { get; set; }
 
         [Required]
-        public int CreatedById { get; set; }
+        public string CreatedById { get; set; }
         public required Account CreatedBy { get; set; }
 
         public LessonType LessonType { get; set; }

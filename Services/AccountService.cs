@@ -3,6 +3,7 @@
 // Class for interfacing with the database, providing useful helper functions.
 // Created: 10/22/2025
 using bloom.Models;
+using bloom.Models.dto;
 using Microsoft.AspNetCore.Identity;
 
 namespace bloom.Services
@@ -44,17 +45,32 @@ namespace bloom.Services
             throw new NotImplementedException();
         }
 
-        public Task<IdentityResult> RegisterAdminAsync(AdminUser user, string password)
+        public Task<IdentityResult> RegisterAdminAsync(CreateAccountDto user)
         {
             throw new NotImplementedException();
         }
 
-        public Task<IdentityResult> RegisterFacilitatorAsync(FacilitatorUser user, string password)
+        public Task<IdentityResult> RegisterAdminAsync(Account user, string password)
         {
             throw new NotImplementedException();
         }
 
-        public Task<IdentityResult> RegisterStudentAsync(StudentUser user, string password)
+        public Task<IdentityResult> RegisterFacilitatorAsync(CreateAccountDto user)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IdentityResult> RegisterFacilitatorAsync(Account user, string password)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IdentityResult> RegisterStudentAsync(CreateAccountDto user)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IdentityResult> RegisterStudentAsync(Account user, string password)
         {
             throw new NotImplementedException();
         }

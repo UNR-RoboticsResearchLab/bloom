@@ -1,6 +1,6 @@
 using System.Net;
+using bloom.Models;
 using Bloom.Data;
-using Bloom.Models;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

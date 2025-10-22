@@ -3,7 +3,7 @@
 // File provinding a Db context for the BloomDb
 // Created: 10/22/2025
 
-using Bloom.Models;
+using bloom.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;

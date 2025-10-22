@@ -6,7 +6,7 @@
 
 using Microsoft.AspNetCore.Identity;
 
-namespace Bloom.Models
+namespace bloom.Models
 {
     public class Account : IdentityUser
     {

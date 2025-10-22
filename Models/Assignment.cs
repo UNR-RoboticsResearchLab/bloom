@@ -5,7 +5,7 @@
 
 using System.ComponentModel.DataAnnotations;
 
-namespace Bloom.Models
+namespace bloom.Models
 {
     public class Assignment
     {

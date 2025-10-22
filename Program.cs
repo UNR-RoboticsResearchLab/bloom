@@ -15,7 +15,8 @@ var ConnectionString = build_environmment == "Production"
         ? builder.Configuration.GetConnectionString("Production") : builder.Configuration.GetConnectionString("Development");
 
 Console.WriteLine($"ConnectionString: {ConnectionString}");
-// Add services to the container.
+
+//  ============ Add services to the container. ============
 
 // Add DB
 builder.Services.AddDbContext<BloomDbContext>(options =>
@@ -27,10 +28,10 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
                 errorNumbersToAdd: null
 
     )));
-    
+
+// Add identity
 builder.Services.AddIdentity<Account, IdentityRole>(options =>
 {
-    // Optional: customize password, lockout, and user settings
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 6;
     options.Password.RequireNonAlphanumeric = false;
@@ -65,7 +66,7 @@ builder.Services.AddSession(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ============ Configure the HTTP request pipeline. ============
 if (!app.Environment.IsDevelopment())
 {
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.

@@ -10,9 +10,9 @@ namespace Bloom.Models
 {
     public class AdminUser : Account
     {
-        public ICollection<Assignment> Assignments { get; set; }
+        public ICollection<Assignment>? Assignments { get; set; }
         // Navigation properties
-        public ICollection<StudentUser> Students { get; set; }
-        public ICollection<Lesson> Lessons { get; set; }
+        public ICollection<StudentUser>? Students { get; set; }
+        public ICollection<Lesson>? Lessons { get; set; }
     }
 }

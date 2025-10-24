@@ -24,10 +24,7 @@ namespace bloom.Services
 
         // this is kind of idiosyncratic since they wont register themselves ? 
         Task<IdentityResult> RegisterStudentAsync(CreateAccountDto user);
-        Task<IdentityResult> RegisterAdminAsync(Account user, string password);
-        Task<IdentityResult> RegisterFacilitatorAsync(Account user, string password);        
-        Task<IdentityResult> RegisterStudentAsync(Account user, string password);
-
+        
         // Auth Accounts
         Task<SignInResult> SignInAsync(string email, string password);
         Task LogoutAsync();

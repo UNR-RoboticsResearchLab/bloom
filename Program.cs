@@ -30,12 +30,13 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
     )));
 
 // Add identity
-builder.Services.AddIdentity<Account, IdentityRole>(options =>
+builder.Services.AddIdentityCore<Account>(options =>
 {
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 6;
     options.Password.RequireNonAlphanumeric = false;
 })
+.AddRoles<IdentityRole<Guid>>()
 .AddEntityFrameworkStores<BloomDbContext>()
 .AddDefaultTokenProviders();
 

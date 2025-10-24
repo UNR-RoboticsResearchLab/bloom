@@ -15,6 +15,7 @@ namespace bloom.Models
 
     public class Lesson
     {
+        [Key]
         public int Id { get; set; }
         public required string Title { get; set; }
         public string? Description { get; set; }

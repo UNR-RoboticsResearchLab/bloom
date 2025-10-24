@@ -40,6 +40,8 @@ public class AccountController : ControllerBase
             return NotFound(new { Message = "User not found. " });
         }
 
+        // todo: move to helper function 
+
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
@@ -58,7 +60,8 @@ public class AccountController : ControllerBase
                 Id = user.Id,
                 UserName = user.UserName,
                 Email = user.Email,
-                FullName = user.FullName
+                FullName = user.FullName,
+                EmailConfirmed = user.EmailConfirmed
             }
         });
 
@@ -67,7 +70,43 @@ public class AccountController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(CreateAccountDto account)
     {
-        return NotFound();
+        var result = new IdentityResult();
+        if (account.SelectedRole == "")
+        {
+            result = await _accountService.RegisterAdminAsync(account);
+        }
+        else if (account.SelectedRole == "")
+        {
+            result = await _accountService.RegisterFacilitatorAsync(account);
+        }
+        else
+        {
+            result = await _accountService.RegisterStudentAsync(account);
+        }
+
+        if (result.Succeeded)
+        {
+            var new_user = await _accountService.GetByEmailAsync(account.Email);
+
+            if (new_user == null)
+            {
+                return BadRequest();
+            }
+
+            return Ok( new
+            {
+                Message = "Creation Success",
+                User = new
+                {
+                    Id = new_user.Id,
+                    FullName = new_user.FullName,
+                    UserName = new_user.UserName,
+                    Email = new_user.Email,
+                    EmailConfirmed = new_user.EmailConfirmed
+                }
+            });
+        }
+        return BadRequest();
     }
 
     

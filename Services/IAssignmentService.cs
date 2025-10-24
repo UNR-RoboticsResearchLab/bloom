@@ -13,7 +13,7 @@ namespace bloom.Services
     {
         // Get
         Task<Assignment> GetByIdAsync(int id);
-        Task<IEnumerable<Assignment>> GetByStudentAsync(StudentUser user);
+        Task<IEnumerable<Assignment>> GetByStudentAsync(Account student);
         Task<IEnumerable<Assignment>> GetByClassroomIdAsync(int id);
 
         // Create
@@ -21,7 +21,7 @@ namespace bloom.Services
 
         // Manage
 
-        Task<bool> AssignToStudent(Assignment assignment, StudentUser user);
+        Task<bool> AssignToStudent(Assignment assignment, Account student);
         Task<bool> Modify(Assignment assignment);
 
 

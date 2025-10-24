@@ -1,6 +1,6 @@
 // bloom
 // BloomDbContext.cs
-// File provinding a Db context for the BloomDb
+// File providing a Db context for the BloomDb
 // Created: 10/22/2025
 
 using bloom.Models;
@@ -12,66 +12,63 @@ namespace Bloom.Data
 {
     public class BloomDbContext : IdentityDbContext<Account>
     {
+        public DbSet<Account> Accounts { get; set; }
+        public DbSet<Lesson> Lessons { get; set; }
+        public DbSet<Assignment> Assignments { get; set; }
+        public DbSet<Classroom> Classrooms { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
-
         }
         
-        protected override void OnModelCreating (ModelBuilder builder)
+        protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
-            //configure tables
-            builder.Entity<Account>(entity => { entity.ToTable("Accounts"); });
-            
-            builder.Entity<StudentUser>(entity => { entity.ToTable("StudentUsers"); });
-            builder.Entity<AdminUser>(entity => { entity.ToTable("AdminUsers"); });
-            builder.Entity<FacilitatorUser>(entity => { entity.ToTable("FacilitatorUsers"); });
+            // Configure tables
+            builder.Entity<Account>(entity => { entity.ToTable("Accounts");});
 
+            builder.Entity<Lesson>(entity => 
+            { 
+                entity.ToTable("Lessons");
+                entity.HasOne(l => l.CreatedBy)
+                    .WithMany(a => a.CreatedLessons)
+                    .HasForeignKey(l => l.CreatedById)
+                    .OnDelete(DeleteBehavior.Restrict);
 
-            
+                entity.HasMany(l => l.Assignments)
+                    .WithOne(a => a.Lesson)
+                    .HasForeignKey(a => a.LessonId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
-            // configure facilitatoruser relationships
-            
-            builder.Entity<FacilitatorUser>()
-                .HasMany(s => s.Students)
-                .WithOne()
-                .HasForeignKey(s => s.CreatedById);
-            builder.Entity<FacilitatorUser>()
-                .HasMany(l => l.Lessons)
-                .WithOne()
-                .HasForeignKey(l => l.CreatedById);
-            
+            builder.Entity<Assignment>(entity => 
+            { 
+                entity.ToTable("Assignments");
+                
+                entity.HasOne(a => a.Student)
+                    .WithMany(s => s.AssignedAssignments)
+                    .HasForeignKey(a => a.StudentId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-            // configure studentuser relationships
-            builder.Entity<StudentUser>()
-                .HasMany(a => a.Assignments)
-                .WithOne(a => a.Student)
-                .HasForeignKey(a => a.StudentId);
+                entity.HasOne(a => a.AssignedBy)
+                    .WithMany()
+                    .HasForeignKey(a => a.AssignedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
-            builder.Entity<StudentUser>()
-                .HasOne(a => a.CreatedBy)
-                .WithMany()
-                .HasForeignKey(s => s.CreatedById)
-                .OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<Classroom>(entity =>
+            {
+                entity.ToTable("Classrooms");
 
+                // Many-to-Many: Classroom - Students (Accounts)
+                entity.HasMany(c => c.Students)
+                    .WithMany();
 
-            //configure lesson relationships
-            builder.Entity<Lesson>()
-                .HasOne(a => a.CreatedBy)
-                .WithMany()
-                .HasForeignKey(s => s.CreatedById)
-                .OnDelete(DeleteBehavior.Restrict);
-
-
-
-            //configure classroom relationship
-            
-
-    
-
-
+                // Many-to-Many: Classroom - Teachers (Accounts)
+                entity.HasMany(c => c.Teachers)
+                    .WithMany();
+            });
         }
     }
 }

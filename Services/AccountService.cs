@@ -5,24 +5,27 @@
 using System.ComponentModel.DataAnnotations;
 using bloom.Models;
 using bloom.Models.dto;
-using Bloom.Data;
+using bloom.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace bloom.Services
 {
     public class AccountService : IAccountService
     {
 
-        private IDbContextFactory<BloomDbContext> _dbContextFactory;
+        private BloomDbContext _dbContext;
         private UserManager<Account> _userManager;
         private SignInManager<Account> _signInManager;
 
-        public AccountService(DbContextFactory<BloomDbContext> dbContextFactory, UserManager<Account> userManager, SignInManager<Account> signInManager)
+        public AccountService(BloomDbContext dbContext,
+                            UserManager<Account> userManager, 
+                            SignInManager<Account> signInManager)
         {
-            _dbContextFactory = dbContextFactory;
+            _dbContext = dbContext;
             _userManager = userManager;
             _signInManager = signInManager;
         }
@@ -30,40 +33,38 @@ namespace bloom.Services
 
         public Task<bool> AddToRoleAsync(Account user, string role)
         {
-            BloomDbContext context = _dbContextFactory.CreateDbContext();
 
             throw new NotImplementedException();
         }   
 
         public async Task<IEnumerable<Account?>> GetAllAsync()
         {
-            BloomDbContext context = _dbContextFactory.CreateDbContext();
-            return await context.Accounts.ToListAsync();
+            return await _dbContext.Accounts.ToListAsync();
         }
 
         public Task<Account?> GetByEmailAsync(string email)
         {
-            throw new NotImplementedException();
+            return _dbContext.Accounts.FirstOrDefaultAsync(u => u.Email == email) ?? throw new KeyNotFoundException();
         }
 
         public Task<Account?> GetByIdAsync(string id)
         {
-            throw new NotImplementedException();
+            return _dbContext.Accounts.FirstOrDefaultAsync(u => u.Id == id) ?? throw new KeyNotFoundException();
         }
 
         public Task<IList<string>> GetUserRolesAsync(Account user)
         {
-            throw new NotImplementedException();
+            return _userManager.GetRolesAsync(user);
         }
 
         public Task<bool> IsInRoleAsync(Account user, string role)
         {
-            throw new NotImplementedException();
+            return _userManager.IsInRoleAsync(user, role);
         }
 
         public Task LogoutAsync()
         {
-            throw new NotImplementedException();
+            return _signInManager.SignOutAsync();
         }
 
         public async Task<IdentityResult> RegisterAdminAsync(CreateAccountDto user)
@@ -151,23 +152,34 @@ namespace bloom.Services
             }
         }
 
-        public Task<SignInResult> SignInAsync(string email, string password)
+        public async Task<SignInResult> SignInAsync(string email, string password)
         {
             if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
             {
                 throw new ArgumentNullException("Email or password is null or empty");
             }
 
+            Account user;
+
             try
             {
-                var result = _signInManager.PasswordSignInAsync(email, password, isPersistent: false, lockoutOnFailure: false);
+                user = await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Email == email);
+            }
+            catch (Exception ex)
+            {
+                throw new KeyNotFoundException("Error retrieving user by email", ex);
+            }
+
+            try
+            {
+                var result = await _signInManager.PasswordSignInAsync(user.UserName ?? "", password, isPersistent: false, lockoutOnFailure: false);
                 return result;
             }
             catch (Exception ex)
             {
                 throw new Exception("Error signing in user", ex);
             }
-        
-        }
+
+            }
     }
 }

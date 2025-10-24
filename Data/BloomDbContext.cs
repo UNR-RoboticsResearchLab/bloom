@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
-namespace Bloom.Data
+namespace bloom.Data
 {
     public class BloomDbContext : IdentityDbContext<Account>
     {
@@ -20,16 +20,16 @@ namespace Bloom.Data
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
         }
-        
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
             // Configure tables
-            builder.Entity<Account>(entity => { entity.ToTable("Accounts");});
+            builder.Entity<Account>(entity => { entity.ToTable("Accounts"); });
 
-            builder.Entity<Lesson>(entity => 
-            { 
+            builder.Entity<Lesson>(entity =>
+            {
                 entity.ToTable("Lessons");
                 entity.HasOne(l => l.CreatedBy)
                     .WithMany(a => a.CreatedLessons)
@@ -42,10 +42,10 @@ namespace Bloom.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            builder.Entity<Assignment>(entity => 
-            { 
+            builder.Entity<Assignment>(entity =>
+            {
                 entity.ToTable("Assignments");
-                
+
                 entity.HasOne(a => a.Student)
                     .WithMany(s => s.AssignedAssignments)
                     .HasForeignKey(a => a.StudentId)
@@ -69,6 +69,17 @@ namespace Bloom.Data
                 entity.HasMany(c => c.Teachers)
                     .WithMany();
             });
+        }
+        
+        public static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
+        {
+            string[] roleNames = { "Admin", "Facilitator", "Student" };
+
+            foreach (var roleName in roleNames)
+            {
+                if (!await roleManager.RoleExistsAsync(roleName))
+                    await roleManager.CreateAsync(new IdentityRole(roleName));
+            }
         }
     }
 }

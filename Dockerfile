@@ -24,7 +24,7 @@ COPY *.csproj ./
 RUN dotnet restore
 
 COPY . ./
-RUN mkdir -p /var/dpkeys
+RUN mkdir -p /var/dpkeysf
 RUN dotnet publish -c Release -o out
 
 # Run migrations if needed - it brokey on docker compose build becuase it requires a database connection

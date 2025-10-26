@@ -5,7 +5,7 @@
 
 using System.ComponentModel.DataAnnotations;
 
-namespace Bloom.Models
+namespace bloom.Models
 {
     public enum LessonType
     {
@@ -15,6 +15,7 @@ namespace Bloom.Models
 
     public class Lesson
     {
+        [Key]
         public int Id { get; set; }
         public required string Title { get; set; }
         public string? Description { get; set; }
@@ -22,7 +23,7 @@ namespace Bloom.Models
         public DateTime? UpdatedDate { get; set; }
 
         [Required]
-        public int CreatedById { get; set; }
+        public string CreatedById { get; set; }
         public required Account CreatedBy { get; set; }
 
         public LessonType LessonType { get; set; }

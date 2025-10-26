@@ -1,68 +1,85 @@
 // bloom
 // BloomDbContext.cs
-// File provinding a Db context for the BloomDb
+// File providing a Db context for the BloomDb
+// Created: 10/22/2025
 
-using Bloom.Models;
+using bloom.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
-namespace Bloom.Data
+namespace bloom.Data
 {
     public class BloomDbContext : IdentityDbContext<Account>
     {
+        public DbSet<Account> Accounts { get; set; }
+        public DbSet<Lesson> Lessons { get; set; }
+        public DbSet<Assignment> Assignments { get; set; }
+        public DbSet<Classroom> Classrooms { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
-
         }
-        
-        protected override void OnModelCreating (ModelBuilder builder)
+
+        protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
-            //configure tables
+            // Configure tables
             builder.Entity<Account>(entity => { entity.ToTable("Accounts"); });
-            
-            builder.Entity<StudentUser>(entity => { entity.ToTable("StudentUsers"); });
-            builder.Entity<AdminUser>(entity => { entity.ToTable("AdminUsers"); });
-            builder.Entity<FacilitatorUser>(entity => { entity.ToTable("FacilitatorUsers"); });
 
+            builder.Entity<Lesson>(entity =>
+            {
+                entity.ToTable("Lessons");
+                entity.HasOne(l => l.CreatedBy)
+                    .WithMany(a => a.CreatedLessons)
+                    .HasForeignKey(l => l.CreatedById)
+                    .OnDelete(DeleteBehavior.Restrict);
 
-            // configure adminuser relationships
-            builder.Entity<AdminUser>()
-                .HasMany(s => s.Students)
-                .WithOne()
-                .HasForeignKey(s => s.CreatedById);
+                entity.HasMany(l => l.Assignments)
+                    .WithOne(a => a.Lesson)
+                    .HasForeignKey(a => a.LessonId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
-            builder.Entity<AdminUser>()
-                .HasMany(l => l.Lessons)
-                .WithOne()
-                .HasForeignKey(l => l.CreatedById);
+            builder.Entity<Assignment>(entity =>
+            {
+                entity.ToTable("Assignments");
 
-            builder.Entity<AdminUser>()
-                .HasMany(a => a.Assignments)
-                .WithOne()
-                .HasForeignKey(a => a.AssignedById);
+                entity.HasOne(a => a.Student)
+                    .WithMany(s => s.AssignedAssignments)
+                    .HasForeignKey(a => a.StudentId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-            // configure facilitatoruser relationships
-            
-            builder.Entity<FacilitatorUser>()
-                .HasMany(s => s.Students)
-                .WithOne()
-                .HasForeignKey(s => s.CreatedById);
-            builder.Entity<FacilitatorUser>()
-                .HasMany(l => l.Lessons)
-                .WithOne()
-                .HasForeignKey(l => l.CreatedById);
-            
-            builder.Entity<FacilitatorUser>()
-                .HasMany(a => a.Assignments)
-                .WithOne()
-                .HasForeignKey(a => a.AssignedById);
-            
-            // configure studentuser relationships
+                entity.HasOne(a => a.AssignedBy)
+                    .WithMany()
+                    .HasForeignKey(a => a.AssignedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
+            builder.Entity<Classroom>(entity =>
+            {
+                entity.ToTable("Classrooms");
+
+                // Many-to-Many: Classroom - Students (Accounts)
+                entity.HasMany(c => c.Students)
+                    .WithMany();
+
+                // Many-to-Many: Classroom - Teachers (Accounts)
+                entity.HasMany(c => c.Teachers)
+                    .WithMany();
+            });
+        }
+        
+        public static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
+        {
+            string[] roleNames = { "Admin", "Facilitator", "Student" };
+
+            foreach (var roleName in roleNames)
+            {
+                if (!await roleManager.RoleExistsAsync(roleName))
+                    await roleManager.CreateAsync(new IdentityRole(roleName));
+            }
         }
     }
 }

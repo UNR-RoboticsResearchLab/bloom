@@ -5,10 +5,11 @@
 
 using System.ComponentModel.DataAnnotations;
 
-namespace Bloom.Models
+namespace bloom.Models
 {
     public class Behavior
     {
+        [Key]
         public int Id { get; set; }
         [Required]
         public required string Name { get; set; }

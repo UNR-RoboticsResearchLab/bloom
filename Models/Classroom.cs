@@ -6,10 +6,11 @@
 
 using System.ComponentModel.DataAnnotations;
 
-namespace Bloom.Models
+namespace bloom.Models
 {
     public class Classroom
     {
+        [Required]
         public int Id { get; set; }
         [Required]
         public required string Name { get; set; }
@@ -19,7 +20,7 @@ namespace Bloom.Models
         public string? BackgroundImageUrl {get; set; }
 
         // Navigation properties
-        public ICollection<StudentUser>? Students { get; set; }
-        public required ICollection<AdminUser> AdminUsers { get; set; }
+        public ICollection<Account>? Students { get; set; }
+        public required ICollection<Account> Teachers { get; set; }
     }
 }

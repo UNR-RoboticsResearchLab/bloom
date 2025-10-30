@@ -1,11 +1,11 @@
-#TTS Module:
+# TTS Module:
 
-##Prerequisites:
+## Prerequisites:
 - Python 3.x
 
 This module provides Text-to-Speech (TTS) functionality with viseme (mouth-shape timeline) output. For now the system is using Azure TTS, but this folder contains an interface in case latency proves to be too much and another system needs to be tested.
 
-##Features:
+## Features:
 - Uses Azure Speech SDK for TTS
 - Generates an audio file (default: BloomResponse.wav) per synthesis
 - Captures viseme timing events: For each viseme (mouth shape of phoneme), returns a timestamp (in milliseconds) and a viseme ID for driving facial animations
@@ -13,7 +13,7 @@ This module provides Text-to-Speech (TTS) functionality with viseme (mouth-shape
 - TTSEngineInterface: allows TTS engine to be swapped out in case latency is a problem
 - For now credentials are hardcoded for testing, will switch to a config later
 
-##Getting started:
+## Getting started:
 
 1. Install dependencies:
     - Navigate to tts_module:
@@ -46,7 +46,7 @@ This module provides Text-to-Speech (TTS) functionality with viseme (mouth-shape
 
 5. Play the audio to verify
 
-##Usage in Code:
+## Usage in Code:
 
 ```python
 from engine_azure import AzureTTSEngine
@@ -87,7 +87,7 @@ if not result.metrics.success:
 
 Your animation subsystem can then loop through result.viseme_events, schedule mouth animations by timestamp_ms offset, and play result.audio_filepath
 
-##Performance Metrics:
+## Performance Metrics:
 The module returns performance data with each synthesis request, allowing for metrics tracking and performance measuring.
 
 - total_latency_ms - time in milliseconds from when synthesis was requested to when the audio file is ready 
@@ -97,7 +97,7 @@ The module returns performance data with each synthesis request, allowing for me
 - success -> boolean flag indicating if synthesis succeeded
 - error_reason -> string describing the failure reason (if success = false)
 
-##Config Considerations:
+## Config Considerations:
 
 - Filename: Currently the audio file is saved under BlossomResponse.wav . If needed this can be changed to a timestamped or versioned filename for logging and history keeping.
 - Overwriting: By default, each synthesis of text overwrites the same filename in order to prevent accumulating too many files, this can be changed with the above point

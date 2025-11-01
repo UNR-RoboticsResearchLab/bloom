@@ -27,8 +27,13 @@ public class AccountController : ControllerBase
 
     [HttpPost]
     [Route("login")]
-    public async Task<IActionResult> Login(LoginDto account)
+    public async Task<IActionResult> Login([FromBody] LoginDto account)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
         var res = await _accountService.SignInAsync(account.Email, account.Password);
 
         if (!res.Succeeded)

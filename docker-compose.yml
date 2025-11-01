@@ -5,12 +5,13 @@ services:
 
   mariadb-dev:
     image: mariadb:latest
+    container_name: bloom-mariadb-dev
     restart: always
     environment:
-      MARIADB_ROOT_PASSWORD: mariadb123
+      MARIADB_ROOT_PASSWORD: bloomrootpassword
       MARIADB_DATABASE: bloom_db
-      MARIADB_USER: user
-      MARIADB_PASSWORD: password
+      MARIADB_USER: bloomuser
+      MARIADB_PASSWORD: bloompassword
     ports:
       - "3306:3306"
     volumes:
@@ -27,11 +28,15 @@ services:
   server-dev:
     build:
       context: .
+    image: bloom-server-dev:latest
+    container_name: bloom-server-dev
     ports:
       - "5000:8080"
       - "2443:2443"
     depends_on:
-      - mariadb-dev
+      mariadb-dev:
+        condition: service_started
+        restart: true
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_HTTPS_PORT=2443

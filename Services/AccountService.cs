@@ -159,7 +159,7 @@ namespace bloom.Services
                 throw new ArgumentNullException("Email or password is null or empty");
             }
 
-            Account user;
+            Account? user;
 
             try
             {

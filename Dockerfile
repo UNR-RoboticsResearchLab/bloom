@@ -16,8 +16,7 @@ RUN npm run build
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 
 # Install EF tools (optional, if running migrations in container)
-RUN dotnet tool install --global dotnet-ef
-ENV PATH="$PATH:/root/.dotnet/tools"
+ENV PATH="${PATH}:/root/.dotnet/tools"
 
 WORKDIR /app
 COPY *.csproj ./
@@ -27,10 +26,12 @@ COPY . ./
 RUN mkdir -p /var/dpkeysf
 RUN dotnet publish -c Release -o out
 
-# Run migrations if needed - it brokey on docker compose build becuase it requires a database connection
+# Run migrations if needed - it broke on docker compose build because it requires a database connection
 # RUN dotnet ef database update
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/aspnet:9.0
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0 AS deploy
+
+RUN dotnet tool install -g dotnet-ef
 
 WORKDIR /app
 COPY --from=build /app/out .

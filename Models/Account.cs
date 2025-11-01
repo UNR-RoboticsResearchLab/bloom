@@ -15,6 +15,7 @@ namespace bloom.Models
         public DateTime? UpdatedDate { get; set; }
         public ICollection<Lesson>? CreatedLessons { get; set; }
         public ICollection<Assignment>? AssignedAssignments { get; set; }
+        public ICollection<Robot>? RegisteredRobots { get; set; }
         public required string Role { get; set; }
 
     }

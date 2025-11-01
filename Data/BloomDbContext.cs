@@ -16,9 +16,11 @@ namespace bloom.Data
         public DbSet<Lesson> Lessons { get; set; }
         public DbSet<Assignment> Assignments { get; set; }
         public DbSet<Classroom> Classrooms { get; set; }
+        public DbSet<Robot> Robots { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
+            
         }
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -27,6 +29,8 @@ namespace bloom.Data
 
             // Configure tables
             builder.Entity<Account>(entity => { entity.ToTable("Accounts"); });
+
+            builder.Entity<Robot>(entity => { entity.ToTable("Robots"); });
 
             builder.Entity<Lesson>(entity =>
             {
@@ -69,6 +73,14 @@ namespace bloom.Data
                 entity.HasMany(c => c.Teachers)
                     .WithMany();
             });
+
+            builder.Entity<Robot>(entity => { 
+                entity.HasOne(r => r.RegisteredUser)
+                    .WithMany(a => a.RegisteredRobots)
+                    .HasForeignKey(r => r.RegisteredUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
         }
         
         public static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)

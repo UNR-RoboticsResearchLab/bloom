@@ -32,6 +32,7 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
 
 // Add Services
 builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IRobotService, RobotService>();
 
 // Add identity
 builder.Services.AddIdentity<Account, IdentityRole>(options =>

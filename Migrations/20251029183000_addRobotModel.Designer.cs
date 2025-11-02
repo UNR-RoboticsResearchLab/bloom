@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using bloom.Data;
 
@@ -11,9 +12,11 @@ using bloom.Data;
 namespace bloom.Migrations
 {
     [DbContext(typeof(BloomDbContext))]
-    partial class BloomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251029183000_addRobotModel")]
+    partial class addRobotModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -24,8 +27,8 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("AccountClassroom", b =>
                 {
-                    b.Property<string>("ClassroomId")
-                        .HasColumnType("varchar(255)");
+                    b.Property<int>("ClassroomId")
+                        .HasColumnType("int");
 
                     b.Property<string>("StudentsId")
                         .HasColumnType("varchar(255)");
@@ -39,8 +42,8 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("AccountClassroom1", b =>
                 {
-                    b.Property<string>("Classroom1Id")
-                        .HasColumnType("varchar(255)");
+                    b.Property<int>("Classroom1Id")
+                        .HasColumnType("int");
 
                     b.Property<string>("TeachersId")
                         .HasColumnType("varchar(255)");
@@ -264,8 +267,11 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("bloom.Models.Assignment", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("varchar(255)");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AssignedById")
                         .IsRequired()
@@ -280,9 +286,8 @@ namespace bloom.Migrations
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("LessonId")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
+                    b.Property<int>("LessonId")
+                        .HasColumnType("int");
 
                     b.Property<string>("StudentId")
                         .IsRequired()
@@ -301,8 +306,11 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("bloom.Models.Classroom", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("varchar(255)");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AccentColor")
                         .HasColumnType("longtext");
@@ -327,8 +335,11 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("bloom.Models.Lesson", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("varchar(255)");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("CreatedById")
                         .IsRequired()
@@ -359,8 +370,11 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("bloom.Models.Robot", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("varchar(255)");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("FirmwareVersion")
                         .IsRequired()
@@ -392,7 +406,7 @@ namespace bloom.Migrations
 
                     b.HasIndex("RegisteredUserId");
 
-                    b.ToTable("Robots");
+                    b.ToTable("Robots", (string)null);
                 });
 
             modelBuilder.Entity("AccountClassroom", b =>
@@ -518,7 +532,8 @@ namespace bloom.Migrations
                 {
                     b.HasOne("bloom.Models.Account", "RegisteredUser")
                         .WithMany("RegisteredRobots")
-                        .HasForeignKey("RegisteredUserId");
+                        .HasForeignKey("RegisteredUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("RegisteredUser");
                 });
@@ -528,8 +543,6 @@ namespace bloom.Migrations
                     b.Navigation("AssignedAssignments");
 
                     b.Navigation("CreatedLessons");
-
-                    b.Navigation("RegisteredRobots");
 
                     b.Navigation("RegisteredRobots");
                 });

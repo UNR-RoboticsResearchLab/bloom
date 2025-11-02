@@ -11,7 +11,7 @@ namespace bloom.Models
     public class Classroom
     {
         [Required]
-        public int Id { get; set; }
+        public required string Id { get; set; }
         [Required]
         public required string Name { get; set; }
         public DateTime CreatedDate { get; set; }

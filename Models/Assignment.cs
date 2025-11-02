@@ -10,11 +10,11 @@ namespace bloom.Models
     public class Assignment
     {
         [Key]
-        public int Id { get; set; }
+        public required string Id { get; set; }
         [Required]
         public required string StudentId { get; set; }
         [Required]
-        public int LessonId { get; set; }
+        public required string LessonId { get; set; }
         [Required]
         public required string AssignedById { get; set; }
         public DateTime AssignedDate { get; set; }

@@ -16,6 +16,7 @@ namespace bloom.Data
         public DbSet<Lesson> Lessons { get; set; }
         public DbSet<Assignment> Assignments { get; set; }
         public DbSet<Classroom> Classrooms { get; set; }
+        public DbSet<Robot> Robots { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {

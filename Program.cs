@@ -32,6 +32,7 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
 
 // Add Services
 builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IRobotService, RobotService>();
 
 // Add identity
 builder.Services.AddIdentity<Account, IdentityRole>(options =>
@@ -94,8 +95,13 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+
+
 using (var scope = app.Services.CreateScope())
 {
+    var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
+    db.Database.Migrate();
+
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     await BloomDbContext.SeedRolesAsync(roleManager);
 }

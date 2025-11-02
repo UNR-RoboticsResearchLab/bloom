@@ -10,7 +10,7 @@ namespace bloom.Models
     public class Robot
     {
         [Key]
-        public int Id { get; set; }
+        public required string Id { get; set; }
         public required string Name { get; set; }
         public required string Model { get; set; }
         public required string SerialNumber { get; set; }

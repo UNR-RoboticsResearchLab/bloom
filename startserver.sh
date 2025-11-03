@@ -8,6 +8,7 @@
 set -euo pipefail
 
 DO_MIGRATE=0
+DO_BUILD=0
 
 # Simple args parsing: look for --migration
 for arg in "$@"; do

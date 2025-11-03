@@ -99,11 +99,15 @@ app.UseAuthorization();
 
 using (var scope = app.Services.CreateScope())
 {
+    Console.WriteLine("Applying Migrations and Seeding Database...");
     var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
     db.Database.Migrate();
 
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    await BloomDbContext.SeedRolesAsync(roleManager);
+    await BloomDbContext.SeedDatabaseRoles(roleManager);
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
+    await BloomDbContext.SeedDatabaseAdminUser(userManager);
 }
 
 

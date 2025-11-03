@@ -9,7 +9,7 @@ services:
     restart: always
     environment:
       MARIADB_ROOT_PASSWORD: bloomrootpassword
-      MARIADB_DATABASE: bloom_db
+      MARIADB_DATABASE: bloomdb
       MARIADB_USER: bloomuser
       MARIADB_PASSWORD: bloompassword
     ports:

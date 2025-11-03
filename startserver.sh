@@ -16,18 +16,25 @@ for arg in "$@"; do
             DO_MIGRATE=1
             ;;
         -h|--help)
-            echo "Usage: $0 [--migration]"
+            echo "Usage: $0 [--migration] [--build]"
             echo "  --migration   Run EF Core migrations against the mariadb-dev DB before starting the app"
+            echo "  --build       Build the docker images before starting the app"
+
             exit 0
+            ;;
+        --build|-b)
+            DO_BUILD=1
             ;;
     esac
 done
 
-echo "Building docker images..."
-docker-compose -f docker-compose.yml build
-
 echo "Starting database container..."
 docker-compose -f docker-compose.yml up -d mariadb-dev
+
+if [ "$DO_BUILD" -eq 1 ]; then
+    echo "Building docker images..."
+    docker-compose -f docker-compose.yml build
+fi
 
 # Wait for the database to be ready
 echo "Waiting for the database to be ready..."

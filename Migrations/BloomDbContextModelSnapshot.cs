@@ -392,7 +392,7 @@ namespace bloom.Migrations
 
                     b.HasIndex("RegisteredUserId");
 
-                    b.ToTable("Robots");
+                    b.ToTable("Robots", (string)null);
                 });
 
             modelBuilder.Entity("AccountClassroom", b =>
@@ -518,7 +518,8 @@ namespace bloom.Migrations
                 {
                     b.HasOne("bloom.Models.Account", "RegisteredUser")
                         .WithMany("RegisteredRobots")
-                        .HasForeignKey("RegisteredUserId");
+                        .HasForeignKey("RegisteredUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("RegisteredUser");
                 });
@@ -528,8 +529,6 @@ namespace bloom.Migrations
                     b.Navigation("AssignedAssignments");
 
                     b.Navigation("CreatedLessons");
-
-                    b.Navigation("RegisteredRobots");
 
                     b.Navigation("RegisteredRobots");
                 });

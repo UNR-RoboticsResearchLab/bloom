@@ -13,7 +13,7 @@ namespace Bloom.Controllers
         private readonly ILogger<RobotController> _logger;
         private readonly IRobotService _robotService;
 
-        
+
         public RobotController(ILogger<RobotController> logger, IRobotService robotService)
         {
             _logger = logger;
@@ -92,6 +92,12 @@ namespace Bloom.Controllers
                 _logger.LogError(ex, "Error assigning lesson");
                 return StatusCode(500, "Internal server error");
             }
+        }
+
+        [HttpPost("register")]
+        public async Task<IActionResult> GetCredentials([FromBody] RobotDto robot)
+        {
+            return Ok();
         }
 
     }

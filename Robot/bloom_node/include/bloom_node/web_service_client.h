@@ -17,13 +17,16 @@
 #include <chrono>
 #include <optional>
 
-
 namespace web_service_client
 {
-
-using json = nlohmann::json;
-using namespace std::chrono_literals;
-
+    
+    using json = nlohmann::json;
+    using namespace std::chrono_literals;
+    
+/// WebServiceClient provides a configurable curl wrapper for basic, get, post, and postJson
+///    requests. It can make basic requests with sendPostAsync() or sendGetAsync(). It can
+///    also make robot-specific requests, like getStatus(), getSessionId(), getLessonId(),
+///    and getUserId(), as well as putStatus(), and authenticate().
 class WebServiceClient : public rclcpp::Node {
 
 public:
@@ -38,17 +41,37 @@ public:
         int max_retries = 2
     );
 
+    WebServiceClient(
+        const std::string &base_url,
+        int default_timeout_ms = 5000,
+        int max_retries = 2
+    );
+
     ~WebServiceClient() override;
 
-    std::string pollStatus();
+    std::string getStatus();
 
-    std::string getSession();
+    bool putStatus();
 
-    std::string getLesson();
+    std::string getSessionId();
 
-    std::string getUser();
+    std::string getLessonId();
 
-    bool postStatus();
+    std::string getUserId();
+
+    bool authenticate();
+
+    bool registerRobot(
+        std::string name,
+        std::string serial_num,
+        std::string ip,
+        std::string firmware_ver,
+        std::string model,
+        std::string manufacture_date
+    );
+
+    bool postState(std::string state);
+
 
     // Asynchronous request - returns std::future of same pair
     std::future<std::pair<std::string, long>> sendGetAsync(

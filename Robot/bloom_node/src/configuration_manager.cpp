@@ -1,17 +1,19 @@
 #include "bloom_node/configuration_manager.h"
 
-using namespace bloom_node;
+using namespace configuration_manager;
 
-ConfigurationManager::ConfigurationManager(rclcpp::Node::SharedPtr node)
-  : node_(std::move(node))
+ConfigurationManager::ConfigurationManager(const rclcpp::Node::SharedPtr& node)
+  	: rclcpp::Node(node->get_name()),
+	node_(node)
 {
-  // If a node was supplied, subscribe to a config update topic on that node.
-  if (node_) {
-    sub_ = node_->create_subscription<std_msgs::msg::String>(
-      "/config/update",
-      10,
-      std::bind(&ConfigurationManager::on_config_message, this, std::placeholders::_1)
-    );
+  	// If a node was supplied, subscribe to a config update topic on that node.
+  	if (node_) {
+    	sub_ = node_->create_subscription<std_msgs::msg::String>(
+      		"/config/update",
+      		10,
+      		std::bind(&ConfigurationManager::on_config_message, this, std::placeholders::_1)
+    	);
+      RCLCPP_INFO(this->get_logger(), "ConfigurationManager node constructed");
   }
 
 }
@@ -203,8 +205,10 @@ void ConfigurationManager::on_config_message(const std_msgs::msg::String::Shared
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<rclcpp::Node>("configuration_manager_test");
+  auto node = std::make_shared<rclcpp::Node>("configuration_manager");
   bloom_node::ConfigurationManager cfg(node);
+
+  node->declare
 
   if (argc > 1) {
     const std::string path = argv[1];

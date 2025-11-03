@@ -21,9 +21,7 @@ namespace state_manager {
 /// - a subscription to accept state change commands (`robot/state_cmd`)
 /// - a publisher for behavior execution requests (`robot/behavior/execute`)
 /// - a service to trigger behaviors for the current state (`robot/trigger_behaviors`)
-///
-/// This header provides the class declaration. The implementation can be
-/// placed in a corresponding .cpp file or used inline for small projects.
+
 class StateManager : public rclcpp::Node
 {
 public:
@@ -38,32 +36,32 @@ public:
 	StateManager(const StateManager &) = delete;
 	StateManager & operator=(const StateManager &) = delete;
 
-	/// Set the robot state. This will update the internal state and publish it.
+	// Set the robot state. This will update the internal state and publish it.
 	void set_state(const std::string & state);
 
-	/// Get the current robot state (thread-safe read).
+	// Get the current robot state (thread-safe read).
 	std::string get_state() const;
 
-	/// Return the list of behavior names mapped to `state`. If none found,
-	/// returns an empty vector.
+	// Return the list of behavior names mapped to `state`. If none found,
+	// returns an empty vector.
 	std::vector<std::string> get_behaviors_for_state(const std::string & state) const;
 
-	/// Trigger all behaviors mapped to the current state. This will publish
-	/// behavior execution messages and return a boolean success indicator.
+	// Trigger all behaviors mapped to the current state. This will publish
+	// behavior execution messages and return a boolean success indicator.
 	bool trigger_behaviors();
 
-	/// Load or replace state->behavior mappings from a parameter or a provided
-	/// map. Implementations may choose to read from params on construction.
+	// Load or replace state->behavior mappings from a parameter or a provided
+	// map. Implementations may choose to read from params on construction.
 	void set_state_behaviors(const std::unordered_map<std::string, std::vector<std::string>> & mapping);
 
 private:
-	/// Callback invoked when a String message is received on the state_cmd topic.
+	// Callback invoked when a String message is received on the state_cmd topic.
 	void on_state_cmd(const std_msgs::msg::String::SharedPtr msg);
 
-	/// Publish the current state on the state topic.
+	// Publish the current state on the state topic.
 	void publish_state();
 
-	/// Publish a single behavior execution request for `behavior_name`.
+	// Publish a single behavior execution request for `behavior_name`.
 	void publish_behavior(const std::string & behavior_name);
 
 	// ROS interfaces

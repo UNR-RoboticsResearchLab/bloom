@@ -20,8 +20,15 @@ namespace Bloom.Controllers
             _robotService = robotService;
         }
 
-        [HttpGet("status/{robotId}")]
-        public async Task<IActionResult> GetRobotStatus(string robotId)
+        [HttpPost("status")]
+        public async Task<IActionResult> PostStatus()
+        {
+            // should use jwt sessions to id
+            return Ok();
+        }
+
+        [HttpGet("{robotId}")]
+        public async Task<IActionResult> GetRobot(string robotId)
         {
             try
             {
@@ -30,7 +37,6 @@ namespace Bloom.Controllers
                 {
                     RobotId = robotId,
                     Status = "Active",
-                    BatteryLevel = 85.5,
                     CurrentTask = "waiting",
                     LastUpdated = DateTime.UtcNow
                 };
@@ -53,7 +59,6 @@ namespace Bloom.Controllers
                 {
                     RobotId = robotId,
                     Status = state.Status,
-                    BatteryLevel = state.BatteryLevel,
                     CurrentTask = state.CurrentTask,
                     LastUpdated = DateTime.UtcNow
                 };

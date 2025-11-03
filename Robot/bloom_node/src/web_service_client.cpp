@@ -19,14 +19,17 @@ WebServiceClient::WebServiceClient(
     }
 
     // Optional: create a Trigger service that will perform a simple GET to "/" path
+    // TODO: system / service for making api calls from ros srv
     trigger_service_ = this->create_service<std_srvs::srv::Trigger>(
-        "web_service_trigger",
+        "get_status",
         [this](const std::shared_ptr<std_srvs::srv::Trigger::Request> req,
             std::shared_ptr<std_srvs::srv::Trigger::Response> res)
         {
             (void)req;
             // fire off async GET to base path; publish result via publisher if enabled
-            this->sendGetAsync("/", std::nullopt, {}, [this, res](const std::string &body, long code) mutable {
+
+
+            this->sendPostAsync("status", "", {}, [this, res](const std::string &body, long code) mutable {
             res->success = (code >= 200 && code < 300);
             res->message = "HTTP code: " + std::to_string(code) + ", body length: " + std::to_string(body.size());
         });
@@ -230,5 +233,17 @@ void WebServiceClient::setAuthHeader(const std::string &auth_header)
 
 
 
-
 } // namespace web_service_client
+
+#ifdef CONFIG_MANAGER_MAIN
+
+int main()
+{
+  web_service_client::WebServiceClient client = web_service_client::WebServiceClient("https://192.168.1.106/api/robot");
+
+  client.sendGetAsync("register");
+  
+  
+}
+
+#endif

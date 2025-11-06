@@ -9,6 +9,7 @@ import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import reportWebVitals from "./reportWebVitals";
 
 import './index.css';
+import { ApiClientProvider } from "./context/ApiClientContext";
 
 const baseUrl = document.getElementsByTagName("base")[0]?.getAttribute("href") || "/";
 const container = document.getElementById("root");
@@ -17,7 +18,10 @@ const root = createRoot(container);
 root.render(
   <ThemeProvider>
     <BrowserRouter basename={baseUrl}>
-      <App />
+      <ApiClientProvider>
+  
+        <App />
+      </ApiClientProvider>
     </BrowserRouter>
   </ThemeProvider>
 );

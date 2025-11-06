@@ -87,7 +87,7 @@ public class AccountController : ControllerBase
         }
 
         var result = new IdentityResult();
-        
+
         Console.WriteLine($"Step B: Role = {account?.SelectedRole}");
         switch (account?.SelectedRole.ToUpper())
         {
@@ -111,7 +111,7 @@ public class AccountController : ControllerBase
 
             if (new_user == null)
             {
-                return BadRequest();
+                return BadRequest("An error occured during account creation.");
             }
 
             return Ok(new
@@ -133,11 +133,37 @@ public class AccountController : ControllerBase
             foreach (var error in result.Errors)
             {
                 Console.WriteLine($"Error: {error.Description}");
+                return BadRequest(new { Message = error.Description });
             }
         }
         return BadRequest();
     }
 
-    
 
+    [HttpGet]
+    [Route("{id}")]
+    public async Task<IActionResult> GetUserProfile(string id)
+    {
+        var user = await _accountService.GetByIdAsync(id);
+        if (user == null)
+        {
+            return BadRequest(new { Message = "User not found." });
+        }
+
+        var newUser = new
+        {
+            Id = user.Id,
+            FullName = user.FullName,
+            UserName = user.UserName,
+            Email = user.Email,
+            EmailConfirmed = user.EmailConfirmed,
+            Role = user.Role,
+            RegisteredRobots = user.RegisteredRobots,
+            AssignedAssignments = user.AssignedAssignments,
+            Lessons = user.CreatedLessons
+
+        };
+
+        return Ok(newUser);
+    }
 }

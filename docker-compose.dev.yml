@@ -1,0 +1,69 @@
+
+services:
+  bloom-react-dev:
+    build:
+      context: ./ClientApp
+      dockerfile: ./Dockerfile.dev
+    image: bloom-react-dev:latest
+    container_name: bloom-react-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./ClientApp/src:/app/src       # Live update for src folder
+      - ./ClientApp/public:/app/public # Live update for public assets
+      - /app/node_modules    # Keep container node_modules isolated
+    environment:
+      - REACT_APP_API_URL=http://bloom-server-dev:8080/
+      - CHOKIDAR_USEPOLLING=true # macOS thing
+      - HOST=0.0.0.0
+      - PORT=3000
+      - HTTPS=false
+    networks:
+      - bloom-network
+
+  bloom-server-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: bloom-server-dev:latest
+    container_name: bloom-server-dev
+    ports:
+      - "5000:8080"
+      - "2443:2443"
+    depends_on:
+      mariadb-dev:
+        condition: service_started
+        restart: true
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTPS_PORT=2443
+    restart: always
+    volumes:
+      - dpkeys:/var/dpkeys
+    networks:
+      - bloom-network
+
+  mariadb-dev:
+    image: mariadb:latest
+    container_name: bloom-mariadb-dev
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: bloomrootpassword
+      MARIADB_DATABASE: bloomdb
+      MARIADB_USER: bloomuser
+      MARIADB_PASSWORD: bloompassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - bloom-network
+
+networks: 
+  bloom-network:
+    driver: bridge
+
+volumes:
+  dpkeys:
+  db_data:
+

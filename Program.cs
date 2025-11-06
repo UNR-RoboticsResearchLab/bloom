@@ -5,6 +5,7 @@ using bloom.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Options;
 using Pomelo.EntityFrameworkCore.MySql.Internal;
 
@@ -19,6 +20,10 @@ var ConnectionString = build_environmment == "Production"
 Console.WriteLine($"ConnectionString: {ConnectionString}");
 
 //  ============ Add services to the container. ============
+
+builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 if (build_environmment == "Development")
 {
@@ -102,12 +107,17 @@ builder.Services.AddAuthorization(options =>
 var app = builder.Build();
 
 // ============ Configure the HTTP request pipeline. ============
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.MapOpenApi();
+    // app.UseSwagger();
+    // app.UseSwaggerUI();
+}
+else
+{
     app.UseHsts();
 }
-
 // app.UseHttpsRedirection();
 app.UseCors();
 app.UseDefaultFiles();

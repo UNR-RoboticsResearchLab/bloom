@@ -17,14 +17,14 @@ namespace bloom.Services
         Task<Account?> GetByIdAsync(string id);
         Task<Account?> GetByEmailAsync(string email);
         Task<IEnumerable<Account?>> GetAllAsync();
-    
+
         // Register Accounts
         Task<IdentityResult> RegisterAdminAsync(CreateAccountDto user);
         Task<IdentityResult> RegisterFacilitatorAsync(CreateAccountDto user);
 
         // this is kind of idiosyncratic since they wont register themselves ? 
         Task<IdentityResult> RegisterStudentAsync(CreateAccountDto user);
-        
+
         // Auth Accounts
         Task<SignInResult> SignInAsync(string email, string password);
         Task LogoutAsync();
@@ -32,7 +32,8 @@ namespace bloom.Services
         // Roles and Claims
         Task<bool> AddToRoleAsync(Account user, string role);
         Task<bool> IsInRoleAsync(Account user, string role);
-        Task<IList<string>> GetUserRolesAsync(Account user);
+        Task<IList<string>> GetUserRolesByIdAsync(string userId);
+
     }   
     
 }

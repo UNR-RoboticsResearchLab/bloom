@@ -3,6 +3,7 @@
 // Service implementation for database services that will be used for managing robot state
 // Created: 11/1/25
 
+using bloom.Data;
 using bloom.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,9 +12,9 @@ namespace bloom.Services
     public class RobotService : IRobotService
     {
         private readonly IAccountService _accountService;
-        private readonly DbContext _dbContext;
+        private readonly BloomDbContext _dbContext;
         
-        public RobotService (IAccountService accountService, DbContext context)
+        public RobotService (IAccountService accountService, BloomDbContext context)
         {
             _accountService = accountService;
             _dbContext = context;

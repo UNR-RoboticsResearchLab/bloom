@@ -1,7 +1,42 @@
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useApiClient } from "../context/ApiClientContext";
 
 
+export default function SignUp( apiClient ) {
+    // const [passwordShown, setPasswordShown] = useState(false);
+    const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [selectedRole, setSelectedRole] = useState("");
+    const [fullName, setFullName] = useState("");
+    const [err, setErr] = useState("");
+    const navigate = useNavigate();
+    const api = useApiClient();
 
-export default function SignUp() {
+
+    const handleSubmit = async (e) => {
+        
+        var res = api.signUp(username, fullName, email, password, selectedRole, navigate, setErr)
+        
+        if (res.ok)
+        {
+            // create session
+        }
+    }
+
+
+    // function handleSubmit(e) {
+    //     e.preventDefault();
+    //     const user = findUser(email, password);
+    //     if (!user) {
+    //         setErr("Invalid email or password");
+    //         return;
+    //     }
+    //     signInSession(user);
+    //     navigate(dashboardPathForRole(user.role), { replace: true });
+    // }
+
 
     return (
         // <div className="min-h-screen bg-white text-gray-900 flex flex-col justify-center px-6 py-12 lg:px-8">
@@ -11,9 +46,28 @@ export default function SignUp() {
                     Sign Up for an account
                 </h2>
             </div>
-
+    
             <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-                <form className="space-y-6">
+                <div className="space-y-6" >
+                    {/* Username */}
+                    <div>
+                        <label htmlFor="username" className="block text-sm font-medium text-gray-900">
+                            Username
+                        </label>
+                        <div className="mt-2">
+                            <input
+                                id="username"
+                                name="username"
+                                type="text"
+                                autoComplete="username"
+                                onChange={(e) => setUsername(e.target.value)}
+                                value={username}
+                                required
+                                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                                placeholder="username123"
+                            />
+                        </div>
+                    </div>
                     {/* Email */}
                     <div>
                         <label htmlFor="email" className="block text-sm font-medium text-gray-900">
@@ -25,6 +79,8 @@ export default function SignUp() {
                                 name="email"
                                 type="email"
                                 autoComplete="email"
+                                onChange={(e) => setEmail(e.target.value)}
+                                value={email}
                                 required
                                 className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
                                 placeholder="name@mail.com"
@@ -45,6 +101,8 @@ export default function SignUp() {
                                 name="password"
                                 type="password"
                                 autoComplete="current-password"
+                                onChange={(e) => setPassword(e.target.value)}
+                                value={password}
                                 required
                                 className="block w-full rounded-md bg-white px-3 py-1.5 pr-10 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
                                 placeholder="********"
@@ -65,6 +123,8 @@ export default function SignUp() {
                                 name="fullName"
                                 type="text"
                                 autoComplete="name"
+                                onChange={(e) => setFullName(e.target.value)}
+                                value={fullName}
                                 required
                                 className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
                                 placeholder="First M. Last"
@@ -81,6 +141,8 @@ export default function SignUp() {
                             <select
                                 id="role"
                                 name="role"
+                                onChange={(e) => setSelectedRole(e.target.value)}
+                                value={selectedRole}
                                 required
                                 className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
                                 >
@@ -98,11 +160,12 @@ export default function SignUp() {
                         <button
                             type="submit"
                             className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                            onClick={handleSubmit}
                 >
                             Sign Up
                         </button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

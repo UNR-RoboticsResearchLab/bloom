@@ -7,8 +7,14 @@ import Counter from './components/Counter';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
 import './custom.css';
+import ApiClient from './interfaces/ApiClient'
+import { ApiClientProvider } from './context/ApiClientContext';
 
 export default function App() {
+
+  const apiBase = process.env.REACT_APP_API_BASE_URL || "http://bloom-server-dev:5000/";
+
+
   return (
     <Layout>
       <Routes>

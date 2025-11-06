@@ -13,11 +13,21 @@ var builder = WebApplication.CreateBuilder(args);
 // Get ConnectionString
 var build_environmment = builder.Environment.EnvironmentName;
 var ConnectionString = build_environmment == "Production"
-        ? builder.Configuration.GetConnectionString("ProductionConnection") : builder.Configuration.GetConnectionString("DefaultConnection");
+        ? builder.Configuration.GetConnectionString("ProductionConnection") 
+        : builder.Configuration.GetConnectionString("DefaultConnection");
 
 Console.WriteLine($"ConnectionString: {ConnectionString}");
 
 //  ============ Add services to the container. ============
+
+if (build_environmment == "Development")
+{
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.ListenAnyIP(8080);   // HTTP
+        options.ListenAnyIP(2443, listenOptions => listenOptions.UseHttps()); // HTTPS optional
+    });
+}
 
 // Add DB Context
 builder.Services.AddDbContext<BloomDbContext>(options =>
@@ -30,9 +40,6 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
 
     )));
 
-// Add Services
-builder.Services.AddScoped<IAccountService, AccountService>();
-builder.Services.AddScoped<IRobotService, RobotService>();
 
 // Add identity
 builder.Services.AddIdentity<Account, IdentityRole>(options =>
@@ -44,6 +51,9 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
 .AddEntityFrameworkStores<BloomDbContext>()
 .AddDefaultTokenProviders();
 
+// Add Services
+builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IRobotService, RobotService>();
 
 // Add MVC model
 builder.Services.AddControllersWithViews();
@@ -62,19 +72,31 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Name = "bloom_cookie";
     });
 
-// authorization policies
-builder.Services.AddAuthorization(options =>
-{
-    // options.AddPolicy(
-    //     //only Admins can create accounts
-    //     "CanCreateAccount", policy => policy.RequireRole("Admin", "Facilitator"));
-});
 
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+});
+
+// Enable CORS for development
+// TODO: add production check
+builder.Services.AddCors(options => {
+    options.AddDefaultPolicy(policy => {
+        policy
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+// authorization policies
+builder.Services.AddAuthorization(options =>
+{
+    // options.AddPolicy(
+    //     //only Admins can create accounts
+    //     "CanCreateAccount", policy => policy.RequireRole("Admin", "Facilitator"));
 });
 
 var app = builder.Build();
@@ -87,6 +109,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 // app.UseHttpsRedirection();
+app.UseCors();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
@@ -112,6 +135,6 @@ using (var scope = app.Services.CreateScope())
 //     pattern: "{controller}/{action=Index}/{id?}");
 app.MapControllers();
 
-app.MapFallbackToFile("index.html");;
+app.MapFallbackToFile("index.html");
 
 app.Run();

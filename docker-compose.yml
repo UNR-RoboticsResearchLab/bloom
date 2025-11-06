@@ -3,15 +3,15 @@
 
 services:
 
-  mariadb-dev:
+  mariadb-prod:
     image: mariadb:latest
-    container_name: bloom-mariadb-dev
+    container_name: bloom-mariadb
     restart: always
     environment:
-      MARIADB_ROOT_PASSWORD: bloomrootpassword
+      MARIADB_ROOT_PASSWORD: #bloomrootpassword
       MARIADB_DATABASE: bloomdb
       MARIADB_USER: bloomuser
-      MARIADB_PASSWORD: bloompassword
+      MARIADB_PASSWORD: #bloompassword
     ports:
       - "3306:3306"
     volumes:
@@ -25,11 +25,11 @@ services:
       retries: 5
       start_period: 20s
   
-  server-dev:
+  server-prod:
     build:
       context: .
-    image: bloom-server-dev:latest
-    container_name: bloom-server-dev
+    image: bloom-server:latest
+    container_name: bloom-server
     ports:
       - "5000:8080"
       - "2443:2443"

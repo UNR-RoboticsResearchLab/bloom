@@ -20,6 +20,7 @@ namespace bloom.Data
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
+            
         }
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -28,6 +29,8 @@ namespace bloom.Data
 
             // Configure tables
             builder.Entity<Account>(entity => { entity.ToTable("Accounts"); });
+
+            builder.Entity<Robot>(entity => { entity.ToTable("Robots"); });
 
             builder.Entity<Lesson>(entity =>
             {
@@ -70,16 +73,48 @@ namespace bloom.Data
                 entity.HasMany(c => c.Teachers)
                     .WithMany();
             });
+
+            builder.Entity<Robot>(entity => { 
+                entity.HasOne(r => r.RegisteredUser)
+                    .WithMany(a => a.RegisteredRobots)
+                    .HasForeignKey(r => r.RegisteredUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
         }
-        
-        public static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
+
+        public static async Task SeedDatabaseRoles(RoleManager<IdentityRole> roleMgr)
         {
             string[] roleNames = { "Admin", "Facilitator", "Student" };
 
             foreach (var roleName in roleNames)
             {
-                if (!await roleManager.RoleExistsAsync(roleName))
-                    await roleManager.CreateAsync(new IdentityRole(roleName));
+                if (!await roleMgr.RoleExistsAsync(roleName))
+                    await roleMgr.CreateAsync(new IdentityRole(roleName));
+            }
+        }
+
+        public static async Task SeedDatabaseAdminUser(UserManager<Account> userMgr)
+        {
+            // grab environment variables for admin user
+            string adminEmail = "admin@example.com";
+            string adminPassword = "Admin@123";
+            if (await userMgr.FindByEmailAsync(adminEmail) == null)
+            {
+                var adminUser = new Account
+                {
+                    UserName = adminEmail,
+                    Email = adminEmail,
+                    FullName = "System Administrator",
+                    CreatedDate = DateTime.UtcNow,
+                    Role = "Admin"
+                };
+
+                var result = await userMgr.CreateAsync(adminUser, adminPassword);
+                if (result.Succeeded)
+                {
+                    await userMgr.AddToRoleAsync(adminUser, "Admin");
+                }
             }
         }
     }

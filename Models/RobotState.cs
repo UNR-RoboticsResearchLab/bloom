@@ -5,7 +5,6 @@ namespace bloom.Models
     {
         public required string RobotId { get; set; }
         public required string Status { get; set; }
-        public double BatteryLevel { get; set; }
         public required string CurrentTask { get; set; }
         public DateTime LastUpdated { get; set; }
     }

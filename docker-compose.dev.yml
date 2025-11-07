@@ -20,6 +20,21 @@ services:
       - HTTPS=false
     networks:
       - bloom-network
+  mariadb-dev:
+    image: mariadb:latest
+    container_name: mariadb-dev
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: bloomrootpassword
+      MARIADB_DATABASE: bloomdb
+      MARIADB_USER: bloomuser
+      MARIADB_PASSWORD: bloompassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - bloom-network
 
   bloom-server-dev:
     build:
@@ -33,7 +48,6 @@ services:
     depends_on:
       mariadb-dev:
         condition: service_started
-        restart: true
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTPS_PORT=2443
@@ -43,21 +57,6 @@ services:
     networks:
       - bloom-network
 
-  mariadb-dev:
-    image: mariadb:latest
-    container_name: bloom-mariadb-dev
-    restart: always
-    environment:
-      MARIADB_ROOT_PASSWORD: bloomrootpassword
-      MARIADB_DATABASE: bloomdb
-      MARIADB_USER: bloomuser
-      MARIADB_PASSWORD: bloompassword
-    ports:
-      - "3306:3306"
-    volumes:
-      - db_data:/var/lib/mysql
-    networks:
-      - bloom-network
 
 networks: 
   bloom-network:

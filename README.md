@@ -15,12 +15,8 @@ Senor Project Team 25
 
 1. Install Docker and Docker Compose
 2. Clone this repository
-3. Run `docker-compose up --build` in the project directory
-4. Access the application at `http://localhost:5000`
-5. Migrate the database
-   - Open a new terminal window
-   - Run `docker ps` to get the container ID of the running application
-   - Run `docker exec -it server-dev dotnet ef database update` to apply migrations
+3. Run `./startserver-dev.sh` or `./startserver-dev.bat` in the project directory
+4. Access the API at `http://localhost:5000`, and the browser app at `http://localhost:3000`
 
 ## API Documentation
 

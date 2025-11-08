@@ -19,6 +19,10 @@ import SlpDashboard from "./components/dashboard/SlpDashboard";
 import "./custom.css";
 
 export default function App() {
+
+  const apiBase = process.env.REACT_APP_API_BASE_URL || "http://bloom-server-dev:5000/";
+
+
   return (
     <Layout>
       <Routes>

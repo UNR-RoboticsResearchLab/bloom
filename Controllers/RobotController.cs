@@ -66,33 +66,9 @@ namespace Bloom.Controllers
             }
         }
 
-        [HttpPost("assignment")]
-        public async Task<IActionResult> AssignLesson([FromBody] LessonInfoDto assignment)
-        {
-            try
-            {
-                // TODO: Implement lesson assignment logic
+        
 
-                var newAssignment = new
-                {
-                    lesson = new LessonInfoDto
-                    {
-                        LessonId = assignment.LessonId,
-                        Title = assignment.Title,
-                        Description = assignment.Description
-                    },
-                    assignentId = Guid.NewGuid().ToString(),
-                    assignedAt = DateTime.UtcNow
-                };
-
-                return Ok(new { message = "Lesson info found", assignment = newAssignment });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error assigning lesson");
-                return StatusCode(500, "Internal server error");
-            }
-        }
+        
 
     }
 }

@@ -25,7 +25,7 @@ services:
       retries: 5
       start_period: 20s
   
-  server-prod:
+  bloom-server:
     build:
       context: .
     image: bloom-server:latest

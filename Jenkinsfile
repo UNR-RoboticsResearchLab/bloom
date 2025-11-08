@@ -10,6 +10,8 @@ pipeline {
                 sh 'echo "Building prod..."'
                 sh './build.sh --prod'  // your build command
             }
+        }
+        stage('Build Dev') {
             when {
                 branch 'development'
             }

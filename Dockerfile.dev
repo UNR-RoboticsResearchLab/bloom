@@ -1,0 +1,23 @@
+# Dockerfile.dev
+# Dev environment for ASP.NET Core backend
+# hopefully fix CORS issues during development
+
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+
+
+WORKDIR /app
+
+COPY ./*.csproj ./
+
+RUN dotnet restore
+
+COPY ./ ./
+
+RUN dotnet build -c Debug
+
+RUN dotnet dev-certs https --trust
+
+
+
+CMD ["dotnet", "run"]

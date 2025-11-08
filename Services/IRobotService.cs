@@ -32,7 +32,7 @@ namespace bloom.Services
         
         // Sync robot state with backend
         Task SyncRobotStateAsync(string robotId);
-        
+
         // Register new robot
         Task RegisterRobotAsync(string robotId, RobotConfigDto config);
     }

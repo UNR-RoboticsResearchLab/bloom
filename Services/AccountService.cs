@@ -42,29 +42,36 @@ namespace bloom.Services
             return await _dbContext.Accounts.ToListAsync();
         }
 
-        public Task<Account?> GetByEmailAsync(string email)
+
+        public async Task<Account?> GetByEmailAsync(string email)
         {
-            return _dbContext.Accounts.FirstOrDefaultAsync(u => u.Email == email) ?? throw new KeyNotFoundException();
+            return await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Email == email) ?? throw new KeyNotFoundException();
         }
 
-        public Task<Account?> GetByIdAsync(string id)
+        public async Task<Account?> GetByIdAsync(string id)
         {
-            return _dbContext.Accounts.FirstOrDefaultAsync(u => u.Id == id) ?? throw new KeyNotFoundException();
+            return await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Id == id) ?? throw new KeyNotFoundException();
         }
 
-        public Task<IList<string>> GetUserRolesAsync(Account user)
+        public async Task<IList<string>> GetUserRolesByIdAsync(string id)
         {
-            return _userManager.GetRolesAsync(user);
+            var user = _userManager.Users.FirstOrDefault(u => u.Id == id);
+            if (user == null)
+            {
+                throw new KeyNotFoundException("User not found");
+            }
+            
+            return await _userManager.GetRolesAsync(user);
         }
 
-        public Task<bool> IsInRoleAsync(Account user, string role)
+        public async Task<bool> IsInRoleAsync(Account user, string role)
         {
-            return _userManager.IsInRoleAsync(user, role);
+            return await _userManager.IsInRoleAsync(user, role);
         }
 
-        public Task LogoutAsync()
+        public async Task LogoutAsync()
         {
-            return _signInManager.SignOutAsync();
+            await _signInManager.SignOutAsync();
         }
 
         public async Task<IdentityResult> RegisterAdminAsync(CreateAccountDto user)

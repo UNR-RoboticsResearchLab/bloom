@@ -7,7 +7,7 @@ namespace bloom.Models
 {
     public class Session
     {
-        public required string Id { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid().ToString();
         public required string RobotId { get; set; }
         public required string UserId { get; set; }
         public required DateTime StartTime { get; set; }

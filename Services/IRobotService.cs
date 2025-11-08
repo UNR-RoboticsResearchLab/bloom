@@ -12,28 +12,38 @@ namespace bloom.Services
 {
     public interface IRobotService
     {
-        // Get robot state
-        Task<RobotState> GetRobotStateAsync(string robotId);
-        
-        // Update robot state
-        Task UpdateRobotStateAsync(string robotId, RobotState state);
-        
-        // Get current assignment
-        Task<Assignment> GetCurrentAssignmentAsync(string robotId);
-        
-        // Assign task to robot
-        Task AssignTaskAsync(string robotId, Assignment assignment);
-        
-        // Complete or update assignment status
-        Task UpdateAssignmentStatusAsync(string robotId, string assignmentId, Assignment status);
-        
-        // Get available robots
-        Task<IEnumerable<string>> GetAvailableRobotsAsync();
-        
-        // Sync robot state with backend
-        Task SyncRobotStateAsync(string robotId);
+        /**
+         * <summary> 
+         * GetRobotByUserIdAsync() gets all of the robots currently associated with a given user.
+         * </summary>
+         * <returns>List of robots</returns>
+        */
+        ICollection<Robot> GetRobotsByUserIdAsync(string userId);
 
-        // Register new robot
-        Task RegisterRobotAsync(string robotId, RobotConfigDto config);
+        /**
+         * <summary>
+         * GetRobotsByFirmwareVersion() gets all of the robots with a specific firmware version.
+         * <summary>
+         * <returns>List of Robots</return>
+         */
+        ICollection<Robot> GetRobotsByFirmwareVersion(string firmwareVersion);
+
+        /**
+         * <summary>
+         * GetAllRobotsAsync() gets all of the robots currently registered in the system.
+         * </summary>
+         * <returns>List of robots</returns>
+        */
+        ICollection<Robot> GetAllRobotsAsync();
+
+        /**
+         * <summary>
+         * RegisterRobotAsync() registers a new robot in the system. Should be triggered on first boot.
+         * </summary>
+         * <returns>bool</returns>
+         */
+        bool RegisterRobotAsync(RobotDto robot);
+
+
     }
 }

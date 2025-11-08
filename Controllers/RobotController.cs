@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using bloom.Models;
 using bloom.Services;
 
-namespace Bloom.Controllers
+namespace bloom.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -26,15 +26,15 @@ namespace Bloom.Controllers
             try
             {
                 // TODO: Implement robot status retrieval
-                var newState = new RobotState
-                {
-                    RobotId = robotId,
-                    Status = "Active",
-                    BatteryLevel = 85.5,
-                    CurrentTask = "waiting",
-                    LastUpdated = DateTime.UtcNow
-                };
-                return Ok(new { message = "Robot status retrieved", robotId = robotId, state = newState });
+                // var newState = new RobotState
+                // {
+                //     Status = "Active",
+                //     CurrentTask = "waiting",
+                //     CurrentBehaviorId = 1,
+                //     LastStatusChange = DateTime.Now
+                // };
+                // return Ok(new { message = "Robot status retrieved", robotId = robotId, state = newState });
+                return Ok();
             }
             catch (Exception ex)
             {
@@ -43,21 +43,19 @@ namespace Bloom.Controllers
             }
         }
 
-        [HttpPost("status/{robotId}")]
-        public async Task<IActionResult> UpdateRobotStatus(string robotId, [FromBody] RobotState state)
+        [HttpPost("status")]
+        public async Task<IActionResult> UpdateRobotStatus([FromBody] RobotState state)
         {
             try
             {
                 // TODO: Implement robot status update logic
-                var newState = new RobotState
-                {
-                    RobotId = robotId,
-                    Status = state.Status,
-                    BatteryLevel = state.BatteryLevel,
-                    CurrentTask = state.CurrentTask,
-                    LastUpdated = DateTime.UtcNow
-                };
-                return Ok(new { message = "Robot state updated", robotId = robotId, state = newState });
+                // var newState = new RobotState
+                // {
+                //     Status = state.Status,
+                //     CurrentTask = state.CurrentTask
+                // };
+                // return Ok(new { message = "Robot state updated", robotId = robotId, state = newState });
+                return Ok();
             }
             catch (Exception ex)
             {

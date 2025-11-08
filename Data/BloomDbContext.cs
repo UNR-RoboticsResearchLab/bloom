@@ -7,6 +7,7 @@ using bloom.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace bloom.Data
 {
@@ -17,6 +18,7 @@ namespace bloom.Data
         public DbSet<Assignment> Assignments { get; set; }
         public DbSet<Classroom> Classrooms { get; set; }
         public DbSet<Robot> Robots { get; set; }
+        public DbSet<RobotState> RobotStates { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
@@ -70,6 +72,11 @@ namespace bloom.Data
                 entity.HasMany(c => c.Teachers)
                     .WithMany();
             });
+
+            builder.Entity<RobotStateHistory>(entity =>
+            {
+                entity.HasOne(r => r.RobotState);
+            });            
         }
         
         public static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)

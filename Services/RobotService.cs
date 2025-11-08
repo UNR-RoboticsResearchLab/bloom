@@ -20,45 +20,61 @@ namespace bloom.Services
             _dbContext = context;
         }
 
-        public Task<RobotState> GetRobotStateAsync(string robotId)
+        public ICollection<Robot> GetAllRobotsAsync()
         {
-            throw new NotImplementedException();
+            var robots = _dbContext.Robots.ToList();
+
+            return robots;
         }
 
-
-        public Task<Assignment> GetCurrentAssignmentAsync(string robotId)
+        public ICollection<Robot> GetRobotsByFirmwareVersion(string firmwareVersion)
         {
-            throw new NotImplementedException();
+            var robots = _dbContext.Robots.Where(r => r.FirmwareVersion == firmwareVersion).ToList();
+
+            return robots;
         }
 
-        public Task UpdateRobotStateAsync(string robotId, RobotState state)
+        public ICollection<Robot> GetRobotsByUserIdAsync(string userId)
         {
-            throw new NotImplementedException();
+            var robots = _dbContext.Robots.Where(r => r.RegisteredUserId == userId).ToList();
+
+            return robots;
         }
 
-        public Task AssignTaskAsync(string robotId, Assignment assignment)
+        public bool RegisterRobotAsync(RobotDto robot)
         {
-            throw new NotImplementedException();
-        }
+            if (robot.Name == null)
+            {
+                throw new Exception("Robot name is invalid");
+            }
+            if (robot.IPAddress == null)
+            {
+                throw new Exception("Robot IP is invalid");
+            }
 
-        public Task UpdateAssignmentStatusAsync(string robotId, string assignmentId, Assignment status)
-        {
-            throw new NotImplementedException();
-        }
+            var newRobot = new Robot
+            {
+                Name = robot.Name,
+                Model = robot.Model,
+                SerialNumber = robot.SerialNumber,
+                ManufactureDate = robot.ManufactureDate,
+                FirmwareVersion = robot.FirmwareVersion,
+                IPAddress = robot.IPAddress,
+                RegisteredUserId = robot.RegisteredUserId
+            };
 
-        public Task<IEnumerable<string>> GetAvailableRobotsAsync()
-        {
-            throw new NotImplementedException();
-        }
+            _dbContext.Robots.Add(newRobot);
 
-        public Task SyncRobotStateAsync(string robotId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task RegisterRobotAsync(string robotId, RobotConfigDto config)
-        {
-            throw new NotImplementedException();
+            try
+            {
+                _dbContext.SaveChangesAsync();
+                return true;
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"Exception occured on service RobotService: {ex.Message}");
+                return false;
+            }
         }
     }
 }

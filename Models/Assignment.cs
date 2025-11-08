@@ -10,7 +10,7 @@ namespace bloom.Models
     public class Assignment
     {
         [Key]
-        public required string Id { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
         [Required]
         public required string StudentId { get; set; }
         [Required]

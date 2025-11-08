@@ -20,8 +20,14 @@ namespace bloom.Models
 
     public class RobotStateDto
     {
+        public  string RobotId { get; set; }
         public required string Status { get; set; }
         public DateTime LastActive { get; set; }
+        public required string CurrentTask { get; set; }
+        public int CurrentBehaviorId { get; set; }
+        public DateTime LastStatusChange { get; set; }
+        public string? SpeechLog { get; set; }
+
     }
 
     public class LessonInfoDto

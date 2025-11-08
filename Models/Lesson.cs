@@ -16,7 +16,7 @@ namespace bloom.Models
     public class Lesson
     {
         [Key]
-        public required string Id { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
         public required string Title { get; set; }
         public string? Description { get; set; }
         public DateTime CreatedDate { get; set; }

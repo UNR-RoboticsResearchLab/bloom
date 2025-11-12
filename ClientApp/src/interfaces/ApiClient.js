@@ -3,9 +3,9 @@
 
 export default class ApiClient
 {
-    constructor(basurl) {
-        this.baseurl = basurl;
-        console.log("API Baseurl:" + basurl);
+    constructor(baseUrl) {
+        this.baseUrl = baseUrl;
+        console.log("API Baseurl:" + baseUrl);
     }
 
 

@@ -31,7 +31,7 @@ export default class ApiClient
         }
     }
 
-    async signUp(username, fullName, email, password, role, navigate, setErr) {
+    async signUp(username, fullName, email, password, role) {
 
         console.log("APICLIENT");
         var user = {
@@ -53,10 +53,10 @@ export default class ApiClient
                 // navigate("/login", { replace: true });
             } else {
                 const data = await response.json();
-                setErr(data.message || "Sign up failed");
+                // setErr(data.message || "Sign up failed");
             }
         } catch (err) {
-            setErr("Network error");
+            // setErr("Network error");
             console.error(err);
         }
 

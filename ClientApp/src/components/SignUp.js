@@ -40,7 +40,7 @@ export default function SignUp() {
         fullName,
         email,
         password,
-        role: selectedRole,
+        role: selectedRole
       });
 
       if (!res.ok) {

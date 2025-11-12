@@ -20,6 +20,7 @@ namespace bloom.Data
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
+            
         }
 
         protected override void OnModelCreating(ModelBuilder builder)

@@ -47,4 +47,4 @@ fi
 
 # --- Tail server logs for convenience ---
 echo "Attaching to server logs (Ctrl+C to detach)..."
-docker logs -f $SERVER_CONTAINER
+docker logs -f $REACT_CONTAINER

@@ -12,6 +12,10 @@ namespace bloom.Models
         // Unique identifier for this session (e.g., tied to a user session)
         public Guid Id { get; set; } = Guid.NewGuid();
 
+        // User who created/owns this session (null for anonymous sessions)
+        public string? UserId { get; set; }
+        public Account? User { get; set; }
+
         // Timestamp when the session was created
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -20,6 +24,9 @@ namespace bloom.Models
 
         // number of robots in the current session
         public int Robots { get; set; }
+
+        // Navigation property for historical state snapshots (for analysis features)
+        public ICollection<RobotStateHistory>? StateHistory { get; set; }
 
     }
 

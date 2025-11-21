@@ -7,7 +7,7 @@ namespace bloom.Models
 {
     public class RobotStateHistory
     {
-        public Guid Id { get; set; } = Guid.NewGuid().ToString();
+        public Guid Id { get; set; } = Guid.NewGuid();
 
         // Foreign key to the session
         public Guid RobotSessionId { get; set; }

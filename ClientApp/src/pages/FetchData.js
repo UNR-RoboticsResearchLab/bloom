@@ -1,57 +1,86 @@
 import { useEffect, useState } from "react";
+import RobotStateHistory from "../components/RobotStateHistory";
+import { useApiClient } from "../context/ApiClientContext";
 
 export default function FetchData() {
+  const apiClient = useApiClient();
   const [forecasts, setForecasts] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [selectedSession, setSelectedSession] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+
+
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const res = await fetch("weatherforecast");
-        const data = await res.json();
+        const data = await apiClient.getSessions();
         if (active) {
-          setForecasts(data);
-          setLoading(false);
+          setSessions(data || []);
+          if (data && data.length > 0) {
+            setSelectedSession(data[0].id);
+          }
         }
       } catch (e) {
-        if (active) setLoading(false);
-        console.error("Failed to load weatherforecast", e);
+        console.error("Failed to load sessions", e);
+      } finally {
+        if (active) setLoadingSessions(false);
       }
     })();
     return () => {
       active = false;
     };
-  }, []);
-
-  const renderTable = (rows) => (
-    <table className="table table-striped" aria-labelledby="tableLabel">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Temp. (C)</th>
-          <th>Temp. (F)</th>
-          <th>Summary</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((f, i) => (
-          <tr key={f.date ?? i}>
-            <td>{f.date}</td>
-            <td>{f.temperatureC}</td>
-            <td>{f.temperatureF}</td>
-            <td>{f.summary}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+  }, [apiClient]);
 
   return (
     <div>
-      <h1 id="tableLabel">Weather forecast</h1>
-      <p>This component demonstrates fetching data from the server.</p>
-      {loading ? <p><em>Loading...</em></p> : renderTable(forecasts)}
+      <div style={{ marginTop: "2rem" }}>
+        <h2>Robot State History</h2>
+        <div style={{ marginBottom: "1rem" }}>
+          <h3>Select Session:</h3>
+          {loadingSessions ? (
+            <p><em>Loading sessions...</em></p>
+          ) : sessions.length === 0 ? (
+            <p>No sessions available</p>
+          ) : (
+            <table className="table table-striped">
+              <thead>
+                <tr>
+                  <th>Session ID</th>
+                  <th>Last Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.map((session) => (
+                  <tr key={session.id}>
+                    <td>{session.id}</td>
+                    <td>{session.laststate.status}</td>
+                    <td>
+                      <button
+                        onClick={() => setSelectedSession(session.id)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#007bff",
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                          padding: 0,
+                        }}
+                      >
+                        Select
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        {selectedSession && <RobotStateHistory sessionId={selectedSession} />}
+      </div>
     </div>
   );
 }

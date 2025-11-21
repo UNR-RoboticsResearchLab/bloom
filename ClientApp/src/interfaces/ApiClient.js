@@ -3,26 +3,26 @@
 
 export default class ApiClient
 {
-    constructor(basurl) {
-        this.baseurl = basurl;
-        console.log("API Baseurl:" + basurl);
+    constructor(baseurl) {
+        this.baseurl = baseurl;
+        console.log("API Baseurl:" + baseurl);
     }
 
 
     async request(endpoint, options = {}) {
-        const url = `${this.baseUrl}${endpoint}`;
+        const url = `${this.baseurl}${endpoint}`;
         const headers = {
           "Content-Type": "application/json",
           ...(options.headers || {}),
         };
-      
+
         const response = await fetch(url, { ...options, headers });
-      
+
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
-      
+
         // try to parse JSON, but allow empty responses
         try {
           return await response.json();
@@ -86,6 +86,16 @@ export default class ApiClient
 
     async getUserProfile(id) {
         const res = await this.request(`/account/${id}`);
+        return res;
+    }
+
+    async getSessions() {
+        const res = await this.request(`/api/robotsessions`);
+        return res || [];
+    }
+
+    async getSessionHistory(sessionId) {
+        const res = await this.request(`/api/robotsessions/${sessionId}/history`);
         return res;
     }
 

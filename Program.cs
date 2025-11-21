@@ -2,12 +2,14 @@ using System.Net;
 using bloom.Models;
 using bloom.Services;
 using bloom.Data;
+using bloom.Repositories;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Options;
 using Pomelo.EntityFrameworkCore.MySql.Internal;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,17 +23,22 @@ Console.WriteLine($"ConnectionString: {ConnectionString}");
 
 //  ============ Add services to the container. ============
 
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
+    .SetApplicationName("BloomServer")
+    .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
+
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 if (build_environmment == "Development")
 {
-    builder.WebHost.ConfigureKestrel(options =>
-    {
-        options.ListenAnyIP(8080);   // HTTP
-        options.ListenAnyIP(2443, listenOptions => listenOptions.UseHttps()); // HTTPS optional
-    });
+    // builder.WebHost.ConfigureKestrel(options =>
+    // {
+    //     options.ListenAnyIP(8080);   // HTTP
+    //     options.ListenAnyIP(2443, listenOptions => listenOptions.UseHttps()); // HTTPS optional
+    // });
 }
 
 // Add DB Context
@@ -59,6 +66,11 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
 // Add Services
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IRobotService, RobotService>();
+
+// Add RobotSession Services and Repositories
+builder.Services.AddSingleton<IRobotStateRepository, InMemoryRobotStateRepository>();
+builder.Services.AddScoped<IRobotSessionRepository, RobotSessionRepository>();
+builder.Services.AddScoped<IRobotSessionService, RobotSessionService>();
 
 // Add MVC model
 builder.Services.AddControllersWithViews();
@@ -118,6 +130,7 @@ else
 {
     app.UseHsts();
 }
+
 // app.UseHttpsRedirection();
 app.UseCors();
 app.UseDefaultFiles();

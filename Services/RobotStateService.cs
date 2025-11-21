@@ -17,16 +17,16 @@ namespace bloom.Services
             _dbContext = context;
         }
 
-        public async Task<ICollection<RobotState>> GetAllCurrentRobotStatesAsync()
+        public ICollection<RobotState> GetAllCurrentRobotStatesAsync()
         {
-            var robotStates = await _dbContext.RobotStates.ToListAsync();
-
-            return robotStates;
+            // Note: RobotState is an owned entity type and cannot be queried directly from DbContext
+            // TODO: Implement properly by querying through a parent entity that owns RobotState
+            throw new NotImplementedException("RobotState is an owned entity and must be queried through its owner");
         }
 
-        public async Task<RobotState> GetCurrentRobotStateByRobotIdAsync(string robotId)
+        public RobotState GetCurrentRobotStateByRobotIdAsync(string robotId)
         {
-            
+            throw new NotImplementedException();
         }
 
         public RobotState GetCurrentRobotStateBySessionIdAsync(string sessionId)
@@ -40,11 +40,6 @@ namespace bloom.Services
         }
 
         public ICollection<RobotState> GetRobotStatesBySessionId(string sessionId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool UpdateState(RobotStateDto robotState)
         {
             throw new NotImplementedException();
         }

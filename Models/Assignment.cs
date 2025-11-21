@@ -14,7 +14,7 @@ namespace bloom.Models
         [Required]
         public required string StudentId { get; set; }
         [Required]
-        public required string LessonId { get; set; }
+        public required Guid LessonId { get; set; }
         [Required]
         public required string AssignedById { get; set; }
         public DateTime AssignedDate { get; set; }

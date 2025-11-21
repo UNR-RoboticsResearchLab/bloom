@@ -18,10 +18,12 @@ namespace bloom.Data
         public DbSet<Assignment> Assignments { get; set; }
         public DbSet<Classroom> Classrooms { get; set; }
         public DbSet<Robot> Robots { get; set; }
-        public DbSet<RobotState> RobotStates { get; set; }
+        public DbSet<RobotSession> RobotSessions { get; set; }
+        public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
+            
         }
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -73,10 +75,28 @@ namespace bloom.Data
                     .WithMany();
             });
 
+            builder.Entity<RobotSession>(entity =>
+            {
+                entity.ToTable("RobotSessions");
+
+                entity.HasOne(rs => rs.User)
+                    .WithMany()
+                    .HasForeignKey(rs => rs.UserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
             builder.Entity<RobotStateHistory>(entity =>
             {
-                entity.HasOne(r => r.RobotState);
-            });            
+                entity.ToTable("RobotStateHistories");
+
+                entity.HasOne(r => r.RobotSession)
+                    .WithMany(s => s.StateHistory)
+                    .HasForeignKey(r => r.RobotSessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Configure RobotState as an owned entity (since it's marked with [Owned])
+                entity.OwnsOne(r => r.RobotState);
+            });
         }
         
         public static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)

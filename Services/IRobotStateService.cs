@@ -46,13 +46,5 @@ namespace bloom.Services
         */
         ICollection<RobotState> GetAllCurrentRobotStatesAsync();
 
-        /**
-         * <summary>
-         * UpdateState() updates the robot's current state.
-         * </summary>
-         * <returns>bool</returns>
-         */
-        bool UpdateState(RobotStateDto robotState);
-
     }
 }

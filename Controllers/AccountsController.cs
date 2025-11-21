@@ -14,13 +14,13 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 namespace bloom.Controllers;
 
 [ApiController]
-[Route("[controller]")]
-public class AccountController : ControllerBase
+[Route("api/[controller]")]
+public class AccountsController : ControllerBase
 {
 
     private readonly IAccountService _accountService;
 
-    public AccountController(IAccountService accountService)
+    public AccountsController(IAccountService accountService)
     {
         _accountService = accountService;
     }

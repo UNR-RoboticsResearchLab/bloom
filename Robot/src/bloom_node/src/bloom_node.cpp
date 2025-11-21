@@ -29,13 +29,16 @@ int main(int argc, char ** argv)
 	// todo: move to helper
 	auto config_mgr = std::make_shared<configuration_manager::ConfigurationManager>(node);
 
-	fs::path dir = "./config";
-	std::vector<fs::path> files;
+	fs::path dir = "src/bloom_node/config";
 
 	if (!fs::exists(dir) || !fs::is_directory(dir)) {
-		RCLCPP_ERROR(node->get_logger(), "The provided path is not a directory or does not exist.\n");
-		return 1;
-	}
+        RCLCPP_ERROR(node->get_logger(), "The provided path is not a directory or does not exist.\n");
+        RCLCPP_ERROR(node->get_logger(), dir.c_str());
+        return 1;
+    }
+
+    // Vector to store file paths
+    std::vector<fs::path> files;
 
 	// Loop through the directory and store all file paths
 	for (const auto& entry : fs::directory_iterator(dir)) {

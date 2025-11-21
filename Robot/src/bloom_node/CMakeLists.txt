@@ -14,13 +14,20 @@ find_package(std_srvs REQUIRED)
 find_package(CURL REQUIRED)
 
 
-  add_executable(bloom_node src/bloom_node.cpp src/state_manager.cpp src/web_service_client.cpp src/configuration_manager.cpp)
+  add_executable(bloom_node
+    src/bloom_node.cpp
+    src/state_manager.cpp
+    src/web_service_client.cpp
+    src/configuration_manager.cpp
+    src/thread_pool.cpp
+    src/curl_pool.cpp
+  )
 target_include_directories(bloom_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 target_compile_features(bloom_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 ament_target_dependencies(bloom_node rclcpp std_msgs std_srvs)
-target_link_libraries(bloom_node CURL::libcurl)
+target_link_libraries(bloom_node CURL::libcurl pthread)
 
 install(TARGETS bloom_node
   DESTINATION lib/${PROJECT_NAME})

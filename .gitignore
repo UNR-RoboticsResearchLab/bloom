@@ -232,6 +232,6 @@ _Pvt_Extensions
 .fake/
 
 # ROS2 workspace
-*/build/
-*/install/
-*/log/
+**/build/
+**/install/
+**/log/

@@ -93,6 +93,15 @@ public:
         const std::vector<std::string> &headers = {},
         ResponseCallback on_response = nullptr);
 
+    // Generic request method for any HTTP verb (GET, POST, PUT, DELETE, PATCH, etc.)
+    std::future<std::pair<std::string, long>> sendRequestAsync(
+        const std::string &method,
+        const std::string &path,
+        const std::optional<std::string> &body = std::nullopt,
+        const std::optional<std::string> &query = std::nullopt,
+        const std::vector<std::string> &headers = {},
+        ResponseCallback on_response = nullptr);
+
     // Publish the raw response body on a topic (std_msgs::msg::String)
     // Topic name default: "web_service/response"
     void enableResponsePublisher(const std::string &topic_name = "web_service/response");

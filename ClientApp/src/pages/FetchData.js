@@ -57,9 +57,9 @@ export default function FetchData() {
               <tbody>
                 {sessions.map((session) => (
                   <tr key={session.id}>
-                    <td>{session.result.id}</td>
-                    <td>{session.result.sessionCode}</td>
-                    <td>{session.result.laststate?.status}</td>
+                    <td>{session.id}</td>
+                    <td>{session.sessionCode}</td>
+                    <td>{session.laststate?.status}</td>
                     <td>
                       <button
                         onClick={() => setSelectedSession(session.id)}

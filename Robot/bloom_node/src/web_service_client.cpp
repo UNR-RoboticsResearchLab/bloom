@@ -98,7 +98,7 @@ inline std::pair<std::string, long> WebServiceClient::performRequest(
     std::string response_data;
 
     struct curl_slist *hdrs = nullptr;
-    
+
     //merge current headers w / auth
 
     for (const auto &h : headers)
@@ -118,10 +118,13 @@ inline std::pair<std::string, long> WebServiceClient::performRequest(
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout_ms);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
+    // TODO: Disable SSL verification for development - enable proper cert validation in production
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+
     if (hdrs) curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdrs);
 
-
-    // add body
+    // Handle different HTTP methods
     if (method == "POST")
     {
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
@@ -131,6 +134,42 @@ inline std::pair<std::string, long> WebServiceClient::performRequest(
             curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, body->size());
         }
     }
+    else if (method == "PUT")
+    {
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+        if (body)
+        {
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body->c_str());
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, body->size());
+        }
+    }
+    else if (method == "DELETE")
+    {
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+        if (body)
+        {
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body->c_str());
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, body->size());
+        }
+    }
+    else if (method == "PATCH")
+    {
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PATCH");
+        if (body)
+        {
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body->c_str());
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, body->size());
+        }
+    }
+    else if (method == "HEAD")
+    {
+        curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+    }
+    else if (method == "OPTIONS")
+    {
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "OPTIONS");
+    }
+    // GET is the default, no special handling needed
 
     long http_code = 0;
     CURLcode response;
@@ -154,7 +193,7 @@ inline std::pair<std::string, long> WebServiceClient::performRequest(
         }
         attempt++;
     } while (attempt <= retries && running_.load());
-    
+
     if (hdrs) curl_slist_free_all(hdrs);
     curl_easy_cleanup(curl);
 
@@ -216,6 +255,24 @@ inline std::future<std::pair<std::string, long>> WebServiceClient::sendJsonPostA
 
     auto body = payload.dump();
     return sendPostAsync(path, body, hdrs, on_response);
+}
+
+std::future<std::pair<std::string, long>> WebServiceClient::sendRequestAsync(
+    const std::string &method,
+    const std::string &path,
+    const std::optional<std::string> &body,
+    const std::optional<std::string> &query,
+    const std::vector<std::string> &headers,
+    ResponseCallback on_response)
+{
+    auto url = buildUrl(path, query);
+    return std::async(std::launch::async, [this, method, url, body, headers, on_response]() {
+        const std::string *body_ptr = body ? &(*body) : nullptr;
+        auto res = this->performRequest(method, url, body_ptr, headers, this->default_timeout_ms_, this->max_retries_);
+
+        if (on_response) on_response(res.first, res.second);
+        return res;
+    });
 }
 
 void WebServiceClient::enableResponsePublisher(const std::string &topic_name)

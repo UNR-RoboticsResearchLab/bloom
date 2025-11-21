@@ -63,13 +63,14 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
 .AddEntityFrameworkStores<BloomDbContext>()
 .AddDefaultTokenProviders();
 
-// Add Services
+// =========== Add Custom Services ===========
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IRobotService, RobotService>();
 
 // Add RobotSession Services and Repositories
 builder.Services.AddSingleton<IRobotStateRepository, InMemoryRobotStateRepository>();
 builder.Services.AddScoped<IRobotSessionRepository, RobotSessionRepository>();
+builder.Services.AddScoped<ISessionCodeService, SessionCodeService>();
 builder.Services.AddScoped<IRobotSessionService, RobotSessionService>();
 
 // Add MVC model

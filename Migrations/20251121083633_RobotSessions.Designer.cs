@@ -12,8 +12,8 @@ using bloom.Data;
 namespace bloom.Migrations
 {
     [DbContext(typeof(BloomDbContext))]
-    [Migration("20251119003537_initMigration")]
-    partial class initMigration
+    [Migration("20251121083633_RobotSessions")]
+    partial class RobotSessions
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -430,7 +430,7 @@ namespace bloom.Migrations
 
                     b.HasIndex("RegisteredUserId");
 
-                    b.ToTable("Robots");
+                    b.ToTable("Robots", (string)null);
                 });
 
             modelBuilder.Entity("bloom.Models.RobotSession", b =>
@@ -448,9 +448,17 @@ namespace bloom.Migrations
                     b.Property<int>("Robots")
                         .HasColumnType("int");
 
+                    b.Property<string>("SessionCode")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("varchar(255)");
+
                     b.HasKey("Id");
 
-                    b.ToTable("RobotSessions");
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RobotSessions", (string)null);
                 });
 
             modelBuilder.Entity("bloom.Models.RobotStateHistory", b =>
@@ -595,9 +603,20 @@ namespace bloom.Migrations
                 {
                     b.HasOne("bloom.Models.Account", "RegisteredUser")
                         .WithMany("RegisteredRobots")
-                        .HasForeignKey("RegisteredUserId");
+                        .HasForeignKey("RegisteredUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("RegisteredUser");
+                });
+
+            modelBuilder.Entity("bloom.Models.RobotSession", b =>
+                {
+                    b.HasOne("bloom.Models.Account", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("bloom.Models.RobotStateHistory", b =>

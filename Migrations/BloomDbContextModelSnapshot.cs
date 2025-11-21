@@ -445,6 +445,9 @@ namespace bloom.Migrations
                     b.Property<int>("Robots")
                         .HasColumnType("int");
 
+                    b.Property<string>("SessionCode")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("UserId")
                         .HasColumnType("varchar(255)");
 

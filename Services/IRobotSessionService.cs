@@ -74,5 +74,18 @@ namespace bloom.Services
         /// </summary>
         /// <returns>Collection of all RobotSessions</returns>
         Task<IEnumerable<RobotSession>> GetAllSessionsAsync();
+
+        /// <summary>
+        /// Generates and assigns a unique 6-digit session code to a session
+        /// </summary>
+        /// <returns>The generated session code</returns>
+        Task<string> GenerateSessionCodeAsync();
+
+        /// <summary>
+        /// Gets a session by its session code
+        /// </summary>
+        /// <param name="code">The 6-digit session code</param>
+        /// <returns>The RobotSession or null if not found</returns>
+        Task<RobotSession?> GetSessionByCodeAsync(string code);
     }
 }

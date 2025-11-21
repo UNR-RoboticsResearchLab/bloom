@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace bloom.Migrations
 {
     /// <inheritdoc />
-    public partial class initMigration : Migration
+    public partial class RobotSessions : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -114,21 +114,6 @@ namespace bloom.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Classrooms", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "RobotSessions",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    LastUpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    Robots = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_RobotSessions", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -260,7 +245,33 @@ namespace bloom.Migrations
                         name: "FK_Robots_Accounts_RegisteredUserId",
                         column: x => x.RegisteredUserId,
                         principalTable: "Accounts",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "RobotSessions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UserId = table.Column<string>(type: "varchar(255)", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    SessionCode = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    LastUpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    Robots = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RobotSessions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RobotSessions_Accounts_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Accounts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -369,41 +380,6 @@ namespace bloom.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "RobotStateHistories",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    RobotSessionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    RobotState_Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    RobotState_RobotId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    RobotState_Status = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    RobotState_CurrentTask = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    RobotState_CurrentBehaviorId = table.Column<int>(type: "int", nullable: true),
-                    RobotState_LastStatusChange = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    RobotState_SpeechLog = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Timestamp = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_RobotStateHistories", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_RobotStateHistories_Behavior_RobotState_CurrentBehaviorId",
-                        column: x => x.RobotState_CurrentBehaviorId,
-                        principalTable: "Behavior",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_RobotStateHistories_RobotSessions_RobotSessionId",
-                        column: x => x.RobotSessionId,
-                        principalTable: "RobotSessions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "Assignments",
                 columns: table => new
                 {
@@ -436,6 +412,41 @@ namespace bloom.Migrations
                         name: "FK_Assignments_Lessons_LessonId",
                         column: x => x.LessonId,
                         principalTable: "Lessons",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "RobotStateHistories",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    RobotSessionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    RobotState_Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    RobotState_RobotId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    RobotState_Status = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RobotState_CurrentTask = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RobotState_CurrentBehaviorId = table.Column<int>(type: "int", nullable: true),
+                    RobotState_LastStatusChange = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    RobotState_SpeechLog = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Timestamp = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RobotStateHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RobotStateHistories_Behavior_RobotState_CurrentBehaviorId",
+                        column: x => x.RobotState_CurrentBehaviorId,
+                        principalTable: "Behavior",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_RobotStateHistories_RobotSessions_RobotSessionId",
+                        column: x => x.RobotSessionId,
+                        principalTable: "RobotSessions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -512,6 +523,11 @@ namespace bloom.Migrations
                 name: "IX_Robots_RegisteredUserId",
                 table: "Robots",
                 column: "RegisteredUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RobotSessions_UserId",
+                table: "RobotSessions",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RobotStateHistories_RobotSessionId",

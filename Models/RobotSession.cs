@@ -16,6 +16,9 @@ namespace bloom.Models
         public string? UserId { get; set; }
         public Account? User { get; set; }
 
+        // 6-digit session code for easy session sharing/access
+        public string? SessionCode { get; set; }
+
         // Timestamp when the session was created
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

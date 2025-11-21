@@ -50,18 +50,7 @@ namespace bloom.Controllers
             try
             {
                 var sessions = await _sessionService.GetAllSessionsAsync();
-
-                var sessionDtos = sessions.Select(async s => new RobotSessionResponseDto
-                {
-                    Id = s.Id,
-                    UserId = s.UserId,
-                    CreatedAt = s.CreatedAt,
-                    LastUpdatedAt = s.LastUpdatedAt,
-                    Robots = s.Robots,
-                    LastState = s.StateHistory?.OrderByDescending(sh => sh.Timestamp).Last().RobotState
-                }).ToList();
-
-                return Ok(sessionDtos);
+                return Ok(sessions);
             }
             catch (Exception ex)
             {

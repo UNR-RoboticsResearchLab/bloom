@@ -76,5 +76,60 @@ namespace bloom.Services
                 return false;
             }
         }
+
+        public bool UpdateRobotAsync(Guid robotId, RobotDto robot)
+        {
+            var existingRobot = _dbContext.Robots.FirstOrDefault(r => r.Id == robotId);
+            if (existingRobot == null)
+            {
+                return false;
+            }
+
+            existingRobot.Name = robot.Name;
+            existingRobot.Model = robot.Model;
+            existingRobot.SerialNumber = robot.SerialNumber;
+            existingRobot.ManufactureDate = robot.ManufactureDate;
+            existingRobot.FirmwareVersion = robot.FirmwareVersion;
+            existingRobot.IPAddress = robot.IPAddress;
+            existingRobot.RegisteredUserId = robot.RegisteredUserId;
+
+            try
+            {
+                _dbContext.SaveChangesAsync();
+                return true;
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"Exception occurred on service RobotService: {ex.Message}");
+                return false;
+            }
+        }
+
+        public bool DeleteRobotAsync(Guid robotId)
+        {
+            var robot = _dbContext.Robots.FirstOrDefault(r => r.Id == robotId);
+            if (robot == null)
+            {
+                return false;
+            }
+
+            _dbContext.Robots.Remove(robot);
+
+            try
+            {
+                _dbContext.SaveChangesAsync();
+                return true;
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"Exception occurred on service RobotService: {ex.Message}");
+                return false;
+            }
+        }
+
+        public Robot? GetRobotByIdAsync(Guid robotId)
+        {
+            return _dbContext.Robots.FirstOrDefault(r => r.Id == robotId);
+        }
     }
 }

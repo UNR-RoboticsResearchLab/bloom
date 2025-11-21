@@ -44,6 +44,28 @@ namespace bloom.Services
          */
         bool RegisterRobotAsync(RobotDto robot);
 
+        /**
+         * <summary>
+         * UpdateRobotAsync() updates an existing robot's information.
+         * </summary>
+         * <returns>bool</returns>
+         */
+        bool UpdateRobotAsync(Guid robotId, RobotDto robot);
 
+        /**
+         * <summary>
+         * DeleteRobotAsync() deletes a robot from the system.
+         * </summary>
+         * <returns>bool</returns>
+         */
+        bool DeleteRobotAsync(Guid robotId);
+
+        /**
+         * <summary>
+         * GetRobotByIdAsync() gets a specific robot by its ID.
+         * </summary>
+         * <returns>Robot or null</returns>
+         */
+        Robot? GetRobotByIdAsync(Guid robotId);
     }
 }

@@ -7,6 +7,7 @@
 using bloom.Models;
 using bloom.Data;
 using bloom.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace bloom.Services
 {
@@ -15,28 +16,36 @@ namespace bloom.Services
         private readonly BloomDbContext _dbContext;
         private readonly IRobotSessionRepository _sessionRepository;
         private readonly IRobotStateRepository _stateRepository;
+        private readonly ISessionCodeService _sessionCodeService;
 
         public RobotSessionService(
             BloomDbContext dbContext,
             IRobotSessionRepository sessionRepository,
-            IRobotStateRepository stateRepository)
+            IRobotStateRepository stateRepository,
+            ISessionCodeService sessionCodeService)
         {
             _dbContext = dbContext;
             _sessionRepository = sessionRepository;
             _stateRepository = stateRepository;
+            _sessionCodeService = sessionCodeService;
         }
 
         public async Task<RobotSession> StartSessionAsync(string? userId = null, bool anon = false)
         {
+
+            var sessionId = Guid.NewGuid();
+
             var session = new RobotSession
             {
                 UserId = anon ? null : userId,
                 CreatedAt = DateTime.UtcNow,
                 LastUpdatedAt = DateTime.UtcNow,
-                Robots = 0
+                Robots = 0,
+                SessionCode = await GenerateSessionCodeAsync()
             };
 
             await _sessionRepository.AddAsync(session);
+
             return session;
         }
 
@@ -169,6 +178,33 @@ namespace bloom.Services
         public async Task<IEnumerable<RobotSession>> GetAllSessionsAsync()
         {
             return await _sessionRepository.GetAllAsync();
+        }
+
+        public async Task<string> GenerateSessionCodeAsync()
+        {
+            
+            string code;
+            int attempts = 0;
+            const int maxAttempts = 10;
+
+            // Generate unique code with retry logic
+            do
+            {
+                code = _sessionCodeService.GenerateSessionCode();
+                if (!await _sessionCodeService.CodeExistsAsync(code))
+                    break;
+                attempts++;
+            } while (attempts < maxAttempts);
+
+            if (attempts >= maxAttempts)
+                throw new InvalidOperationException("Failed to generate unique session code after maximum attempts");
+
+            return code;
+        }
+
+        public async Task<RobotSession?> GetSessionByCodeAsync(string code)
+        {
+            return await _dbContext.RobotSessions.FirstOrDefaultAsync(rs => rs.SessionCode == code);
         }
     }
 }

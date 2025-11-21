@@ -28,10 +28,11 @@ int main(int argc, char ** argv)
 	// todo: move to helper
 	auto config_mgr = std::make_shared<configuration_manager::ConfigurationManager>(node);
 
-	fs::path dir = "./config";
+	fs::path dir = "src/bloom_node/config";
 
 	if (!fs::exists(dir) || !fs::is_directory(dir)) {
         RCLCPP_ERROR(node->get_logger(), "The provided path is not a directory or does not exist.\n");
+        RCLCPP_ERROR(node->get_logger(), dir.c_str());
         return 1;
     }
 

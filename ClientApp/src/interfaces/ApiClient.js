@@ -1,92 +1,64 @@
-// ApiClient.js
-// interface used to communicate with api, provided by ApiClientContext, with useApiClient()
+export default class ApiClient {
+  constructor(baseUrl) {
+    this.baseUrl = baseUrl;
+    console.log("API Baseurl:" + baseUrl);
+  }
 
-export default class ApiClient
-{
-    constructor(basurl) {
-        this.baseurl = basurl;
-        console.log("API Baseurl:" + basurl);
+  async request(endpoint, options = {}) {
+    const url = `${this.baseUrl}${endpoint}`;
+    const headers = {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    };
+
+    const response = await fetch(url, { ...options, headers });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
-
-    async request(endpoint, options = {}) {
-        const url = `${this.baseUrl}${endpoint}`;
-        const headers = {
-          "Content-Type": "application/json",
-          ...(options.headers || {}),
-        };
-      
-        const response = await fetch(url, { ...options, headers });
-      
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-      
-        // try to parse JSON, but allow empty responses
-        try {
-          return await response.json();
-        } catch {
-          return null;
-        }
+    try {
+      return await response.json();
+    } catch {
+      return null;
     }
+  }
 
-    async signUp(username, fullName, email, password, role, navigate, setErr) {
 
-        console.log("APICLIENT");
-        var user = {
-            username: username,
-            fullName: fullName,
-            email: email,
-            password: password,
-            selectedRole: role
-        }
+async signUp(payload) {
+    const body = {
+      username: payload.email,
+      fullName: payload.fullName,
+      email: payload.email,
+      password: payload.password,
+      selectedRole: payload.role,
+    };
 
-        try {
-            const response = await fetch(`${this.baseurl}/account/create`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(user),
-            });
+    const res = await this.request("/account/create", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
 
-            if (response.ok) {
-                // navigate("/login", { replace: true });
-            } else {
-                const data = await response.json();
-                setErr(data.message || "Sign up failed");
-            }
-        } catch (err) {
-            setErr("Network error");
-            console.error(err);
-        }
+    return res;
+}
 
-        
-    }
 
-    async signIn(email, password) {
-        const res = await fetch(`${this.baseurl}/account/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-        }).then(
-            (response) => {
-                if (response.ok) {
-                    // navigate('/dashboard', { replace: true });
-                }
-                else {
-                    return response.json().then((data) => {
-                        // setErr(data.message || "Sign in failed");
-                    });
-                }
-            }
-        );
+async signIn(email, password) {
+    const payload = { email, password };
 
-        return res;
-    }
+    const data = await this.request("/account/login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
 
-    async getUserProfile(id) {
-        const res = await this.request(`/account/${id}`);
-        return res;
-    }
+    return data;
+  }
 
+async getUserProfile(id) {
+    const res = await this.request(`/account/${id}`, {
+      method: "GET",
+    });
+    return res;
+  }
 }

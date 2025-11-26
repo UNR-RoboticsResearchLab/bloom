@@ -13,17 +13,32 @@ export function saveUser(user) {
 
 export function findUser(email, password) {
   const users = getUsers();
-  return users.find(
-    u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-  ) || null;
+  return (
+    users.find(
+      u =>
+        u.email.toLowerCase() === email.toLowerCase() &&
+        u.password === password
+    ) || null
+  );
 }
 
 export function signInSession(user) {
-  localStorage.setItem("authUser", JSON.stringify({ email: user.email, role: user.role, name: user.fullName || "" }));
+  localStorage.setItem(
+    "authUser",
+    JSON.stringify({
+      email: user.email,
+      role: user.role,
+      name: user.fullName || "",
+    })
+  );
 }
 
 export function getSession() {
-  try { return JSON.parse(localStorage.getItem("authUser")); } catch { return null; }
+  try {
+    return JSON.parse(localStorage.getItem("authUser"));
+  } catch {
+    return null;
+  }
 }
 
 export function signOut() {
@@ -31,11 +46,20 @@ export function signOut() {
 }
 
 export function dashboardPathForRole(role) {
-  switch (role) {
-    case "admin":   return "/dashboard/admin";
-    case "teacher": return "/dashboard/teacher";
-    case "student": return "/dashboard/student";
-    case "slp":     return "/dashboard/slp";
-    default:        return "/sign-in";
+  if (!role) return "/sign-in";
+
+  const normalized = role.toLowerCase();
+  console.log("dashboardPathForRole called with role:", role);
+  switch (normalized) {
+    case "admin":
+      return "/dashboard/admin";
+    case "teacher":
+      return "/dashboard/teacher";
+    case "student":
+      return "/dashboard/student";
+    case "slp":
+      return "/dashboard/slp";
+    default:
+      return "/sign-in";
   }
 }

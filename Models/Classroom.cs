@@ -21,6 +21,8 @@ namespace bloom.Models
 
         // Navigation properties
         public ICollection<Account>? Students { get; set; }
-        public required ICollection<Account> Teachers { get; set; }
+        public ICollection<Account>? Teachers { get; set; }
+        public ICollection<Assignment>? Assignments { get; set; }
+        public ICollection<Lesson>? Lessons { get; set; }
     }
 }

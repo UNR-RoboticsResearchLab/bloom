@@ -17,7 +17,6 @@ export default function DashboardLayout({ title, children, actions = null }) {
   const session = getSession();
   const location = useLocation();
 
-  // Build breadcrumbs from pathname: /dashboard/admin -> Home / Dashboard / Admin
   const parts = location.pathname.split("/").filter(Boolean);
   const crumbs = [{ to: "/", label: "Home" }].concat(
     parts.map((seg, i) => ({
@@ -61,26 +60,6 @@ export default function DashboardLayout({ title, children, actions = null }) {
                 </ol>
               </nav>
 
-              {/* Section nav (pills, no bullets) */}
-              <ul className="m-0 mt-3 flex list-none flex-wrap gap-2 p-0">
-                {nav.map((item) => (
-                  <li key={item.to}>
-                    <NavLink
-                      to={item.to}
-                      className={({ isActive }) =>
-                        cls(
-                          "inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium shadow-xs ring-1 ring-inset",
-                          isActive
-                            ? "bg-indigo-600 text-white ring-indigo-600"
-                            : "bg-white text-indigo-700 ring-indigo-200 hover:bg-indigo-50"
-                        )
-                      }
-                    >
-                      {item.label}
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
             </div>
 
             {/* Right side actions */}

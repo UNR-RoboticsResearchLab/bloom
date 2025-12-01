@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApiClient } from "../context/ApiClientContext";
-import { saveUser, signInSession, dashboardPathForRole } from "../utils/auth";
+import { signInSession, dashboardPathForRole } from "../utils/auth";
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -9,18 +9,43 @@ export default function SignUp() {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("");
   const [err, setErr] = useState("");
-  const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(e) {
+  const navigate = useNavigate();
+  const api = useApiClient();
+
+  async function handleSubmit(e) {
     e.preventDefault();
+    setErr("");
+
     if (!role) {
       setErr("Please select a role");
       return;
     }
-    const user = { email, password, fullName, role };
-    saveUser(user);
-    signInSession(user);
-    navigate(dashboardPathForRole(role), { replace: true });
+
+    setSubmitting(true);
+
+    try {
+      const payload = { email, password, fullName, role };
+      const result = await api.signUp(payload);
+
+      const userRole = result?.role || result?.selectedRole || role;
+      const userName = result?.fullName || fullName;
+      const userEmail = result?.email || email;
+
+      signInSession({
+        email: userEmail,
+        role: userRole,
+        fullName: userName,
+      });
+
+      navigate(dashboardPathForRole(userRole), { replace: true });
+    } catch (error) {
+      console.error("Sign up error:", error);
+      setErr(error.message || "Sign up failed");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

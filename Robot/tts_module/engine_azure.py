@@ -20,6 +20,10 @@ class SynthesisMetrics:
         self.success = success
         self.error_reason = error_reason
 
+"""
+Azure TTS implementation for the Bloom robot
+Supports text-to-speech with viseme data for mouth animation
+"""
 class AzureTTSEngine(TTSEngineInterface):
     def __init__(self,
                  subscription_key: str, 
@@ -45,7 +49,7 @@ class AzureTTSEngine(TTSEngineInterface):
         voice = voice_id if voice_id else self.default_voice
         self.speech_config.speech_synthesis_voice_name = voice
 
-        audio_filename = f"BlossomResponse.wav"
+        audio_filename = f"BloomResponse.wav"
         audio_config = speechsdk.audio.AudioOutputConfig(filename=audio_filename)
 
         synthesizer = speechsdk.SpeechSynthesizer(
@@ -55,8 +59,9 @@ class AzureTTSEngine(TTSEngineInterface):
 
         viseme_events: List[VisemeEvent] = []
         if include_viseme:
+            # Capture viseme events as they arrive so we can sync mouth animation
             def viseme_callback(evt: speechsdk.SpeechSynthesisVisemeEventArgs):
-                offset_ms = int(evt.audio_offset / 10000)
+                offset_ms = int(evt.audio_offset / 10000)  # Convert from 100-nanosecond units to ms
                 viseme_events.append(VisemeEvent(timestamp_ms=offset_ms, viseme_id=str(evt.viseme_id)))
             synthesizer.viseme_received.connect(viseme_callback)
 
@@ -66,7 +71,7 @@ class AzureTTSEngine(TTSEngineInterface):
         t_end = time.time()
         total_latency_ms = (t_end - t_start) * 1000
 
-        #These metrics aren't available for all voices and regions so this try except statement handles that
+        # These metrics aren't available for all voices and regions so this try except statement handles that
         first_byte_latency_ms = None
         network_latency_ms = None
         try:

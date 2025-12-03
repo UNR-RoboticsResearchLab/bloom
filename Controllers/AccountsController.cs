@@ -14,13 +14,13 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 namespace bloom.Controllers;
 
 [ApiController]
-[Route("[controller]")]
-public class AccountController : ControllerBase
+[Route("api/[controller]")]
+public class AccountsController : ControllerBase
 {
 
     private readonly IAccountService _accountService;
 
-    public AccountController(IAccountService accountService)
+    public AccountsController(IAccountService accountService)
     {
         _accountService = accountService;
     }
@@ -38,13 +38,13 @@ public class AccountController : ControllerBase
 
         if (!res.Succeeded)
         {
-            return Unauthorized(new { Message = "Invalid login attempt." });
+            return BadRequest(new { Message = "Invalid login attempt." });
         }
 
         var user = await _accountService.GetByEmailAsync(account.Email);
         if (user == null)
         {
-            return NotFound(new { Message = "User not found. " });
+            return BadRequest(new { Message = "User not found. " });
         }
 
         // todo: move to helper function 
@@ -68,7 +68,8 @@ public class AccountController : ControllerBase
                 UserName = user.UserName,
                 Email = user.Email,
                 FullName = user.FullName,
-                EmailConfirmed = user.EmailConfirmed
+                EmailConfirmed = user.EmailConfirmed,
+                Role = user.Role
             }
         });
 
@@ -100,6 +101,12 @@ public class AccountController : ControllerBase
             case "STUDENT":
                 result = await _accountService.RegisterStudentAsync(account);
                 break;
+            case "TEACHER":
+                result = await _accountService.RegisterTeacherAsync(account);
+                break;
+            case "SLP":
+                result = await _accountService.RegisterSLPAsync(account);
+                break;
             default:
                 return BadRequest(new { Message = "Invalid role specified." });
         }
@@ -123,7 +130,8 @@ public class AccountController : ControllerBase
                     FullName = new_user.FullName,
                     UserName = new_user.UserName,
                     Email = new_user.Email,
-                    EmailConfirmed = new_user.EmailConfirmed
+                    EmailConfirmed = new_user.EmailConfirmed,
+                    Role = new_user.Role
                 }
             });
         }

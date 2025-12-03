@@ -1,4 +1,4 @@
-#If there is too much latency in the system, this interface can be used to swap TTS model to a PI based model
+# If there is too much latency in the system, this interface can be used to swap TTS model to a PI based model
 
 from abc import ABC, abstractmethod
 from typing import List, Optional
@@ -28,6 +28,11 @@ class SynthesisMetrics:
         self.success = success
         self.error_reason = error_reason
 
+"""
+audio_filepath: Path to the generated audio file (or None if synthesis failed)
+viseme_events: List of VisemeEvent objects (with timestamp_ms and viseme_id)
+metrics: SynthesisMetrics object containing performance and status data
+"""
 class SynthesisResult:
     def __init__(
         self,
@@ -35,16 +40,23 @@ class SynthesisResult:
         viseme_events: List[VisemeEvent],
         metrics: SynthesisMetrics
     ):
-        """
-        audio_filepath: Path to the generated audio file (or None if synthesis failed)
-        viseme_events: List of VisemeEvent objects (with timestamp_ms and viseme_id)
-        metrics: SynthesisMetrics object containing performance and status data
-        """
         self.audio_filepath = audio_filepath
         self.viseme_events = viseme_events
         self.metrics = metrics
 
 class TTSEngineInterface(ABC):
+    """
+    Synthesize the given text into speech
+    Args:
+        text: Text to synthesize
+        voice_id: Optional identifier of voice to use
+        include_viseme: Whether viseme data should be produced
+    Returns:
+        SynthesisResult object containing:
+          - audio_filepath: path to the generated audio file (or None if failed)
+          - viseme_events: list of VisemeEvent objects
+          - metrics: SynthesisMetrics object with latency, success/failure, etc
+    """
     @abstractmethod
     def synthesize(
         self,
@@ -52,16 +64,4 @@ class TTSEngineInterface(ABC):
         voice_id: Optional[str] = None,
         include_viseme: bool = True
     ) -> SynthesisResult:
-        """
-        Synthesize the given text into speech.
-        Args:
-            text: Text to synthesize.
-            voice_id: Optional identifier of voice to use.
-            include_viseme: Whether viseme data should be produced.
-        Returns:
-            SynthesisResult object containing:
-              - audio_filepath: path to the generated audio file (or None if failed)
-              - viseme_events: list of VisemeEvent objects
-              - metrics: SynthesisMetrics object with latency, success/failure, etc.
-        """
         pass

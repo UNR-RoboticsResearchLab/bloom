@@ -2,4 +2,4 @@ __pycache__/
 *.pyc
 *.pyo
 current_visemes.json
-.DS_Store
+face_control.json

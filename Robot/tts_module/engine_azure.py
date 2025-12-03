@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import azure.cognitiveservices.speech as speechsdk
 
-from engine_interface import TTSEngineInterface, VisemeEvent, SynthesisResult
+from .engine_interface import TTSEngineInterface, VisemeEvent, SynthesisResult
 
 class SynthesisMetrics:
     def __init__(self,
@@ -21,8 +21,8 @@ class SynthesisMetrics:
         self.error_reason = error_reason
 
 """
-Azure TTS implementation for the Bloom robot
-Supports text-to-speech with viseme data for mouth animation
+Azure TTS implementation with viseme support for Bloom robot
+Generates speech audio and mouth-shape timeline data
 """
 class AzureTTSEngine(TTSEngineInterface):
     def __init__(self,

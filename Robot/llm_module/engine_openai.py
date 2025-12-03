@@ -3,7 +3,7 @@ from typing import List, Dict, Optional
 
 from openai import OpenAI
 
-from engine_interface import LLMEngineInterface, CompletionResult, CompletionMetrics
+from .engine_interface import LLMEngineInterface, CompletionResult, CompletionMetrics
 
 
 """

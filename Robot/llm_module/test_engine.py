@@ -1,6 +1,6 @@
-from engine_azure_openai import AzureOpenAIEngine
-from engine_openai import OpenAIEngine
-from config import (
+from .engine_azure_openai import AzureOpenAIEngine
+from .engine_openai import OpenAIEngine
+from .config import (
     AZURE_OPENAI_KEY, 
     AZURE_OPENAI_ENDPOINT, 
     AZURE_OPENAI_DEPLOYMENT,
@@ -33,16 +33,16 @@ Test basic conversation with the LLM
 def test_conversation():
     
     print("\n" + "="*60)
-    print("Testing Bloom robot conversation")
-    print(f"Using engine: {ENGINE.__class__.__name__}")
+    print("Testing conversation")
+    print(f"Engine: {ENGINE.__class__.__name__}")
     print("="*60)
     
     # Simulate a conversation
     conversation = [
-        {"role": "user", "content": "Hello! My name is Tester."}
+        {"role": "user", "content": "Hello! My name is User."}
     ]
     
-    print("\nUser: Hello! My name is Tester.")
+    print("\nUser: Hello! My name is User.")
     
     # Get response from LLM
     result = ENGINE.generate_response(

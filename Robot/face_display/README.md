@@ -16,64 +16,51 @@ Shows an animated face in a web browser with:
 
 ## Files
 
-- `blossom_face.html` - The face (open in browser)
-- `test_face.py` - Test script
-- `test_viseme_timing.py` - Shows how timing works 
-- `README.md` 
+- `blossom_face.html` - The face display
+- `test_face.py` - Opens face and shows keyboard controls
+- `test_viseme_timing.py` - Example of how timing works 
+- `README.md` - This file
 
 ## Quick Test
-
 ```bash
-# Open the face
+# Open face in browser
 python test_face.py
 
-# Or open directly
+# Or just open the HTML directly
 open blossom_face.html
 ```
 
 ## Keyboard Controls
 
-**Emotions:**
-- 1-8: Change emotions (happy, sad, etc)
-- Space: Blink
-- C: Show/hide controls
+When face is open in browser:
 
-**Visemes:**
+**Emotions:**
+- 1-8: Switch emotions (happy, sad, excited, etc)
+- Space: Blink
+- C: Toggle control panel
+
+**Viseme Testing:**
 - V: Switch to viseme mode
-- E: Switch to emotion mode  
-- T: Test all 9 mouth shapes
-- S: Show status (current mode and viseme)
-- Arrow keys: Cycle through visemes 0-21
+- E: Switch back to emotion mode  
+- T: Test all mouth shapes
+- S: Print current status to console
+- Arrow keys: Cycle through visemes manually
 
 ## How It Works
 
 The face has two modes:
 
-**Emotion Mode** (default):
-- Mouth shows curved smile/frown based on emotion
-- Used when robot is not speaking
+**Emotion Mode (default):**
+- Mouth shows smile/frown based on emotion
+- Used when robot isn't speaking
 
-**Viseme Mode** (during speech):
-- Mouth shows phoneme shapes synchronized to audio
-- Used when robot is speaking with TTS
+**Viseme Mode (during speech):**
+- Mouth shows phoneme shapes that match the audio
+- Switches shapes based on viseme timeline from TTS
 
-## Viseme Support
+## Viseme Data Format
 
-The face supports 22 Azure visemes mapped to 9 mouth shapes:
-- Closed (silence, m/p/b)
-- Wide open (father)
-- Medium open (cat, bed)
-- Narrow smile (eat, day)
-- Rounded (boot, go)
-- Diphthong (loud, boy)
-- Narrow vertical (f, v, th)
-- Narrow horizontal (t, d, s, z)
-- Puckered (ship, chip)
-
-Press Arrow Right/Left in viseme mode to see all visemes
-
-
-Example viseme data from Azure TTS:
+Azure TTS returns viseme data like this:
 ```python
 visemes = [
     {"viseme_id": 0, "audio_offset": 0},
@@ -82,10 +69,21 @@ visemes = [
 ]
 ```
 
+The face supports 22 Azure viseme IDs mapped to 9 mouth shapes:
+- 0: Closed (silence, m/p/b sounds)
+- 1-3: Open (ah, eh, uh sounds)
+- 4-5: Medium open (cat, bed sounds)  
+- 6-9: Smile shapes (ee, ay sounds)
+- 10-14: Rounded (oo, oh sounds)
+- 15-17: Narrow vertical (f, v, th)
+- 18-19: Narrow horizontal (t, d, s, z)
+- 20-21: Puckered (sh, ch)
+
+Use arrow keys in viseme mode to see each shape.
 
 ## Notes
 
-- Face runs in browser 
-- Viseme shapes are simplified (9 shapes for 22 visemes)
-- No teeth/tongue details (consistent simple style)
-- Emotion still controls eyes and background during viseme mode
+- Face runs in browser, no server needed for basic testing
+- Mouth shapes are simplified - only 9 shapes for all 22 visemes
+- No teeth or tongue rendered
+- Background color changes with emotion

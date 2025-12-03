@@ -1,4 +1,5 @@
-# If there is too much latency in the system, this interface can be used to swap TTS model to a PI based model
+# Interface for TTS engines to allow swapping between different providers if needed
+# Could switch to local/Pi-based model if latency becomes an issue
 
 from abc import ABC, abstractmethod
 from typing import List, Optional

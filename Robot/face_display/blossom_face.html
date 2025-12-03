@@ -10,6 +10,8 @@ Modifications:
 - Multiple visemes reused for similar phonemes (22 Azure visemes -> 9 shapes)
 - Added mode switching between emotion-based and viseme-based mouth for testing and robot state controller
 - Added timing synchronization for audio playback
+- Added polling system to receive commands from Python orchestrator
+- Added recording timer overlay for visual feedback during recording
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -86,9 +88,39 @@ Modifications:
             font-size: 14px;
             display: none;
         }
+
+        /* Added: Recording timer overlay */
+        #recording-timer {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        #recording-timer.visible {
+            opacity: 1;
+        }
+
+        #recording-timer.warning {
+            color: #ffcc00;
+        }
+
+        #recording-timer.urgent {
+            color: #ff6600;
+        }
     </style>
 </head>
 <body>
+    <!-- Added: Display for recording timer -->
+    <div id="recording-timer">Listening... 5s</div>
     <canvas id="faceCanvas"></canvas>
     
     <div id="controls">
@@ -725,6 +757,138 @@ Modifications:
         console.log('Orchestrator behavior:');
         console.log('  - During speech: mouth shows visemes, emotion controls eyes/background');
         console.log('  - Not speaking: emotion controls mouth, eyes, and background');
+
+        console.log('');
+        console.log('Starting automated control polling...');
+        
+        // Added: Poll for control commands from orchestrator
+        let lastCommandTimestamp = 0;
+        
+        // Added: Recording timer variables
+        let recordingTimer = null;
+        let recordingTimeLeft = 0;
+
+        //Added: Function to start recording timer display
+        function startRecordingTimer(durationSeconds) {
+            recordingTimeLeft = durationSeconds;
+            const timerElement = document.getElementById('recording-timer');
+            timerElement.classList.add('visible');
+            
+            // Update immediately
+            updateTimerDisplay();
+            
+            // Clear any existing timer
+            if (recordingTimer) {
+                clearInterval(recordingTimer);
+            }
+            
+            // Update every 100ms
+            recordingTimer = setInterval(() => {
+                recordingTimeLeft -= 0.1;
+                
+                if (recordingTimeLeft <= 0) {
+                    stopRecordingTimer();
+                } else {
+                    updateTimerDisplay();
+                }
+            }, 100);
+        }
+        //Added: Function to stop recording timer display
+        function stopRecordingTimer() {
+            const timerElement = document.getElementById('recording-timer');
+            timerElement.classList.remove('visible', 'warning', 'urgent');
+            
+            if (recordingTimer) {
+                clearInterval(recordingTimer);
+                recordingTimer = null;
+            }
+        }
+
+        //Added: Function to update recording timer display
+        function updateTimerDisplay() {
+            const timerElement = document.getElementById('recording-timer');
+            const seconds = Math.ceil(recordingTimeLeft);
+            
+            timerElement.textContent = `Listening... ${seconds}s`;
+            
+            // Change color based on time left
+            timerElement.classList.remove('warning', 'urgent');
+            if (recordingTimeLeft <= 1) {
+                timerElement.classList.add('urgent');
+            } else if (recordingTimeLeft <= 3) {
+                timerElement.classList.add('warning');
+            }
+        }
+
+        // Added: Poll for control commands from orchestrator
+        async function pollControlFile() {
+            try {
+                // Fetch control file from HTTP server
+                const response = await fetch('face_control.json?t=' + Date.now());
+                
+                if (!response.ok) {
+                    // File might not exist yet, thats okay
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                // Check if this is a new command (avoid re-executing)
+                if (data.timestamp && data.timestamp > lastCommandTimestamp) {
+                    lastCommandTimestamp = data.timestamp;
+                    
+                    // Execute command
+                    switch(data.command) {
+                        case 'set_emotion':
+                            if (data.emotion) {
+                                setEmotion(data.emotion);
+                                console.log('Orchestrator: set emotion to', data.emotion);
+                            }
+                            break;
+                        
+                        case 'set_mode':
+                            if (data.mode) {
+                                setMouthMode(data.mode);
+                                console.log('Orchestrator: set mode to', data.mode);
+                            }
+                            break;
+                        
+                        case 'set_visemes':
+                            if (data.visemes) {
+                                face.setVisemeTimeline(data.visemes);
+                                console.log('Orchestrator: loaded', data.visemes.length, 'visemes');
+                            }
+                            break;
+                        
+                        case 'start_audio_sync':
+                            face.startAudioSync();
+                            console.log('Orchestrator: started audio sync');
+                            break;
+                        
+                        case 'stop_audio_sync':
+                            face.stopAudioSync();
+                            console.log('Orchestrator: stopped audio sync');
+                            break;
+                        case 'start_recording': 
+                            startRecordingTimer(data.duration); 
+                            console.log('Orchestrator: started recording timer');
+                            break;
+                        case 'stop_recording': 
+                            stopRecordingTimer(); 
+                            console.log('Orchestrator: stopped recording timer');
+                            break;
+                        default:
+                            console.log('Unknown command:', data.command);
+                    }
+                }
+            } catch (error) {
+                // Silently ignore errors (file might not exist yet)
+                // This is normal during startup
+            }
+        }
+        
+        // Poll every 100ms for commands
+        setInterval(pollControlFile, 100);
     </script>
 </body>
 </html>

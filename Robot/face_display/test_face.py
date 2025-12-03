@@ -45,7 +45,7 @@ def show_testing_checklist():
     print("  - All mouth shapes should look consistent (same style)")
 
 def create_sample_viseme_data():
-    # Create example viseme timeline (what our Azure Enging returns for visemes)
+    # Create example viseme timeline (what Azure TTS returns)
     visemes = [
         {"viseme_id": 0, "audio_offset": 0},
         {"viseme_id": 21, "audio_offset": 1000000},

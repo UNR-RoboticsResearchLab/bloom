@@ -7,7 +7,7 @@ import sounddevice as sd
 import soundfile as sf
 import numpy as np
 
-from engine_interface import STTEngineInterface, TranscriptionResult, TranscriptionMetrics
+from .engine_interface import STTEngineInterface, TranscriptionResult, TranscriptionMetrics
 
 
 """
@@ -23,7 +23,7 @@ class AzureSTTEngine(STTEngineInterface):
         # If no device specified, try to auto-detect or load from config
         if input_device is None:
             try:
-                from config import MICROPHONE_DEVICE
+                from .config import MICROPHONE_DEVICE
                 self.input_device = MICROPHONE_DEVICE
             except ImportError:
                 # Config doesn't have MICROPHONE_DEVICE, use system default

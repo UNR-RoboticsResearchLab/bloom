@@ -1,5 +1,5 @@
-from engine_azure import AzureTTSEngine
-from config import AZURE_SUBSCRIPTION_KEY, AZURE_REGION, AZURE_DEFAULT_VOICE
+from .engine_azure import AzureTTSEngine
+from .config import AZURE_SUBSCRIPTION_KEY, AZURE_REGION, AZURE_DEFAULT_VOICE
 
 def main():
     engine = AzureTTSEngine(

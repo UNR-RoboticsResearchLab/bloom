@@ -1,10 +1,10 @@
-from engine_azure import AzureSTTEngine
-from engine_whisper import WhisperSTTEngine
-from config import AZURE_SUBSCRIPTION_KEY, AZURE_REGION, OPENAI_API_KEY
+from .engine_azure import AzureSTTEngine
+from .engine_whisper import WhisperSTTEngine
+from .config import AZURE_SUBSCRIPTION_KEY, AZURE_REGION, OPENAI_API_KEY
 
 # Try to load microphone device from config
 try:
-    from config import MICROPHONE_DEVICE
+    from .config import MICROPHONE_DEVICE
 except ImportError:
     MICROPHONE_DEVICE = None
 

@@ -7,6 +7,8 @@
 
 #include <curl/curl.h>
 #include "bloom_node/json.hpp"
+#include "bloom_node/thread_pool.h"
+#include "bloom_node/curl_pool.h"
 
 #include <string>
 #include <functional>
@@ -16,64 +18,55 @@
 #include <atomic>
 #include <chrono>
 #include <optional>
+#include <memory>
 
 namespace web_service_client
 {
-    
+
     using json = nlohmann::json;
     using namespace std::chrono_literals;
-    
-/// WebServiceClient provides a configurable curl wrapper for basic, get, post, and postJson
-///    requests. It can make basic requests with sendPostAsync() or sendGetAsync(). It can
-///    also make robot-specific requests, like getStatus(), getSessionId(), getLessonId(),
-///    and getUserId(), as well as putStatus(), and authenticate().
+
+/**
+ * Thread-safe HTTP client with connection pooling and bounded thread pool.
+ * Provides async HTTP operations (GET, POST, PUT, DELETE, PATCH) with configurable
+ * timeouts, retries, and SSL verification.
+ */
 class WebServiceClient : public rclcpp::Node {
 
 public:
 
-
     using ResponseCallback = std::function<void(const std::string &body, long http_code)>;
 
+    /// Construct with node name, base URL, and optional thread/connection pool sizes
     WebServiceClient(
         const std::string &node_name,
         const std::string &base_url,
         int default_timeout_ms = 5000,
-        int max_retries = 2
+        int max_retries = 2,
+        size_t thread_pool_size = 4,
+        size_t curl_pool_size = 4,
+        bool verify_ssl = true
     );
 
+    /// Construct without explicit node name
     WebServiceClient(
         const std::string &base_url,
         int default_timeout_ms = 5000,
-        int max_retries = 2
+        int max_retries = 2,
+        size_t thread_pool_size = 4,
+        size_t curl_pool_size = 4,
+        bool verify_ssl = true
     );
 
     ~WebServiceClient() override;
 
-    std::string getStatus();
+    // Non-copyable, non-movable
+    WebServiceClient(const WebServiceClient &) = delete;
+    WebServiceClient & operator=(const WebServiceClient &) = delete;
+    WebServiceClient(WebServiceClient &&) = delete;
+    WebServiceClient & operator=(WebServiceClient &&) = delete;
 
-    bool putStatus();
-
-    std::string getSessionId();
-
-    std::string getLessonId();
-
-    std::string getUserId();
-
-    bool authenticate();
-
-    bool registerRobot(
-        std::string name,
-        std::string serial_num,
-        std::string ip,
-        std::string firmware_ver,
-        std::string model,
-        std::string manufacture_date
-    );
-
-    bool postState(std::string state);
-
-
-    // Asynchronous request - returns std::future of same pair
+    // Asynchronous HTTP requests
     std::future<std::pair<std::string, long>> sendGetAsync(
         const std::string &path,
         const std::optional<std::string> &query = std::nullopt,
@@ -86,27 +79,39 @@ public:
         const std::vector<std::string> &headers = {},
         ResponseCallback on_response = nullptr);
 
-    // Convenience: send JSON POST (body will be serialized from nlohmann::json)
     std::future<std::pair<std::string, long>> sendJsonPostAsync(
         const std::string &path,
         const json &payload,
         const std::vector<std::string> &headers = {},
         ResponseCallback on_response = nullptr);
 
-    // Publish the raw response body on a topic (std_msgs::msg::String)
-    // Topic name default: "web_service/response"
+    std::future<std::pair<std::string, long>> sendRequestAsync(
+        const std::string &method,
+        const std::string &path,
+        const std::optional<std::string> &body = std::nullopt,
+        const std::optional<std::string> &query = std::nullopt,
+        const std::vector<std::string> &headers = {},
+        ResponseCallback on_response = nullptr);
+
+    // Configure SSL verification (true = verify peer certs, false = skip verification)
+    void setVerifySSL(bool verify) { verify_ssl_ = verify; }
+
+    // Publish HTTP responses to a ROS topic
     void enableResponsePublisher(const std::string &topic_name = "web_service/response");
 
-    // Set an optional authentication header (e.g. "Authorization: Bearer ...")
+    // Set authentication header (e.g., "Authorization: Bearer <token>")
     void setAuthHeader(const std::string &auth_header);
 
+    // Get performance statistics
+    size_t getThreadPoolQueueSize() const;
+    size_t getCurlPoolAvailable() const;
 
 private:
 
-    std::string ipAddr;
-    // Helpers for curl
+    // Static callback for CURL write operations
     static size_t writeCallback(char *ptr, size_t size, size_t nmemb, void *userdata);
 
+    // Synchronous request execution (called by async methods via thread pool)
     std::pair<std::string, long> performRequest(
         const std::string &method,
         const std::string &url,
@@ -115,29 +120,26 @@ private:
         int timeout_ms,
         int retries);
 
+    // Build full URL from path and query parameters
     std::string buildUrl(const std::string &path, const std::optional<std::string> &query);
 
     // Members
     std::string base_url_;
     int default_timeout_ms_;
     int max_retries_;
-    std::string auth_header_;  // optional auth header (prefixed exactly as desired)
-    
-    std::mutex curl_init_mutex_;  // protects global curl init/cleanup if needed
+    bool verify_ssl_;
+    std::string auth_header_;
+
     std::atomic<bool> running_{true};
-        
+
+    // Thread and connection management
+    std::unique_ptr<bloom_node::ThreadPool> thread_pool_;
+    std::unique_ptr<bloom_node::CurlPool> curl_pool_;
+
     // ROS publishers / services
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr response_pub_;
     bool publish_responses_{false};
-
-    // A simple ROS service to trigger a GET to a given path provided via parameter
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr trigger_service_;
-
-    // Internal worker pool uses std::async; no explicit pool here for simplicity
-
-    // Logging helper
-    rclcpp::Logger logger_ = this->get_logger();
-
 };
 
 } // namespace web_service_client

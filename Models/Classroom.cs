@@ -10,8 +10,8 @@ namespace bloom.Models
 {
     public class Classroom
     {
-        [Required]
-        public required string Id { get; set; }
+        [Key]
+        public Guid Id { get; set; } = Guid.NewGuid();
         [Required]
         public required string Name { get; set; }
         public DateTime CreatedDate { get; set; }

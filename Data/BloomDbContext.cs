@@ -7,6 +7,7 @@ using bloom.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace bloom.Data
 {
@@ -17,9 +18,12 @@ namespace bloom.Data
         public DbSet<Assignment> Assignments { get; set; }
         public DbSet<Classroom> Classrooms { get; set; }
         public DbSet<Robot> Robots { get; set; }
+        public DbSet<RobotSession> RobotSessions { get; set; }
+        public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
+            
             
         }
 
@@ -74,6 +78,29 @@ namespace bloom.Data
                     .WithMany();
             });
 
+            builder.Entity<RobotSession>(entity =>
+            {
+                entity.ToTable("RobotSessions");
+
+                entity.HasOne(rs => rs.User)
+                    .WithMany()
+                    .HasForeignKey(rs => rs.UserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            builder.Entity<RobotStateHistory>(entity =>
+            {
+                entity.ToTable("RobotStateHistories");
+
+                entity.HasOne(r => r.RobotSession)
+                    .WithMany(s => s.StateHistory)
+                    .HasForeignKey(r => r.RobotSessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Configure RobotState as an owned entity (since it's marked with [Owned])
+                entity.OwnsOne(r => r.RobotState);
+            });
+
             builder.Entity<Robot>(entity => { 
                 entity.HasOne(r => r.RegisteredUser)
                     .WithMany(a => a.RegisteredRobots)
@@ -85,7 +112,7 @@ namespace bloom.Data
 
         public static async Task SeedDatabaseRoles(RoleManager<IdentityRole> roleMgr)
         {
-            string[] roleNames = { "Admin", "Facilitator", "Student" };
+            string[] roleNames = { "Admin", "SLP", "Student", "Teacher", "Facilitator" };
 
             foreach (var roleName in roleNames)
             {

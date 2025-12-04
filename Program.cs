@@ -2,22 +2,44 @@ using System.Net;
 using bloom.Models;
 using bloom.Services;
 using bloom.Data;
+using bloom.Repositories;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Options;
 using Pomelo.EntityFrameworkCore.MySql.Internal;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Get ConnectionString
 var build_environmment = builder.Environment.EnvironmentName;
 var ConnectionString = build_environmment == "Production"
-        ? builder.Configuration.GetConnectionString("ProductionConnection") : builder.Configuration.GetConnectionString("DefaultConnection");
+        ? builder.Configuration.GetConnectionString("ProductionConnection") 
+        : builder.Configuration.GetConnectionString("DefaultConnection");
 
 Console.WriteLine($"ConnectionString: {ConnectionString}");
 
 //  ============ Add services to the container. ============
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
+    .SetApplicationName("BloomServer")
+    .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
+
+builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+if (build_environmment == "Development")
+{
+    // builder.WebHost.ConfigureKestrel(options =>
+    // {
+    //     options.ListenAnyIP(8080);   // HTTP
+    //     options.ListenAnyIP(2443, listenOptions => listenOptions.UseHttps()); // HTTPS optional
+    // });
+}
 
 // Add DB Context
 builder.Services.AddDbContext<BloomDbContext>(options =>
@@ -30,9 +52,6 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
 
     )));
 
-// Add Services
-builder.Services.AddScoped<IAccountService, AccountService>();
-builder.Services.AddScoped<IRobotService, RobotService>();
 
 // Add identity
 builder.Services.AddIdentity<Account, IdentityRole>(options =>
@@ -44,6 +63,15 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
 .AddEntityFrameworkStores<BloomDbContext>()
 .AddDefaultTokenProviders();
 
+// =========== Add Custom Services ===========
+builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IRobotService, RobotService>();
+
+// Add RobotSession Services and Repositories
+builder.Services.AddSingleton<IRobotStateRepository, InMemoryRobotStateRepository>();
+builder.Services.AddScoped<IRobotSessionRepository, RobotSessionRepository>();
+builder.Services.AddScoped<ISessionCodeService, SessionCodeService>();
+builder.Services.AddScoped<IRobotSessionService, RobotSessionService>();
 
 // Add MVC model
 builder.Services.AddControllersWithViews();
@@ -62,13 +90,6 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Name = "bloom_cookie";
     });
 
-// authorization policies
-builder.Services.AddAuthorization(options =>
-{
-    // options.AddPolicy(
-    //     //only Admins can create accounts
-    //     "CanCreateAccount", policy => policy.RequireRole("Admin", "Facilitator"));
-});
 
 builder.Services.AddSession(options =>
 {
@@ -77,16 +98,42 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+// Enable CORS for development
+// TODO: add production check
+builder.Services.AddCors(options => {
+    options.AddDefaultPolicy(policy => {
+        policy
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+// authorization policies
+builder.Services.AddAuthorization(options =>
+{
+    // options.AddPolicy(
+    //     //only Admins can create accounts
+    //     "CanCreateAccount", policy => policy.RequireRole("Admin", "Facilitator"));
+});
+
 var app = builder.Build();
 
 // ============ Configure the HTTP request pipeline. ============
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+else
+{
     app.UseHsts();
 }
 
 // app.UseHttpsRedirection();
+app.UseCors();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
@@ -116,6 +163,6 @@ using (var scope = app.Services.CreateScope())
 //     pattern: "{controller}/{action=Index}/{id?}");
 app.MapControllers();
 
-app.MapFallbackToFile("index.html");;
+app.MapFallbackToFile("index.html");
 
 app.Run();

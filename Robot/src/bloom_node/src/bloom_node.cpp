@@ -11,6 +11,7 @@
 #include "bloom_node/state_manager.h"
 #include "bloom_node/web_service_client.h"
 #include "bloom_node/configuration_manager.h"
+#include "bloom_node/json.hpp"
 
 namespace fs = std::filesystem;
 
@@ -39,15 +40,17 @@ int main(int argc, char ** argv)
     // Vector to store file paths
     std::vector<fs::path> files;
 
-    // Loop through the directory and store all file paths
-    for (const auto& entry : fs::directory_iterator(dir)) {
-        if (fs::is_regular_file(entry)) {
-            files.push_back(entry.path());
-        }
-    }
+	// Loop through the directory and store all file paths
+	for (const auto& entry : fs::directory_iterator(dir)) {
+		if (fs::is_regular_file(entry)) {
+			files.push_back(entry.path());
+		}
+	}
 	std::sort(files.begin(), files.end());
 
-	config_mgr->load_from_file(files.front().c_str());
+	if (!files.empty()) {
+		config_mgr->load_from_file(files.front().c_str());
+	}
 
 	auto state_mgr = std::make_shared<state_manager::StateManager>(rclcpp::NodeOptions());
 
@@ -59,7 +62,30 @@ int main(int argc, char ** argv)
 	  	2
 	);
 
-	
+	// Example: Start a session with a POST request to /api/robot/sessions
+	nlohmann::json session_payload = {
+		{"anonymous", false}
+	};
+
+	web_client->enableResponsePublisher("/status_response");
+
+	auto session_future = web_client->sendRequestAsync(
+		"POST",
+		"/api/robotsessions/",
+		session_payload.dump(),
+		std::nullopt,
+		{"Content-Type: application/json"},
+		[web_client](const std::string &body, long http_code) {
+			if (http_code >= 200 && http_code < 300) {
+				RCLCPP_INFO(web_client->get_logger(), "Session started successfully (HTTP %ld)", http_code);
+				RCLCPP_DEBUG(web_client->get_logger(), "Response: %s", body.c_str());
+			} else {
+				RCLCPP_WARN(web_client->get_logger(), "Failed to start session (HTTP %ld): %s", http_code, body.c_str());
+			}
+		}
+	);
+
+
 
 	// Multi-threaded executor to run nodes concurrently
 	rclcpp::executors::MultiThreadedExecutor executor;

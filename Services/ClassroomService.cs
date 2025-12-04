@@ -38,6 +38,10 @@ namespace bloom.Services
             {
                 Name = name
             };
+            if (classroom.Teachers == null)
+            {
+                classroom.Teachers = new List<Account>();
+            }
             classroom.Teachers.Add(teacher);
 
             await _dbContext.Classrooms.AddAsync(classroom);

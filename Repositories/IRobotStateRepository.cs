@@ -12,6 +12,12 @@ namespace bloom.Repositories
         void ClearSession(string sessionId);
         int GetStateChangeCount(string sessionId, Guid robotId);
         void ResetStateChangeCount(string sessionId, Guid robotId);
+
+        /// <summary>
+        /// Gets all current robot states across all active sessions
+        /// </summary>
+        /// <returns>Collection of all active RobotStates</returns>
+        IEnumerable<RobotState> GetAllCurrentStates();
     }
 
 }

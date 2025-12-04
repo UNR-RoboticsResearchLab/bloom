@@ -72,6 +72,7 @@ builder.Services.AddSingleton<IRobotStateRepository, InMemoryRobotStateRepositor
 builder.Services.AddScoped<IRobotSessionRepository, RobotSessionRepository>();
 builder.Services.AddScoped<ISessionCodeService, SessionCodeService>();
 builder.Services.AddScoped<IRobotSessionService, RobotSessionService>();
+builder.Services.AddScoped<IRobotStateService, RobotStateService>();
 
 // Add MVC model
 builder.Services.AddControllersWithViews();

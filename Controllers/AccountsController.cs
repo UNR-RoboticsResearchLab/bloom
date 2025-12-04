@@ -73,7 +73,8 @@ public class AccountsController : ControllerBase
                 UserName = user.UserName,
                 Email = user.Email,
                 FullName = user.FullName,
-                EmailConfirmed = user.EmailConfirmed
+                EmailConfirmed = user.EmailConfirmed,
+                Role = user.Role
             }
         });
 
@@ -105,6 +106,12 @@ public class AccountsController : ControllerBase
             case "STUDENT":
                 result = await _accountService.RegisterStudentAsync(account);
                 break;
+            case "TEACHER":
+                result = await _accountService.RegisterTeacherAsync(account);
+                break;
+            case "SLP":
+                result = await _accountService.RegisterSLPAsync(account);
+                break;
             default:
                 return BadRequest(new { Message = "Invalid role specified." });
         }
@@ -128,7 +135,8 @@ public class AccountsController : ControllerBase
                     FullName = new_user.FullName,
                     UserName = new_user.UserName,
                     Email = new_user.Email,
-                    EmailConfirmed = new_user.EmailConfirmed
+                    EmailConfirmed = new_user.EmailConfirmed,
+                    Role = new_user.Role
                 }
             });
         }

@@ -112,7 +112,7 @@ namespace bloom.Data
 
         public static async Task SeedDatabaseRoles(RoleManager<IdentityRole> roleMgr)
         {
-            string[] roleNames = { "Admin", "Facilitator", "Student" };
+            string[] roleNames = { "Admin", "SLP", "Student", "Teacher", "Facilitator" };
 
             foreach (var roleName in roleNames)
             {

@@ -1,24 +1,74 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { EyeSlashIcon, EyeIcon } from "@heroicons/react/24/solid";
-import { findUser, signInSession, dashboardPathForRole } from "../utils/auth";
+import { useApiClient } from "../context/ApiClientContext";
+import { signInSession, dashboardPathForRole } from "../utils/auth";
 
 export default function SignIn() {
   const [passwordShown, setPasswordShown] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
-  const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(e) {
+  const navigate = useNavigate();
+  const api = useApiClient();
+
+  async function handleSubmit(e) {
     e.preventDefault();
-    const user = findUser(email, password);
-    if (!user) {
-      setErr("Invalid email or password");
-      return;
+    setErr("");
+    setSubmitting(true);
+
+    try {
+      const data = await api.signIn(email, password);
+      console.log("Login response:", data);
+      const loginUser = data?.user;
+      if (!loginUser) {
+        throw new Error("Unexpected login response from server");
+      }
+
+      const userId = loginUser.id;
+      let userEmail = loginUser.email;
+      let fullName = loginUser.fullName;
+      let role = loginUser.role;
+
+      if (!role && userId) {
+        const profile = await api.getUserProfile(userId);
+        console.log("Profile response:", profile);
+        role = profile?.role;
+        fullName = profile?.fullName ?? fullName;
+        userEmail = profile?.email ?? userEmail;
+      }
+
+      if (!role) {
+        throw new Error("Login succeeded but no role was provided");
+      }
+
+      const user = {
+        email: userEmail,
+        fullName: fullName ?? "",
+        role: role,
+      };
+
+      signInSession(user);
+
+      const normalizedRole = role.toLowerCase();
+
+      console.log("user.role:", user.role);
+      console.log("normalizedRole:", normalizedRole);
+      navigate(dashboardPathForRole(normalizedRole), { replace: true });
+    } catch (error) {
+      console.error("Sign in error:", error);
+      if (error.message.includes("Invalid login attempt")) {
+        setErr("Invalid email or password");
+      } else if (error.message.includes("HTTP 401")) {
+        setErr("Invalid email or password");
+      } else {
+        setErr("Sign in failed. Please try again.");
+      }
+    } finally {
+      setSubmitting(false);
     }
-    signInSession(user);
-    navigate(dashboardPathForRole(user.role), { replace: true });
   }
 
   return (
@@ -95,9 +145,10 @@ export default function SignIn() {
           <div>
             <button
               type="submit"
-              className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              disabled={submitting}
+              className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"
             >
-              Sign in
+              {submitting ? "Signing in..." : "Sign in"}
             </button>
           </div>
         </form>

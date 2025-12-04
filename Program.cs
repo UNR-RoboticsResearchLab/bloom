@@ -23,17 +23,12 @@ Console.WriteLine($"ConnectionString: {ConnectionString}");
 
 //  ============ Add services to the container. ============
 
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
-    .SetApplicationName("BloomServer")
-    .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
-
-builder.Services.AddOpenApi();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 if (build_environmment == "Development")
 {
+    builder.Services.AddOpenApi();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
     // builder.WebHost.ConfigureKestrel(options =>
     // {
     //     options.ListenAnyIP(8080);   // HTTP
@@ -51,6 +46,11 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
                 errorNumbersToAdd: null
 
     )));
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
+    .SetApplicationName("BloomServer")
+    .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
 
 
 // Add identity

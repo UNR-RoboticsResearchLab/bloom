@@ -24,17 +24,19 @@ RobotStateController::RobotStateController(
 
     try {
         // TODO: check config for registration/jwt tokens - unguarded registration for now
-        // Register robot
-        RCLCPP_INFO(get_logger(), "Registering robot with backend...");
-        register_robot();
+        if (config_mgr_->get_string("robot_id").has_value()) {
+            robot_id_ = config_mgr_->get_string("robot_id").value();
+            RCLCPP_INFO(get_logger(), "Robot ID found in config: %s", robot_id_.c_str());
+        }
+        else {
+            // Register robot
+            RCLCPP_INFO(get_logger(), "Registering robot with backend...");
+            register_robot();
+        }
 
         // Start session
         RCLCPP_INFO(get_logger(), "Starting anonymous session...");
         start_session();
-
-        // Add robot to session
-        RCLCPP_INFO(get_logger(), "Adding robot to session...");
-        add_robot_to_session();
 
         // Subscribe to driver state updates
         RCLCPP_INFO(get_logger(), "Subscribing to driver state topic...");
@@ -86,17 +88,22 @@ void RobotStateController::register_robot() {
             if (http_code >= 200 && http_code < 300) {
                 try {
                     auto response = json::parse(body);
-                    if (response.contains("id")) {
-                        robot_id_ = response["id"].get<std::string>();
+                    RCLCPP_INFO(get_logger(), "Raw registration response: %s", body.c_str());
+
+                    if (response.contains("robot") && response["robot"].contains("id")) {
+                        robot_id_ = response["robot"]["id"].get<std::string>();
                         RCLCPP_INFO(get_logger(), "Robot registered successfully. ID: %s", robot_id_.c_str());
                     } else {
                         registration_error = "No ID in registration response";
                     }
                 } catch (const std::exception& e) {
                     registration_error = std::string("Failed to parse registration response: ") + e.what();
+                    RCLCPP_INFO(get_logger(), "Raw registration response: %s", body.c_str());
+
                 }
             } else {
                 registration_error = "HTTP " + std::to_string(http_code) + ": " + body;
+                
             }
             registration_done = true;
         }
@@ -117,12 +124,17 @@ void RobotStateController::register_robot() {
     if (robot_id_.empty()) {
         throw std::runtime_error("Robot registration failed: No robot ID returned");
     }
+
+    // Save configuration locally
+    config_mgr_->set_string("robot_id", robot_id_);
+    config_mgr_->save_to_file("robot.json");
 }
 
 void RobotStateController::start_session() {
     // Create session payload
     json payload = {
-        {"anonymous", true}
+        {"anonymous", true},
+        {"robotId", robot_id_}
     };
 
     // Send session creation request
@@ -145,6 +157,7 @@ void RobotStateController::start_session() {
                     }
                 } catch (const std::exception& e) {
                     session_error = std::string("Failed to parse session response: ") + e.what();
+                    RCLCPP_ERROR(get_logger(), "Raw session response: %s", body.c_str());
                 }
             } else {
                 session_error = "HTTP " + std::to_string(http_code) + ": " + body;

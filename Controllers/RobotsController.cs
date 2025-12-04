@@ -20,123 +20,125 @@ namespace bloom.Controllers
         }
 
         [HttpPost("register")]
-        public ActionResult<string> RegisterRobot([FromBody] RobotDto robot)
+        public async Task<ActionResult<string>> RegisterRobot([FromBody] RobotDto robot)
         {
             try
             {
-                var result = _robotService.RegisterRobotAsync(robot);
-                if (result)
+                var result = await _robotService.RegisterRobotAsync(robot);
+
+                if (result != Guid.Empty)
                 {
-                    return Ok("Robot registered successfully");
+                    var newRobot = await _robotService.GetRobotByIdAsync(result);
+                    return Ok(new { Message = "Robot registered successfully", Robot = newRobot });
                 }
-                return BadRequest("Failed to register robot");
+                return BadRequest(new { Message = "Failed to register robot" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error registering robot");
-                return BadRequest(ex.Message);
+                return BadRequest(new { ex.Message });
             }
         }
 
         [HttpPut("{id}")]
-        public ActionResult<string> UpdateRobot(Guid id, [FromBody] RobotDto robot)
+        public async Task<ActionResult<string>> UpdateRobot(Guid id, [FromBody] RobotDto robot)
         {
             try
             {
-                var result = _robotService.UpdateRobotAsync(id, robot);
+                var result = await _robotService.UpdateRobotAsync(id, robot);
                 if (result)
                 {
-                    return Ok("Robot updated successfully");
+                    return Ok(new { Message = "Robot updated successfully" });
                 }
-                return NotFound("Robot not found");
+                return NotFound(new { Message = "Robot not found" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating robot");
-                return BadRequest(ex.Message);
+                return BadRequest(new { ex.Message });
             }
         }
 
         [HttpDelete("{id}")]
-        public ActionResult<string> DeleteRobot(Guid id)
+        public async Task<ActionResult<string>> DeleteRobot(Guid id)
         {
             try
             {
-                var result = _robotService.DeleteRobotAsync(id);
+                var result = await _robotService.DeleteRobotAsync(id);
                 if (result)
                 {
-                    return Ok("Robot deleted successfully");
+                    return Ok(new { Message = "Robot deleted successfully" });
                 }
-                return NotFound("Robot not found");
+                return NotFound(new { Message = "Robot not found" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting robot");
-                return BadRequest(ex.Message);
+                return BadRequest(new { ex.Message });
             }
         }
 
         [HttpGet("{id}")]
-        public ActionResult<Robot> GetRobot(Guid id)
+        public async Task<ActionResult<Robot>> GetRobot(Guid id)
         {
             try
             {
-                var robot = _robotService.GetRobotByIdAsync(id);
+                var robot = await _robotService.GetRobotByIdAsync(id);
                 if (robot == null)
                 {
-                    return NotFound("Robot not found");
+                    return NotFound(new { Message = "Robot not found" });
                 }
                 return Ok(robot);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robot");
-                return BadRequest(ex.Message);
+                return BadRequest(new { ex.Message });
             }
         }
 
         [HttpGet]
-        public ActionResult<ICollection<Robot>> GetAllRobots()
+        public async Task<ActionResult<ICollection<Robot>>> GetAllRobots()
         {
             try
             {
-                var robots = _robotService.GetAllRobotsAsync();
+                var robots = await _robotService.GetAllRobotsAsync();
                 return Ok(robots);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robots");
-                return BadRequest(ex.Message);
+                return BadRequest(new { ex.Message });
             }
         }
 
         [HttpGet("user/{userId}")]
-        public ActionResult<ICollection<Robot>> GetRobotsByUserId(string userId)
+        public async Task<ActionResult<ICollection<Robot>>> GetRobotsByUserId(string userId)
         {
             try
             {
-                var robots = _robotService.GetRobotsByUserIdAsync(userId);
+                var robots = await _robotService.GetRobotsByUserIdAsync(userId);
                 return Ok(robots);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robots for user");
-                return BadRequest(ex.Message);
+                return BadRequest(new { ex.Message });
             }
         }
 
         [HttpGet("firmware/{firmwareVersion}")]
-        public ActionResult<ICollection<Robot>> GetRobotsByFirmwareVersion(string firmwareVersion)
+        public async Task<ActionResult<ICollection<Robot>>> GetRobotsByFirmwareVersion(string firmwareVersion)
         {
             try
             {
-                var robots = _robotService.GetRobotsByFirmwareVersion(firmwareVersion);
+                var robots = await _robotService.GetRobotsByFirmwareVersion(firmwareVersion);
                 return Ok(robots);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robots by firmware version");
-                return BadRequest(ex.Message);
+                return BadRequest(new { ex.Message });
             }
         }
 

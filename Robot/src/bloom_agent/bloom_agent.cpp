@@ -56,7 +56,7 @@ int main(int argc, char ** argv)
             "web_service_client",
             base_url,
             5000,  // timeout_ms
-            2      // max_retries
+            5      // max_retries
         );
         RCLCPP_INFO(config_node->get_logger(), "WebServiceClient initialized with base_url: %s", base_url.c_str());
 

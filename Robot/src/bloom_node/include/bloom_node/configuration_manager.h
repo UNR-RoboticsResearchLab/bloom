@@ -51,6 +51,7 @@ public:
 
 	// Typed getters. If the key is missing, returns std::nullopt
 	std::optional<std::string> get_string(const std::string & key) const;
+	std::optional<bool> set_string(const std::string & key, const std::string & value);
 	std::optional<int> get_int(const std::string & key) const;
 	std::optional<double> get_double(const std::string & key) const;
 	std::optional<bool> get_bool(const std::string & key) const;

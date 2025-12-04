@@ -20,28 +20,28 @@ namespace bloom.Services
             _dbContext = context;
         }
 
-        public ICollection<Robot> GetAllRobotsAsync()
+        public async Task<ICollection<Robot>> GetAllRobotsAsync()
         {
-            var robots = _dbContext.Robots.ToList();
+            var robots = await _dbContext.Robots.ToListAsync();
 
             return robots;
         }
 
-        public ICollection<Robot> GetRobotsByFirmwareVersion(string firmwareVersion)
+        public async Task<ICollection<Robot>> GetRobotsByFirmwareVersion(string firmwareVersion)
         {
-            var robots = _dbContext.Robots.Where(r => r.FirmwareVersion == firmwareVersion).ToList();
+            var robots = await _dbContext.Robots.Where(r => r.FirmwareVersion == firmwareVersion).ToListAsync();
 
             return robots;
         }
 
-        public ICollection<Robot> GetRobotsByUserIdAsync(string userId)
+        public async Task<ICollection<Robot>> GetRobotsByUserIdAsync(string userId)
         {
             var robots = _dbContext.Robots.Where(r => r.RegisteredUserId == userId).ToList();
 
             return robots;
         }
 
-        public bool RegisterRobotAsync(RobotDto robot)
+        public async Task<Guid> RegisterRobotAsync(RobotDto robot)
         {
             if (robot.Name == null)
             {
@@ -63,23 +63,23 @@ namespace bloom.Services
                 RegisteredUserId = robot.RegisteredUserId
             };
 
-            _dbContext.Robots.Add(newRobot);
+            await _dbContext.Robots.AddAsync(newRobot);
 
             try
             {
-                _dbContext.SaveChangesAsync();
-                return true;
+                await _dbContext.SaveChangesAsync();
+                return newRobot.Id;
             }
             catch(Exception ex)
             {
                 Console.WriteLine($"Exception occured on service RobotService: {ex.Message}");
-                return false;
+                return Guid.Empty;
             }
         }
 
-        public bool UpdateRobotAsync(Guid robotId, RobotDto robot)
+        public async Task<bool> UpdateRobotAsync(Guid robotId, RobotDto robot)
         {
-            var existingRobot = _dbContext.Robots.FirstOrDefault(r => r.Id == robotId);
+            var existingRobot = await _dbContext.Robots.FirstOrDefaultAsync(r => r.Id == robotId);
             if (existingRobot == null)
             {
                 return false;
@@ -95,7 +95,7 @@ namespace bloom.Services
 
             try
             {
-                _dbContext.SaveChangesAsync();
+                await _dbContext.SaveChangesAsync();
                 return true;
             }
             catch(Exception ex)
@@ -105,9 +105,9 @@ namespace bloom.Services
             }
         }
 
-        public bool DeleteRobotAsync(Guid robotId)
+        public async Task<bool> DeleteRobotAsync(Guid robotId)
         {
-            var robot = _dbContext.Robots.FirstOrDefault(r => r.Id == robotId);
+            var robot = await _dbContext.Robots.FirstOrDefaultAsync(r => r.Id == robotId);
             if (robot == null)
             {
                 return false;
@@ -117,7 +117,7 @@ namespace bloom.Services
 
             try
             {
-                _dbContext.SaveChangesAsync();
+                await _dbContext.SaveChangesAsync();
                 return true;
             }
             catch(Exception ex)
@@ -127,9 +127,9 @@ namespace bloom.Services
             }
         }
 
-        public Robot? GetRobotByIdAsync(Guid robotId)
+        public async Task<Robot?> GetRobotByIdAsync(Guid robotId)
         {
-            return _dbContext.Robots.FirstOrDefault(r => r.Id == robotId);
+            return await _dbContext.Robots.FirstOrDefaultAsync(r => r.Id == robotId);
         }
     }
 }

@@ -1,37 +1,47 @@
-
-
-
 using System.Threading.Tasks;
 using bloom.Data;
 using bloom.Models;
+using bloom.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace bloom.Services
 {
     class RobotStateService : IRobotStateService
     {
-        private readonly BloomDbContext _dbContext;
-        
-        public RobotStateService(BloomDbContext context)
+        private readonly IRobotStateRepository _stateRepository;
+
+        public RobotStateService(IRobotStateRepository stateRepository)
         {
-            _dbContext = context;
+            _stateRepository = stateRepository;
         }
 
         public ICollection<RobotState> GetAllCurrentRobotStatesAsync()
         {
-            // Note: RobotState is an owned entity type and cannot be queried directly from DbContext
-            // TODO: Implement properly by querying through a parent entity that owns RobotState
-            throw new NotImplementedException("RobotState is an owned entity and must be queried through its owner");
+            // Note: Despite the "Async" naming in the interface, this is a synchronous
+            // in-memory operation with no I/O, so no async/await is needed
+            var states = _stateRepository.GetAllCurrentStates();
+            return states.ToList();
         }
 
         public RobotState GetCurrentRobotStateByRobotIdAsync(string robotId)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrEmpty(robotId))
+                throw new ArgumentException("Robot ID cannot be null or empty", nameof(robotId));
+
+            if (!Guid.TryParse(robotId, out var robotGuid))
+                throw new ArgumentException($"Invalid robot ID format: {robotId}", nameof(robotId));
+
+            var allStates = _stateRepository.GetAllCurrentStates();
+            return allStates.FirstOrDefault(state => state.RobotId == robotGuid);
         }
 
-        public RobotState GetCurrentRobotStateBySessionIdAsync(string sessionId)
+        public ICollection<RobotState> GetCurrentRobotStateBySessionIdAsync(string sessionId)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrEmpty(sessionId))
+                throw new ArgumentException("Session ID cannot be null or empty", nameof(sessionId));
+
+            var states = _stateRepository.GetAll(sessionId);
+            return states.ToList();
         }
 
         public ICollection<RobotState> GetCurrentRobotStatesByClassroomIdAsync(string classroomId)
@@ -41,7 +51,11 @@ namespace bloom.Services
 
         public ICollection<RobotState> GetRobotStatesBySessionId(string sessionId)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrEmpty(sessionId))
+                throw new ArgumentException("Session ID cannot be null or empty", nameof(sessionId));
+
+            var states = _stateRepository.GetAll(sessionId);
+            return states.ToList();
         }
     }
 }

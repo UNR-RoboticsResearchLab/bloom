@@ -9,7 +9,7 @@ namespace bloom.Models
         public DateTime ManufactureDate { get; set; }
         public required string FirmwareVersion { get; set; }
         public required string IPAddress { get; set; }
-        public required string? RegisteredUserId { get; set; }
+        public string? RegisteredUserId { get; set; }
     }
 
     public class RobotConfigDto

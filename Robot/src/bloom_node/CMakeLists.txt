@@ -14,23 +14,45 @@ find_package(std_srvs REQUIRED)
 find_package(CURL REQUIRED)
 
 
-  add_executable(bloom_node
-    src/bloom_node.cpp
-    src/state_manager.cpp
-    src/web_service_client.cpp
-    src/configuration_manager.cpp
-    src/thread_pool.cpp
-    src/curl_pool.cpp
-  )
-target_include_directories(bloom_node PUBLIC
+# Build bloom_node library
+add_library(bloom_node_lib
+  src/state_manager.cpp
+  src/web_service_client.cpp
+  src/configuration_manager.cpp
+  src/thread_pool.cpp
+  src/curl_pool.cpp
+)
+
+target_include_directories(bloom_node_lib PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-target_compile_features(bloom_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-ament_target_dependencies(bloom_node rclcpp std_msgs std_srvs)
-target_link_libraries(bloom_node CURL::libcurl pthread)
+
+target_compile_features(bloom_node_lib PUBLIC c_std_99 cxx_std_17)
+ament_target_dependencies(bloom_node_lib rclcpp std_msgs std_srvs)
+target_link_libraries(bloom_node_lib CURL::libcurl pthread)
+
+# Build bloom_node executable
+add_executable(bloom_node
+  src/bloom_node.cpp
+)
+
+target_link_libraries(bloom_node bloom_node_lib)
+ament_target_dependencies(bloom_node rclcpp)
+
+install(TARGETS bloom_node_lib
+  EXPORT bloom_nodeTargets
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin)
 
 install(TARGETS bloom_node
   DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY include/
+  DESTINATION include/${PROJECT_NAME})
+
+ament_export_targets(bloom_nodeTargets HAS_LIBRARY_TARGET)
+ament_export_dependencies(rclcpp std_msgs std_srvs CURL)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

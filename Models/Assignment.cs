@@ -22,8 +22,8 @@ namespace bloom.Models
         public bool IsCompleted { get; set; }
 
         // Navigation properties
-        public required Account AssignedBy { get; set; }
-        public required Lesson Lesson { get; set; }
-        public required Account Student { get; set; }
+        public Account? AssignedBy { get; set; }
+        public Lesson? Lesson { get; set; }
+        public Account? Student { get; set; }
     }
 }

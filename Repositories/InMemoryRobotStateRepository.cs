@@ -63,6 +63,20 @@ namespace bloom.Repositories
             return Enumerable.Empty<RobotState>();
         }
 
+        public IEnumerable<RobotState> GetAllCurrentStates()
+        {
+            var allStates = new List<RobotState>();
+
+            // Thread-safe: ConcurrentDictionary.Values provides snapshot enumeration
+            foreach (var sessionStates in _robotStates.Values)
+            {
+                // Each sessionStates is also a ConcurrentDictionary (thread-safe)
+                allStates.AddRange(sessionStates.Values);
+            }
+
+            return allStates;
+        }
+
         public void Remove(string sessionId, Guid id)
         {
             if (string.IsNullOrEmpty(sessionId))

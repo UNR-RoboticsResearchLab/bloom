@@ -18,7 +18,7 @@ namespace bloom.Services
          * </summary>
          * <returns>List of robots</returns>
         */
-        ICollection<Robot> GetRobotsByUserIdAsync(string userId);
+        Task<ICollection<Robot>> GetRobotsByUserIdAsync(string userId);
 
         /**
          * <summary>
@@ -26,7 +26,7 @@ namespace bloom.Services
          * <summary>
          * <returns>List of Robots</return>
          */
-        ICollection<Robot> GetRobotsByFirmwareVersion(string firmwareVersion);
+        Task<ICollection<Robot>> GetRobotsByFirmwareVersion(string firmwareVersion);
 
         /**
          * <summary>
@@ -34,15 +34,15 @@ namespace bloom.Services
          * </summary>
          * <returns>List of robots</returns>
         */
-        ICollection<Robot> GetAllRobotsAsync();
+        Task<ICollection<Robot>> GetAllRobotsAsync();
 
         /**
          * <summary>
          * RegisterRobotAsync() registers a new robot in the system. Should be triggered on first boot.
          * </summary>
-         * <returns>bool</returns>
+         * <returns>Guid Id</returns>
          */
-        bool RegisterRobotAsync(RobotDto robot);
+        Task<Guid> RegisterRobotAsync(RobotDto robot);
 
         /**
          * <summary>
@@ -50,7 +50,7 @@ namespace bloom.Services
          * </summary>
          * <returns>bool</returns>
          */
-        bool UpdateRobotAsync(Guid robotId, RobotDto robot);
+        Task<bool> UpdateRobotAsync(Guid robotId, RobotDto robot);
 
         /**
          * <summary>
@@ -58,7 +58,7 @@ namespace bloom.Services
          * </summary>
          * <returns>bool</returns>
          */
-        bool DeleteRobotAsync(Guid robotId);
+        Task<bool> DeleteRobotAsync(Guid robotId);
 
         /**
          * <summary>
@@ -66,6 +66,6 @@ namespace bloom.Services
          * </summary>
          * <returns>Robot or null</returns>
          */
-        Robot? GetRobotByIdAsync(Guid robotId);
+        Task<Robot?> GetRobotByIdAsync(Guid robotId);
     }
 }

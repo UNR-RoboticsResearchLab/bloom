@@ -34,6 +34,11 @@ public class AccountsController : ControllerBase
             return BadRequest(ModelState);
         }
 
+        if (account.Email == null || account.Password == null)
+        {
+            return BadRequest(new { Message = "Email and Password are required." });
+        }
+
         var res = await _accountService.SignInAsync(account.Email, account.Password);
 
         if (!res.Succeeded)

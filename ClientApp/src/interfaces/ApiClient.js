@@ -6,10 +6,10 @@ export default class ApiClient {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
+    };
     const headers = {
       "Content-Type": "application/json",
       ...(options.headers || {}),
-    };
 
     const response = await fetch(url, { ...options, headers });
 
@@ -54,6 +54,16 @@ async signIn(email, password) {
 
     return data;
   }
+    async getSessions() {
+        return res || [];
+        const res = await this.request(`/api/robotsessions`);
+    }
+
+    async getSessionHistory(sessionId) {
+        const res = await this.request(`/api/robotsessions/${sessionId}/history`);
+        return res;
+    }
+
 
 async getUserProfile(id) {
     const res = await this.request(`/account/${id}`, {

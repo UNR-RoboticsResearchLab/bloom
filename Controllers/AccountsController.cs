@@ -14,13 +14,13 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 namespace bloom.Controllers;
 
 [ApiController]
-[Route("[controller]")]
-public class AccountController : ControllerBase
+[Route("api/[controller]")]
+public class AccountsController : ControllerBase
 {
 
     private readonly IAccountService _accountService;
 
-    public AccountController(IAccountService accountService)
+    public AccountsController(IAccountService accountService)
     {
         _accountService = accountService;
     }
@@ -38,13 +38,13 @@ public class AccountController : ControllerBase
 
         if (!res.Succeeded)
         {
-            return Unauthorized(new { Message = "Invalid login attempt." });
+            return BadRequest(new { Message = "Invalid login attempt." });
         }
 
         var user = await _accountService.GetByEmailAsync(account.Email);
         if (user == null)
         {
-            return NotFound(new { Message = "User not found. " });
+            return BadRequest(new { Message = "User not found. " });
         }
 
         // todo: move to helper function 

@@ -24,8 +24,8 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("AccountClassroom", b =>
                 {
-                    b.Property<string>("ClassroomId")
-                        .HasColumnType("varchar(255)");
+                    b.Property<Guid>("ClassroomId")
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("StudentsId")
                         .HasColumnType("varchar(255)");
@@ -39,8 +39,8 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("AccountClassroom1", b =>
                 {
-                    b.Property<string>("Classroom1Id")
-                        .HasColumnType("varchar(255)");
+                    b.Property<Guid>("Classroom1Id")
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("TeachersId")
                         .HasColumnType("varchar(255)");
@@ -264,8 +264,9 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("bloom.Models.Assignment", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("varchar(255)");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("AssignedById")
                         .IsRequired()
@@ -280,9 +281,8 @@ namespace bloom.Migrations
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("LessonId")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("StudentId")
                         .IsRequired()
@@ -299,10 +299,43 @@ namespace bloom.Migrations
                     b.ToTable("Assignments", (string)null);
                 });
 
+            modelBuilder.Entity("bloom.Models.Behavior", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BehaviorType")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<double?>("Scaling")
+                        .HasColumnType("double");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Behavior");
+                });
+
             modelBuilder.Entity("bloom.Models.Classroom", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("varchar(255)");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("AccentColor")
                         .HasColumnType("longtext");
@@ -327,8 +360,9 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("bloom.Models.Lesson", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("varchar(255)");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("CreatedById")
                         .IsRequired()
@@ -359,8 +393,9 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("bloom.Models.Robot", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("varchar(255)");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("FirmwareVersion")
                         .IsRequired()
@@ -392,7 +427,54 @@ namespace bloom.Migrations
 
                     b.HasIndex("RegisteredUserId");
 
-                    b.ToTable("Robots");
+                    b.ToTable("Robots", (string)null);
+                });
+
+            modelBuilder.Entity("bloom.Models.RobotSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("LastUpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Robots")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SessionCode")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RobotSessions", (string)null);
+                });
+
+            modelBuilder.Entity("bloom.Models.RobotStateHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("RobotSessionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RobotSessionId");
+
+                    b.ToTable("RobotStateHistories", (string)null);
                 });
 
             modelBuilder.Entity("AccountClassroom", b =>
@@ -518,9 +600,79 @@ namespace bloom.Migrations
                 {
                     b.HasOne("bloom.Models.Account", "RegisteredUser")
                         .WithMany("RegisteredRobots")
-                        .HasForeignKey("RegisteredUserId");
+                        .HasForeignKey("RegisteredUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("RegisteredUser");
+                });
+
+            modelBuilder.Entity("bloom.Models.RobotSession", b =>
+                {
+                    b.HasOne("bloom.Models.Account", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("bloom.Models.RobotStateHistory", b =>
+                {
+                    b.HasOne("bloom.Models.RobotSession", "RobotSession")
+                        .WithMany("StateHistory")
+                        .HasForeignKey("RobotSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("bloom.Models.RobotState", "RobotState", b1 =>
+                        {
+                            b1.Property<Guid>("RobotStateHistoryId")
+                                .HasColumnType("char(36)");
+
+                            b1.Property<int?>("CurrentBehaviorId")
+                                .HasColumnType("int");
+
+                            b1.Property<string>("CurrentTask")
+                                .IsRequired()
+                                .HasColumnType("longtext");
+
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("char(36)");
+
+                            b1.Property<DateTime>("LastStatusChange")
+                                .HasColumnType("datetime(6)");
+
+                            b1.Property<Guid>("RobotId")
+                                .HasColumnType("char(36)");
+
+                            b1.Property<string>("SpeechLog")
+                                .IsRequired()
+                                .HasColumnType("longtext");
+
+                            b1.Property<string>("Status")
+                                .IsRequired()
+                                .HasColumnType("longtext");
+
+                            b1.HasKey("RobotStateHistoryId");
+
+                            b1.HasIndex("CurrentBehaviorId");
+
+                            b1.ToTable("RobotStateHistories");
+
+                            b1.HasOne("bloom.Models.Behavior", "CurrentBehavior")
+                                .WithMany()
+                                .HasForeignKey("CurrentBehaviorId");
+
+                            b1.WithOwner()
+                                .HasForeignKey("RobotStateHistoryId");
+
+                            b1.Navigation("CurrentBehavior");
+                        });
+
+                    b.Navigation("RobotSession");
+
+                    b.Navigation("RobotState")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("bloom.Models.Account", b =>
@@ -535,6 +687,11 @@ namespace bloom.Migrations
             modelBuilder.Entity("bloom.Models.Lesson", b =>
                 {
                     b.Navigation("Assignments");
+                });
+
+            modelBuilder.Entity("bloom.Models.RobotSession", b =>
+                {
+                    b.Navigation("StateHistory");
                 });
 #pragma warning restore 612, 618
         }

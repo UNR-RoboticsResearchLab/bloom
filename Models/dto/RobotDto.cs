@@ -18,12 +18,6 @@ namespace bloom.Models
         public required string IPAddress { get; set; }
     }
 
-    public class RobotStateDto
-    {
-        public required string Status { get; set; }
-        public DateTime LastActive { get; set; }
-    }
-
     public class LessonInfoDto
     {
         public required string LessonId { get; set; }
@@ -31,12 +25,4 @@ namespace bloom.Models
         public required string Description { get; set; }
     }
 
-    public class SessionDto
-    {
-        public required string RobotId { get; set; }
-        public required string UserId { get; set; }
-        public DateTime StartTime { get; set; }
-        public DateTime? EndTime { get; set; }
-        public required string Status { get; set; }
-    }
 }

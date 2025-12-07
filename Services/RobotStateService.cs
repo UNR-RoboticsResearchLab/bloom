@@ -31,8 +31,8 @@ namespace bloom.Services
             if (!Guid.TryParse(robotId, out var robotGuid))
                 throw new ArgumentException($"Invalid robot ID format: {robotId}", nameof(robotId));
 
-            var allStates = _stateRepository.GetAllCurrentStates();
-            return allStates.FirstOrDefault(state => state.RobotId == robotGuid);
+            var allStates = _stateRepository.GetAllCurrentStates().FirstOrDefault(state => state.RobotId == robotGuid) ?? new RobotState() { Status = "Unknown", CurrentTask = "Unknown", CurrentBehaviorId = null, SpeechLog = "" };
+            return allStates;
         }
 
         public ICollection<RobotState> GetCurrentRobotStateBySessionIdAsync(string sessionId)

@@ -14,7 +14,7 @@ namespace bloom.Models
         public RobotSession? RobotSession { get; set; }
 
         // Snapshot of the robot state at that moment
-        public RobotState RobotState { get; set; }
+        public required RobotState RobotState { get; set; }
 
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     }

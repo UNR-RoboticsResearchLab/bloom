@@ -1,5 +1,4 @@
-
-namespace bloom.Models
+namespace bloom.Models.dto
 {
     public class RobotDto
     {
@@ -11,18 +10,4 @@ namespace bloom.Models
         public required string IPAddress { get; set; }
         public string? RegisteredUserId { get; set; }
     }
-
-    public class RobotConfigDto
-    {
-        public required string FirmwareVersion { get; set; }
-        public required string IPAddress { get; set; }
-    }
-
-    public class LessonInfoDto
-    {
-        public required string LessonId { get; set; }
-        public required string Title { get; set; }
-        public required string Description { get; set; }
-    }
-
 }

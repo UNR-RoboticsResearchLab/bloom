@@ -5,6 +5,7 @@
 
 using bloom.Data;
 using bloom.Models;
+using bloom.Models.dto;
 using Microsoft.EntityFrameworkCore;
 
 namespace bloom.Services

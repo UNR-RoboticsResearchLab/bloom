@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using bloom.Models;
+using bloom.Models.dto;
 
 namespace bloom.Services
 {

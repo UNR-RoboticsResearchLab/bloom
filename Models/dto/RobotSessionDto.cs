@@ -42,10 +42,10 @@ namespace bloom.Models.dto
     /// </summary>
     public class RobotStateDto
     {
-        public required string Status { get; set; }
-        public required string CurrentTask { get; set; }
+        public string? Status { get; set; } = "";
+        public string? CurrentTask { get; set; } = "";
         public int? CurrentBehaviorId { get; set; }
-        public string SpeechLog { get; set; } = "";
+        public string? SpeechLog { get; set; } = "";
     }
 
     /// <summary>
@@ -65,8 +65,8 @@ namespace bloom.Models.dto
         public Guid Id { get; set; }
         public Guid RobotSessionId { get; set; }
         public Guid RobotId { get; set; }
-        public string Status { get; set; }
-        public string CurrentTask { get; set; }
+        public string? Status { get; set; }
+        public string? CurrentTask { get; set; }
         public DateTime Timestamp { get; set; }
     }
 }

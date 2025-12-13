@@ -5,6 +5,7 @@
 
 using bloom.Data;
 using bloom.Models;
+using bloom.Models.dto;
 using Microsoft.EntityFrameworkCore;
 
 namespace bloom.Services
@@ -36,7 +37,7 @@ namespace bloom.Services
 
         public async Task<ICollection<Robot>> GetRobotsByUserIdAsync(string userId)
         {
-            var robots = _dbContext.Robots.Where(r => r.RegisteredUserId == userId).ToList();
+            var robots = await _dbContext.Robots.Where(r => r.RegisteredUserId == userId).ToListAsync();
 
             return robots;
         }

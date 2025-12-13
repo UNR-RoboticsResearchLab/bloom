@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using bloom.Models;
+using bloom.Models.dto;
 using bloom.Services;
 
 namespace bloom.Controllers

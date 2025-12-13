@@ -227,6 +227,10 @@ namespace bloom.Services
             try
             {
                 user = await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Email == email);
+                if (user == null)
+                {
+                    throw new KeyNotFoundException("User not found");
+                }
             }
             catch (Exception ex)
             {

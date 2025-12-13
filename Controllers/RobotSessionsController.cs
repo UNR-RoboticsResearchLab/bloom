@@ -216,11 +216,11 @@ namespace bloom.Controllers
                 {
                     Id = Guid.NewGuid(),
                     RobotId = dto.RobotId,
-                    Status = dto.CurrentState.Status,
-                    CurrentTask = dto.CurrentState.CurrentTask,
+                    Status = dto.CurrentState.Status ?? "",
+                    CurrentTask = dto.CurrentState.CurrentTask ?? "",
                     CurrentBehaviorId = dto.CurrentState.CurrentBehaviorId,
                     LastStatusChange = DateTime.UtcNow,
-                    SpeechLog = dto.CurrentState.SpeechLog
+                    SpeechLog = dto.CurrentState.SpeechLog ?? ""
                 };
 
                 await _sessionService.AddRobotToSessionAsync(sessionId, robotState);
@@ -359,11 +359,11 @@ namespace bloom.Controllers
                 {
                     Id = Guid.NewGuid(),
                     RobotId = robotId,
-                    Status = dto.Status,
-                    CurrentTask = dto.CurrentTask,
+                    Status = dto.Status ?? "",
+                    CurrentTask = dto.CurrentTask ?? "",
                     CurrentBehaviorId = dto.CurrentBehaviorId,
                     LastStatusChange = DateTime.UtcNow,
-                    SpeechLog = dto.SpeechLog
+                    SpeechLog = dto.SpeechLog ?? ""
                 };
 
                 await _sessionService.UpdateRobotStateAsync(sessionId, robotId, newState);

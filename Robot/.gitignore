@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+venv/
+.venv/
+env/
+temp_speech.wav          # Audio files created during speech
+*.wav
+face_control.json        # Commands sent to face
+current_visemes.json.    # Produced by face test scripts
+config.py
+*.pyo

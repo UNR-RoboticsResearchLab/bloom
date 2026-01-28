@@ -2,21 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApiClient } from "../context/ApiClientContext";
-
-function dashboardPathForRole(role) {
-  switch (role) {
-    case "admin":
-      return "/admin";
-    case "slp":
-      return "/slp";
-    case "teacher":
-      return "/teacher";
-    case "student":
-      return "/student";
-    default:
-      return "/dashboard";
-  }
-}
+import { signInSession, dashboardPathForRole } from "../utils/auth";
 
 export default function SignUp() {
   const [username, setUsername] = useState("");
@@ -30,39 +16,39 @@ export default function SignUp() {
   const navigate = useNavigate();
   const api = useApiClient();
 
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
     setErr("");
+
+    if (!role) {
+      setErr("Please select a role");
+      return;
+    }
+
     setSubmitting(true);
+
     try {
-      const res = await api.signUp({
-        username,
-        fullName,
-        email,
-        password,
-        role: selectedRole
+      const payload = { email, password, fullName, role };
+      const result = await api.signUp(payload);
+
+      const userRole = result?.role || result?.selectedRole || role;
+      const userName = result?.fullName || fullName;
+      const userEmail = result?.email || email;
+
+      signInSession({
+        email: userEmail,
+        role: userRole,
+        fullName: userName,
       });
 
-      if (!res.ok) {
-        setErr(res.error || "Sign up failed");
-        return;
-      }
-
-      if (res.data?.token) {
-        localStorage.setItem("authToken", res.data.token);
-      }
-      if (res.data?.user) {
-        localStorage.setItem("currentUser", JSON.stringify(res.data.user));
-      }
-
-      const role = res.data?.user?.role || selectedRole;
-      navigate(dashboardPathForRole(role), { replace: true });
-    } catch (e2) {
-      setErr(e2.message || "Unexpected error");
+      navigate(dashboardPathForRole(userRole), { replace: true });
+    } catch (error) {
+      console.error("Sign up error:", error);
+      setErr(error.message || "Sign up failed");
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-white text-gray-900 flex flex-col px-6 py-12 lg:px-8 mt-[100px]">

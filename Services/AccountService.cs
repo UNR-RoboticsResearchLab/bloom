@@ -50,12 +50,12 @@ namespace bloom.Services
 
         public async Task<Account?> GetByIdAsync(string id)
         {
-            return await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Id == id) ?? throw new KeyNotFoundException();
+            return await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Id.ToString() == id.ToString()) ?? throw new KeyNotFoundException();
         }
 
         public async Task<IList<string>> GetUserRolesByIdAsync(string id)
         {
-            var user = _userManager.Users.FirstOrDefault(u => u.Id == id);
+            var user = _userManager.Users.FirstOrDefault(u => u.Id.ToString() == id.ToString());
             if (user == null)
             {
                 throw new KeyNotFoundException("User not found");
@@ -159,6 +159,62 @@ namespace bloom.Services
             }
         }
 
+        public async Task<IdentityResult> RegisterTeacherAsync(CreateAccountDto user)
+        {
+            if (user == null)
+            {
+                throw new ArgumentNullException(nameof(user));
+            }
+            // todo : do some additinoal validation
+
+            try
+            {
+                var result = await _userManager.CreateAsync(new Account
+                {
+                    UserName = user.UserName,
+                    Email = user.Email,
+                    FullName = user.FullName,
+                    EmailConfirmed = false,
+                    CreatedDate = DateTime.UtcNow,
+                    Role = "Teacher"
+                }, user.Password);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error creating a new teacher user", ex);
+            }
+        }
+
+        public async Task<IdentityResult> RegisterSLPAsync(CreateAccountDto user)
+        {
+            if (user == null)
+            {
+                throw new ArgumentNullException(nameof(user));
+            }
+            // todo : do some additinoal validation
+
+            try
+            {
+                var result = await _userManager.CreateAsync(new Account
+                {
+                    UserName = user.UserName,
+                    Email = user.Email,
+                    FullName = user.FullName,
+                    EmailConfirmed = false,
+                    CreatedDate = DateTime.UtcNow,
+                    Role = "SLP"
+                }, user.Password);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error creating a new SLP user", ex);
+            }
+        }
+
         public async Task<SignInResult> SignInAsync(string email, string password)
         {
             if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
@@ -171,6 +227,10 @@ namespace bloom.Services
             try
             {
                 user = await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Email == email);
+                if (user == null)
+                {
+                    throw new KeyNotFoundException("User not found");
+                }
             }
             catch (Exception ex)
             {

@@ -1,6 +1,6 @@
 # bloom
 
-Senor Project Team 25
+Senor Project Team 24
 
 ## Setup Dev w/o Docker
 

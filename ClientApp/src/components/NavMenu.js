@@ -22,12 +22,6 @@ export default function NavMenu() {
             <NavLink tag={Link} to="/" className="text-dark">Home</NavLink>
           </NavItem>
           <NavItem>
-            <NavLink tag={Link} to="/counter" className="text-dark">Counter</NavLink>
-          </NavItem>
-          <NavItem>
-            <NavLink tag={Link} to="/fetch-data" className="text-dark">Fetch data</NavLink>
-          </NavItem>
-          <NavItem>
             <NavLink tag={Link} to="/sign-in" className="text-dark">Sign in</NavLink>
           </NavItem>
           </Nav>

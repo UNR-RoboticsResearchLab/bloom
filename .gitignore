@@ -230,3 +230,8 @@ _Pvt_Extensions
 
 # FAKE - F# Make
 .fake/
+
+# ROS2 workspace
+**/build/
+**/install/
+**/log/

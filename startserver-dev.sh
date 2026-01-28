@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
 # Start script for development environment.
-# Usage: ./startserver.sh [--migration]
+# Usage: ./startserver.sh [--migration] [--logs {frontend|backend|both}]
 # If --migration is provided, the script will run EF Core migrations
 # inside the built `server-dev` container after the database becomes ready.
+# --logs option controls which container logs to tail (default: backend)
 
 set -e
 
@@ -12,11 +13,31 @@ SERVER_CONTAINER="bloom-server-dev"
 REACT_CONTAINER="bloom-react-dev"
 DB_SERVICE="mariadb-dev"
 RUN_MIGRATIONS=false
+LOGS_TARGET="backend"
 
 # --- Parse arguments ---
-if [ "$1" == "--migration" ]; then
-  RUN_MIGRATIONS=true
-fi
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --migration)
+      RUN_MIGRATIONS=true
+      shift
+      ;;
+    --logs)
+      if [[ $2 =~ ^(frontend|backend|both)$ ]]; then
+        LOGS_TARGET="$2"
+        shift 2
+      else
+        echo "Error: --logs must be one of: frontend, backend, both"
+        exit 1
+      fi
+      ;;
+    *)
+      echo "Error: Unknown argument: $1"
+      echo "Usage: ./startserver-dev.sh [--migration] [--logs {frontend|backend|both}]"
+      exit 1
+      ;;
+  esac
+done
 
 echo "Starting Bloom development environment..."
 
@@ -45,6 +66,18 @@ if [ "$RUN_MIGRATIONS" = true ]; then
   }
 fi
 
-# --- Tail server logs for convenience ---
-echo "Attaching to server logs (Ctrl+C to detach)..."
-docker logs -f $SERVER_CONTAINER
+# --- Tail logs for convenience ---
+case $LOGS_TARGET in
+  backend)
+    echo "Attaching to backend logs (Ctrl+C to detach)..."
+    docker logs -f $SERVER_CONTAINER
+    ;;
+  frontend)
+    echo "Attaching to frontend logs (Ctrl+C to detach)..."
+    docker logs -f $REACT_CONTAINER
+    ;;
+  both)
+    echo "Attaching to both frontend and backend logs (Ctrl+C to detach)..."
+    docker compose -f $COMPOSE_FILE logs -f $SERVER_CONTAINER $REACT_CONTAINER
+    ;;
+esac

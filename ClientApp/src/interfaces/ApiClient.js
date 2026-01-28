@@ -33,7 +33,7 @@ async signUp(payload) {
       fullName: payload.fullName,
       email: payload.email,
       password: payload.password,
-      selectedRole: payload.role,
+      selectedRole: String(payload.role),
     };
 
     const res = await this.request("/api/accounts/create", {

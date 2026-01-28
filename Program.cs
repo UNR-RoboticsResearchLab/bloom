@@ -101,14 +101,14 @@ builder.Services.AddSession(options =>
 
 // Enable CORS for development
 // TODO: add production check
-// builder.Services.AddCors(options => {
-//     options.AddDefaultPolicy(policy => {
-//         policy
-//             .AllowAnyOrigin()
-//             .AllowAnyHeader()
-//             .AllowAnyMethod();
-//     });
-// });
+builder.Services.AddCors(options => {
+    options.AddDefaultPolicy(policy => {
+        policy
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 // authorization policies
 builder.Services.AddAuthorization(options =>

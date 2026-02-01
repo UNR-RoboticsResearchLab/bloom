@@ -20,7 +20,7 @@ export default function SignUp() {
     e.preventDefault();
     setErr("");
 
-    if (!role) {
+    if (!selectedRole) {
       setErr("Please select a role");
       return;
     }
@@ -28,10 +28,10 @@ export default function SignUp() {
     setSubmitting(true);
 
     try {
-      const payload = { email, password, fullName, role };
+      const payload = {  username, email, password, fullName, role: selectedRole };
       const result = await api.signUp(payload);
 
-      const userRole = result?.role || result?.selectedRole || role;
+      const userRole = result?.role || result?.selectedRole || selectedRole;
       const userName = result?.fullName || fullName;
       const userEmail = result?.email || email;
 

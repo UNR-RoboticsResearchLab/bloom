@@ -15,12 +15,12 @@ Senor Project Team 24
 
 1. Install Docker and Docker Compose
 2. Clone this repository
-3. Run `./startserver-dev.sh` or `./startserver-dev.bat` in the project directory
-4. Access the API at `http://localhost:5000`, and the browser app at `http://localhost:3000`
+3. Run `./startserver-dev.sh` or `./startserver-dev.bat` in the project directory (if it doesn't work, try `docker compose -f docker-compose.dev.yml up --build` and/or `docker compose -f docker-compose.dev.yml build --no-cache`)
+4. Access the browser app at `http://localhost:3000` and the API at `http://localhost:5000`
 
 ## API Documentation
 
-[Future Link to API Documentation Here]
+[Swagger UI](https://localhost:5000/swagger/index.html) should launch after starting the server. If not, you can access it at `https://localhost:5000/swagger/index.html`.
 
 ## Testing
 

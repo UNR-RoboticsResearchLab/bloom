@@ -5,6 +5,7 @@ import Layout from "./components/Layout";
 import SignIn from "./components/SignIn";
 import SignUp from "./components/SignUp";
 import { RequireAuth, RequireRole } from "./components/RouteGuards";
+import About from "./pages/About";
 
 import Home from "./pages/Home";
 import FetchData from "./pages/FetchData";
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
+        <Route path="/about" element={<About />} />
 
         {/* Protected */}
         <Route element={<RequireAuth />}>

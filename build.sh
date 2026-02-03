@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
-# Build and start script for development or CI environments.
-# Usage: ./build.sh [--migration] [--prod]
+# Production deployment script for Bloom (ASP.NET Core + React)
+# Usage: ./build.sh [--migration] [--backup] [--skip-build]
 
 set -euo pipefail
 
-COMPOSE_FILE="docker-compose.dev.yml"
-SERVER_CONTAINER="bloom-server-dev"
-REACT_CONTAINER="bloom-react-dev"
-DB_SERVICE="mariadb-dev"
+# Configuration
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVER_PORT=${SERVER_PORT:-5000}
+DB_HOST=${DB_HOST:-localhost}
+DB_PORT=${DB_PORT:-3306}
+DB_NAME=${DB_NAME:-bloom}
+DOTNET_ENV="Production"
 RUN_MIGRATIONS=false
+BACKUP_DB=false
+SKIP_BUILD=false
+LOG_DIR="$PROJECT_ROOT/logs"
 
 # --- Parse arguments ---
 for arg in "$@"; do
@@ -17,10 +23,12 @@ for arg in "$@"; do
       RUN_MIGRATIONS=true
       shift
       ;;
-    --prod)
-      COMPOSE_FILE="docker-compose.yml"
-      SERVER_CONTAINER="bloom-server"
-      DB_SERVICE="mariadb-prod"
+    --backup)
+      BACKUP_DB=true
+      shift
+      ;;
+    --skip-build)
+      SKIP_BUILD=true
       shift
       ;;
     *)
@@ -28,50 +36,86 @@ for arg in "$@"; do
   esac
 done
 
-echo "Starting Bloom environment using $COMPOSE_FILE..."
+echo "================================"
+echo "Bloom Production Deployment"
+echo "================================"
 
-# --- Ensure Docker is available ---
-if ! command -v docker &> /dev/null; then
-  echo "Docker not found. Please install Docker before running this script."
-  exit 1
-fi
-
-# --- Start database first ---
-echo "Starting database service: $DB_SERVICE..."
-docker compose -f "$COMPOSE_FILE" up -d "$DB_SERVICE"
-
-# --- Wait for DB to be ready ---
-echo "Waiting for $DB_SERVICE (port 3306) to be ready..."
-ATTEMPTS=0
-until docker compose -f "$COMPOSE_FILE" logs "$DB_SERVICE" 2>&1 | grep -qi "ready for connections"; do
-  sleep 2
-  ((ATTEMPTS++))
-  if [ "$ATTEMPTS" -gt 30 ]; then
-    echo "Database did not become ready in time."
-    docker compose -f "$COMPOSE_FILE" logs "$DB_SERVICE" | tail -n 20
+# --- Ensure required tools are available ---
+for tool in dotnet node mysql npm; do
+  if ! command -v "$tool" &> /dev/null; then
+    echo "Error: $tool not found. Please install it before running this script."
     exit 1
   fi
 done
-echo "Database is ready."
 
-# --- Build and start React + Server ---
-echo "Building and starting $REACT_CONTAINER and $SERVER_CONTAINER..."
-docker compose -f "$COMPOSE_FILE" up -d --build "$REACT_CONTAINER" "$SERVER_CONTAINER"
+# --- Check database connectivity ---
+echo "Checking database connectivity..."
+if ! mysql -h "$DB_HOST" -P "$DB_PORT" -u root -p"${DB_PASSWORD:-}" -e "SELECT 1" &> /dev/null; then
+  echo "Error: Cannot connect to database at $DB_HOST:$DB_PORT"
+  echo "Please ensure MariaDB/MySQL is running and accessible."
+  exit 1
+fi
+echo "Database is accessible."
 
-# --- Optionally run migrations ---
-if [ "$RUN_MIGRATIONS" = true ]; then
-  echo "Running EF Core migrations inside $SERVER_CONTAINER..."
-  if docker exec "$SERVER_CONTAINER" dotnet ef database update; then
-    echo "Migrations applied successfully."
+# --- Backup database if requested ---
+if [ "$BACKUP_DB" = true ]; then
+  echo "Creating database backup..."
+  BACKUP_FILE="$PROJECT_ROOT/backups/bloom_$(date +%Y%m%d_%H%M%S).sql"
+  mkdir -p "$PROJECT_ROOT/backups"
+  if mysqldump -h "$DB_HOST" -P "$DB_PORT" -u root -p"${DB_PASSWORD:-}" "$DB_NAME" > "$BACKUP_FILE"; then
+    echo "Database backed up to $BACKUP_FILE"
   else
-    echo "Migration failed or EF tools missing."
+    echo "Warning: Database backup failed."
   fi
 fi
 
-# --- Tail server logs if running locally ---
-if [[ -t 1 ]]; then
-  echo "Attaching to $SERVER_CONTAINER logs (Ctrl+C to detach)..."
-  docker logs -f "$SERVER_CONTAINER"
-else
-  echo "Build and startup complete (non-interactive environment)."
+# --- Run migrations if requested ---
+if [ "$RUN_MIGRATIONS" = true ]; then
+  echo "Running EF Core migrations..."
+  cd "$PROJECT_ROOT"
+  if dotnet ef database update --configuration Release; then
+    echo "Migrations applied successfully."
+  else
+    echo "Error: Migration failed."
+    exit 1
+  fi
 fi
+
+# --- Build React frontend ---
+if [ "$SKIP_BUILD" = false ]; then
+  echo "Building React frontend..."
+  cd "$PROJECT_ROOT/ClientApp"
+  if npm install && npm run build; then
+    echo "React frontend built successfully."
+  else
+    echo "Error: React build failed."
+    exit 1
+  fi
+fi
+
+# --- Build .NET backend ---
+if [ "$SKIP_BUILD" = false ]; then
+  echo "Building .NET backend..."
+  cd "$PROJECT_ROOT"
+  if dotnet publish -c Release -o /var/www/bloom-build/net9.0/publish; then
+    echo ".NET backend built successfully."
+  else
+    echo "Error: .NET build failed."
+    exit 1
+  fi
+fi
+
+# --- Stop existing server process ---
+echo "Stopping existing server process..."
+if pkill -f "dotnet.*bloom" || true; then
+  sleep 2
+  echo "Previous server process stopped."
+fi
+
+
+
+# --- Show deployment summary ---
+echo ""
+echo "================================"
+echo "Build Complete"
+echo "================================"

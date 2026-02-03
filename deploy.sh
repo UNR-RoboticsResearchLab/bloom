@@ -1,72 +1,166 @@
+#!/usr/bin/env bash
+# Production deployment script for Bloom (non-Docker)
+# Deploys application to target directory and manages the running service
+# Usage: ./deploy.sh [--prod] [--migration] [--restart-only]
+# made w claude
+
+REQUIRED_USER="www-data"
+
+if [ "$(id -un)" != "$REQUIRED_USER" ]; then
+  echo "ERROR: This deploy script must be run as $REQUIRED_USER"
+  echo "Run it with: sudo -u $REQUIRED_USER $0 $*"
+  exit 1
+fi
+
 set -euo pipefail
 
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PUBLISH_DIR="$(ls -d "/var/www/bloom-build/net9.0/publish" 2>/dev/null | head -n 1)"
 TARGET_DIR=""
-COMPOSE_FILE="docker-compose.dev.yml"
-SERVER_CONTAINER="bloom-server-dev"
 RUN_MIGRATIONS=false
+RESTART_ONLY=false
+APP_PORT=5000
+
 
 # --- Parse arguments ---
 for arg in "$@"; do
   case $arg in
     --prod)
-      TARGET_DIR="/var/www/project"
-      COMPOSE_FILE="docker-compose.yml"
-      SERVER_CONTAINER="bloom-server"
+      TARGET_DIR="/var/www/bloom"
       ;;
     --migration)
       RUN_MIGRATIONS=true
+      ;;
+    --restart-only)
+      RESTART_ONLY=true
       ;;
     *)
       ;;
   esac
 done
 
+for tool in dotnet curl; do
+  command -v "$tool" &>/dev/null || {
+    echo "Error: $tool is required but not installed."
+    exit 1
+  }
+done
+
+
 # Default to dev target if none provided
 if [ -z "$TARGET_DIR" ]; then
-  TARGET_DIR="/var/www/project-dev"
+  TARGET_DIR="/var/www/bloom-dev"
 fi
 
-echo "🚀 Deploying Bloom application to $TARGET_DIR"
-echo "Using compose file: $COMPOSE_FILE"
+echo "================================"
+echo "Bloom Application Deployment"
+echo "================================"
+echo "Target directory: $TARGET_DIR"
+echo ""
+
+# --- Check if restart-only mode ---
+if [ "$RESTART_ONLY" = true ]; then
+  echo "Restarting application in $TARGET_DIR..."
+
+  if [ ! -f "$TARGET_DIR/app.pid" ]; then
+    echo "No running application found (app.pid not found)"
+    exit 1
+  fi
+
+  OLD_PID=$(cat "$TARGET_DIR/app.pid")
+  if kill -0 "$OLD_PID" 2>/dev/null; then
+    echo "Stopping previous application (PID: $OLD_PID)..."
+    kill "$OLD_PID" || true
+    sleep 2
+  fi
+  rm -f "$TARGET_DIR/app.pid"
+
+  # Start the application
+  cd "$TARGET_DIR"
+  nohup dotnet Bloom.dll > "$TARGET_DIR/logs/app.log" 2>&1 &
+  NEW_PID=$!
+  echo $NEW_PID > "$TARGET_DIR/app.pid"
+  echo "Application started (PID: $NEW_PID)"
+  exit 0
+fi
 
 # --- Ensure build output exists ---
-if [ ! -d "build" ] && [ ! -d "publish" ]; then
-  echo "No build or publish directory found! Did you run build.sh?"
+if [ -z "$PUBLISH_DIR" ]; then
+  echo "Error: No publish directory found!"
+  echo "Please run ./build.sh first to build the application."
   exit 1
 fi
 
-BUILD_SRC=""
-if [ -d "build" ]; then
-  BUILD_SRC="build"
-elif [ -d "publish" ]; then
-  BUILD_SRC="publish"
-fi
-
-# --- Ensure target directory exists ---
-echo "Preparing target directory: $TARGET_DIR"
-sudo mkdir -p "$TARGET_DIR"
-sudo chown -R "$USER":"$USER" "$TARGET_DIR"
-
-# --- Create new Build target ---
-docker compose -f "$COMPOSE_FILE" build --no-cache
-docker compose -f "$COMPOSE_FILE" up -d
+echo "Using publish directory: $PUBLISH_DIR"
 
 
-# --- (Optional) restart containers ---
-if [ -f "$COMPOSE_FILE" ]; then
-  echo "Restarting Docker services..."
-  docker compose -f "$COMPOSE_FILE" down
-  docker compose -f "$COMPOSE_FILE" up -d "$SERVER_CONTAINER"
-fi
+echo "Preparing deployment..."
 
-# --- Optionally run migrations ---
-if [ "$RUN_MIGRATIONS" = true ]; then
-  echo "Running EF Core migrations inside $SERVER_CONTAINER..."
-  if docker exec "$SERVER_CONTAINER" dotnet ef database update; then
-    echo "Migrations applied successfully."
-  else
-    echo "Migration failed or EF tools missing."
+# --- Stop existing application ---
+if [ -f "$TARGET_DIR/app.pid" ]; then
+  OLD_PID=$(cat "$TARGET_DIR/app.pid")
+  if kill -0 "$OLD_PID" 2>/dev/null; then
+    echo "Stopping previous application (PID: $OLD_PID)..."
+    kill "$OLD_PID" || true
+    sleep 2
   fi
 fi
 
-echo "Deployment to $TARGET_DIR complete!"
+# --- Create target directory structure ---
+echo "Setting up target directory: $TARGET_DIR"
+mkdir -p "$TARGET_DIR"
+find "$TARGET_DIR" -mindepth 1 -maxdepth 1 ! -name logs ! -name backups -exec rm -rf {} +
+mkdir -p "$TARGET_DIR"
+mkdir -p "$TARGET_DIR/logs"
+mkdir -p "$TARGET_DIR/backups"
+
+# --- Deploy application files ---
+echo "Deploying application files..."
+cp -r "$PUBLISH_DIR/"* "$TARGET_DIR/"
+
+# --- Run migrations if requested ---
+if [ "$RUN_MIGRATIONS" = true ]; then
+  echo "Running database migrations..."
+  cd "$TARGET_DIR"
+  if dotnet Bloom.dll --run-migrations; then
+    echo "Migrations completed successfully."
+  else
+    echo "Warning: Migrations may have failed. Check logs."
+  fi
+fi
+
+# --- Start the application ---
+echo "Starting Bloom application..."
+cd "$TARGET_DIR"
+nohup dotnet bloom.dll > "$TARGET_DIR/logs/app.log" 2>&1 &
+APP_PID=$!
+echo $APP_PID > "$TARGET_DIR/app.pid"
+
+echo "Application started with PID: $APP_PID"
+
+# --- Wait for application to be ready ---
+echo "Waiting for application to become ready..."
+ATTEMPTS=0
+until curl -s http://localhost:$APP_PORT/health &> /dev/null; do
+  sleep 2
+  ((ATTEMPTS++))
+  if [ "$ATTEMPTS" -gt 30 ]; then
+    echo "Warning: Application may not have started properly."
+    echo "Check logs at: $TARGET_DIR/logs/app.log"
+    break
+  fi
+done
+
+# --- Deployment summary ---
+echo ""
+echo "================================"
+echo "Deployment Complete"
+echo "================================"
+echo "Target directory: $TARGET_DIR"
+echo "Application PID: $APP_PID"
+echo "Logs: $TARGET_DIR/logs/app.log"
+echo ""
+echo "To restart: ./deploy.sh $([ "$TARGET_DIR" = "/var/www/bloom" ] && echo "--prod" || echo "") --restart-only"
+echo "To stop: kill $APP_PID"
+echo "================================"

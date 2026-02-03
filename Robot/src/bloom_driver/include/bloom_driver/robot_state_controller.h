@@ -80,7 +80,7 @@ private:
     void driver_state_callback(const std_msgs::msg::String::SharedPtr msg);
 
     /// Sync current state to C# backend (timer callback)
-    void sync_state_to_backend();
+    void sync_state_with_backend();
 
     /// Send HTTP request to backend
     /// @param method HTTP method (GET, POST, PUT, DELETE)

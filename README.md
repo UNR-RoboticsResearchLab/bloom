@@ -15,12 +15,26 @@ Senor Project Team 24
 
 1. Install Docker and Docker Compose
 2. Clone this repository
-3. Run `./startserver-dev.sh` or `./startserver-dev.bat` in the project directory
+3. Run `./startserver-dev.sh` or `./startserver-dev.bat` in the project directory. The script handles launching all components ( frontend, backend, database ) for development purposes.
 4. Access the API at `http://localhost:5000`, and the browser app at `http://localhost:3000`
+
+## Project Structure
+
+/bloom/
+|-- ClientApp: React Frontend
+|-- Controllers: The controllers that map to endpoints in the REST API
+|-- Data: Database middleware configuration
+|-- Migrations: Database migrations
+|-- Models: The primary data types in use by the API
+|-- Repositories: Abstraction Layer for using data stores
+|-- Robot: ROS drivers, face, speech and listening
+|-- Services: Business-level Abstraction layer for data stores
+|-- Program.cs: API Entrypoint
+
 
 ## API Documentation
 
-[Future Link to API Documentation Here]
+https://localhost:5000/swagger
 
 ## Testing
 

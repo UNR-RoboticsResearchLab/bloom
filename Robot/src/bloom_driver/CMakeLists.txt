@@ -1,9 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-<<<<<<<< HEAD:Robot/src/bloom_interface/CMakeLists.txt
-project(bloom_interface)
-========
 project(bloom_driver)
->>>>>>>> 90ada47e1541badd97520020a789842874330999:Robot/src/bloom_driver/CMakeLists.txt
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)

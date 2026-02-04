@@ -2,11 +2,11 @@
 // AccountService.cs
 // Class for interfacing with the database, providing useful helper functions.
 // Created: 10/22/2025
-using System.ComponentModel.DataAnnotations;
 using bloom.Models;
 using bloom.Models.dto;
 using bloom.Data;
 using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
@@ -247,6 +247,59 @@ namespace bloom.Services
                 throw new Exception("Error signing in user", ex);
             }
 
+        }
+
+        public async Task<IdentityResult> DeleteUserAsync(string accountId)
+        {
+            try {
+
+                var userRecord = await _dbContext.Accounts.Where(a => a.Id == accountId).ToListAsync();
+
+
+                if (userRecord == null || userRecord.Count == 0)
+                {
+                    return IdentityResult.Failed(
+                        new IdentityError[]{
+                            new IdentityError {
+                                Code = "404",
+                                Description = "User record not found"
+                            }
+                        }
+                    );
+                }
+
+                _dbContext.Accounts.RemoveRange(userRecord);
+
+                var result = await _dbContext.SaveChangesAsync();
+                
+                if (result == 0)
+                {
+                    return IdentityResult.Failed(
+                        new IdentityError[]{
+                            new IdentityError {
+                                Code = "300",
+                                Description = "Internal error deleting user record"
+                            }
+                        }
+                    );
+                }
+
+                return IdentityResult.Success;
+                
             }
+            catch (Exception ex)
+            {
+                return IdentityResult.Failed(new IdentityError[]
+                {
+                    new IdentityError
+                    {
+                        Code = "500",
+                        Description = ex.Message
+                    }
+                });
+            }
+
+            
+        }
     }
 }

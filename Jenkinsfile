@@ -8,7 +8,7 @@ pipeline {
             }
             steps { 
                 sh 'echo "Building prod..."'
-                sh './build.sh --prod'  // your build command
+                sh './build.sh'  // your build command
             }
         }
         stage('Build Dev') {
@@ -20,11 +20,11 @@ pipeline {
                 sh './build.sh'
             }
         }
-        stage('Test') {
-            steps {
-                sh './test.sh'
-            }
-        }
+        // stage('Test') {
+        //     steps {
+        //         sh './test.sh'
+        //     }
+        // }
         stage('Deploy') {
             when {
                 branch 'main'

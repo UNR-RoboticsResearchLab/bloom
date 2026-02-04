@@ -22,6 +22,9 @@ namespace bloom.Services
         Task<IdentityResult> RegisterAdminAsync(CreateAccountDto user);
         Task<IdentityResult> RegisterFacilitatorAsync(CreateAccountDto user);
 
+        // Delete Account
+        Task<IdentityResult> DeleteUserAsync(string id);
+
         // this is kind of idiosyncratic since they wont register themselves ? 
         Task<IdentityResult> RegisterStudentAsync(CreateAccountDto user);
 

@@ -3,6 +3,7 @@ using bloom.Services;
 using bloom.Models;
 using bloom.Models.dto;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -152,7 +153,32 @@ public class AccountsController : ControllerBase
         return BadRequest();
     }
 
+    [Authorize]
+    [HttpDelete]
+    [Route("{id}")]
+    public async Task<IActionResult> DeleteUserProfile(string id)
+    {
+        var user = await _accountService.GetByIdAsync(id);
 
+        if (user == null)
+        {
+            return BadRequest("User not found");
+        }
+
+        var result = await _accountService.DeleteUserAsync(id);
+
+        if (!result.Succeeded)
+        {
+            return BadRequest(new { Message = result.Errors});
+        }
+        
+        return Ok(user);
+
+        
+    }
+
+
+    [Authorize]
     [HttpGet]
     [Route("{id}")]
     public async Task<IActionResult> GetUserProfile(string id)

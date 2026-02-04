@@ -79,25 +79,47 @@ export default function About() {
           Project Description
         </h2>
         <p>
-          Bloom is an aid to Speech Language Pathologists to guide students that struggle with certain areas of language to go through speech therapy routines. The overall goal is to have a system that is easy to use and provides students engagement and repetition with the lessons. The system should be easy to launch, get to where you need to go, have all information needed displayed intuitively and fast.
+          Bloom is an aid to Speech Language Pathologists to guide students that struggle in certain 
+          areas of language to aid them through speech therapy intervention. The overall goal is to have a 
+          system that is easy to use and provides students engagement and repetition with interventions. 
+          The system should be easy to set up, use, and be reliable in a real world setting.
         </p>
+        <br />
+        <h3 className="text-xl font-semibold mb-2">Intended Users</h3>
         <p>
-          The intended user of the web app will be the Speech Language Pathologists and Teachers that will be assigning students their lessons based on the needs of the student. The other end of the table the user will be the student that is interacting with the robot and is going through the lesson. It is important to have the most engaging experience to keep the student involved.
+          The intended user of the web app will be the Speech Language Pathologists and Teachers that will 
+          be assigning students their lessons based on the needs of the student. The other end of the table 
+          the user will be the student that is interacting with the robot and is going through the lesson. 
+          It is important to have an engaging experience to keep the student involved, interested and
+          engaged.
+        </p>
+        <br />
+        <h3 className="text-xl font-semibold mb-2">Functionality and Technology</h3>
+        <p>
+          The main functionality of Bloom includes interactive exercises that prompt students to speak and 
+          follow simple instructions. A robot guides the students, speaks to them, and reacts to their 
+          responses. The web interface allows Speech Language Pathology to assign activities, view performance 
+          data, and adjust difficulty levels. The system supports real time interaction, progress tracking, 
+          and personalized learning paths.
 
         </p>
         <p>
-          The main functionality of Bloom includes interactive exercises that prompt students to speak and follow simple instructions. A robot guides the students, speaks to them, and reacts to their responses. The web interface allows Speech Language Pathology to assign activities, view performance data, and adjust difficulty levels. The system supports real time interaction, progress tracking, and personalized learning paths.
-
+          Bloom uses a web based platform with a frontend built using React and JavaScript. The backend is 
+          developed using .NET. Communication between the robot and the server is handled through secure APIs.  
+          Development tools include Docker for environment management, GitHub for version control, and VS code 
+          for coding. 
         </p>
         <p>
-          Bloom uses a web based platform with a frontend built using React and JavaScript. The backend is developed using .NET. Communication between the robot and the server is handled through secure APIs.  Development tools include Docker for environment management, GitHub for version control, and VS code for coding. 
+          System hardware includes a small interactive robot equipped with speakers, microphones, and a display. 
+          It connects to the server over a network and executes the activities created in the web app.
         </p>
+        <br />
+        <h3 className="text-xl font-semibold mb-2">Reliability, Security, and Safety</h3>
         <p>
-          System hardware includes a small interactive robot equipped with microphones, and a display. It connects to the server over a network and executes the activities created in the web app.
-
-        </p>
-        <p>
-          Bloom is designed to be simple and reliable. Reliability is achieved through stable server architecture, error handling, and testing of all features. Security is ensured by user authentication, encrypted communication, and controlled access to data. Safety is addressed by following the guidelines and not storing any long term data. These prosecutions help ensure Bloom is safe and effective for real world use.
+          Bloom is designed to be simple and reliable. Reliability is achieved through stable server architecture, 
+          error handling, and testing of all features. Security is ensured by user authentication, encrypted 
+          communication, and controlled access to data. Safety is addressed by following the guidelines and not 
+          storing any long term data. These prosecutions help ensure Bloom is safe and effective for real world use.
         </p>
       </div>
       <div className="mb-8 p-6 rounded-lg border border-gray-200 shadow-sm">

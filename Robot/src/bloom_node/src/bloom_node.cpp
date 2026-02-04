@@ -8,9 +8,11 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
+#include <std_msgs/msg/string.hpp>
 #include "bloom_node/state_manager.h"
 #include "bloom_node/web_service_client.h"
 #include "bloom_node/configuration_manager.h"
+#include "bloom_node/behavior_coordinator.h"
 #include "bloom_node/json.hpp"
 
 namespace fs = std::filesystem;
@@ -28,6 +30,24 @@ int main(int argc, char ** argv)
 	//config requires some config
 	// todo: move to helper
 	auto config_mgr = std::make_shared<configuration_manager::ConfigurationManager>(node);
+
+	// ====== Create BehaviorCoordinator ======
+	auto behavior_coord = std::make_shared<bloom_node::BehaviorCoordinator>();
+
+	// Configure exclusive behavior groups
+	behavior_coord->set_exclusive_group("head_movement", {
+		"look_left", "look_right", "look_up", "look_down", "nod", "shake"
+	});
+
+	behavior_coord->set_exclusive_group("emotions", {
+		"happy", "sad", "excited", "calm", "neutral", "surprised"
+	});
+
+	behavior_coord->set_exclusive_group("speak", {
+		"speaking", "listening"
+	});
+
+	RCLCPP_INFO(node->get_logger(), "BehaviorCoordinator initialized with exclusive groups");
 
 	fs::path dir = "src/bloom_node/config";
 
@@ -62,6 +82,70 @@ int main(int argc, char ** argv)
 	  	2
 	);
 
+	// ====== Setup Behavior Request Handler ======
+	// Subscribe to behavior requests on /behavior_request topic
+	// Message format: "behavior_name" or "behavior_name:priority:interrupt"
+	// Examples: "happy", "nod:10:true", "speaking:5:false"
+
+	auto behavior_request_sub = node->create_subscription<std_msgs::msg::String>(
+		"behavior_request", 10,
+		[behavior_coord, node](const std_msgs::msg::String::SharedPtr msg) {
+			if (!msg || msg->data.empty()) return;
+
+			std::string behavior = msg->data;
+			int priority = 0;
+			bool interrupt = false;
+
+			// Parse format: "behavior_name:priority:interrupt"
+			size_t colon1 = behavior.find(':');
+			if (colon1 != std::string::npos) {
+				std::string name = behavior.substr(0, colon1);
+				size_t colon2 = behavior.find(':', colon1 + 1);
+
+				if (colon2 != std::string::npos) {
+					try {
+						priority = std::stoi(behavior.substr(colon1 + 1, colon2 - colon1 - 1));
+						interrupt = (behavior.substr(colon2 + 1) == "true");
+						behavior = name;
+					} catch (const std::exception &e) {
+						RCLCPP_WARN(node->get_logger(), "Failed to parse behavior request: %s", msg->data.c_str());
+						return;
+					}
+				}
+			}
+
+			behavior_coord->request_behavior(behavior, priority, interrupt);
+			RCLCPP_DEBUG(node->get_logger(),
+				"Behavior requested: %s (priority=%d, interrupt=%s, pending=%zu)",
+				behavior.c_str(), priority, interrupt ? "yes" : "no",
+				behavior_coord->pending_count());
+		}
+	);
+
+	// Publisher to execute behaviors from coordinator queue
+	auto behavior_execution_pub = node->create_publisher<std_msgs::msg::String>(
+		"robot/behavior/execute", 10);
+
+	// Timer to process queued behaviors and execute them
+	// Runs every 100ms to check if next high-priority behavior should execute
+	auto behavior_execution_timer = node->create_wall_timer(
+		std::chrono::milliseconds(100),
+		[behavior_coord, behavior_execution_pub, node]() {
+			// Get next behavior from priority queue
+			std::string next_behavior = behavior_coord->get_next_behavior();
+
+			if (!next_behavior.empty()) {
+				// Publish to behavior execution topic
+				auto msg = std::make_shared<std_msgs::msg::String>();
+				msg->data = next_behavior;
+				behavior_execution_pub->publish(*msg);
+
+				RCLCPP_DEBUG(node->get_logger(), "Executed queued behavior: %s (pending=%zu)",
+					next_behavior.c_str(), behavior_coord->pending_count());
+			}
+		}
+	);
+
 	// Example: Start a session with a POST request to /api/robot/sessions
 	nlohmann::json session_payload = {
 		{"anonymous", false}
@@ -89,12 +173,13 @@ int main(int argc, char ** argv)
 
 	// Multi-threaded executor to run nodes concurrently
 	rclcpp::executors::MultiThreadedExecutor executor;
+	executor.add_node(node);  // Add main node for behavior_request subscription and timer
 	executor.add_node(state_mgr);
 	executor.add_node(web_client);
 	executor.add_node(config_mgr);
 
 
-	// RCLCPP_INFO(state_mgr->get_logger(), "bloom_node composed: state_manager + web_service_client starting");
+	RCLCPP_INFO(node->get_logger(), "bloom_node started - state_manager + web_service_client + behavior_coordinator running");
 	executor.spin();
 
 	rclcpp::shutdown();

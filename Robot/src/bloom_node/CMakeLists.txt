@@ -19,6 +19,7 @@ add_library(bloom_node_lib
   src/state_manager.cpp
   src/web_service_client.cpp
   src/configuration_manager.cpp
+  src/behavior_coordinator.cpp
   src/thread_pool.cpp
   src/curl_pool.cpp
 )

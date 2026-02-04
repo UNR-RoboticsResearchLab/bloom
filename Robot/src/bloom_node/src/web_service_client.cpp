@@ -194,18 +194,16 @@ std::pair<std::string, long> WebServiceClient::performRequest(
             response_pub_->publish(msg);
         }
 
+        curl_pool_->release(curl);
         return {response_data, http_code};
 
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Exception in performRequest: %s", e.what());
         if (hdrs) curl_slist_free_all(hdrs);
+        // Return handle to pool
         curl_pool_->release(curl);
         return {"", 0};
     }
-
-    // Return handle to pool
-    curl_pool_->release(curl);
-    return {"", 0};
 }
 
 

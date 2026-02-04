@@ -21,7 +21,6 @@ namespace state_manager {
 /// - a subscription to accept state change commands (`robot/state_cmd`)
 /// - a publisher for behavior execution requests (`robot/behavior/execute`)
 /// - a service to trigger behaviors for the current state (`robot/trigger_behaviors`)
-
 class StateManager : public rclcpp::Node
 {
 public:

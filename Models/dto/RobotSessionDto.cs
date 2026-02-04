@@ -14,6 +14,14 @@ namespace bloom.Models.dto
         /// Whether to create an anonymous session (null UserId)
         /// </summary>
         public bool Anonymous { get; set; } = false;
+        /// <summary>
+        /// RobotId to associate with the session
+        /// </summary>
+        public Guid RobotId { get; set; }
+        /// <summary>
+        /// Optional UserId for the session
+        /// </summary>
+        public string? UserId { get; set; }
     }
 
     /// <summary>
@@ -32,12 +40,12 @@ namespace bloom.Models.dto
     /// <summary>
     /// Request DTO for robot state input (used for both adding and updating states)
     /// </summary>
-    public class RobotStateInputDto
+    public class RobotStateDto
     {
-        public required string Status { get; set; }
-        public required string CurrentTask { get; set; }
+        public string? Status { get; set; } = "";
+        public string? CurrentTask { get; set; } = "";
         public int? CurrentBehaviorId { get; set; }
-        public string SpeechLog { get; set; } = "";
+        public string? SpeechLog { get; set; } = "";
     }
 
     /// <summary>
@@ -46,7 +54,7 @@ namespace bloom.Models.dto
     public class AddRobotToSessionDto
     {
         public required Guid RobotId { get; set; }
-        public required RobotStateInputDto InitialState { get; set; }
+        public required RobotStateDto CurrentState { get; set; }
     }
 
     /// <summary>
@@ -57,8 +65,8 @@ namespace bloom.Models.dto
         public Guid Id { get; set; }
         public Guid RobotSessionId { get; set; }
         public Guid RobotId { get; set; }
-        public string Status { get; set; }
-        public string CurrentTask { get; set; }
+        public string? Status { get; set; }
+        public string? CurrentTask { get; set; }
         public DateTime Timestamp { get; set; }
     }
 }

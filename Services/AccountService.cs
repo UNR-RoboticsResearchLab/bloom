@@ -50,12 +50,12 @@ namespace bloom.Services
 
         public async Task<Account?> GetByIdAsync(string id)
         {
-            return await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Id == id) ?? throw new KeyNotFoundException();
+            return await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Id.ToString() == id.ToString()) ?? throw new KeyNotFoundException();
         }
 
         public async Task<IList<string>> GetUserRolesByIdAsync(string id)
         {
-            var user = _userManager.Users.FirstOrDefault(u => u.Id == id);
+            var user = _userManager.Users.FirstOrDefault(u => u.Id.ToString() == id.ToString());
             if (user == null)
             {
                 throw new KeyNotFoundException("User not found");
@@ -227,6 +227,10 @@ namespace bloom.Services
             try
             {
                 user = await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Email == email);
+                if (user == null)
+                {
+                    throw new KeyNotFoundException("User not found");
+                }
             }
             catch (Exception ex)
             {

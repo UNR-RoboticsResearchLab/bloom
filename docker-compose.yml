@@ -8,10 +8,10 @@ services:
     container_name: bloom-mariadb
     restart: always
     environment:
-      MARIADB_ROOT_PASSWORD: #bloomrootpassword
+      MARIADB_ROOT_PASSWORD: bloomrootpassword
       MARIADB_DATABASE: bloomdb
       MARIADB_USER: bloomuser
-      MARIADB_PASSWORD: #bloompassword
+      MARIADB_PASSWORD: bloompassword
     ports:
       - "3306:3306"
     volumes:

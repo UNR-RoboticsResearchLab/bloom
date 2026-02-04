@@ -16,12 +16,12 @@ namespace bloom.Services
         RobotState GetCurrentRobotStateByRobotIdAsync(string robotId);
 
         /**
-         * <summary> 
-         * GetCurrentRobotStateByRobotIdAsync() gets the current state from the session Id
+         * <summary>
+         * GetCurrentRobotStateBySessionIdAsync() gets all current states from the session Id
          * </summary>
-         * <returns>RobotState</returns>
+         * <returns>Collection of RobotStates</returns>
         */
-        RobotState GetCurrentRobotStateBySessionIdAsync(string sessionId);
+        ICollection<RobotState> GetCurrentRobotStateBySessionIdAsync(string sessionId);
 
         /**
          * <summary>

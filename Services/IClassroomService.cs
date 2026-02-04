@@ -10,18 +10,15 @@ namespace bloom.Services
     public interface IClassroomService
     {
         // Get
-        Task<Lesson> GetByIdAsync(int id);
-        Task<IEnumerable<Lesson>> GetByUserIdAsync(string id);
-        Task<IEnumerable<Lesson>> GetByEmailAsync(string email);
+        Task<Classroom?> GetByIdAsync(Guid id);
 
         // Create
-        Task<bool> CreateAsync(Lesson lesson);
-
+        Task<bool> CreateAsync(string name, string teacherId);
 
         // Modify
-        Task<bool> ModifyAsync(Lesson lesson);
+        Task<bool> ModifyAsync(Classroom classroom);
 
         // Delete
-        Task DeleteByIdAsync(int id);
+        Task DeleteByIdAsync(Guid id);
     }
 }

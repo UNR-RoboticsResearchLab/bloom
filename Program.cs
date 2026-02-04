@@ -23,17 +23,12 @@ Console.WriteLine($"ConnectionString: {ConnectionString}");
 
 //  ============ Add services to the container. ============
 
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
-    .SetApplicationName("BloomServer")
-    .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
-
-builder.Services.AddOpenApi();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 if (build_environmment == "Development")
 {
+    builder.Services.AddOpenApi();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
     // builder.WebHost.ConfigureKestrel(options =>
     // {
     //     options.ListenAnyIP(8080);   // HTTP
@@ -51,6 +46,11 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
                 errorNumbersToAdd: null
 
     )));
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
+    .SetApplicationName("BloomServer")
+    .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
 
 
 // Add identity
@@ -72,6 +72,7 @@ builder.Services.AddSingleton<IRobotStateRepository, InMemoryRobotStateRepositor
 builder.Services.AddScoped<IRobotSessionRepository, RobotSessionRepository>();
 builder.Services.AddScoped<ISessionCodeService, SessionCodeService>();
 builder.Services.AddScoped<IRobotSessionService, RobotSessionService>();
+builder.Services.AddScoped<IRobotStateService, RobotStateService>();
 
 // Add MVC model
 builder.Services.AddControllersWithViews();
@@ -146,15 +147,11 @@ app.UseAuthorization();
 
 using (var scope = app.Services.CreateScope())
 {
-    Console.WriteLine("Applying Migrations and Seeding Database...");
-    var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
-    db.Database.Migrate();
+    // var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
+    // db.Database.Migrate();
 
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    await BloomDbContext.SeedDatabaseRoles(roleManager);
-
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
-    await BloomDbContext.SeedDatabaseAdminUser(userManager);
+    // var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    // await BloomDbContext.SeedRolesAsync(roleManager);
 }
 
 

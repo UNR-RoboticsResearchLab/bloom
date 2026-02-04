@@ -6,10 +6,11 @@ export default class ApiClient {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
-    };
+    
     const headers = {
       "Content-Type": "application/json",
       ...(options.headers || {}),
+    };
 
     const response = await fetch(url, { ...options, headers });
 
@@ -32,10 +33,10 @@ async signUp(payload) {
       fullName: payload.fullName,
       email: payload.email,
       password: payload.password,
-      selectedRole: payload.role,
+      selectedRole: String(payload.role),
     };
 
-    const res = await this.request("/account/create", {
+    const res = await this.request("/api/accounts/create", {
       method: "POST",
       body: JSON.stringify(body),
     });
@@ -47,7 +48,7 @@ async signUp(payload) {
 async signIn(email, password) {
     const payload = { email, password };
 
-    const data = await this.request("/account/login", {
+    const data = await this.request("/api/accounts/login", {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -66,7 +67,7 @@ async signIn(email, password) {
 
 
 async getUserProfile(id) {
-    const res = await this.request(`/account/${id}`, {
+    const res = await this.request(`/api/accounts/${id}`, {
       method: "GET",
     });
     return res;

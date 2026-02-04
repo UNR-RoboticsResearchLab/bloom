@@ -11,10 +11,10 @@ namespace bloom.Models
 
         // Foreign key to the session
         public Guid RobotSessionId { get; set; }
-        public RobotSession RobotSession { get; set; }
+        public RobotSession? RobotSession { get; set; }
 
         // Snapshot of the robot state at that moment
-        public RobotState RobotState { get; set; }
+        public required RobotState RobotState { get; set; }
 
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     }

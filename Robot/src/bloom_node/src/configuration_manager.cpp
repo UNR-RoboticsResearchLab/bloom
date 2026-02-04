@@ -126,6 +126,13 @@ std::optional<std::string> ConfigurationManager::get_string(const std::string & 
   return it->second;
 }
 
+std::optional<bool> ConfigurationManager::set_string(const std::string & key, const std::string & value)
+{
+  std::lock_guard<std::mutex> lk(mutex_);
+  store_[key] = value;
+  return true;
+}
+
 std::optional<int> ConfigurationManager::get_int(const std::string & key) const
 {
   auto s = get_string(key);

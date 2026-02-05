@@ -119,7 +119,7 @@ mkdir -p "$TARGET_DIR/build"
 
 # --- Deploy frontend files ---
 echo "Deploying frontend files..."
-cp -r "$FRONTEND_BUILD_DIR/"* "$TARGET_DIR/"
+cp -r "$FRONTEND_BUILD_DIR/"* "$TARGET_DIR/build"
 
 # --- Deploy application files ---
 echo "Deploying application files..."

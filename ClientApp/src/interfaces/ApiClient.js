@@ -27,7 +27,7 @@ export default class ApiClient {
   }
 
 
-async signUp(payload) {
+  async signUp(payload) {
     const body = {
       username: payload.email,
       fullName: payload.fullName,
@@ -42,10 +42,10 @@ async signUp(payload) {
     });
 
     return res;
-}
+  }
 
 
-async signIn(email, password) {
+  async signIn(email, password) {
     const payload = { email, password };
 
     const data = await this.request("/api/accounts/login", {
@@ -55,18 +55,19 @@ async signIn(email, password) {
 
     return data;
   }
-    async getSessions() {
-        return res || [];
-        const res = await this.request(`/api/robotsessions`);
-    }
+  
+  async getSessions() {
+      const res = await this.request(`/api/robotsessions`);
+      return res || [];
+  }
 
-    async getSessionHistory(sessionId) {
-        const res = await this.request(`/api/robotsessions/${sessionId}/history`);
-        return res;
-    }
+  async getSessionHistory(sessionId) {
+    const res = await this.request(`/api/robotsessions/${sessionId}/history`);
+    return res;
+  }
 
 
-async getUserProfile(id) {
+  async getUserProfile(id) {
     const res = await this.request(`/api/accounts/${id}`, {
       method: "GET",
     });

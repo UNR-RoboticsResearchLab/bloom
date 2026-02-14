@@ -13,7 +13,7 @@
 #include <chrono>
 #include <sstream>
 
-namespace state_manager {
+namespace bloom_node {
 
 /// StateManager is a small ROS2 node encapsulating a robot state machine and
 /// a mapping from states to behaviors. It provides:
@@ -76,6 +76,6 @@ private:
 	std::unordered_map<std::string, std::vector<std::string>> state_behaviors_;
 };
 
-} // namespace state_manager
+} // namespace bloom_node
 
 #endif

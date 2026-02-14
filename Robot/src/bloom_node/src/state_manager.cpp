@@ -1,7 +1,6 @@
 #include "bloom_node/state_manager.h"
 
-namespace state_manager {
-
+using namespace bloom_node;
 using namespace std::chrono_literals;
 
 StateManager::StateManager(const rclcpp::NodeOptions & options)
@@ -24,6 +23,7 @@ StateManager::StateManager(const rclcpp::NodeOptions & options)
 			res->success = ok;
 			res->message = ok ? "Behaviors triggered" : "No behaviors for current state";
 		});
+
 
 	// Heartbeat timer: periodically publish current state
 	heartbeat_timer_ = this->create_wall_timer(1s, [this]() { this->publish_state(); });
@@ -119,7 +119,6 @@ void StateManager::publish_behavior(const std::string & behavior_name)
 	RCLCPP_INFO(this->get_logger(), "Published behavior execute request: %s", behavior_name.c_str());
 }
 
-} // namespace state_manager
 
 
 #ifdef STATE_MANAGER_MAIN

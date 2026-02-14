@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <iostream>
 
-namespace configuration_manager {
+namespace bloom_node {
 
 /// ConfigurationManager provides an (untested) thread-safe configuration store for
 /// the robot. It can load simple key=value files and import parameters from a

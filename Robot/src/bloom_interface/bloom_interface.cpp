@@ -13,7 +13,7 @@
 #include <rclcpp/executors/multi_threaded_executor.hpp>
 #include "bloom_node/web_service_client.h"
 #include "bloom_node/configuration_manager.h"
-#include "bloom_agent/robot_state_controller.h"
+#include "bloom_interface/robot_state_controller.h"
 
 namespace fs = std::filesystem;
 
@@ -27,7 +27,7 @@ int main(int argc, char ** argv)
         auto config_mgr = std::make_shared<configuration_manager::ConfigurationManager>(config_node);
 
         // Load configuration from file
-        fs::path config_dir = "src/bloom_agent/config";
+        fs::path config_dir = "src/bloom_interface/config";
 
         if (!fs::exists(config_dir) || !fs::is_directory(config_dir)) {
             RCLCPP_ERROR(config_node->get_logger(), "Config directory not found: %s", config_dir.c_str());

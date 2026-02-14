@@ -1,6 +1,6 @@
 // bloom
 // robot_state_controller.h
-// Header file for RobotStateController class managing robot state and communication with C# backend.
+// Header file for RobotStateController class managing high level robot state and communication with backend.
 // Created: 12/2/2025
 
 #ifndef ROBOT_STATE_CONTROLLER_H

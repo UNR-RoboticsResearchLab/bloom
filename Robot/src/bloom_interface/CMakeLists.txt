@@ -1,9 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-<<<<<<<< HEAD:Robot/src/bloom_interface/CMakeLists.txt
 project(bloom_interface)
-========
-project(bloom_driver)
->>>>>>>> 90ada47e1541badd97520020a789842874330999:Robot/src/bloom_driver/CMakeLists.txt
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -41,16 +37,16 @@ ament_target_dependencies(robot_state_controller
 # Link against uuid library
 target_link_libraries(robot_state_controller uuid)
 
-# Build bloom_agent executable
-add_executable(bloom_agent
-  bloom_agent.cpp
+# Build bloom_interface executable
+add_executable(bloom_interface
+  bloom_interface.cpp
 )
 
-target_link_libraries(bloom_agent
+target_link_libraries(bloom_interface
   robot_state_controller
 )
 
-ament_target_dependencies(bloom_agent
+ament_target_dependencies(bloom_interface
   rclcpp
   bloom_node
   CURL
@@ -59,7 +55,7 @@ ament_target_dependencies(bloom_agent
 # Install targets
 install(TARGETS
   robot_state_controller
-  bloom_agent
+  bloom_interface
   DESTINATION lib/${PROJECT_NAME}
 )
 

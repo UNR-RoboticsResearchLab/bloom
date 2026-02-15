@@ -16,7 +16,7 @@
             "type": "introduction",
             "script": "Hello, there! Today we're going to learn about homophones... Do you know what a homophone is?",
             "behaviors": {
-                "gesture": "happy",
+                "behavior": "happy",
                 "facial_expression": "smile",
                 "gaze": "scan_room"
             },
@@ -31,7 +31,7 @@
               "head_movement": "nod_emphasis",
               "gaze": "center"
             },
-            "visual_aid": "slide_definition_homophones.png",
+            "visual_aid": ["slide_definition_homophones.png"],
             "timing_seconds": 20
         },
         {

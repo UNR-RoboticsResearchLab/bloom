@@ -3,6 +3,7 @@
 # Usage: ./test.sh [--prod]
 # Runs automated tests for React and Server containers.
 # Designed for local and CI (Jenkins) environments.
+# made w claude
 
 set -euo pipefail
 

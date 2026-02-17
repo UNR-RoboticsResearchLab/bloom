@@ -13,12 +13,7 @@
 #include <algorithm>
 
 namespace bloom_node {
-
-/**
- * Lesson execution tracking and coordination for educational modules.
- */
-
-    struct LessonStep {
+struct LessonStep {
     int id;
     std::string type;
     std::string script;
@@ -43,6 +38,10 @@ struct LessonData {
     std::vector<LessonStep> sequence;
 };
 
+/**
+ * Lesson execution tracking and coordination for educational modules.
+ */
+
 class LessonCoordinator : public rclcpp::Node {
 
 public:
@@ -52,12 +51,18 @@ public:
         const std::string &node_name = "lesson_coordinator_node"
     );
 
+    ~LessonCoordinator();
+
+    // load lesson data from the backend and prepare for execution
     bool load_lesson(const LessonData &lesson_data);
 
+    // start executing the loaded lesson from the beginning
     void start_lesson();
 
+    // stop the lesson execution immediately and call idle state
     void stop_lesson();
 
+    // reset the lesson progress to the beginning
     void reset_lesson();
 
 private:
@@ -91,3 +96,6 @@ private:
 
 
 };
+}
+
+#endif //BLOOM_NODE_LESSON_COORDINATOR_H

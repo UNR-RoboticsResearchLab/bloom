@@ -19,15 +19,19 @@ LessonCoordinator::~LessonCoordinator() {
 bool LessonCoordinator::load_lesson(const LessonData &lesson_data) {
     
 
-    web_client_->sendGetAsync("/api/lessons/" + lesson_data.lesson_id, {}, [this](const std::string &body, long http_code) {
+    auto web_client_future = web_client_->sendGetAsync("/api/lessons/" + lesson_data.lesson_id, {}, [this](const std::string &body, long http_code) {
         if (http_code == 200) {
             RCLCPP_INFO(this->get_logger(), "Lesson data loaded successfully from backend");
             //parse json into lesson
+            
             
         } else {
             RCLCPP_ERROR(this->get_logger(), "Failed to load lesson data from backend: HTTP %ld", http_code);
         }
     });
+
+    // parse json lesson data
+    current_lesson_ = lesson_data;
 
 
 

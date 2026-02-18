@@ -96,7 +96,7 @@ class BloomOrchestrator:
                 # Suppress all HTTP request logs
                 pass
         
-        server = ReusableHTTPServer(('localhost', 8000), QuietHandler)
+        self.server = ReusableHTTPServer(('localhost', 8000), QuietHandler)
         
         # Run server in background thread
         server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)

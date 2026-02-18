@@ -83,6 +83,10 @@ class BloomOrchestrator:
         print("Orchestrator ready")
     
     def start_http_server(self):
+        # Allow port reuse so restarts don't hit "Address already in use"
+        class ReusableHTTPServer(HTTPServer):
+            allow_reuse_address = True
+
          # Start simple HTTP server so face can access files using AJAX
         os.chdir(self.face_dir)
         
@@ -92,10 +96,10 @@ class BloomOrchestrator:
                 # Suppress all HTTP request logs
                 pass
         
-        server = HTTPServer(('localhost', 8000), QuietHandler)
+        server = ReusableHTTPServer(('localhost', 8000), QuietHandler)
         
         # Run server in background thread
-        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         server_thread.start()
         
         print("Started HTTP server on localhost:8000")
@@ -368,6 +372,12 @@ class BloomOrchestrator:
             print("\n\nEnding conversation")
             self.speak("Goodbye! It was really nice talking to you!")
 
+    def shutdown(self):
+        if hasattr(self, 'server'):
+            self.server.shutdown()
+            self.server.server_close()
+            print("HTTP server closed")
+
 def main():
     print("Bloom conversation orchestrator")
     print("-" * 40)
@@ -375,8 +385,11 @@ def main():
     # Create orchestrator
     orchestrator = BloomOrchestrator()
     
-    # Run conversation
-    orchestrator.run_conversation()
-
+    try:
+        orchestrator.run_conversation()
+    except KeyboardInterrupt:
+        print("\nStopping...")
+    finally:
+        orchestrator.shutdown()
 if __name__ == "__main__":
     main()

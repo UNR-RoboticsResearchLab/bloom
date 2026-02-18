@@ -676,13 +676,14 @@ Modifications:
             }, 600);
         }
         
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            face.leftEye.lookAt(x, y);
-            face.rightEye.lookAt(x, y);
-        });
+        //Commented out for now, this allows the eyes to follow the mouse cursor as a proof of concept for if we added face tracking to the eyes
+        // canvas.addEventListener('mousemove', (e) => {
+        //     const rect = canvas.getBoundingClientRect();
+        //     const x = e.clientX - rect.left;
+        //     const y = e.clientY - rect.top;
+        //     face.leftEye.lookAt(x, y);
+        //     face.rightEye.lookAt(x, y);
+        // });
         
         // Modified: Changed original keyboard controls to include viseme testing and mode switching
         document.addEventListener('keydown', (e) => {

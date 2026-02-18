@@ -144,18 +144,8 @@ Modifications:
     </div>
 
     <script>
-        // Added: Simplified mouth shapes for English visemes
-        const MOUTH_SHAPES = {
-            CLOSED: { width: 150, height: 0, type: 'line' },                    // Lips together
-            WIDE_OPEN: { width: 140, height: 80, type: 'oval' },                // Big open mouth
-            MEDIUM_OPEN: { width: 130, height: 60, type: 'oval' },              // Medium open
-            NARROW_SMILE: { width: 150, height: 35, type: 'wide_oval' },        // Wide smile
-            ROUNDED: { width: 100, height: 100, type: 'circle' },               // Round lip position
-            DIPHTHONG: { width: 120, height: 65, type: 'oval' },                // Transitional vowel
-            NARROW_VERTICAL: { width: 60, height: 40, type: 'oval' },           // f, v, th
-            NARROW_HORIZONTAL: { width: 120, height: 20, type: 'wide_oval' },   // s, z, t, d
-            PUCKERED: { width: 70, height: 70, type: 'circle_pursed' }          // sh, ch
-        };
+        
+    
         
         // Added: Map Azure viseme IDs to simplified shapes (Optimized for English for now)
         //TODO: Expand for multi-language support later
@@ -475,12 +465,12 @@ Modifications:
             
             // Renamed: Original emotion-based mouth
             drawEmotionMouth(ctx) {
-                const mouthWidth = 150;
+                const mouthWidth = this.width * 0.19;
                 const mouthX = this.width / 2;
                 const mouthY = this.mouthY;
                 
                 ctx.strokeStyle = '#646464';
-                ctx.lineWidth = 8;
+                ctx.lineWidth = this.width * 0.01;
                 ctx.lineCap = 'round';
                 
                 if (Math.abs(this.mouthCurve) < 5) {
@@ -511,6 +501,20 @@ Modifications:
             // Added: Viseme based mouth drawing
             drawVisemeMouth(ctx) {
                 const shapeName = VISEME_TO_SHAPE[this.currentVisemeId] || 'CLOSED';
+                const s = this.width;  // Added: scale reference
+
+                // Added: Simplified mouth shapes for English visemes
+                const MOUTH_SHAPES = {
+                    CLOSED:             { width: s * 0.19, height: 0,        type: 'line' },
+                    WIDE_OPEN:          { width: s * 0.175, height: s * 0.10, type: 'oval' },
+                    MEDIUM_OPEN:        { width: s * 0.163, height: s * 0.075, type: 'oval' },
+                    NARROW_SMILE:       { width: s * 0.19,  height: s * 0.044, type: 'wide_oval' },
+                    ROUNDED:            { width: s * 0.125, height: s * 0.125, type: 'circle' },
+                    DIPHTHONG:          { width: s * 0.15,  height: s * 0.081, type: 'oval' },
+                    NARROW_VERTICAL:    { width: s * 0.075, height: s * 0.05,  type: 'oval' },
+                    NARROW_HORIZONTAL:  { width: s * 0.15,  height: s * 0.025, type: 'wide_oval' },
+                    PUCKERED:           { width: s * 0.088, height: s * 0.088, type: 'circle_pursed' }
+                };
                 const shape = MOUTH_SHAPES[shapeName];
                 
                 const mouthX = this.width / 2;
@@ -519,7 +523,7 @@ Modifications:
                 // Consistent styling for all mouth shapes to match original design of emotion mouth animations
                 ctx.fillStyle = '#323232';      // Dark mouth interior
                 ctx.strokeStyle = '#646464';    // Gray lips (matches closed mouth)
-                ctx.lineWidth = 8;
+                ctx.lineWidth = this.width * 0.01;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
                 
@@ -562,7 +566,7 @@ Modifications:
                         ctx.arc(mouthX, mouthY, shape.width / 2, 0, Math.PI * 2);
                         ctx.fill();
                         // Extra thick outline for pursed effect
-                        ctx.lineWidth = 12;
+                        ctx.lineWidth = this.width * 0.015;
                         ctx.stroke();
                         break;
                 }
@@ -572,13 +576,36 @@ Modifications:
                 this.leftEye.blink();
                 this.rightEye.blink();
             }
+            // Added: Reposition face elements to adjust to screen size
+            repositionElements() {
+                const eyeY = this.height * 0.4;
+                const eyeSpacing = this.width * 0.25;
+                this.leftEye.x = this.width / 2 - eyeSpacing;
+                this.rightEye.x = this.width / 2 + eyeSpacing;
+                this.leftEye.y = eyeY;
+                this.rightEye.y = eyeY;
+                this.leftEye.baseSize = Math.min(this.width, this.height) * 0.09;
+                this.rightEye.baseSize = Math.min(this.width, this.height) * 0.09;
+                this.mouthY = this.height * 0.65;
+            }
         }
         
         const canvas = document.getElementById('faceCanvas');
         const ctx = canvas.getContext('2d');
         
-        canvas.width = 800;
-        canvas.height = 480;
+        //Added: Resize canvas to fill window and adjust based on screen size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            face.width = canvas.width;
+            face.height = canvas.height;
+            face.repositionElements();
+        });
+
         
         const face = new BlossomFace(canvas.width, canvas.height);
         

@@ -11,6 +11,8 @@ import webbrowser
 import pygame
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import threading
+import subprocess
+import platform
 
 # Add module paths
 sys.path.append(os.path.join(os.path.dirname(__file__), 'stt_module'))
@@ -107,10 +109,23 @@ class BloomOrchestrator:
     def open_face(self):
         # Open face via HTTP server 
         face_url = "http://localhost:8000/blossom_face.html"
-        webbrowser.open(face_url)
-        print("Opened face in browser")
         
-        # Wait for browser to load
+        
+        if platform.system() == 'Linux':
+            # Raspberry Pi - launch Chromium in kiosk mode (fullscreen, no browser UI) to allow the face to take up the entire screen
+            subprocess.Popen([
+                'chromium-browser',
+                '--kiosk',
+                '--noerrdialogs',
+                '--disable-infobars',
+                '--no-first-run',
+                face_url
+            ])
+        else:
+            # Mac/other - fallback to regular browser for development
+            webbrowser.open(face_url)
+        
+        print("Opened face in browser")
         time.sleep(3)
     
     def set_face_emotion(self, emotion):

@@ -5,8 +5,11 @@ import Layout from "./components/Layout";
 import SignIn from "./components/SignIn";
 import SignUp from "./components/SignUp";
 import { RequireAuth, RequireRole } from "./components/RouteGuards";
-import About from "./pages/About";
+import Lessons from "./components/Lessons";
+import Students from "./components/Students";
+import Student from "./components/Student";
 
+import About from "./pages/About";
 import Home from "./pages/Home";
 import FetchData from "./pages/FetchData";
 import Counter from "./pages/Counter";
@@ -35,9 +38,17 @@ export default function App() {
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/about" element={<About />} />
+        <Route path="/lessons" element={<Lessons />} />
+        <Route path="/students" element={<Students />} />
+        <Route path="/student/:name" element={<Student />} />
+
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/teacher" element={<TeacherDashboard />} />
+        {/* <Route path="/student" element={<StudentDashboard />} /> */}
+        <Route path="/slp" element={<SlpDashboard />} />
 
         {/* Protected */}
-        <Route element={<RequireAuth />}>
+        {/* <Route element={<RequireAuth />}>
           <Route path="/dashboard">
             <Route element={<RequireRole allow={["admin"]} />}>
               <Route path="admin" element={<AdminDashboard />} />
@@ -52,7 +63,7 @@ export default function App() {
               <Route path="slp" element={<SlpDashboard />} />
             </Route>
           </Route>
-        </Route>
+        </Route> */}
 
         {/* Fallback */}
         <Route path="*" element={<div className="p-3">Not found</div>} />

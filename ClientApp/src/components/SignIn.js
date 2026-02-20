@@ -75,8 +75,11 @@ export default function SignIn() {
     <div className="min-h-screen bg-white text-gray-900 flex flex-col px-6 py-12 lg:px-8 mt-[100px] ">
       <div className="sm:mx-auto sm:w-full sm:max-w-sm">
         <h2 className="mt-10 text-center text-2xl font-bold tracking-tight">
-          Sign in to your account
+          Welcome back
         </h2>
+        <p className="text-center">
+          Sign in to your Bloom account
+        </p>
       </div>
 
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
@@ -97,7 +100,7 @@ export default function SignIn() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm autofill:bg-white"
                 placeholder="name@mail.com"
               />
             </div>
@@ -112,7 +115,7 @@ export default function SignIn() {
               <div className="text-sm">
                 <Link
                   to="/forgot-password"
-                  className="font-semibold text-indigo-600 hover:text-indigo-500"
+                  className="font-semibold text-indigo-600 hover:text-indigo-500 no-underline"
                 >
                   Forgot password?
                 </Link>
@@ -127,13 +130,13 @@ export default function SignIn() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full rounded-md bg-white px-3 py-1.5 pr-10 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                className="block w-full rounded-md bg-white px-3 py-1.5 pr-10 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm autofill:bg-white"
                 placeholder="********"
               />
               <button
                 type="button"
                 onClick={() => setPasswordShown((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute inset-y-0 right-0 flex items-center px-3 border-l border-black text-gray-400 hover:bg-g  hover:text-gray-700 rounded-r-md transition"
                 aria-label="Toggle password visibility"
               >
                 {passwordShown ? <EyeSlashIcon className="h-5 w-5 text-gray-500" /> : <EyeIcon className="h-5 w-5 text-gray-500" />}
@@ -154,7 +157,7 @@ export default function SignIn() {
         </form>
         <p className="mt-10 text-center text-sm text-gray-500">
           New member?{" "}
-          <Link to="/sign-up" className="font-semibold text-indigo-600 hover:text-indigo-500">
+          <Link to="/sign-up" className="font-semibold text-indigo-600 hover:text-indigo-500 no-underline">
             Sign up
           </Link>
         </p>

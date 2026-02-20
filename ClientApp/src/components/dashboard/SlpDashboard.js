@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "./DashboardLayout";
+import { LessonCard } from "../LessonCard";
+import {StudentCard} from "../StudentCard";
+import { useNavigate } from "react-router-dom";
+
+
 
 // Same mock data as Teacher dashboard
 const mockLessons = [
@@ -58,6 +63,8 @@ function AccuracyBar({ value }) {
 }
 
 export default function SlpDashboard() {
+  const navigate = useNavigate();
+
   const [selectedLessonId, setSelectedLessonId] = useState("L1");
   const [selectedStudentId, setSelectedStudentId] = useState("S1");
   const { addNote, getNotes } = useNotes();
@@ -81,6 +88,8 @@ export default function SlpDashboard() {
     return { totalLessons, totalStudents, avgAcc };
   }, []);
 
+  const isConnected = true;
+
   function handleAddNote(e) {
     e.preventDefault();
     const form = e.currentTarget;
@@ -102,15 +111,26 @@ export default function SlpDashboard() {
           <div className="mt-1 text-2xl font-semibold">{headerStats.totalStudents}</div>
         </div>
         <div className="rounded-lg bg-white p-4 shadow">
-          <div className="text-sm text-gray-600">Avg STT Accuracy</div>
-          <div className="mt-1 text-2xl font-semibold">{Math.round(headerStats.avgAcc * 100)}%</div>
+          <div className="text-sm text-gray-600">Robot Status</div>
+          <div className="mt-1 flex items-center gap-2">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                isConnected ? "bg-green-500" : "bg-red-500"
+              }`}
+            />
+            <span className="text-2xl font-semibold">
+              {isConnected ? "Connected" : "Disconnected"}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+
+
+      {/* <div className="mt-6">
         <section className="rounded-lg bg-white p-4 shadow">
           <h3 className="text-base font-semibold">Lessons</h3>
-          <ul className="mt-3 divide-y">
+          <ul className="mt-3 divide-y list-none pl-0">
             {mockLessons.map((lesson) => (
               <li key={lesson.id} className="py-2">
                 <button
@@ -126,10 +146,49 @@ export default function SlpDashboard() {
             ))}
           </ul>
         </section>
+      </div> */}
 
+
+
+      <div className="mt-6">
+        <section className="rounded-lg bg-white p-4 shadow">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold">Lessons</h3>
+
+            <button
+              type="button"
+              onClick={() => navigate("/lessons")}
+              className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
+            >
+              View all
+            </button>
+          </div>
+
+          <div className="mt-3 space-y-3">
+            {mockLessons.map((lesson) => (
+              <LessonCard
+                key={lesson.id}
+                title={lesson.title}
+                description={`Students: ${lesson.students
+                  .map((sid) => mockStudents[sid].name)
+                  .join(", ")}`}
+                onClick={() => {
+                  setSelectedLessonId(lesson.id);
+                  navigate(`/lessons?selected=${lesson.id}`);
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
+
+
+
+      
+      {/* <div className="mt-6">
         <section className="rounded-lg bg-white p-4 shadow">
           <h3 className="text-base font-semibold">Students in Selected Lesson</h3>
-          <ul className="mt-3 divide-y">
+          <ul className="mt-3 divide-y list-none pl-0">
             {studentsForLesson.map((s) => (
               <li key={s.id} className="py-2">
                 <button
@@ -146,10 +205,35 @@ export default function SlpDashboard() {
             ))}
           </ul>
         </section>
+      </div> */}
 
+
+      <div className="mt-6">
+        <section className="rounded-lg bg-white p-4 shadow">
+          <h3 className="text-base font-semibold">Students in Selected Lesson</h3>
+
+          <div className="mt-3 space-y-3 mx-auto w-full">
+            {studentsForLesson.map((s) => (
+              <StudentCard
+                key={s.id}
+                name={s.name}
+                email={`${s.name.toLowerCase().replace(" ", ".")}@example.com`}
+                active={s.active}
+                completed={s.completed}
+                selected={selectedStudentId === s.id}
+                onClick={() => setSelectedStudentId(s.id)}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
+
+
+
+      {/* <div className="mt-6">
         <section className="rounded-lg bg-white p-4 shadow">
           <h3 className="text-base font-semibold">STT Accuracy by Student</h3>
-          <ul className="mt-3 space-y-3">
+          <ul className="mt-3 space-y-3 list-none pl-0">
             {Object.entries(sttForLesson).map(([sid, m]) => (
               <li key={sid} className="rounded border p-3">
                 <div className="flex items-center justify-between">
@@ -166,7 +250,7 @@ export default function SlpDashboard() {
             )}
           </ul>
         </section>
-      </div>
+      </div> */}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg bg-white p-4 shadow">
@@ -218,7 +302,7 @@ export default function SlpDashboard() {
 
         <section className="rounded-lg bg-white p-4 shadow">
           <h3 className="text-base font-semibold">Notes for Selection</h3>
-          <ul className="mt-3 space-y-2 text-sm">
+          <ul className="mt-3 space-y-2 text-sm list-none pl-0">
             {getNotes(selectedStudentId, selectedLessonId).length === 0 && (
               <li className="text-gray-600">No notes yet</li>
             )}

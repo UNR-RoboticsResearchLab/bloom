@@ -46,7 +46,7 @@ export default function Home() {
         </section>
 
         {/* Quick role cards */}
-        <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
           <RoleCard
             title="Admin"
             desc="See system health such as memory and audio latency, network quality, and error rates for STT and TTS."
@@ -57,7 +57,7 @@ export default function Home() {
             desc="Browse lessons, review assigned students, add notes, and check recognition accuracy and outcomes."
             to="/dashboard/slp"
           />
-          <RoleCard
+          {/* <RoleCard
             title="Teacher"
             desc="Manage class lessons, track student completion, and leave session notes that sync with your workflow."
             to="/dashboard/teacher"
@@ -66,7 +66,7 @@ export default function Home() {
             title="Student"
             desc="Open active lessons, see what is completed, and review guidance from your therapist or teacher."
             to="/dashboard/student"
-          />
+          /> */}
         </section>
 
         {/* Features */}
@@ -123,12 +123,12 @@ export default function Home() {
 
         {/* Footer links */}
         <section className="mt-12 flex flex-wrap items-center gap-3">
-          <Link to="/fetch-data" className="no-underline rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200 shadow-xs hover:bg-indigo-50">
+          {/* <Link to="/fetch-data" className="no-underline rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200 shadow-xs hover:bg-indigo-50">
             Sample data
           </Link>
           <Link to="/counter" className="no-underline rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200 shadow-xs hover:bg-indigo-50">
             Counter demo
-          </Link>
+          </Link> */}
           {session?.role ? (
             <Link to={dashboardPathForRole(session.role)} className="no-underline rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500">
               Return to my dashboard

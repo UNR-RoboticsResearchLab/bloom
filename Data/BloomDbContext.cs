@@ -16,10 +16,11 @@ namespace bloom.Data
         public DbSet<Account> Accounts { get; set; }
         public DbSet<Lesson> Lessons { get; set; }
         public DbSet<Assignment> Assignments { get; set; }
-        public DbSet<Classroom> Classrooms { get; set; }
+        public DbSet<SLPClient> SLPClients { get; set; }
         public DbSet<Robot> Robots { get; set; }
         public DbSet<RobotSession> RobotSessions { get; set; }
         public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
+        public DbSet<LessonProgress> LessonProgresses { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
@@ -65,16 +66,26 @@ namespace bloom.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
-            builder.Entity<Classroom>(entity =>
+            builder.Entity<SLPClient>(entity =>
             {
-                entity.ToTable("Classrooms");
+                entity.ToTable("SLPClients");
 
-                // Many-to-Many: Classroom - Students (Accounts)
-                entity.HasMany(c => c.Students)
+                // One-to-Many: SLPClient - Student (Account)
+                entity.HasOne(c => c.Student)
+                    .WithMany()
+                    .HasForeignKey(c => c.StudentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Many-to-Many: SLPClient - Teachers (Accounts)
+                entity.HasMany(c => c.Teachers)
                     .WithMany();
 
-                // Many-to-Many: Classroom - Teachers (Accounts)
-                entity.HasMany(c => c.Teachers)
+                // Many-to-Many: SLPClient - Lessons
+                entity.HasMany(c => c.Lessons)
+                    .WithMany();
+
+                // Many-to-Many: SLPClient - Assignments
+                entity.HasMany(c => c.Assignments)
                     .WithMany();
             });
 

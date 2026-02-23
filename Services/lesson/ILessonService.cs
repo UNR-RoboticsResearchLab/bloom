@@ -10,7 +10,7 @@ namespace bloom.Services
     public interface ILessonService
     {
         // Get
-        Task<Lesson> GetByIdAsync(int id);
+        Task<Lesson> GetByIdAsync(string id);
         Task<IEnumerable<Lesson>> GetByUserIdAsync(string id);
         Task<IEnumerable<Lesson>> GetByEmailAsync(string email);
 
@@ -22,6 +22,6 @@ namespace bloom.Services
         Task<bool> ModifyAsync(Lesson lesson);
 
         // Delete
-        Task DeleteByIdAsync(int id);
+        Task DeleteByIdAsync(string id);
     }
 }

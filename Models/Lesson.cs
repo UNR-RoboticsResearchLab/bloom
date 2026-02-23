@@ -7,6 +7,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace bloom.Models
 {
+    
+    // should be able to add more lesson types in the future as needed,
+    // but for now we'll just have these two categories to keep it simple
     public enum LessonType
     {
         Language,
@@ -21,6 +24,9 @@ namespace bloom.Models
         public string? Description { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
+
+
+        public string LessonFileUrl { get; set; }
 
         [Required]
         public required string CreatedById { get; set; }

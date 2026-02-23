@@ -64,15 +64,17 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 
 // =========== Add Custom Services ===========
+
 builder.Services.AddScoped<IAccountService, AccountService>();
-builder.Services.AddScoped<IRobotService, RobotService>();
 
 // Add RobotSession Services and Repositories
+builder.Services.AddScoped<IRobotService, RobotService>();
 builder.Services.AddSingleton<IRobotStateRepository, InMemoryRobotStateRepository>();
 builder.Services.AddScoped<IRobotSessionRepository, RobotSessionRepository>();
 builder.Services.AddScoped<ISessionCodeService, SessionCodeService>();
 builder.Services.AddScoped<IRobotSessionService, RobotSessionService>();
 builder.Services.AddScoped<IRobotStateService, RobotStateService>();
+builder.Services.AddScoped<ISLPClientService, SLPClientService>();
 
 // Add MVC model
 builder.Services.AddControllersWithViews();

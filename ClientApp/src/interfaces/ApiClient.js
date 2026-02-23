@@ -44,6 +44,20 @@ async signUp(payload) {
     return res;
 }
 
+//temp
+async addStudent(payload) {
+    const body = {
+      name: payload.name,
+      level: payload.level,
+      status: payload.status,
+    };
+
+    const res = await this.request("/api/students/create", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return res;
+}
 
 async signIn(email, password) {
     const payload = { email, password };
@@ -68,6 +82,13 @@ async signIn(email, password) {
 
 async getUserProfile(id) {
     const res = await this.request(`/api/accounts/${id}`, {
+      method: "GET",
+    });
+    return res;
+  }
+
+  async getStudents() {
+    const res = await this.request(`/api/students`, {
       method: "GET",
     });
     return res;

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "./DashboardLayout";
-import { LessonCard } from "../LessonCard";
-import {StudentCard} from "../StudentCard";
+import { LessonCard } from "../../pages/LessonCard";
+import {StudentCard} from "../../pages/StudentCard";
 import { useNavigate } from "react-router-dom";
 
 
@@ -210,8 +210,16 @@ export default function SlpDashboard() {
 
       <div className="mt-6">
         <section className="rounded-lg bg-white p-4 shadow">
-          <h3 className="text-base font-semibold">Students in Selected Lesson</h3>
-
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold">Students</h3>
+            <button
+                type="button"
+                onClick={() => navigate("/students")}
+                className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
+              >
+                View all
+            </button>
+          </div>
           <div className="mt-3 space-y-3 mx-auto w-full">
             {studentsForLesson.map((s) => (
               <StudentCard

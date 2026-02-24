@@ -86,7 +86,7 @@ class AzureTTSEngine(TTSEngineInterface):
         if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
             success = True
         else:
-            cancellation = speechsdk.CancellationDetails.from_result(result)
+            cancellation = result.cancellation_details
             error_reason = f"{cancellation.reason}; details: {cancellation.error_details}"
 
         metrics = SynthesisMetrics(

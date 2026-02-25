@@ -46,7 +46,7 @@ RobotStateController::RobotStateController(
         RCLCPP_INFO(get_logger(), "Starting state sync timer (5s interval)...");
         state_sync_timer_ = this->create_wall_timer(
             std::chrono::seconds(5),
-            std::bind(&RobotStateController::sync_state_to_backend, this)
+            std::bind(&RobotStateController::sync_state_with_backend, this)
         );
 
         RCLCPP_INFO(get_logger(), "RobotStateController initialized successfully!");
@@ -197,8 +197,7 @@ void RobotStateController::add_robot_to_session() {
         {"status", "waiting"},
         {"currentTask", "idle"},
         {"currentBehaviorId", nullptr},
-        {"lastStatusChange", get_current_timestamp()},
-        {"speechLog", ""}
+        {"lastStatusChange", get_current_timestamp()}
     };
 
     // Send add robot request
@@ -256,7 +255,7 @@ void RobotStateController::driver_state_callback(const std_msgs::msg::String::Sh
     }
 }
 
-void RobotStateController::sync_state_to_backend() {
+void RobotStateController::sync_state_with_backend() {
     std::lock_guard<std::mutex> lock(state_mutex_);
 
     // Create state payload

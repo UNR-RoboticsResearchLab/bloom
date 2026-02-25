@@ -1,6 +1,6 @@
 #include "bloom_node/configuration_manager.h"
 
-using namespace configuration_manager;
+using namespace bloom_node;
 
 ConfigurationManager::ConfigurationManager(const rclcpp::Node::SharedPtr& node)
   	: rclcpp::Node(node->get_name()),

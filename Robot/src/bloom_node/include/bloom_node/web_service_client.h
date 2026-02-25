@@ -20,7 +20,7 @@
 #include <optional>
 #include <memory>
 
-namespace web_service_client
+namespace bloom_node
 {
 
     using json = nlohmann::json;
@@ -29,7 +29,7 @@ namespace web_service_client
 /**
  * Thread-safe HTTP client with connection pooling and bounded thread pool.
  * Provides async HTTP operations (GET, POST, PUT, DELETE, PATCH) with configurable
- * timeouts, retries, and SSL verification.
+ * timeouts, retries, and SSL verification. Still requires JWT token management to be implemented. 
  */
 class WebServiceClient : public rclcpp::Node {
 

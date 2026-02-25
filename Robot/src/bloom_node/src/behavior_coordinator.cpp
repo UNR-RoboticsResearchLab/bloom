@@ -1,6 +1,6 @@
 #include "bloom_node/behavior_coordinator.h"
 
-namespace bloom_node {
+using namespace bloom_node;
 
 BehaviorCoordinator::BehaviorCoordinator() = default;
 
@@ -86,5 +86,3 @@ void BehaviorCoordinator::clear_pending() {
   std::priority_queue<BehaviorRequest> empty;
   std::swap(pending_behaviors_, empty);
 }
-
-} // namespace bloom_node

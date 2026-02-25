@@ -1,6 +1,6 @@
 #include "bloom_node/web_service_client.h"
 
-namespace web_service_client {
+using namespace bloom_node;
 
 WebServiceClient::WebServiceClient(
     const std::string &node_name,
@@ -302,5 +302,3 @@ size_t WebServiceClient::getThreadPoolQueueSize() const {
 size_t WebServiceClient::getCurlPoolAvailable() const {
     return curl_pool_->available();
 }
-
-} // namespace web_service_client

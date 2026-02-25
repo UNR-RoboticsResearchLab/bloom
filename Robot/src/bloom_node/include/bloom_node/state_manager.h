@@ -13,7 +13,7 @@
 #include <chrono>
 #include <sstream>
 
-namespace state_manager {
+namespace bloom_node {
 
 /// StateManager is a small ROS2 node encapsulating a robot state machine and
 /// a mapping from states to behaviors. It provides:
@@ -21,6 +21,7 @@ namespace state_manager {
 /// - a subscription to accept state change commands (`robot/state_cmd`)
 /// - a publisher for behavior execution requests (`robot/behavior/execute`)
 /// - a service to trigger behaviors for the current state (`robot/trigger_behaviors`)
+/// - a publisher for face state (TODO), images, and other relevant lesson info (TODO)
 class StateManager : public rclcpp::Node
 {
 public:
@@ -36,6 +37,7 @@ public:
 	StateManager & operator=(const StateManager &) = delete;
 
 	// Set the robot state. This will update the internal state and publish it.
+	// example states: "waiting", "talking", "loading", "listening", etc.
 	void set_state(const std::string & state);
 
 	// Get the current robot state (thread-safe read).
@@ -76,6 +78,6 @@ private:
 	std::unordered_map<std::string, std::vector<std::string>> state_behaviors_;
 };
 
-} // namespace state_manager
+} // namespace bloom_node
 
 #endif

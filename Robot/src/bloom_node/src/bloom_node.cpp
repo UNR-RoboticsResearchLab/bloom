@@ -29,7 +29,7 @@ int main(int argc, char ** argv)
 	// ====== Create nodes ======
 	//config requires some config
 	// todo: move to helper
-	auto config_mgr = std::make_shared<configuration_manager::ConfigurationManager>(node);
+	auto config_mgr = std::make_shared<bloom_node::ConfigurationManager>(node);
 
 	// ====== Create BehaviorCoordinator ======
 	auto behavior_coord = std::make_shared<bloom_node::BehaviorCoordinator>();
@@ -72,10 +72,10 @@ int main(int argc, char ** argv)
 		config_mgr->load_from_file(files.front().c_str());
 	}
 
-	auto state_mgr = std::make_shared<state_manager::StateManager>(rclcpp::NodeOptions());
+	auto state_mgr = std::make_shared<bloom_node::StateManager>(rclcpp::NodeOptions());
 
 	// WebServiceClient constructor expects (node_name, base_url, default_timeout_ms, max_retries)
-	auto web_client = std::make_shared<web_service_client::WebServiceClient>(
+	auto web_client = std::make_shared<bloom_node::WebServiceClient>(
 		std::string("web_service_client"),
 	  	std::string(config_mgr->get_string("base_url").value_or("")),
 	  	5000,

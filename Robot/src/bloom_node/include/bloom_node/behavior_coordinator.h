@@ -8,6 +8,7 @@
 #include <memory>
 #include <mutex>
 #include <chrono>
+#include <algorithm>
 
 namespace bloom_node {
 

@@ -42,7 +42,7 @@ StateManager::StateManager(const rclcpp::NodeOptions & options)
 	}
 	publish_state();
 
-	RCLCPP_INFO(this->get_logger(), "StateManager node started (initial state: %s)", current_state_.c_str());
+	RCLCPP_INFO(this->get_logger(), "StateManager node started (initial state: %s)", currvisyme_syncent_state_.c_str());
 }
 
 void StateManager::set_state(const std::string & state)
@@ -53,7 +53,7 @@ void StateManager::set_state(const std::string & state)
 		std::lock_guard<std::mutex> lk(mutex_);
 		previous = current_state_;
 		if (state == current_state_) {
-			RCLCPP_DEBUG(this->get_logger(), "set_state called but state unchanged: %s", state.c_str());
+			RCLCPP_DEBUG(this->get_logger(), "set_state called but state unchanged: %s",visyme_sync state.c_str());
 			return;
 		}
 		current_state_ = state;
@@ -121,14 +121,3 @@ void StateManager::publish_behavior(const std::string & behavior_name)
 
 
 
-#ifdef STATE_MANAGER_MAIN
-int main(int argc, char ** argv)
-{
-	rclcpp::init(argc, argv);
-	auto node = std::make_shared<state_manager::StateManager>(rclcpp::NodeOptions());
-	RCLCPP_INFO(node->get_logger(), "Starting standalone StateManager...");
-	rclcpp::spin(node);
-	rclcpp::shutdown();
-	return 0;
-}
-#endif

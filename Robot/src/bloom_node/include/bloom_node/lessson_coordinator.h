@@ -11,6 +11,7 @@
 #include <mutex>
 #include <chrono>
 #include <algorithm>
+#include <std_msgs/msg/string.hpp>
 
 namespace bloom_node {
 struct LessonStep {
@@ -19,6 +20,7 @@ struct LessonStep {
     std::string script;
     std::map<std::string, std::string> behaviors;  // gesture, facial_expression, gaze, etc.
     int timing_seconds;
+    std::string visual_aid_url;
     bool has_interaction;
     InteractionConfig interaction;
 };
@@ -35,6 +37,7 @@ struct InteractionConfig {
 struct LessonData {
     std::string lesson_id;
     std::string title;
+    std::vector<std::string> learning_objectives;
     std::vector<LessonStep> sequence;
 };
 

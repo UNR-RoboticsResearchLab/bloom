@@ -19,7 +19,7 @@ struct BehaviorRequest {
   std::string name;
   int priority;  // Higher = more important
   std::chrono::system_clock::time_point timestamp;
-  bool interrupt_current;  // Can this interrupt running behavior?
+  bool interrupt_current;  // interrupt running behavior?
 
   bool operator<(const BehaviorRequest &other) const {
     // Priority queue orders by priority (higher first), then by timestamp
@@ -44,6 +44,9 @@ public:
   /// Get the next highest priority behavior to execute (or empty string if none)
   std::string get_next_behavior();
 
+  /// Queue a behavior directly (used by LessonCoordinator)
+  void queue_behavior(const std::string &name);
+
   /// Mark a behavior as completed
   void behavior_completed(const std::string &name);
 
@@ -59,6 +62,7 @@ public:
 
   /// Clear all pending behaviors
   void clear_pending();
+
 
 private:
   mutable std::mutex mutex_;

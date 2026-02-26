@@ -26,8 +26,8 @@ public:
     /// @param web_client Shared WebServiceClient for HTTP communication
     /// @param config_mgr Shared ConfigurationManager for configuration access
     explicit RobotStateController(
-        std::shared_ptr<web_service_client::WebServiceClient> web_client,
-        std::shared_ptr<configuration_manager::ConfigurationManager> config_mgr
+        std::shared_ptr<bloom_node::WebServiceClient> web_client,
+        std::shared_ptr<bloom_node::ConfigurationManager> config_mgr
     );
 
     ~RobotStateController() override = default;
@@ -61,8 +61,8 @@ private:
     rclcpp::TimerBase::SharedPtr state_sync_timer_;
 
     // ========== Backend Communication ==========
-    std::shared_ptr<web_service_client::WebServiceClient> web_client_;
-    std::shared_ptr<configuration_manager::ConfigurationManager> config_mgr_;
+    std::shared_ptr<bloom_node::WebServiceClient> web_client_;
+    std::shared_ptr<bloom_node::ConfigurationManager> config_mgr_;
 
     // ========== Initialization ==========
     /// Register robot with C# backend on startup

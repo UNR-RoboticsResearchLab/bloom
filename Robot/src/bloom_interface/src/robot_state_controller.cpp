@@ -10,8 +10,8 @@ using json = nlohmann::json;
 namespace robot_state_controller {
 
 RobotStateController::RobotStateController(
-    std::shared_ptr<web_service_client::WebServiceClient> web_client,
-    std::shared_ptr<configuration_manager::ConfigurationManager> config_mgr)
+    std::shared_ptr<bloom_node::WebServiceClient> web_client,
+    std::shared_ptr<bloom_node::ConfigurationManager> config_mgr)
     : rclcpp::Node("robot_state_controller"),
       current_state_("waiting"),
       current_task_("idle"),

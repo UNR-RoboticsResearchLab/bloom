@@ -143,7 +143,6 @@ namespace bloom.Services
             {
                 var result = await _userManager.CreateAsync(new Account
                 {
-                    UserName = user.UserName,
                     Email = user.Email,
                     FullName = user.FullName,
                     EmailConfirmed = false,

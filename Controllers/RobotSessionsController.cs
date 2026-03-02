@@ -320,6 +320,122 @@ namespace bloom.Controllers
         }
 
         /// <summary>
+        /// Update lesson progress for a session
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <param name="dto">Lesson progress update data</param>
+        /// <returns>Success message with updated session ID</returns>
+        [HttpPut("{sessionId}/lessons/progress")]
+        public async Task<IActionResult> UpdateLessonProgress(Guid sessionId, [FromBody] UpdateLessonProgressDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var session = await _sessionService.GetSessionAsync(sessionId);
+
+                if (session == null)
+                {
+                    return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+                }
+
+                // Verify session ownership if authenticated
+                var currentUserId = GetCurrentUserId();
+                if (session.UserId != null && session.UserId != currentUserId)
+                {
+                    _logger.LogWarning("User {UserId} attempted to update lesson progress in session owned by {SessionUserId}", currentUserId, session.UserId);
+                    return Forbid();
+                }
+
+                await _sessionService.UpdateLessonProgressAsync(sessionId, dto);
+
+                return Ok(new
+                {
+                    Message = "Lesson progress updated successfully",
+                    SessionId = sessionId,
+                    CurrentStepId = dto.CurrentStepId,
+                    CompletedSteps = dto.CompletedSteps,
+                    Status = dto.Status
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Session not found: {SessionId}", sessionId);
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Invalid argument when updating lesson progress");
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating lesson progress for session {SessionId}", sessionId);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Log a student interaction during a lesson
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <param name="dto">Interaction log data</param>
+        /// <returns>Success message with interaction ID</returns>
+        [HttpPost("{sessionId}/lessons/interactions")]
+        public async Task<IActionResult> LogLessonInteraction(Guid sessionId, [FromBody] LogLessonInteractionDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var session = await _sessionService.GetSessionAsync(sessionId);
+
+                if (session == null)
+                {
+                    return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+                }
+
+                // Verify session ownership if authenticated
+                var currentUserId = GetCurrentUserId();
+                if (session.UserId != null && session.UserId != currentUserId)
+                {
+                    _logger.LogWarning("User {UserId} attempted to log interaction in session owned by {SessionUserId}", currentUserId, session.UserId);
+                    return Forbid();
+                }
+
+                var interactionId = await _sessionService.LogLessonInteractionAsync(sessionId, dto);
+
+                return Ok(new
+                {
+                    Message = "Lesson interaction logged successfully",
+                    SessionId = sessionId,
+                    InteractionId = interactionId
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Session not found: {SessionId}", sessionId);
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Invalid argument when logging interaction");
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error logging lesson interaction for session {SessionId}", sessionId);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
         /// Update a robot's state in a session
         /// </summary>
         /// <param name="sessionId">ID of the session</param>

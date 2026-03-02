@@ -1,18 +1,30 @@
 #include "bloom_node/lessson_coordinator.h"
+#include <sstream>
+#include <mutex>
+#include <functional>
 
 using namespace bloom_node;
 
 LessonCoordinator::LessonCoordinator(
     std::shared_ptr<BehaviorCoordinator> behavior_coordinator,
-    std::shared_ptr<web_service_client> web_client,
+    std::shared_ptr<WebServiceClient> web_client,
     const std::string &node_name
-) : Node(node_name),
+) : rclcpp::Node(node_name),
     behavior_coordinator_(behavior_coordinator),
     web_client_(web_client),
     current_step_index_(0),
-    lesson_active_(false) {
+    lesson_active_(false),
+    current_interaction_step_(nullptr),
+    waiting_for_response_(false) {
     lesson_progress_publisher_ = this->create_publisher<std_msgs::msg::String>("lesson_progress", 10);
-    tts_publisher_ = this->create_publisher<std_msgs::msg::String>("tts_output", 10);
+    tts_publisher_ = this->create_publisher<std_msgs::msg::String>("/tts/speak", 10);
+
+    // Subscribe to Vosk speech recognition output for interactive lessons
+    vosk_subscriber_ = this->create_subscription<std_msgs::msg::String>(
+        "/vosk/result", 10,
+        std::bind(&LessonCoordinator::on_vosk_result, this, std::placeholders::_1));
+
+    RCLCPP_INFO(this->get_logger(), "LessonCoordinator initialized with Vosk subscriber");
 }
 
 LessonCoordinator::~LessonCoordinator() {
@@ -81,10 +93,18 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
 
 void LessonCoordinator::queue_behavior(const LessonStep &step) {
     // Queue behaviors to the behavior coordinator
+    if (!behavior_coordinator_) {
+        RCLCPP_WARN(this->get_logger(), "BehaviorCoordinator not available");
+        return;
+    }
+
     for (const auto &[behavior_type, behavior_value] : step.behaviors) {
-        RCLCPP_DEBUG(this->get_logger(), "Queueing behavior: %s = %s", behavior_type.c_str(), behavior_value.c_str());
-    
-        behavior_coordinator_->queue_behavior(behavior_type, behavior_value);
+        if (!behavior_value.empty()) {
+            RCLCPP_DEBUG(this->get_logger(), "Queueing behavior: %s = %s", behavior_type.c_str(), behavior_value.c_str());
+
+            // Use request_behavior with medium priority
+            behavior_coordinator_->request_behavior(behavior_value, 5, false);
+        }
     }
 }
 
@@ -97,8 +117,106 @@ void LessonCoordinator::speak_script(const std::string &script) {
 }
 
 void LessonCoordinator::handle_interaction(const LessonStep &step) {
-    RCLCPP_INFO(this->get_logger(), "Handling interaction for step %d", step.id);
-    // TODO: Implement interaction handling
+    try {
+        const InteractionConfig &interaction = step.interaction;
+
+        if (!interaction.wait_for_response) {
+            RCLCPP_DEBUG(this->get_logger(), "Step %d has no response required", step.id);
+            return;
+        }
+
+        int timeout_seconds = interaction.max_wait_seconds > 0 ? interaction.max_wait_seconds : 10;
+
+        RCLCPP_INFO(this->get_logger(),
+            "Handling interaction for step %d (timeout: %d seconds, correct_answer: %s)",
+            step.id,
+            timeout_seconds,
+            interaction.correct_answer.c_str());
+
+        // Store current step for vosk callback to access
+        current_interaction_step_ = const_cast<LessonStep*>(&step);
+        waiting_for_response_ = true;
+
+        // Cancel any existing timer
+        if (step_timer_) {
+            step_timer_->cancel();
+        }
+
+        // Set timeout timer as fallback
+        step_timer_ = this->create_wall_timer(
+            std::chrono::seconds(timeout_seconds),
+            [this, step]() {
+                if (!waiting_for_response_) return;
+
+                RCLCPP_WARN(this->get_logger(), "Step %d interaction timeout - using fallback", step.id);
+                waiting_for_response_ = false;
+
+                // Use fallback script if provided
+                if (!step.interaction.fallback_script.empty()) {
+                    speak_script(step.interaction.fallback_script);
+                }
+
+                // Log timeout interaction
+                log_interaction_to_backend(step.id, "timeout", false);
+
+                // Move to next step
+                advance_to_next_step();
+            });
+    } catch (const std::exception &e) {
+        RCLCPP_ERROR(this->get_logger(), "Error handling interaction: %s", e.what());
+        waiting_for_response_ = false;
+    }
+}
+
+void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr msg) {
+    if (!msg || msg->data.empty() || !waiting_for_response_ || !current_interaction_step_) {
+        return;
+    }
+
+    try {
+        std::string response = msg->data;
+        const LessonStep& step = *current_interaction_step_;
+        const InteractionConfig& interaction = step.interaction;
+
+        RCLCPP_DEBUG(this->get_logger(), "Received speech input: %s", response.c_str());
+
+        // Check if response matches correct answer
+        bool is_correct = (response == interaction.correct_answer);
+
+        // Provide feedback based on correctness
+        if (is_correct) {
+            if (!interaction.correct_response_script.empty()) {
+                speak_script(interaction.correct_response_script);
+            }
+            // Queue positive behavior
+            if (behavior_coordinator_) {
+                behavior_coordinator_->request_behavior("happy", 5, false);
+            }
+            RCLCPP_INFO(this->get_logger(), "Step %d: Correct response '%s'", step.id, response.c_str());
+        } else {
+            if (!interaction.incorrect_response_script.empty()) {
+                speak_script(interaction.incorrect_response_script);
+            }
+            RCLCPP_INFO(this->get_logger(), "Step %d: Incorrect response '%s' (expected '%s')",
+                step.id, response.c_str(), interaction.correct_answer.c_str());
+        }
+
+        // Log interaction result to backend
+        log_interaction_to_backend(step.id, response, is_correct);
+
+        // Mark as no longer waiting and cancel timeout
+        waiting_for_response_ = false;
+        if (step_timer_) {
+            step_timer_->cancel();
+            step_timer_ = nullptr;
+        }
+
+        // Move to next step
+        advance_to_next_step();
+    } catch (const std::exception &e) {
+        RCLCPP_ERROR(this->get_logger(), "Error processing Vosk result: %s", e.what());
+        waiting_for_response_ = false;
+    }
 }
 
 void LessonCoordinator::advance_to_next_step() {
@@ -119,9 +237,85 @@ void LessonCoordinator::advance_to_next_step() {
 }
 
 void LessonCoordinator::update_progress_with_backend() {
-    // TODO: Send lesson progress to backend
+    try {
+        if (!web_client_ || session_id_.empty()) {
+            RCLCPP_DEBUG(this->get_logger(), "Cannot send progress: web_client or session_id missing");
+            return;
+        }
+
+        // Create progress update
+        LessonProgressUpdate progress;
+        progress.current_step_id = current_step_index_;
+        progress.completed_steps = current_step_index_;
+        progress.status = lesson_active_ ? "InProgress" : "Completed";
+
+        // Build endpoint URL
+        std::string progress_endpoint = "/api/robotsessions/" + session_id_ + "lessons/progress";
+
+        // Send PUT request to backend
+        web_client_->sendRequestAsync(
+            "PUT",
+            progress_endpoint,
+            progress.to_json().dump(),
+            std::nullopt,
+            {"Content-Type: application/json"},
+            [this](const std::string &body, long http_code) {
+                if (http_code >= 200 && http_code < 300) {
+                    RCLCPP_DEBUG(this->get_logger(), "Progress updated successfully");
+                } else {
+                    RCLCPP_WARN(this->get_logger(),
+                        "Failed to update progress (HTTP %ld): %s",
+                        http_code,
+                        body.c_str());
+                }
+            });
+
+        RCLCPP_DEBUG(this->get_logger(), "Progress update sent to backend");
+    } catch (const std::exception &e) {
+        RCLCPP_ERROR(this->get_logger(), "Error updating progress: %s", e.what());
+    }
 }
 
-void LessonCoordinator::log_interaction_to_backend(const std::string &interaction_result) {
-    // TODO: Log interaction result to backend
+void LessonCoordinator::log_interaction_to_backend(int step_id, const std::string &response, bool is_correct) {
+    try {
+        if (!web_client_ || session_id_.empty()) {
+            RCLCPP_DEBUG(this->get_logger(), "Cannot log interaction: web_client or session_id missing");
+            return;
+        }
+
+        // Create interaction log
+        StudentInteractionLog interaction;
+        interaction.step_id = step_id;
+        interaction.interaction_type = "Response";
+        interaction.student_response = response;
+        interaction.is_correct = is_correct;
+        interaction.response_time_ms = 0;  // TODO: Track actual response time
+
+        // Build endpoint URL
+        std::string interaction_endpoint = "/api/robotsessions/" + session_id_ + "/lessons/interactions";
+
+        // Send POST request to backend
+        web_client_->sendRequestAsync(
+            "POST",
+            interaction_endpoint,
+            interaction.to_json().dump(),
+            std::nullopt,
+            {"Content-Type: application/json"},
+            [this, step_id](const std::string &body, long http_code) {
+                if (http_code >= 200 && http_code < 300) {
+                    RCLCPP_DEBUG(this->get_logger(), "Interaction for step %d logged successfully", step_id);
+                } else {
+                    RCLCPP_WARN(this->get_logger(),
+                        "Failed to log interaction for step %d (HTTP %ld): %s",
+                        step_id,
+                        http_code,
+                        body.c_str());
+                }
+            });
+
+        RCLCPP_DEBUG(this->get_logger(), "Interaction logged for step %d: response='%s', correct=%s",
+            step_id, response.c_str(), is_correct ? "true" : "false");
+    } catch (const std::exception &e) {
+        RCLCPP_ERROR(this->get_logger(), "Error logging interaction: %s", e.what());
+    }
 }

@@ -31,6 +31,8 @@ namespace bloom.Models
         // Navigation property for historical state snapshots (for analysis features)
         public ICollection<RobotStateHistory>? StateHistory { get; set; }
 
+        
+
     }
 
 }

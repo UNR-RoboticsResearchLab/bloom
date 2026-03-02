@@ -1,7 +1,9 @@
 #ifndef BLOOM_NODE_LESSON_COORDINATOR_H
 #define BLOOM_NODE_LESSON_COORDINATOR_H
 
+#include <rclcpp/rclcpp.hpp>
 #include "bloom_node/behavior_coordinator.h"
+#include "bloom_node/web_service_client.h"
 #include <rclcpp/timer.hpp>
 #include <string>
 #include <vector>
@@ -50,7 +52,7 @@ class LessonCoordinator : public rclcpp::Node {
 public:
     explicit LessonCoordinator(
         std::shared_ptr<BehaviorCoordinator> behavior_coordinator,
-        std::shared_ptr<web_service_client> web_client,
+        std::shared_ptr<bloom_node::WebServiceClient> web_client,
         const std::string &node_name = "lesson_coordinator_node"
     );
 
@@ -75,11 +77,12 @@ private:
     void speak_script(const std::string &script);
 
     void handle_interaction(const LessonStep &step);
+    void on_vosk_result(const std_msgs::msg::String::SharedPtr msg);
 
     void advance_to_next_step();
 
     void update_progress_with_backend();
-    void log_interaction_to_backend(const std::string &interaction_result);
+    void log_interaction_to_backend(int step_id, const std::string &response, bool is_correct);
 
 
     LessonData current_lesson_;
@@ -88,14 +91,19 @@ private:
     std::string lesson_progress_id_;
     std::string session_id_;
 
+    // For interaction handling
+    LessonStep* current_interaction_step_;
+    bool waiting_for_response_;
+
     std::shared_ptr<BehaviorCoordinator> behavior_coordinator_;
-    std::shared_ptr<web_service_client> web_client_;
+    std::shared_ptr<bloom_node::WebServiceClient> web_client_;
     std::mutex lesson_mutex_;
 
     rclcpp::TimerBase::SharedPtr step_timer_;
-    
+
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr lesson_progress_publisher_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr tts_publisher_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr vosk_subscriber_;
 
 
 };

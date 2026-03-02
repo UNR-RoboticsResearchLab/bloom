@@ -26,8 +26,8 @@
       "type": "definition",
       "script": "Homophones are words that sound the same when we say them, but they have different meanings and different spellings.",
       "behaviors": {
-        "gesture": "idle",
-        "head_movement": "nod_emphasis",
+        "behavior": "idle",
+        "facial_expression": "smile",
         "gaze": "center"
       },
       "visual_aid": ["slide_definition_homophones.png"],
@@ -36,9 +36,9 @@
     {
       "id": 3,
       "type": "example",
-      "script": "For example: 'sea' and 'see'. They sound the same. But 'sea'   is the ocean, and 'see' means to look at something.",
+      "script": "For example: 'sea' and 'see'. They sound the same. But 'sea' is the ocean, and 'see' means to look at something.",
       "behaviors": {
-        "gesture": "idle",
+        "behavior": "idle",
         "facial_expression": "engaged",
         "gaze": "left_to_right"
       },
@@ -50,7 +50,7 @@
       "type": "example",
       "script": "Another example is 'their', 'there', and 'they're'. These are  tricky! 'Their' shows ownership. 'There' tells a place. 'They're' means  they are.",
       "behaviors": {
-        "gesture": "count_three_fingers",
+        "behavior": "",
         "facial_expression": "thoughtful",
         "gaze": "center"
       },
@@ -62,7 +62,7 @@
       "type": "interactive_question",
       "script": "Can anyone give me a pair of homophones?",
       "behaviors": {
-        "gesture": "invite_response",
+        "behavior": "invite_response",
         "posture": "lean_forward",
         "gaze": "audience_member"
       },
@@ -77,7 +77,7 @@
       "type": "guided_practice",
       "script": "Listen carefully. Which word fits the sentence: I will ___     you a letter. Is it 'write' or 'right'?",
       "behaviors": {
-        "gesture": "hand_to_ear",
+        "behaivior": "hand_to_ear",
         "facial_expression": "curious",
         "gaze": "center"
       },
@@ -95,8 +95,8 @@
       "type": "explanation",
       "script": "To figure out which homophone to use, you need to look at the  meaning of the sentence. Context clues help us decide.",
       "behaviors": {
-        "gesture": "tap_head_think",
-        "head_movement": "small_nods",
+        "behavior": "tap_head_think",
+        "facial_expression": "thoughtful",
         "gaze": "center"
       },
       "timing_seconds": 20
@@ -106,7 +106,7 @@
       "type": "activity",
       "script": "Let's say this together: 'I see the sea.' Notice how the   words sound the same but mean different things!",
       "behaviors": {
-        "gesture": "encourage_repeat",
+        "behavior": "encourage_repeat",
         "facial_expression": "playful",
         "gaze": "center"
       },
@@ -121,7 +121,7 @@
       "type": "summary",
       "script": "Today we learned that homophones sound the same but have   different meanings and spellings. We use context to choose the correct    word.",
       "behaviors": {
-        "gesture": "hands_together_emphasis",
+        "behavior": "summarize",
         "facial_expression": "warm_smile",
         "gaze": "scan_room"
       },
@@ -132,7 +132,7 @@
       "type": "closing",
       "script": "Great job today! Keep listening carefully to words that sound  the same. Do you have any questions?",
       "behaviors": {
-        "gesture": "open_invite",
+        "behavior": "",
         "posture": "relaxed",
         "gaze": "audience"
       },

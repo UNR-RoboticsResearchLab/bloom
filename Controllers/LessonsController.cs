@@ -1,3 +1,4 @@
+using bloom.Models.dto;
 using bloom.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -29,7 +30,7 @@ namespace bloom.Controllers
             {
                 var lesson = await _lessonService.GetByIdAsync(lessonId);
                 
-                if (lesson == null)
+                if (lesson == null)        // get json file and send file.
                 {
                     return NotFound(new { message = "Lesson not found." });
                 }
@@ -44,7 +45,7 @@ namespace bloom.Controllers
 
         [HttpPost]
         [Route("create")]
-        public async Task<IActionResult> CreateLesson([FromBody] Lesson lesson)
+        public async Task<IActionResult> CreateLesson([FromBody] LessonDto lesson)
         {
             try
             {
@@ -63,6 +64,8 @@ namespace bloom.Controllers
                 return BadRequest(new { message = $"Request error: {ex.Message}" });
             }
         }
+
+
 
 
         // get json file and send file.

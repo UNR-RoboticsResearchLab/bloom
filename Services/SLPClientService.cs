@@ -20,7 +20,7 @@ namespace bloom.Services
             _accountService = accountService;
         }
 
-        public async Task<bool> CreateAsync(string name, string teacherId, Guid studentId)
+        public async Task<bool> CreateAsync(string name, string teacherId, string studentId)
         {
             try
             {
@@ -138,7 +138,7 @@ namespace bloom.Services
             }
         }
 
-        public async Task<IEnumerable<SLPClient>> GetByStudentIdAsync(Guid studentId)
+        public async Task<IEnumerable<SLPClient>> GetByStudentIdAsync(string studentId)
         {
             try
             {

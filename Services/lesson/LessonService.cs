@@ -2,6 +2,7 @@
 
 using bloom.Data;
 using bloom.Models;
+using bloom.Models.dto;
 using Microsoft.EntityFrameworkCore;
 
 namespace bloom.Services
@@ -9,20 +10,44 @@ namespace bloom.Services
     public class LessonService : ILessonService
     {
         private readonly BloomDbContext _context;
+        private readonly IWebHostEnvironment _env;
 
-        public LessonService(BloomDbContext dbContext)
+        public LessonService(BloomDbContext dbContext, IWebHostEnvironment env)
         {
             _context = dbContext;
+            _env = env;
         }
 
-        public async Task<bool> CreateAsync(Lesson lesson)
+        public async Task<bool> CreateAsync(LessonDto lesson)
         {
             try
             {
                 ArgumentNullException.ThrowIfNull(lesson);
 
                 lesson.CreatedDate = DateTime.UtcNow;
-                _context.Lessons.Add(lesson);
+
+                // Create lesson file from LessonDescription
+                var lessonsDir = Path.Combine(_env.ContentRootPath, "lessons");
+                Directory.CreateDirectory(lessonsDir);
+                var fileName = $"{Guid.NewGuid()}.json";
+                var filePath = Path.Combine(lessonsDir, fileName);
+                await File.WriteAllTextAsync(filePath, lesson.LessonDescription ?? string.Empty);
+
+                var account = await _context.Accounts.FindAsync(lesson.CreatedById)
+                    ?? throw new KeyNotFoundException($"Account with id {lesson.CreatedById} not found");
+
+                var newLesson = new Lesson
+                {
+                    Title = lesson.Title,
+                    Description = lesson.Description,
+                    CreatedDate = lesson.CreatedDate,
+                    LessonFileUrl = filePath,
+                    LessonType = lesson.LessonType,
+                    CreatedById = lesson.CreatedById,
+                    CreatedBy = account
+                };
+
+                _context.Lessons.Add(newLesson);
                 await _context.SaveChangesAsync();
                 return true;
             }
@@ -145,8 +170,6 @@ namespace bloom.Services
 
                 existingLesson.Title = lesson.Title;
                 existingLesson.Description = lesson.Description;
-                existingLesson.LessonFileUrl = lesson.LessonFileUrl;
-                existingLesson.LessonType = lesson.LessonType;
                 existingLesson.UpdatedDate = DateTime.UtcNow;
 
                 _context.Lessons.Update(existingLesson);

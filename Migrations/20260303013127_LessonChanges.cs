@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace bloom.Migrations
 {
     /// <inheritdoc />
-    public partial class RobotSessions : Migration
+    public partial class LessonChanges : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -21,7 +21,7 @@ namespace bloom.Migrations
                 {
                     Id = table.Column<string>(type: "varchar(255)", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    FullName = table.Column<string>(type: "longtext", nullable: false)
+                    FullName = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
@@ -94,26 +94,6 @@ namespace bloom.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Behavior", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "Classrooms",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Name = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    UpdatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    AccentColor = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    BackgroundImageUrl = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Classrooms", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -203,6 +183,8 @@ namespace bloom.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    LessonFileUrl = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedById = table.Column<string>(type: "varchar(255)", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     LessonType = table.Column<int>(type: "int", nullable: false)
@@ -226,14 +208,12 @@ namespace bloom.Migrations
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     Name = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Model = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    SerialNumber = table.Column<string>(type: "longtext", nullable: false)
+                    Model = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     ManufactureDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    FirmwareVersion = table.Column<string>(type: "longtext", nullable: false)
+                    FirmwareVersion = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    IPAddress = table.Column<string>(type: "longtext", nullable: false)
+                    IPAddress = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     RegisteredUserId = table.Column<string>(type: "varchar(255)", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4")
@@ -251,27 +231,30 @@ namespace bloom.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "RobotSessions",
+                name: "SLPClients",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    UserId = table.Column<string>(type: "varchar(255)", nullable: true)
+                    Name = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    SessionCode = table.Column<string>(type: "longtext", nullable: true)
+                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    AccentColor = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    LastUpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    Robots = table.Column<int>(type: "int", nullable: false)
+                    BackgroundImageUrl = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    StudentId = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_RobotSessions", x => x.Id);
+                    table.PrimaryKey("PK_SLPClients", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_RobotSessions_Accounts_UserId",
-                        column: x => x.UserId,
+                        name: "FK_SLPClients_Accounts_StudentId",
+                        column: x => x.StudentId,
                         principalTable: "Accounts",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -328,58 +311,6 @@ namespace bloom.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "AccountClassroom",
-                columns: table => new
-                {
-                    ClassroomId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    StudentsId = table.Column<string>(type: "varchar(255)", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_AccountClassroom", x => new { x.ClassroomId, x.StudentsId });
-                    table.ForeignKey(
-                        name: "FK_AccountClassroom_Accounts_StudentsId",
-                        column: x => x.StudentsId,
-                        principalTable: "Accounts",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_AccountClassroom_Classrooms_ClassroomId",
-                        column: x => x.ClassroomId,
-                        principalTable: "Classrooms",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "AccountClassroom1",
-                columns: table => new
-                {
-                    Classroom1Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    TeachersId = table.Column<string>(type: "varchar(255)", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_AccountClassroom1", x => new { x.Classroom1Id, x.TeachersId });
-                    table.ForeignKey(
-                        name: "FK_AccountClassroom1_Accounts_TeachersId",
-                        column: x => x.TeachersId,
-                        principalTable: "Accounts",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_AccountClassroom1_Classrooms_Classroom1Id",
-                        column: x => x.Classroom1Id,
-                        principalTable: "Classrooms",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "Assignments",
                 columns: table => new
                 {
@@ -412,6 +343,178 @@ namespace bloom.Migrations
                         name: "FK_Assignments_Lessons_LessonId",
                         column: x => x.LessonId,
                         principalTable: "Lessons",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "LessonProgresses",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    LessonId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    StudentId = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ProgressPercentage = table.Column<int>(type: "int", nullable: false),
+                    LessonStep = table.Column<int>(type: "int", nullable: false),
+                    TotalSteps = table.Column<int>(type: "int", nullable: false),
+                    LastUpdated = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LessonProgresses", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_LessonProgresses_Accounts_StudentId",
+                        column: x => x.StudentId,
+                        principalTable: "Accounts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_LessonProgresses_Lessons_LessonId",
+                        column: x => x.LessonId,
+                        principalTable: "Lessons",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "RobotSessions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UserId = table.Column<string>(type: "varchar(255)", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    SessionCode = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    LastUpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    Robots = table.Column<int>(type: "int", nullable: false),
+                    ActiveLessonId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RobotSessions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RobotSessions_Accounts_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Accounts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_RobotSessions_Lessons_ActiveLessonId",
+                        column: x => x.ActiveLessonId,
+                        principalTable: "Lessons",
+                        principalColumn: "Id");
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "AccountSLPClient",
+                columns: table => new
+                {
+                    SLPClientId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    TeachersId = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AccountSLPClient", x => new { x.SLPClientId, x.TeachersId });
+                    table.ForeignKey(
+                        name: "FK_AccountSLPClient_Accounts_TeachersId",
+                        column: x => x.TeachersId,
+                        principalTable: "Accounts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_AccountSLPClient_SLPClients_SLPClientId",
+                        column: x => x.SLPClientId,
+                        principalTable: "SLPClients",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "LessonSLPClient",
+                columns: table => new
+                {
+                    LessonsId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    SLPClientId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LessonSLPClient", x => new { x.LessonsId, x.SLPClientId });
+                    table.ForeignKey(
+                        name: "FK_LessonSLPClient_Lessons_LessonsId",
+                        column: x => x.LessonsId,
+                        principalTable: "Lessons",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_LessonSLPClient_SLPClients_SLPClientId",
+                        column: x => x.SLPClientId,
+                        principalTable: "SLPClients",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "AssignmentSLPClient",
+                columns: table => new
+                {
+                    AssignmentsId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    SLPClientId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AssignmentSLPClient", x => new { x.AssignmentsId, x.SLPClientId });
+                    table.ForeignKey(
+                        name: "FK_AssignmentSLPClient_Assignments_AssignmentsId",
+                        column: x => x.AssignmentsId,
+                        principalTable: "Assignments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_AssignmentSLPClient_SLPClients_SLPClientId",
+                        column: x => x.SLPClientId,
+                        principalTable: "SLPClients",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "LessonInteractions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    LessonId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    RobotSessionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    StepId = table.Column<int>(type: "int", nullable: false),
+                    InteractionType = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    StudentResponse = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsCorrect = table.Column<bool>(type: "tinyint(1)", nullable: true),
+                    ResponseTimeMs = table.Column<int>(type: "int", nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LessonInteractions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_LessonInteractions_Lessons_LessonId",
+                        column: x => x.LessonId,
+                        principalTable: "Lessons",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_LessonInteractions_RobotSessions_RobotSessionId",
+                        column: x => x.RobotSessionId,
+                        principalTable: "RobotSessions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -453,16 +556,6 @@ namespace bloom.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
-                name: "IX_AccountClassroom_StudentsId",
-                table: "AccountClassroom",
-                column: "StudentsId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AccountClassroom1_TeachersId",
-                table: "AccountClassroom1",
-                column: "TeachersId");
-
-            migrationBuilder.CreateIndex(
                 name: "EmailIndex",
                 table: "Accounts",
                 column: "NormalizedEmail");
@@ -472,6 +565,11 @@ namespace bloom.Migrations
                 table: "Accounts",
                 column: "NormalizedUserName",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AccountSLPClient_TeachersId",
+                table: "AccountSLPClient",
+                column: "TeachersId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
@@ -515,14 +613,49 @@ namespace bloom.Migrations
                 column: "StudentId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_AssignmentSLPClient_SLPClientId",
+                table: "AssignmentSLPClient",
+                column: "SLPClientId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LessonInteractions_LessonId",
+                table: "LessonInteractions",
+                column: "LessonId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LessonInteractions_RobotSessionId",
+                table: "LessonInteractions",
+                column: "RobotSessionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LessonProgresses_LessonId",
+                table: "LessonProgresses",
+                column: "LessonId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LessonProgresses_StudentId",
+                table: "LessonProgresses",
+                column: "StudentId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Lessons_CreatedById",
                 table: "Lessons",
                 column: "CreatedById");
 
             migrationBuilder.CreateIndex(
+                name: "IX_LessonSLPClient_SLPClientId",
+                table: "LessonSLPClient",
+                column: "SLPClientId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Robots_RegisteredUserId",
                 table: "Robots",
                 column: "RegisteredUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RobotSessions_ActiveLessonId",
+                table: "RobotSessions",
+                column: "ActiveLessonId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RobotSessions_UserId",
@@ -538,16 +671,18 @@ namespace bloom.Migrations
                 name: "IX_RobotStateHistories_RobotState_CurrentBehaviorId",
                 table: "RobotStateHistories",
                 column: "RobotState_CurrentBehaviorId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SLPClients_StudentId",
+                table: "SLPClients",
+                column: "StudentId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "AccountClassroom");
-
-            migrationBuilder.DropTable(
-                name: "AccountClassroom1");
+                name: "AccountSLPClient");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoleClaims");
@@ -565,7 +700,16 @@ namespace bloom.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
-                name: "Assignments");
+                name: "AssignmentSLPClient");
+
+            migrationBuilder.DropTable(
+                name: "LessonInteractions");
+
+            migrationBuilder.DropTable(
+                name: "LessonProgresses");
+
+            migrationBuilder.DropTable(
+                name: "LessonSLPClient");
 
             migrationBuilder.DropTable(
                 name: "Robots");
@@ -574,19 +718,22 @@ namespace bloom.Migrations
                 name: "RobotStateHistories");
 
             migrationBuilder.DropTable(
-                name: "Classrooms");
-
-            migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
-                name: "Lessons");
+                name: "Assignments");
+
+            migrationBuilder.DropTable(
+                name: "SLPClients");
 
             migrationBuilder.DropTable(
                 name: "Behavior");
 
             migrationBuilder.DropTable(
                 name: "RobotSessions");
+
+            migrationBuilder.DropTable(
+                name: "Lessons");
 
             migrationBuilder.DropTable(
                 name: "Accounts");

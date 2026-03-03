@@ -26,7 +26,7 @@ namespace bloom.Models
         public DateTime? UpdatedDate { get; set; }
 
 
-        public string LessonFileUrl { get; set; }
+        public required string LessonFileUrl { get; set; }
 
         [Required]
         public required string CreatedById { get; set; }

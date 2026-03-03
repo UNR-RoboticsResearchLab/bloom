@@ -9,7 +9,7 @@ namespace bloom.Models
         
         public Guid LessonId { get; set; }
         public Lesson? Lesson { get; set; }
-        public Guid StudentId { get; set; }
+        public string StudentId { get; set; } = string.Empty;
         public Account? Student { get; set; }
 
         

@@ -1,5 +1,6 @@
 
 using bloom.Models;
+using bloom.Models.dto;
 
 namespace bloom.Services
 {
@@ -87,5 +88,20 @@ namespace bloom.Services
         /// <param name="code">The 6-digit session code</param>
         /// <returns>The RobotSession or null if not found</returns>
         Task<RobotSession?> GetSessionByCodeAsync(string code);
+
+        /// <summary>
+        /// Logs a student interaction during a lesson in a session
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        /// <param name="dto">Interaction details</param>
+        /// <returns>ID of the created interaction record</returns>
+        Task<Guid> LogLessonInteractionAsync(Guid sessionId, LogLessonInteractionDto dto);
+
+        /// <summary>
+        /// Creates or updates lesson progress for the student in a session
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        /// <param name="dto">Progress update data</param>
+        Task UpdateLessonProgressAsync(Guid sessionId, UpdateLessonProgressDto dto);
     }
 }

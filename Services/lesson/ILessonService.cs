@@ -4,6 +4,7 @@
 // Created: 10/22/2025
 
 using bloom.Models;
+using bloom.Models.dto;
 
 namespace bloom.Services
 {
@@ -15,7 +16,7 @@ namespace bloom.Services
         Task<IEnumerable<Lesson>> GetByEmailAsync(string email);
 
         // Create
-        Task<bool> CreateAsync(Lesson lesson);
+        Task<bool> CreateAsync(LessonDto lesson);
 
 
         // Modify

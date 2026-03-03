@@ -5,6 +5,7 @@
 // Created: 11/18/2025
 
 using bloom.Models;
+using bloom.Models.dto;
 using bloom.Data;
 using bloom.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -33,8 +34,6 @@ namespace bloom.Services
         public async Task<RobotSession> StartSessionAsync(Guid robotId, string? userId = null, bool anon = false)
         {
 
-            var sessionId = Guid.NewGuid();
-
             var session = new RobotSession
             {
                 UserId = anon ? null : userId,
@@ -46,7 +45,7 @@ namespace bloom.Services
 
             await _sessionRepository.AddAsync(session);
 
-            await AddRobotToSessionAsync(sessionId, robotId);
+            await AddRobotToSessionAsync(session.Id, robotId);
 
             return session;
         }
@@ -209,6 +208,71 @@ namespace bloom.Services
         public async Task<RobotSession?> GetSessionByCodeAsync(string code)
         {
             return await _dbContext.RobotSessions.FirstOrDefaultAsync(rs => rs.SessionCode == code);
+        }
+
+        public async Task<Guid> LogLessonInteractionAsync(Guid sessionId, LogLessonInteractionDto dto)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            var interaction = new LessonInteraction
+            {
+                RobotSessionId = sessionId,
+                LessonId = session.ActiveLessonId,
+                StepId = dto.StepId,
+                InteractionType = dto.InteractionType,
+                StudentResponse = dto.StudentResponse,
+                IsCorrect = dto.IsCorrect,
+                ResponseTimeMs = dto.ResponseTimeMs,
+                Timestamp = DateTime.UtcNow
+            };
+
+            _dbContext.LessonInteractions.Add(interaction);
+            await _dbContext.SaveChangesAsync();
+
+            return interaction.Id;
+        }
+
+        public async Task UpdateLessonProgressAsync(Guid sessionId, UpdateLessonProgressDto dto)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            if (session.ActiveLessonId == null)
+                throw new InvalidOperationException($"Session {sessionId} has no active lesson");
+
+            if (string.IsNullOrEmpty(session.UserId))
+                throw new InvalidOperationException($"Session {sessionId} has no associated user");
+
+            var lessonId = session.ActiveLessonId.Value;
+            var studentId = session.UserId;
+
+            var progress = await _dbContext.LessonProgresses
+                .FirstOrDefaultAsync(p => p.LessonId == lessonId && p.StudentId == studentId);
+
+            if (progress == null)
+            {
+                progress = new LessonProgress
+                {
+                    LessonId = lessonId,
+                    StudentId = studentId,
+                    LessonStep = dto.CurrentStepId,
+                    TotalSteps = dto.TotalSteps,
+                    ProgressPercentage = dto.TotalSteps > 0 ? (dto.CompletedSteps * 100) / dto.TotalSteps : 0,
+                    LastUpdated = DateTime.UtcNow
+                };
+                _dbContext.LessonProgresses.Add(progress);
+            }
+            else
+            {
+                progress.LessonStep = dto.CurrentStepId;
+                progress.TotalSteps = dto.TotalSteps;
+                progress.ProgressPercentage = dto.TotalSteps > 0 ? (dto.CompletedSteps * 100) / dto.TotalSteps : 0;
+                progress.LastUpdated = DateTime.UtcNow;
+                _dbContext.LessonProgresses.Update(progress);
+            }
+
+            await _dbContext.SaveChangesAsync();
         }
     }
 }

@@ -21,6 +21,7 @@ namespace bloom.Data
         public DbSet<RobotSession> RobotSessions { get; set; }
         public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
         public DbSet<LessonProgress> LessonProgresses { get; set; }
+        public DbSet<LessonInteraction> LessonInteractions { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
@@ -74,7 +75,7 @@ namespace bloom.Data
                 entity.HasOne(c => c.Student)
                     .WithMany()
                     .HasForeignKey(c => c.StudentId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    .OnDelete(DeleteBehavior.Restrict);
 
                 // Many-to-Many: SLPClient - Teachers (Accounts)
                 entity.HasMany(c => c.Teachers)
@@ -112,7 +113,37 @@ namespace bloom.Data
                 entity.OwnsOne(r => r.RobotState);
             });
 
-            builder.Entity<Robot>(entity => { 
+            builder.Entity<LessonProgress>(entity =>
+            {
+                entity.ToTable("LessonProgresses");
+
+                entity.HasOne(lp => lp.Student)
+                    .WithMany()
+                    .HasForeignKey(lp => lp.StudentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(lp => lp.Lesson)
+                    .WithMany()
+                    .HasForeignKey(lp => lp.LessonId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<LessonInteraction>(entity =>
+            {
+                entity.ToTable("LessonInteractions");
+
+                entity.HasOne(li => li.RobotSession)
+                    .WithMany()
+                    .HasForeignKey(li => li.RobotSessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(li => li.Lesson)
+                    .WithMany()
+                    .HasForeignKey(li => li.LessonId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            builder.Entity<Robot>(entity => {
                 entity.HasOne(r => r.RegisteredUser)
                     .WithMany(a => a.RegisteredRobots)
                     .HasForeignKey(r => r.RegisteredUserId)

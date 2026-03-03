@@ -2,6 +2,7 @@
 
 using bloom.Data;
 using bloom.Models;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace bloom.Services
@@ -11,10 +12,12 @@ namespace bloom.Services
     {
 
         private readonly BloomDbContext _context;
+        private readonly AccountService _accountService;
 
-        public LessonProgressService(BloomDbContext context)
+        public LessonProgressService(BloomDbContext context, AccountService accountService)
         {
             _context = context;
+            _accountService = accountService;
         }
 
 
@@ -50,13 +53,13 @@ namespace bloom.Services
 
         public async Task<IEnumerable<LessonProgress>> GetByUserIdAsync(string userId)
         {
-            Guid guid = Guid.Parse(userId);
-            var lessonProgresses = await _context.LessonProgresses.Include(p => p.Student).Where(p => p.StudentId == guid).ToListAsync();
+            var lessonProgresses = await _context.LessonProgresses.Include(p => p.Student).Where(p => p.StudentId == userId).ToListAsync();
             return lessonProgresses;
         }
 
         public async Task<IEnumerable<LessonProgress>> GetByEmailAsync(string email)
         {
+        
             var lessonProgresses = await _context.LessonProgresses
                 .Include(p => p.Student)
                 .Where(p => p.Student.Email == email)

@@ -20,7 +20,7 @@ namespace bloom.Models
         public string? BackgroundImageUrl {get; set; }
 
         // Navigation properties
-        public Guid StudentId { get; set; }
+        public required string StudentId { get; set; }
         public Account? Student { get; set; }
         public ICollection<Account>? Teachers { get; set; }
         public ICollection<Assignment>? Assignments { get; set; }

@@ -13,10 +13,10 @@ namespace bloom.Services
         Task<SLPClient?> GetByIdAsync(Guid id);
         Task<IEnumerable<SLPClient>> GetAllAsync();
         Task<IEnumerable<SLPClient>> GetByTeacherIdAsync(string teacherId);
-        Task<IEnumerable<SLPClient>> GetByStudentIdAsync(Guid studentId);
+        Task<IEnumerable<SLPClient>> GetByStudentIdAsync(string studentId);
 
         // Create
-        Task<bool> CreateAsync(string name, string teacherId, Guid studentId);
+        Task<bool> CreateAsync(string name, string teacherId, string studentId);
 
         // Modify
         Task<bool> ModifyAsync(SLPClient slpClient);

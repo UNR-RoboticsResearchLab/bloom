@@ -1,11 +1,14 @@
 import os
 import sys
 import threading
-
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
+from ament_index_python.packages import get_package_share_directory
 
+robot_dir = os.path.join(get_package_share_directory('bloom_speech'), '..', '..', '..', '..', 'Robot')
+robot_dir = os.path.realpath(robot_dir)
+sys.path.append(robot_dir)
 
 from llm_module.engine_azure_openai import AzureOpenAIEngine
 

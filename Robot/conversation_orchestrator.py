@@ -114,17 +114,17 @@ class BloomOrchestrator:
         if platform.system() == 'Linux':
             self.browser_process = subprocess.Popen([
                 'chromium',
-                '--kiosk',
+                '--app=' + face_url,
+                '--start-fullscreen',
                 '--noerrdialogs',
                 '--disable-infobars',
                 '--no-first-run',
                 '--disable-session-crashed-bubble',
                 '--disable-restore-session-state',
-                '--disable-features=TranslateUI',
-                '--overscroll-history-navigation=0',
                 '--no-default-browser-check',
-                face_url
             ])
+            time.sleep(3)
+            subprocess.Popen(['xdotool', 'search', '--onlyvisible', '--class', 'chromium', 'windowactivate', 'key', 'F11'])
         else:
             # Mac/other - fallback to regular browser for development
             webbrowser.open(face_url)

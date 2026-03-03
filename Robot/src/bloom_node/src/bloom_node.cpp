@@ -13,6 +13,8 @@
 #include "bloom_node/web_service_client.h"
 #include "bloom_node/configuration_manager.h"
 #include "bloom_node/behavior_coordinator.h"
+#include "bloom_node/lessson_coordinator.h"
+#include "bloom_node/lesson_poller.h"
 #include "bloom_node/json.hpp"
 
 namespace fs = std::filesystem;
@@ -154,22 +156,50 @@ int main(int argc, char ** argv)
 
 	web_client->enableResponsePublisher("/status_response");
 
+	// Extract session ID from POST response
+	std::string session_id;
 	auto session_future = web_client->sendRequestAsync(
 		"POST",
 		"/api/robotsessions/",
 		session_payload.dump(),
 		std::nullopt,
 		{"Content-Type: application/json"},
-		[web_client](const std::string &body, long http_code) {
+		[web_client, &session_id](const std::string &body, long http_code) {
 			if (http_code >= 200 && http_code < 300) {
 				RCLCPP_INFO(web_client->get_logger(), "Session started successfully (HTTP %ld)", http_code);
-				RCLCPP_DEBUG(web_client->get_logger(), "Response: %s", body.c_str());
+				RCLCPP_INFO(web_client->get_logger(), "Response: %s", body.c_str());
+
+				// Parse session_id from response JSON
+				try {
+					auto response = nlohmann::json::parse(body);
+					if (response.contains("id")) {
+						session_id = response["id"].get<std::string>();
+						RCLCPP_INFO(web_client->get_logger(), "Session ID: %s", session_id.c_str());
+					}
+				} catch (const std::exception &e) {
+					RCLCPP_WARN(web_client->get_logger(), "Failed to parse session ID from response: %s", e.what());
+				}
 			} else {
 				RCLCPP_WARN(web_client->get_logger(), "Failed to start session (HTTP %ld): %s", http_code, body.c_str());
 			}
 		}
 	);
 
+	// Wait for session creation to complete
+	session_future.get();
+
+	// Create LessonCoordinator
+	auto lesson_coord = std::make_shared<bloom_node::LessonCoordinator>(behavior_coord, web_client, state_mgr);
+	RCLCPP_INFO(node->get_logger(), "LessonCoordinator created");
+
+	// Create LessonPoller for backend-driven lesson polling (7 second interval)
+	auto lesson_poller = std::make_shared<bloom_node::LessonPoller>(
+		web_client,
+		lesson_coord,
+		session_id,
+		7000  // Poll every 7 seconds
+	);
+	RCLCPP_INFO(node->get_logger(), "LessonPoller created with session_id: %s", session_id.c_str());
 
 
 	// Multi-threaded executor to run nodes concurrently
@@ -178,9 +208,13 @@ int main(int argc, char ** argv)
 	executor.add_node(state_mgr);
 	executor.add_node(web_client);
 	executor.add_node(config_mgr);
+	executor.add_node(lesson_coord);
+	executor.add_node(lesson_poller);
 
+	// Start the lesson polling loop
+	lesson_poller->start_polling();
 
-	RCLCPP_INFO(node->get_logger(), "bloom_node started - state_manager + web_service_client + behavior_coordinator running");
+	RCLCPP_INFO(node->get_logger(), "bloom_node started - state_manager + web_service_client + lesson_coordinator + lesson_poller running");
 	executor.spin();
 
 	rclcpp::shutdown();

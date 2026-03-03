@@ -34,6 +34,7 @@ namespace bloom.Models.dto
         public DateTime CreatedAt { get; set; }
         public DateTime LastUpdatedAt { get; set; }
         public int Robots { get; set; }
+        public List<Guid> RobotIds { get; set; } = new();
         public RobotState? LastState { get; set; }
     }
 

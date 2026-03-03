@@ -39,7 +39,6 @@ namespace bloom.Services
                 UserId = anon ? null : userId,
                 CreatedAt = DateTime.UtcNow,
                 LastUpdatedAt = DateTime.UtcNow,
-                Robots = 1,
                 SessionCode = await GenerateSessionCodeAsync()
             };
 
@@ -47,7 +46,11 @@ namespace bloom.Services
 
             await AddRobotToSessionAsync(session.Id, robotId);
 
-            return session;
+            var newSession = await _sessionRepository.GetAsync(session.Id);
+            if (newSession == null)
+                throw new InvalidOperationException($"Failed to retrieve newly created session with ID {session.Id}");
+            
+            return newSession;
         }
 
         public async Task EndSessionAsync(Guid sessionId)
@@ -273,6 +276,53 @@ namespace bloom.Services
             }
 
             await _dbContext.SaveChangesAsync();
+        }
+
+        public async Task<dynamic?> GetPendingLessonAsync(Guid sessionId)
+        {
+            try
+            {
+                // Get the session with its active lesson
+                var session = await _dbContext.RobotSessions
+                    .Include(s => s.ActiveLesson)
+                    .FirstOrDefaultAsync(s => s.Id == sessionId);
+
+                if (session == null)
+                    throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+                // If no active lesson, return null (no pending lesson)
+                if (session.ActiveLessonId == null || session.ActiveLesson == null)
+                    return null;
+
+                // Load the lesson JSON file
+                string lessonJson;
+                try
+                {
+                    lessonJson = await File.ReadAllTextAsync(session.ActiveLesson.LessonFileUrl);
+                }
+                catch (FileNotFoundException)
+                {
+                    throw new InvalidOperationException($"Lesson file not found at {session.ActiveLesson.LessonFileUrl}");
+                }
+
+                // Parse the lesson JSON to ensure it's valid
+                var parsedLesson = System.Text.Json.JsonSerializer.Deserialize<dynamic>(lessonJson);
+
+                // Return response with hasPendingLesson flag and the lesson data
+                return new
+                {
+                    hasPendingLesson = true,
+                    lesson = parsedLesson
+                };
+            }
+            catch (KeyNotFoundException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Error retrieving pending lesson for session {sessionId}: {ex.Message}", ex);
+            }
         }
     }
 }

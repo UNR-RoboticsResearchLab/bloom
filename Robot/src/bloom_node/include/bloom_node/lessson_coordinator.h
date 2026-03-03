@@ -4,6 +4,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include "bloom_node/behavior_coordinator.h"
 #include "bloom_node/web_service_client.h"
+#include "bloom_node/state_manager.h"
 #include <rclcpp/timer.hpp>
 #include <string>
 #include <vector>
@@ -16,6 +17,15 @@
 #include <std_msgs/msg/string.hpp>
 
 namespace bloom_node {
+struct InteractionConfig {
+    bool wait_for_response;
+    int max_wait_seconds;
+    std::string correct_answer;
+    std::string correct_response_script;
+    std::string incorrect_response_script;
+    std::string fallback_script;
+};
+
 struct LessonStep {
     int id;
     std::string type;
@@ -25,15 +35,6 @@ struct LessonStep {
     std::string visual_aid_url;
     bool has_interaction;
     InteractionConfig interaction;
-};
-
-struct InteractionConfig {
-    bool wait_for_response;
-    int max_wait_seconds;
-    std::string correct_answer;
-    std::string correct_response_script;
-    std::string incorrect_response_script;
-    std::string fallback_script;
 };
 
 struct LessonData {
@@ -53,6 +54,7 @@ public:
     explicit LessonCoordinator(
         std::shared_ptr<BehaviorCoordinator> behavior_coordinator,
         std::shared_ptr<bloom_node::WebServiceClient> web_client,
+        std::shared_ptr<StateManager> state_manager,
         const std::string &node_name = "lesson_coordinator_node"
     );
 
@@ -70,6 +72,13 @@ public:
     // reset the lesson progress to the beginning
     void reset_lesson();
 
+    // Check if a lesson is currently executing
+    bool is_lesson_running() const;
+
+    // Set a callback to be invoked when the lesson completes
+    using LessonCompletionCallback = std::function<void(const std::string &lesson_id)>;
+    void set_completion_callback(LessonCompletionCallback callback);
+
 private:
 
     void execute_step(const LessonStep &step);
@@ -79,6 +88,7 @@ private:
     void handle_interaction(const LessonStep &step);
     void on_vosk_result(const std_msgs::msg::String::SharedPtr msg);
 
+    void schedule_next_step(int delay_seconds);
     void advance_to_next_step();
 
     void update_progress_with_backend();
@@ -97,7 +107,11 @@ private:
 
     std::shared_ptr<BehaviorCoordinator> behavior_coordinator_;
     std::shared_ptr<bloom_node::WebServiceClient> web_client_;
+    std::shared_ptr<StateManager> state_manager_;
     std::mutex lesson_mutex_;
+
+    // Completion callback
+    LessonCompletionCallback completion_callback_;
 
     rclcpp::TimerBase::SharedPtr step_timer_;
 

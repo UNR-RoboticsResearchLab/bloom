@@ -20,6 +20,8 @@ add_library(bloom_node_lib
   src/web_service_client.cpp
   src/configuration_manager.cpp
   src/behavior_coordinator.cpp
+  src/lesson_coordinator.cpp
+  src/lesson_poller.cpp
   src/thread_pool.cpp
   src/curl_pool.cpp
 )

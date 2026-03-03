@@ -103,5 +103,13 @@ namespace bloom.Services
         /// <param name="sessionId">ID of the active robot session</param>
         /// <param name="dto">Progress update data</param>
         Task UpdateLessonProgressAsync(Guid sessionId, UpdateLessonProgressDto dto);
+
+        /// <summary>
+        /// Gets a pending lesson for the session if one is assigned
+        /// Returns the full lesson JSON along with metadata for the robot to execute
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        /// <returns>Pending lesson data or null if none exists</returns>
+        Task<dynamic?> GetPendingLessonAsync(Guid sessionId);
     }
 }

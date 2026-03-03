@@ -8,10 +8,12 @@ using namespace bloom_node;
 LessonCoordinator::LessonCoordinator(
     std::shared_ptr<BehaviorCoordinator> behavior_coordinator,
     std::shared_ptr<WebServiceClient> web_client,
+    std::shared_ptr<StateManager> state_manager,
     const std::string &node_name
 ) : rclcpp::Node(node_name),
     behavior_coordinator_(behavior_coordinator),
     web_client_(web_client),
+    state_manager_(state_manager),
     current_step_index_(0),
     lesson_active_(false),
     current_interaction_step_(nullptr),
@@ -82,12 +84,26 @@ void LessonCoordinator::reset_lesson() {
 void LessonCoordinator::execute_step(const LessonStep &step) {
     RCLCPP_INFO(this->get_logger(), "Executing step %d", step.id);
 
+    // Set robot state based on the 'behavior' field from the lesson step
+    auto behavior_it = step.behaviors.find("behavior");
+    if (behavior_it != step.behaviors.end()) {
+        const std::string &behavior_value = behavior_it->second;
+        if (!behavior_value.empty() && state_manager_) {
+            // Convert timing_seconds to milliseconds and pass to set_state
+            int timing_ms = step.timing_seconds > 0 ? (step.timing_seconds * 1000) : 0;
+            state_manager_->set_state(behavior_value, timing_ms);
+            RCLCPP_INFO(this->get_logger(), "Set state to: %s (timing: %d ms)", behavior_value.c_str(), timing_ms);
+        }
+    }
 
     queue_behavior(step);
     speak_script(step.script);
 
     if (step.has_interaction) {
         handle_interaction(step);
+    } else {
+        // For non-interactive steps, schedule the next step after the timing duration
+        schedule_next_step(step.timing_seconds);
     }
 }
 
@@ -219,14 +235,33 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
     }
 }
 
+void LessonCoordinator::schedule_next_step(int delay_seconds) {
+    // Cancel any existing timer
+    if (step_timer_) {
+        step_timer_->cancel();
+    }
+
+    // Create a timer to advance to the next step after the delay
+    step_timer_ = this->create_wall_timer(
+        std::chrono::seconds(delay_seconds > 0 ? delay_seconds : 1),
+        [this]() {
+            advance_to_next_step();
+        });
+}
+
 void LessonCoordinator::advance_to_next_step() {
     if (!lesson_active_) {
         return;
     }
 
     if (current_step_index_ >= current_lesson_.sequence.size()) {
-        RCLCPP_INFO(this->get_logger(), "Lesson completed");
+        RCLCPP_INFO(this->get_logger(), "Lesson completed: %s", current_lesson_.lesson_id.c_str());
         lesson_active_ = false;
+
+        // Invoke completion callback if set
+        if (completion_callback_) {
+            completion_callback_(current_lesson_.lesson_id);
+        }
         return;
     }
 
@@ -318,4 +353,15 @@ void LessonCoordinator::log_interaction_to_backend(int step_id, const std::strin
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Error logging interaction: %s", e.what());
     }
+}
+
+bool LessonCoordinator::is_lesson_running() const {
+    // Use const_cast to allow locking in const method
+    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(lesson_mutex_));
+    return lesson_active_;
+}
+
+void LessonCoordinator::set_completion_callback(LessonCompletionCallback callback) {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    completion_callback_ = callback;
 }

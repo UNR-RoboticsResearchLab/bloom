@@ -51,7 +51,23 @@ namespace bloom.Controllers
             try
             {
                 var sessions = await _sessionService.GetAllSessionsAsync();
-                return Ok(sessions);
+                var sessionDtos = new List<RobotSessionResponseDto>();
+
+                foreach (var session in sessions)
+                {
+                    var robotIds = (await _sessionService.GetSessionRobotsAsync(session.Id)).ToList();
+                    sessionDtos.Add(new RobotSessionResponseDto
+                    {
+                        Id = session.Id,
+                        UserId = session.UserId,
+                        CreatedAt = session.CreatedAt,
+                        LastUpdatedAt = session.LastUpdatedAt,
+                        Robots = session.Robots,
+                        RobotIds = robotIds
+                    });
+                }
+
+                return Ok(sessionDtos);
             }
             catch (Exception ex)
             {
@@ -90,6 +106,7 @@ namespace bloom.Controllers
                 }
 
                 var session = await _sessionService.StartSessionAsync(dto.RobotId, userId, dto.Anonymous);
+                var robotIds = (await _sessionService.GetSessionRobotsAsync(session.Id)).ToList();
 
                 return CreatedAtAction(nameof(GetSession), new { sessionId = session.Id }, new RobotSessionResponseDto
                 {
@@ -97,7 +114,8 @@ namespace bloom.Controllers
                     UserId = session.UserId,
                     CreatedAt = session.CreatedAt,
                     LastUpdatedAt = session.LastUpdatedAt,
-                    Robots = session.Robots
+                    Robots = session.Robots,
+                    RobotIds = robotIds
                 });
             }
             catch (Exception ex)
@@ -124,13 +142,16 @@ namespace bloom.Controllers
                     return NotFound(new { Message = $"Session with ID {sessionId} not found" });
                 }
 
+                var robotIds = (await _sessionService.GetSessionRobotsAsync(sessionId)).ToList();
+
                 return Ok(new RobotSessionResponseDto
                 {
                     Id = session.Id,
                     UserId = session.UserId,
                     CreatedAt = session.CreatedAt,
                     LastUpdatedAt = session.LastUpdatedAt,
-                    Robots = session.Robots
+                    Robots = session.Robots,
+                    RobotIds = robotIds
                 });
             }
             catch (Exception ex)
@@ -177,6 +198,44 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error ending robot session {SessionId}", sessionId);
+                return BadRequest("Its bad if you get this");
+            }
+        }
+
+        /// <summary>
+        /// Polling endpoint for robot to see if a pending lesson exists and auto-start it
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <returns>Pending lesson details if exists, otherwise 204 No Content</returns>
+        [HttpGet("{sessionId}/pending-lesson")]
+        public async Task<IActionResult> GetPendingLesson(Guid sessionId)
+        {
+            try
+            {
+                var session = await _sessionService.GetSessionAsync(sessionId);
+
+                if (session == null)
+                {
+                    return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+                }
+
+                var pendingLesson = await _sessionService.GetPendingLessonAsync(sessionId);
+
+                if (pendingLesson == null)
+                {
+                    return NoContent();
+                }
+
+                return Ok(pendingLesson);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Session not found: {SessionId}", sessionId);
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving pending lesson for session {SessionId}", sessionId);
                 return BadRequest("Its bad if you get this");
             }
         }

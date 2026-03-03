@@ -112,13 +112,14 @@ class BloomOrchestrator:
         
         
         if platform.system() == 'Linux':
-            # Raspberry Pi - launch Chromium in kiosk mode (fullscreen, no browser UI) to allow the face to take up the entire screen
-            subprocess.Popen([
-                'chromium',
+            self.browser_process = subprocess.Popen([
+                'chromium-browser',
                 '--kiosk',
                 '--noerrdialogs',
                 '--disable-infobars',
                 '--no-first-run',
+                '--start-fullscreen',
+                '--window-size=800,480',
                 face_url
             ])
         else:

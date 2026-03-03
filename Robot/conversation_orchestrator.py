@@ -113,13 +113,16 @@ class BloomOrchestrator:
         
         if platform.system() == 'Linux':
             self.browser_process = subprocess.Popen([
-                'chromium-browser',
+                'chromium',
                 '--kiosk',
                 '--noerrdialogs',
                 '--disable-infobars',
                 '--no-first-run',
-                '--start-fullscreen',
-                '--window-size=800,480',
+                '--disable-session-crashed-bubble',
+                '--disable-restore-session-state',
+                '--disable-features=TranslateUI',
+                '--overscroll-history-navigation=0',
+                '--no-default-browser-check',
                 face_url
             ])
         else:
@@ -393,7 +396,9 @@ class BloomOrchestrator:
             self.server.shutdown()
             self.server.server_close()
             print("HTTP server closed")
-
+        if hasattr(self, 'browser_process'):
+            self.browser_process.terminate()
+            print("Browser closed")
 def main():
     print("Bloom conversation orchestrator")
     print("-" * 40)

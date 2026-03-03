@@ -6,7 +6,6 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 from llm_module.engine_azure_openai import AzureOpenAIEngine
 

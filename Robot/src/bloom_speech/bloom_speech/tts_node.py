@@ -10,7 +10,6 @@ from std_msgs.msg import String
 
 import pygame
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 from tts_module.engine_azure import AzureTTSEngine
 

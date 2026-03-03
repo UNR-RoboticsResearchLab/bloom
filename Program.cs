@@ -81,14 +81,21 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = builder.Configuration.GetValue<string>("LoginPath");
-        options.LogoutPath = builder.Configuration.GetValue<string>("LogoutPath");
-        options.Cookie.HttpOnly = true;
+        // options.LoginPath = builder.Configuration.GetValue<string>("LoginPath");
+        // options.LogoutPath = builder.Configuration.GetValue<string>("LogoutPath");
+        // options.Cookie.HttpOnly = true;
 
         //TODO: development comment lul
         //options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         //options.Cookie.SameSite = SameSiteMode.Strict;
+        // options.Cookie.Name = "bloom_cookie";
+
+
         options.Cookie.Name = "bloom_cookie";
+        options.Cookie.HttpOnly = true;
+
+        options.Cookie.SameSite = SameSiteMode.None;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     });
 
 
@@ -104,9 +111,13 @@ builder.Services.AddSession(options =>
 builder.Services.AddCors(options => {
     options.AddDefaultPolicy(policy => {
         policy
-            .AllowAnyOrigin()
+            .WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:3000"
+            )
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -134,11 +145,14 @@ else
 }
 
 // app.UseHttpsRedirection();
-app.UseCors();
+app.UseCors("Client");
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+//
+app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();

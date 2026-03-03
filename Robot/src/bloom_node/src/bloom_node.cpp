@@ -47,6 +47,7 @@ int main(int argc, char ** argv)
 		"speaking", "listening"
 	});
 
+
 	RCLCPP_INFO(node->get_logger(), "BehaviorCoordinator initialized with exclusive groups");
 
 	fs::path dir = "src/bloom_node/config";
@@ -124,7 +125,7 @@ int main(int argc, char ** argv)
 
 	// Publisher to execute behaviors from coordinator queue
 	auto behavior_execution_pub = node->create_publisher<std_msgs::msg::String>(
-		"robot/behavior/execute", 10);
+		"play_sequence", 10);
 
 	// Timer to process queued behaviors and execute them
 	// Runs every 100ms to check if next high-priority behavior should execute

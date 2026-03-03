@@ -15,24 +15,18 @@ void BehaviorCoordinator::request_behavior(const std::string &name, int priority
   }
 
   // Check for exclusive group conflicts
-  for (const auto &[group, behaviors] : exclusive_groups_) {
-    auto it = std::find(behaviors.begin(), behaviors.end(), name);
-    if (it != behaviors.end()) {
-      // This behavior is in an exclusive group
-      if (!current_behavior_.empty()) {
-        auto current_it = std::find(behaviors.begin(), behaviors.end(), current_behavior_);
-        if (current_it != behaviors.end() && !interrupt) {
-          // Current behavior is in same exclusive group and not interruptible
-          pending_behaviors_.push({name, priority, std::chrono::system_clock::now(), interrupt});
-          return;
-        }
-      }
-      break;
-    }
+  if (!can_interrupt(name)) {
+    pending_behaviors_.push({name, priority, std::chrono::system_clock::now(), interrupt});
+    return;
   }
 
   // Can execute immediately
   current_behavior_ = name;
+}
+
+void BehaviorCoordinator::queue_behavior(const std::string &name) {
+  // For now, we ignore the value and just queue the behavior by name
+  request_behavior(name);
 }
 
 std::string BehaviorCoordinator::get_next_behavior() {
@@ -85,4 +79,24 @@ void BehaviorCoordinator::clear_pending() {
   // Clear priority queue by creating a new empty one
   std::priority_queue<BehaviorRequest> empty;
   std::swap(pending_behaviors_, empty);
+}
+
+
+bool BehaviorCoordinator::can_interrupt(const std::string &new_behavior) const {
+  // Check if new_behavior can interrupt current_behavior based on exclusivity groups
+  for (const auto &[group, behaviors] : exclusive_groups_) {
+    auto new_it = std::find(behaviors.begin(), behaviors.end(), new_behavior);
+    if (new_it != behaviors.end()) {
+      // New behavior is in this exclusive group
+      if (!current_behavior_.empty()) {
+        auto current_it = std::find(behaviors.begin(), behaviors.end(), current_behavior_);
+        if (current_it != behaviors.end()) {
+          // Current behavior is in same exclusive group - cannot interrupt
+          return false;
+        }
+      }
+      break;
+    }
+  }
+  return true;
 }

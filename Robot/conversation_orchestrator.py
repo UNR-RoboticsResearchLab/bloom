@@ -112,13 +112,17 @@ class BloomOrchestrator:
         
         
         if platform.system() == 'Linux':
-            # Raspberry Pi - launch Chromium in kiosk mode (fullscreen, no browser UI) to allow the face to take up the entire screen
-            subprocess.Popen([
+            self.browser_process = subprocess.Popen([
                 'chromium',
                 '--kiosk',
                 '--noerrdialogs',
                 '--disable-infobars',
                 '--no-first-run',
+                '--disable-session-crashed-bubble',
+                '--disable-restore-session-state',
+                '--disable-features=TranslateUI',
+                '--overscroll-history-navigation=0',
+                '--no-default-browser-check',
                 face_url
             ])
         else:
@@ -392,7 +396,9 @@ class BloomOrchestrator:
             self.server.shutdown()
             self.server.server_close()
             print("HTTP server closed")
-
+        if hasattr(self, 'browser_process'):
+            self.browser_process.terminate()
+            print("Browser closed")
 def main():
     print("Bloom conversation orchestrator")
     print("-" * 40)

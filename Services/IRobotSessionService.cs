@@ -11,7 +11,7 @@ namespace bloom.Services
         /// <param name="userId">ID of the user creating the session (null for anonymous sessions)</param>
         /// <param name="anon">Whether to create an anonymous session (overrides userId)</param>
         /// <returns>The created RobotSession</returns>
-        Task<RobotSession> StartSessionAsync(string? userId = null, bool anon = false);
+        Task<RobotSession> StartSessionAsync(Guid robotId, string? userId = null, bool anon = false);
 
         /// <summary>
         /// Ends a robot session and archives remaining states
@@ -23,8 +23,8 @@ namespace bloom.Services
         /// Adds a robot to an active session with its initial state
         /// </summary>
         /// <param name="sessionId">ID of the session</param>
-        /// <param name="robotState">Initial state of the robot</param>
-        Task AddRobotToSessionAsync(Guid sessionId, RobotState robotState);
+        /// <param name="robotId">Id of the robot</param>
+        Task AddRobotToSessionAsync(Guid sessionId, Guid robotId);
 
         /// <summary>
         /// Updates a robot's state within a session. Automatically archives to database every 10th change.

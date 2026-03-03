@@ -49,15 +49,6 @@ namespace bloom.Models.dto
     }
 
     /// <summary>
-    /// Request DTO for adding a robot to a session
-    /// </summary>
-    public class AddRobotToSessionDto
-    {
-        public required Guid RobotId { get; set; }
-        public required RobotStateDto CurrentState { get; set; }
-    }
-
-    /// <summary>
     /// Response DTO for robot state history
     /// </summary>
     public class RobotStateHistoryDto

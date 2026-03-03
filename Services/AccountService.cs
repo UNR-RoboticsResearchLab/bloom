@@ -87,7 +87,6 @@ namespace bloom.Services
             {
                 var result = await _userManager.CreateAsync(new Account
                 {
-                    UserName = user.UserName,
                     Email = user.Email,
                     FullName = user.FullName,
                     EmailConfirmed = false,
@@ -100,34 +99,6 @@ namespace bloom.Services
             catch (Exception ex)
             {
                 throw new Exception("Error creating a new admin user", ex);
-            }
-        }
-
-        public async Task<IdentityResult> RegisterFacilitatorAsync(CreateAccountDto user)
-        {
-            if (user == null)
-            {
-                throw new ArgumentNullException(nameof(user));
-            }
-            // todo : do some additinoal validation
-
-            try
-            {
-                var result = await _userManager.CreateAsync(new Account
-                {
-                    UserName = user.UserName,
-                    Email = user.Email,
-                    FullName = user.FullName,
-                    EmailConfirmed = false,
-                    CreatedDate = DateTime.UtcNow,
-                    Role = "Facilitator"
-                }, user.Password);
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error creating a new facilitator user", ex);
             }
         }
 
@@ -158,47 +129,18 @@ namespace bloom.Services
             }
         }
 
-        public async Task<IdentityResult> RegisterTeacherAsync(CreateAccountDto user)
-        {
-            if (user == null)
-            {
-                throw new ArgumentNullException(nameof(user));
-            }
-            // todo : do some additinoal validation
-
-            try
-            {
-                var result = await _userManager.CreateAsync(new Account
-                {
-                    UserName = user.UserName,
-                    Email = user.Email,
-                    FullName = user.FullName,
-                    EmailConfirmed = false,
-                    CreatedDate = DateTime.UtcNow,
-                    Role = "Teacher"
-                }, user.Password);
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error creating a new teacher user", ex);
-            }
-        }
-
         public async Task<IdentityResult> RegisterSLPAsync(CreateAccountDto user)
         {
             if (user == null)
             {
                 throw new ArgumentNullException(nameof(user));
             }
-            // todo : do some additinoal validation
+            // todo : do some additional validation
 
             try
             {
                 var result = await _userManager.CreateAsync(new Account
                 {
-                    UserName = user.UserName,
                     Email = user.Email,
                     FullName = user.FullName,
                     EmailConfirmed = false,

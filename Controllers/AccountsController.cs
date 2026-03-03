@@ -101,14 +101,8 @@ public class AccountsController : ControllerBase
             case "ADMIN":
                 result = await _accountService.RegisterAdminAsync(account);
                 break;
-            case "FACILITATOR":
-                result = await _accountService.RegisterFacilitatorAsync(account);
-                break;
             case "STUDENT":
                 result = await _accountService.RegisterStudentAsync(account);
-                break;
-            case "TEACHER":
-                result = await _accountService.RegisterTeacherAsync(account);
                 break;
             case "SLP":
                 result = await _accountService.RegisterSLPAsync(account);

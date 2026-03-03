@@ -101,7 +101,7 @@ namespace bloom.Repositories
 
         /// <summary>
         /// Gets the state change count for a robot in a session. Used to determine when to archive to database.
-        /// </summary>
+        /// </summary>Dictionary<TKey,TValue> 	
         /// <returns>Change count, or 0 if robot not found</returns>
         public int GetStateChangeCount(string sessionId, Guid robotId)
         {
@@ -129,6 +129,13 @@ namespace bloom.Repositories
             {
                 counters.AddOrUpdate(robotId, 0, (_, _) => 0);
             }
+        }
+
+
+        //TODO implement
+        public void AggregateSpeechLogs(string sessionId, Guid robotId, string SpeechLog)
+        {
+
         }
     }
 }

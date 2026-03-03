@@ -30,7 +30,7 @@ namespace bloom.Services
             _sessionCodeService = sessionCodeService;
         }
 
-        public async Task<RobotSession> StartSessionAsync(string? userId = null, bool anon = false)
+        public async Task<RobotSession> StartSessionAsync(Guid robotId, string? userId = null, bool anon = false)
         {
 
             var sessionId = Guid.NewGuid();
@@ -40,11 +40,13 @@ namespace bloom.Services
                 UserId = anon ? null : userId,
                 CreatedAt = DateTime.UtcNow,
                 LastUpdatedAt = DateTime.UtcNow,
-                Robots = 0,
+                Robots = 1,
                 SessionCode = await GenerateSessionCodeAsync()
             };
 
             await _sessionRepository.AddAsync(session);
+
+            await AddRobotToSessionAsync(sessionId, robotId);
 
             return session;
         }
@@ -71,17 +73,19 @@ namespace bloom.Services
             await _dbContext.SaveChangesAsync();
         }
 
-        public async Task AddRobotToSessionAsync(Guid sessionId, RobotState robotState)
+        public async Task AddRobotToSessionAsync(Guid sessionId, Guid robotId)
         {
-            if (robotState == null)
-                throw new ArgumentNullException(nameof(robotState));
-
             var session = await _sessionRepository.GetAsync(sessionId);
             if (session == null)
                 throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
 
             // Add to in-memory storage
-            _stateRepository.Add(sessionId.ToString(), robotState);
+            _stateRepository.Add(sessionId.ToString(), new RobotState
+            {
+                RobotId = robotId,
+                CurrentTask = "pairing",
+                Status = "pairing"
+            });
 
             // Increment robot count
             session.Robots += 1;

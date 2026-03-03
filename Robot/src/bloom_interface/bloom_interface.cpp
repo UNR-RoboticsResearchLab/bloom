@@ -24,7 +24,7 @@ int main(int argc, char ** argv)
     try {
         // ====== Initialize configuration ======
         auto config_node = std::make_shared<rclcpp::Node>("config_loader");
-        auto config_mgr = std::make_shared<configuration_manager::ConfigurationManager>(config_node);
+        auto config_mgr = std::make_shared<bloom_node::ConfigurationManager>(config_node);
 
         // Load configuration from file
         fs::path config_dir = "src/bloom_interface/config";
@@ -52,7 +52,7 @@ int main(int argc, char ** argv)
 
         // ====== Initialize WebServiceClient ======
         std::string base_url = config_mgr->get_string("base_url").value_or("http://localhost:5000");
-        auto web_client = std::make_shared<web_service_client::WebServiceClient>(
+        auto web_client = std::make_shared<bloom_node::WebServiceClient>(
             "web_service_client",
             base_url,
             5000,  // timeout_ms

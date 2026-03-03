@@ -8,6 +8,7 @@ using bloom.Models;
 using bloom.Models.dto;
 using bloom.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Update.Internal;
 
 namespace bloom.Controllers
 {
@@ -55,7 +56,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving all robot sessions");
-                return StatusCode(500, "Internal server error");
+                return BadRequest("Its bad if you get this");
             }
         }
 
@@ -88,7 +89,7 @@ namespace bloom.Controllers
                     }
                 }
 
-                var session = await _sessionService.StartSessionAsync(userId, dto.Anonymous);
+                var session = await _sessionService.StartSessionAsync(dto.RobotId, userId, dto.Anonymous);
 
                 return CreatedAtAction(nameof(GetSession), new { sessionId = session.Id }, new RobotSessionResponseDto
                 {
@@ -102,7 +103,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error starting robot session");
-                return StatusCode(500, "Internal server error");
+                return BadRequest("Its bad if you get this");
             }
         }
 
@@ -135,7 +136,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robot session {SessionId}", sessionId);
-                return StatusCode(500, "Internal server error");
+                return BadRequest("Its bad if you get this");
             }
         }
 
@@ -176,7 +177,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error ending robot session {SessionId}", sessionId);
-                return StatusCode(500, "Internal server error");
+                return BadRequest("Its bad if you get this");
             }
         }
 
@@ -187,7 +188,7 @@ namespace bloom.Controllers
         /// <param name="dto">Robot state to add</param>
         /// <returns>Success message</returns>
         [HttpPost("{sessionId}/robots")]
-        public async Task<IActionResult> AddRobot(Guid sessionId, [FromBody] AddRobotToSessionDto dto)
+        public async Task<IActionResult> AddRobot(Guid sessionId, [FromBody] StartSessionDto dto)
         {
             try
             {
@@ -211,19 +212,8 @@ namespace bloom.Controllers
                     return Forbid();
                 }
 
-                // Create robot state from DTO
-                var robotState = new RobotState
-                {
-                    Id = Guid.NewGuid(),
-                    RobotId = dto.RobotId,
-                    Status = dto.CurrentState.Status ?? "",
-                    CurrentTask = dto.CurrentState.CurrentTask ?? "",
-                    CurrentBehaviorId = dto.CurrentState.CurrentBehaviorId,
-                    LastStatusChange = DateTime.UtcNow,
-                    SpeechLog = dto.CurrentState.SpeechLog ?? ""
-                };
 
-                await _sessionService.AddRobotToSessionAsync(sessionId, robotState);
+                await _sessionService.AddRobotToSessionAsync(sessionId, dto.RobotId);
 
                 return Ok(new { Message = "Robot added to session successfully", SessionId = sessionId, RobotId = dto.RobotId });
             }
@@ -240,7 +230,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding robot to session {SessionId}", sessionId);
-                return StatusCode(500, "Internal server error");
+                return BadRequest("Its bad if you get this");
             }
         }
 
@@ -282,7 +272,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error removing robot from session {SessionId}", sessionId);
-                return StatusCode(500, "Internal server error");
+                return BadRequest("Its bad if you get this");
             }
         }
 
@@ -315,7 +305,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robots for session {SessionId}", sessionId);
-                return StatusCode(500, "Internal server error");
+                return BadRequest("Its bad if you get this");
             }
         }
 
@@ -383,7 +373,34 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating robot state in session {SessionId}", sessionId);
-                return StatusCode(500, "Internal server error");
+                return BadRequest("Its bad if you get this");
+            }
+        }
+
+
+        /// <summary>
+        /// Sets the approve or disapprove tag on a session with an active lesson
+        /// </summary>
+        /// <param name="sessionId"> ID of sesion</param>
+        /// <returns>success/failure of the request</returns>
+        [HttpPost("{sessionId}/lesson")]
+        public async Task<IActionResult> ApproveOrDisapproveLessonStage(string sessionId)
+        {
+            try
+            {
+                var session = await _sessionService.GetSessionAsync(new Guid(sessionId));
+
+                return Ok();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Session not found: {SessionId}", sessionId);
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving robot states for session {SessionId}", sessionId);
+                return BadRequest("Its bad if you get this");
             }
         }
 
@@ -416,7 +433,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robot states for session {SessionId}", sessionId);
-                return StatusCode(500, "Internal server error");
+                return BadRequest("Its bad if you get this");
             }
         }
 
@@ -459,7 +476,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving session history for {SessionId}", sessionId);
-                return StatusCode(500, "Internal server error");
+                return BadRequest("Its bad if you get this");
             }
         }
     }

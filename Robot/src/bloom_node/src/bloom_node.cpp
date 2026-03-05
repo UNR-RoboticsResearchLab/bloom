@@ -1,4 +1,6 @@
-// launcher for bloom_node: composes StateManager, WebServiceClient, and ConfigManager
+// launcher for bloom_node: composes StateManager, WebServiceClient, 
+// BehaviorCoordinator, LessonCoordinator, LessonPoller, and FeedbackPoller
+// into a single executable
 
 #include <memory>
 #include <vector>
@@ -15,6 +17,7 @@
 #include "bloom_node/behavior_coordinator.h"
 #include "bloom_node/lessson_coordinator.h"
 #include "bloom_node/lesson_poller.h"
+#include "bloom_node/feedback_poller.h"
 #include "bloom_node/json.hpp"
 
 namespace fs = std::filesystem;
@@ -54,10 +57,14 @@ int main(int argc, char ** argv)
 
 	fs::path dir = "src/bloom_node/config";
 
+	// Try absolute path if relative doesn't exist
+	if ((!fs::exists(dir) || !fs::is_directory(dir))) {
+		dir = "/home/jrkre/development/bloom-main/Robot/src/bloom_node/config";
+	}
+
 	if (!fs::exists(dir) || !fs::is_directory(dir)) {
-        RCLCPP_ERROR(node->get_logger(), "The provided path is not a directory or does not exist.\n");
-        RCLCPP_ERROR(node->get_logger(), dir.c_str());
-        return 1;
+        RCLCPP_WARN(node->get_logger(), "Config directory not found at %s, continuing without config", dir.c_str());
+        RCLCPP_INFO(node->get_logger(), "Using default configuration");
     }
 
     // Vector to store file paths
@@ -149,22 +156,88 @@ int main(int argc, char ** argv)
 		}
 	);
 
-	// Example: Start a session with a POST request to /api/robot/sessions
-	nlohmann::json session_payload = {
-		{"anonymous", false}
+	web_client->enableResponsePublisher("/status_response");
+
+	// Register and save credentials / login to get robot id to feed to sessionId
+	nlohmann::json robotInfo = {
+
+		{"name", config_mgr->get_string("robot_name").value_or("Unnamed Robot")},
+		{"model", config_mgr->get_string("robot_model").value_or("Unknown Model")},
+		{"firmwareversion", config_mgr->get_string("robot_firmware_version").value_or("N/A")},
+		{"ipaddress", config_mgr->get_string("robot_ip_address").value_or("N/A")}
 	};
 
-	web_client->enableResponsePublisher("/status_response");
+	std::string robotId;
+
+	if (config_mgr->get_string("robot_id").has_value()) {
+		robotId = config_mgr->get_string("robot_id").value();
+		RCLCPP_INFO(node->get_logger(), "Using existing robot ID from config: %s", robotId.c_str());
+	} else {
+		RCLCPP_INFO(node->get_logger(), "No existing robot ID found in config, registering new robot");
+	}
+
+	if (robotId.empty())
+	{
+		auto registration_future = web_client->sendJsonPostAsync(
+			"/api/robots/register",
+			robotInfo,
+			{"Content-Type: application/json"},
+			[web_client, &robotId](const std::string &body, long http_code) {
+				if (http_code >= 200 && http_code < 300) {
+					RCLCPP_INFO(web_client->get_logger(), "Robot registered successfully (HTTP %ld)", http_code);
+					RCLCPP_INFO(web_client->get_logger(), "Response: %s", body.c_str());
+					// Parse robotId from response JSON
+					try {
+						auto response = nlohmann::json::parse(body);
+						if (response.contains("robot") && response["robot"].contains("id")) {
+							robotId = response["robot"]["id"].get<std::string>();
+							RCLCPP_INFO(web_client->get_logger(), "Robot ID: %s", robotId.c_str());
+						}
+					} catch (const std::exception &e) {
+						RCLCPP_WARN(web_client->get_logger(), "Failed to parse robot ID from response: %s", e.what());
+					}
+
+				} else {
+					RCLCPP_WARN(web_client->get_logger(), "Failed to register robot (HTTP %ld): %s", http_code, body.c_str());
+				}
+			}
+		);
+		// Wait for registration to complete before proceeding
+		registration_future.get();
+		
+		// save robot id
+		// if (!robotId.empty()) {
+		// 	RCLCPP_INFO(node->get_logger(), "Saving new robot ID to config: %s", robotId.c_str());
+
+		// 	config_mgr->set("robot_id", robotId);
+		// }
+	}
+	
+
+
+
+	// Example: Start a session with a POST request to /api/robot/sessions
+	RCLCPP_INFO(node->get_logger(), "Robot ID before session creation: %s (empty=%s)",
+		robotId.c_str(), robotId.empty() ? "true" : "false");
+
+	nlohmann::json session_payload = {
+		{"anonymous", false},
+		{"robot_id", robotId}
+	};
+
+	RCLCPP_INFO(node->get_logger(), "Session payload: %s", session_payload.dump().c_str());
+
 
 	// Extract session ID from POST response
 	std::string session_id;
+	std::string pairing_code;
 	auto session_future = web_client->sendRequestAsync(
 		"POST",
 		"/api/robotsessions/",
 		session_payload.dump(),
 		std::nullopt,
 		{"Content-Type: application/json"},
-		[web_client, &session_id](const std::string &body, long http_code) {
+		[web_client, &session_id, &robotId](const std::string &body, long http_code) {
 			if (http_code >= 200 && http_code < 300) {
 				RCLCPP_INFO(web_client->get_logger(), "Session started successfully (HTTP %ld)", http_code);
 				RCLCPP_INFO(web_client->get_logger(), "Response: %s", body.c_str());
@@ -172,6 +245,7 @@ int main(int argc, char ** argv)
 				// Parse session_id from response JSON
 				try {
 					auto response = nlohmann::json::parse(body);
+
 					if (response.contains("id")) {
 						session_id = response["id"].get<std::string>();
 						RCLCPP_INFO(web_client->get_logger(), "Session ID: %s", session_id.c_str());
@@ -201,6 +275,16 @@ int main(int argc, char ** argv)
 	);
 	RCLCPP_INFO(node->get_logger(), "LessonPoller created with session_id: %s", session_id.c_str());
 
+	// Create FeedbackPoller for SLP feedback polling (1 second interval)
+	auto feedback_poller = std::make_shared<bloom_node::FeedbackPoller>(
+		web_client,
+		session_id,
+		300  // Poll every 300 milliseconds
+	);
+	RCLCPP_INFO(node->get_logger(), "FeedbackPoller created with session_id: %s", session_id.c_str());
+
+	// Register FeedbackPoller with LessonCoordinator to control polling during interactions
+	lesson_coord->set_feedback_poller(feedback_poller);
 
 	// Multi-threaded executor to run nodes concurrently
 	rclcpp::executors::MultiThreadedExecutor executor;
@@ -210,11 +294,13 @@ int main(int argc, char ** argv)
 	executor.add_node(config_mgr);
 	executor.add_node(lesson_coord);
 	executor.add_node(lesson_poller);
+	executor.add_node(feedback_poller);
 
-	// Start the lesson polling loop
+	// Start the lesson and feedback polling loops
 	lesson_poller->start_polling();
+	feedback_poller->start_polling();  // Starts in inactive state, activated by LessonCoordinator during interactions
 
-	RCLCPP_INFO(node->get_logger(), "bloom_node started - state_manager + web_service_client + lesson_coordinator + lesson_poller running");
+	RCLCPP_INFO(node->get_logger(), "bloom_node started - state_manager + web_service_client + lesson_coordinator + lesson_poller + feedback_poller running");
 	executor.spin();
 
 	rclcpp::shutdown();

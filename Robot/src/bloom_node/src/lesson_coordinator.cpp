@@ -11,17 +11,17 @@ LessonCoordinator::LessonCoordinator(
     std::shared_ptr<StateManager> state_manager,
     const std::string &node_name
 ) : rclcpp::Node(node_name),
-    behavior_coordinator_(behavior_coordinator),
-    web_client_(web_client),
-    state_manager_(state_manager),
     current_step_index_(0),
     lesson_active_(false),
     current_interaction_step_(nullptr),
-    waiting_for_response_(false) {
+    waiting_for_response_(false),
+    behavior_coordinator_(behavior_coordinator),
+    web_client_(web_client),
+    state_manager_(state_manager) {
+    
     lesson_progress_publisher_ = this->create_publisher<std_msgs::msg::String>("lesson_progress", 10);
     tts_publisher_ = this->create_publisher<std_msgs::msg::String>("/tts/speak", 10);
 
-    // Subscribe to Vosk speech recognition output for interactive lessons
     vosk_subscriber_ = this->create_subscription<std_msgs::msg::String>(
         "/vosk/result", 10,
         std::bind(&LessonCoordinator::on_vosk_result, this, std::placeholders::_1));
@@ -153,6 +153,12 @@ void LessonCoordinator::handle_interaction(const LessonStep &step) {
         current_interaction_step_ = const_cast<LessonStep*>(&step);
         waiting_for_response_ = true;
 
+        // Activate feedback polling while waiting for interaction
+        if (feedback_poller_) {
+            feedback_poller_->set_polling_active(true);
+            RCLCPP_DEBUG(this->get_logger(), "Activated feedback polling for interaction on step %d", step.id);
+        }
+
         // Cancel any existing timer
         if (step_timer_) {
             step_timer_->cancel();
@@ -166,6 +172,11 @@ void LessonCoordinator::handle_interaction(const LessonStep &step) {
 
                 RCLCPP_WARN(this->get_logger(), "Step %d interaction timeout - using fallback", step.id);
                 waiting_for_response_ = false;
+
+                // Deactivate feedback polling
+                if (feedback_poller_) {
+                    feedback_poller_->set_polling_active(false);
+                }
 
                 // Use fallback script if provided
                 if (!step.interaction.fallback_script.empty()) {
@@ -181,6 +192,11 @@ void LessonCoordinator::handle_interaction(const LessonStep &step) {
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Error handling interaction: %s", e.what());
         waiting_for_response_ = false;
+
+        // Deactivate feedback polling on error
+        if (feedback_poller_) {
+            feedback_poller_->set_polling_active(false);
+        }
     }
 }
 
@@ -222,6 +238,12 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
 
         // Mark as no longer waiting and cancel timeout
         waiting_for_response_ = false;
+
+        // Deactivate feedback polling
+        if (feedback_poller_) {
+            feedback_poller_->set_polling_active(false);
+        }
+
         if (step_timer_) {
             step_timer_->cancel();
             step_timer_ = nullptr;
@@ -232,6 +254,11 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Error processing Vosk result: %s", e.what());
         waiting_for_response_ = false;
+
+        // Deactivate feedback polling on error
+        if (feedback_poller_) {
+            feedback_poller_->set_polling_active(false);
+        }
     }
 }
 
@@ -355,6 +382,8 @@ void LessonCoordinator::log_interaction_to_backend(int step_id, const std::strin
     }
 }
 
+
+
 bool LessonCoordinator::is_lesson_running() const {
     // Use const_cast to allow locking in const method
     std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(lesson_mutex_));
@@ -365,3 +394,11 @@ void LessonCoordinator::set_completion_callback(LessonCompletionCallback callbac
     std::lock_guard<std::mutex> lock(lesson_mutex_);
     completion_callback_ = callback;
 }
+
+void LessonCoordinator::set_feedback_poller(std::shared_ptr<FeedbackPoller> feedback_poller) {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    feedback_poller_ = feedback_poller;
+    RCLCPP_INFO(this->get_logger(), "FeedbackPoller registered with LessonCoordinator");
+}
+
+

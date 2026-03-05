@@ -5,6 +5,7 @@
 #include "bloom_node/behavior_coordinator.h"
 #include "bloom_node/web_service_client.h"
 #include "bloom_node/state_manager.h"
+#include "bloom_node/feedback_poller.h"
 #include <rclcpp/timer.hpp>
 #include <string>
 #include <vector>
@@ -79,6 +80,9 @@ public:
     using LessonCompletionCallback = std::function<void(const std::string &lesson_id)>;
     void set_completion_callback(LessonCompletionCallback callback);
 
+    // Set the feedback poller to control during interactions
+    void set_feedback_poller(std::shared_ptr<FeedbackPoller> feedback_poller);
+
 private:
 
     void execute_step(const LessonStep &step);
@@ -108,6 +112,9 @@ private:
     std::shared_ptr<BehaviorCoordinator> behavior_coordinator_;
     std::shared_ptr<bloom_node::WebServiceClient> web_client_;
     std::shared_ptr<StateManager> state_manager_;
+    std::shared_ptr<FeedbackPoller> feedback_poller_;
+
+
     std::mutex lesson_mutex_;
 
     // Completion callback

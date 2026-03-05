@@ -88,8 +88,13 @@ namespace bloom.Controllers
             {
                 if (!ModelState.IsValid)
                 {
+                    _logger.LogError("ModelState invalid for StartSession. Errors: {Errors}",
+                        string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
                     return BadRequest(ModelState);
                 }
+
+                _logger.LogInformation("StartSession called with RobotId: {RobotId}, Anonymous: {Anonymous}",
+                    dto.RobotId, dto.Anonymous);
 
                 var userId = GetCurrentUserId();
 

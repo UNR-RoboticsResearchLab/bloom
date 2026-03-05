@@ -36,6 +36,8 @@ bool ConfigurationManager::load_from_file(const std::string & path)
     }
   }
 
+  config_file_path_ = path;
+
   {
     std::lock_guard<std::mutex> lk(mutex_);
     for (auto &p : tmp) store_[p.first] = p.second;
@@ -164,6 +166,19 @@ void ConfigurationManager::set(const std::string & key, const std::string & valu
 {
   std::lock_guard<std::mutex> lk(mutex_);
   store_[key] = value;
+  if (node_) {
+    RCLCPP_INFO(node_->get_logger(), "Config set: %s=%s", key.c_str(), value.c_str());
+    
+    // save to file immediately on change
+    // (could be optimized with a debounce mechanism if config changes are frequent)
+    if (!config_file_path_.empty()) {
+      save_to_file(config_file_path_);
+    } else {
+      RCLCPP_WARN(node_->get_logger(), "No config file path set, not saving config to file");
+    }
+  } else {
+    std::cout << "Config set: " << key << "=" << value << std::endl;
+  }
 }
 
 std::unordered_map<std::string, std::string> ConfigurationManager::snapshot() const

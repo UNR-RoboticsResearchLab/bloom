@@ -75,7 +75,7 @@ bool LessonPoller::set_session_id(const std::string &session_id) {
 
 void LessonPoller::on_polling_tick() {
 	// Skip polling if a lesson is currently executing
-	RCLCPP_INFO(this->get_logger(), "polling tick...");
+	RCLCPP_DEBUG(this->get_logger(), "polling tick...");
 	if (currently_executing_.load()) {
 		RCLCPP_DEBUG(this->get_logger(), "Skipping poll: lesson currently executing");
 		return;

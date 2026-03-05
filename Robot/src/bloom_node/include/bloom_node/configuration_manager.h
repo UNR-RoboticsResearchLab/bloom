@@ -73,6 +73,8 @@ private:
 	mutable std::mutex mutex_;
 	std::unordered_map<std::string, std::string> store_;
 
+	std::string config_file_path_;
+
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_;
 };
 

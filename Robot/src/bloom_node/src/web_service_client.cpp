@@ -173,8 +173,8 @@ std::pair<std::string, long> WebServiceClient::performRequest(
                 break;
             } else {
                 RCLCPP_WARN(this->get_logger(),
-                    "curl_easy_perform() failed: %s (attempt %d/%d)",
-                    curl_easy_strerror(response), attempt + 1, retries + 1);
+                    "curl_easy_perform() to %s failed: %s (attempt %d/%d)",
+                    url.c_str(), curl_easy_strerror(response), attempt + 1, retries + 1);
                 if (attempt < retries && running_.load()) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(200 * (attempt + 1)));
                 }

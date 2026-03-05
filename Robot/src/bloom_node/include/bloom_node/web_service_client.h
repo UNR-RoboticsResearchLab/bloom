@@ -138,6 +138,7 @@ public:
     // Set authentication header (e.g., "Authorization: Bearer <token>")
     void setAuthHeader(const std::string &auth_header);
 
+
     // Get performance statistics
     size_t getThreadPoolQueueSize() const;
     size_t getCurlPoolAvailable() const;

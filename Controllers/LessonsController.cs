@@ -7,7 +7,7 @@ namespace bloom.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    class LessonsController : ControllerBase
+    public class LessonsController : ControllerBase
     {
 
         private readonly IWebHostEnvironment _env;
@@ -23,19 +23,40 @@ namespace bloom.Controllers
 
 
         [HttpGet]
-        [Route("{id}")]
+        [Route("{lessonId}")]
         public async Task<IActionResult> GetLessonInfo(string lessonId)
         {
             try
             {
                 var lesson = await _lessonService.GetByIdAsync(lessonId);
-                
-                if (lesson == null)        // get json file and send file.
+
+                if (lesson == null)
                 {
                     return NotFound(new { message = "Lesson not found." });
                 }
 
-                return Ok(lesson);
+                // Get and parse lesson file to verify it's valid JSON
+                var lessonContent = await System.IO.File.ReadAllTextAsync(lesson.LessonFileUrl);
+                try
+                {
+                    System.Text.Json.JsonDocument.Parse(lessonContent);
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    throw new ArgumentException("LessonDescription must be valid JSON.");
+                }
+
+                return Ok(new LessonDto
+                {
+                    Id = lesson.Id.ToString(),
+                    Title = lesson.Title,
+                    Description = lesson.Description,
+                    CreatedDate = lesson.CreatedDate,
+                    UpdatedDate = lesson.UpdatedDate,
+                    LessonType = lesson.LessonType,
+                    LessonDescription = lessonContent,
+                    CreatedById = lesson.CreatedById
+                });
             }
             catch(Exception ex)
             {
@@ -84,7 +105,7 @@ namespace bloom.Controllers
 
                 if (!System.IO.File.Exists(filePath))
                 {
-                    return NotFound(new { messsage = "Lesson file not found." });
+                    return NotFound(new { message = "Lesson file not found." });
                 }
 
                 // Serve download

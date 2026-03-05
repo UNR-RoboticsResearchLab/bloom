@@ -308,7 +308,6 @@ namespace bloom.Services
                 // Parse the lesson JSON to ensure it's valid
                 var parsedLesson = System.Text.Json.JsonSerializer.Deserialize<dynamic>(lessonJson);
 
-                // Return response with hasPendingLesson flag and the lesson data
                 return new
                 {
                     hasPendingLesson = true,
@@ -323,6 +322,75 @@ namespace bloom.Services
             {
                 throw new InvalidOperationException($"Error retrieving pending lesson for session {sessionId}: {ex.Message}", ex);
             }
+        }
+
+        public async Task<Guid> RecordSLPFeedbackAsync(Guid sessionId, RecordSLPFeedbackDto dto)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            // Validate command value
+            if (dto.FeedbackCommand != "approve" && dto.FeedbackCommand != "retry")
+                throw new ArgumentException($"FeedbackCommand must be 'approve' or 'retry', got '{dto.FeedbackCommand}'");
+
+            var interaction = new LessonInteraction
+            {
+                RobotSessionId = sessionId,
+                LessonId = session.ActiveLessonId,
+                StepId = dto.StepId,
+                InteractionType = "SLPFeedback",
+                FeedbackCommand = dto.FeedbackCommand,
+                IsAcknowledged = false,
+                Timestamp = DateTime.UtcNow
+            };
+
+            _dbContext.LessonInteractions.Add(interaction);
+            await _dbContext.SaveChangesAsync();
+
+            return interaction.Id;
+        }
+
+        public async Task<PendingFeedbackResponseDto?> GetPendingFeedbackAsync(Guid sessionId)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            // Find the most recent unacknowledged SLPFeedback for this session
+            var pending = await _dbContext.LessonInteractions
+                .Where(li =>
+                    li.RobotSessionId == sessionId &&
+                    li.InteractionType == "SLPFeedback" &&
+                    li.IsAcknowledged == false)
+                .OrderByDescending(li => li.Timestamp)
+                .FirstOrDefaultAsync();
+
+            if (pending == null)
+                return null;
+
+            return new PendingFeedbackResponseDto
+            {
+                HasPendingFeedback = true,
+                FeedbackId = pending.Id,
+                StepId = pending.StepId,
+                FeedbackCommand = pending.FeedbackCommand,
+                IssuedAt = pending.Timestamp
+            };
+        }
+
+        public async Task AcknowledgeFeedbackAsync(Guid sessionId, Guid feedbackId)
+        {
+            var interaction = await _dbContext.LessonInteractions
+                .FirstOrDefaultAsync(li =>
+                    li.Id == feedbackId &&
+                    li.RobotSessionId == sessionId &&
+                    li.InteractionType == "SLPFeedback")
+                ?? throw new KeyNotFoundException(
+                    $"SLPFeedback interaction {feedbackId} not found for session {sessionId}");
+
+            interaction.IsAcknowledged = true;
+            interaction.AcknowledgedAt = DateTime.UtcNow;
+            _dbContext.LessonInteractions.Update(interaction);
+            await _dbContext.SaveChangesAsync();
         }
     }
 }

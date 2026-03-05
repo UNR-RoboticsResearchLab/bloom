@@ -104,6 +104,7 @@ namespace bloom.Services
 
         public async Task<Lesson> GetByIdAsync(string id)
         {
+
             try
             {
                 if (string.IsNullOrEmpty(id))
@@ -121,7 +122,20 @@ namespace bloom.Services
                     throw new KeyNotFoundException($"Lesson with id {id} not found");
                 }
 
+                // Get and parse lesson file to verify it's valid JSON
+                var lessonContent = await File.ReadAllTextAsync(lesson.LessonFileUrl);
+                try
+                {
+                    var parsedJson = System.Text.Json.JsonDocument.Parse(lessonContent);
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    throw new ArgumentException("LessonFileUrl must point to a valid JSON file.");
+                }
+
+
                 return lesson;
+
             }
             catch (Exception ex)
             {

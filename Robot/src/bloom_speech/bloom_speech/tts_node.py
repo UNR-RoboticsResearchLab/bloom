@@ -8,11 +8,6 @@ from rclpy.node import Node
 from std_msgs.msg import String
 import pygame
 from ament_index_python.packages import get_package_share_directory
-
-robot_dir = os.path.join(get_package_share_directory('bloom_speech'), '..', '..', '..', '..', 'Robot')
-robot_dir = os.path.realpath(robot_dir)
-sys.path.append(robot_dir)
-
 from tts_module.engine_azure import AzureTTSEngine
 
 
@@ -34,10 +29,12 @@ class TTSNode(Node):
             default_voice=tts_voice
         )
 
-        self.face_dir = os.path.join(
-            os.path.dirname(__file__), '..', '..', '..', 'face_display'
-        )
-        self.control_file = os.path.join(self.face_dir, 'face_control.json')
+        robot_dir = os.path.realpath(os.path.join(
+            get_package_share_directory('bloom_speech'),
+            '..', '..', '..', '..', '..', 'bloom', 'Robot'
+        ))
+        self.control_file = os.path.join(robot_dir, 'face_display', 'face_control.json')
+
 
         pygame.mixer.init()
         self.is_speaking = False
@@ -136,7 +133,7 @@ class TTSNode(Node):
 
 
 def main(args=None):
-    env_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', '.env')
+    env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')
     if os.path.exists(env_path):
         with open(env_path) as f:
             for line in f:
@@ -144,6 +141,9 @@ def main(args=None):
                 if line and not line.startswith('#') and '=' in line:
                     key, value = line.split('=', 1)
                     os.environ.setdefault(key.strip(), value.strip())
+    else:
+        print(f'WARNING: .env not found at {env_path}')
+        print('Copy .env.example to .env and fill in your credentials')
 
     rclpy.init(args=args)
     node = TTSNode()

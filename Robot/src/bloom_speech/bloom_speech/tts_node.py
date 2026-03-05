@@ -29,10 +29,12 @@ class TTSNode(Node):
             default_voice=tts_voice
         )
 
-        self.face_dir = os.path.join(
-            os.path.dirname(__file__), '..', '..', '..', 'face_display'
-        )
-        self.control_file = os.path.join(self.face_dir, 'face_control.json')
+        robot_dir = os.path.realpath(os.path.join(
+            get_package_share_directory('bloom_speech'),
+            '..', '..', '..', '..', '..', 'bloom', 'Robot'
+        ))
+        self.control_file = os.path.join(robot_dir, 'face_display', 'face_control.json')
+
 
         pygame.mixer.init()
         self.is_speaking = False
@@ -131,7 +133,6 @@ class TTSNode(Node):
 
 
 def main(args=None):
-    from ament_index_python.packages import get_package_share_directory
     env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')
     if os.path.exists(env_path):
         with open(env_path) as f:

@@ -103,7 +103,6 @@ Be curious about their interests, hobbies, and experiences.""")
 
 
 def main(args=None):
-    from ament_index_python.packages import get_package_share_directory
     env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')
     if os.path.exists(env_path):
         with open(env_path) as f:

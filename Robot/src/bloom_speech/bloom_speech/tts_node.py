@@ -33,7 +33,8 @@ class TTSNode(Node):
             get_package_share_directory('bloom_speech'),
             '..', '..', '..', '..', '..', 'bloom', 'Robot'
         ))
-        self.control_file = os.path.join(robot_dir, 'face_display', 'face_control.json')
+        self.visemes_pub = self.create_publisher(String, '/face/visemes', 10)
+        self.face_cmd_pub = self.create_publisher(String, '/face/command', 10)
 
 
         pygame.mixer.init()
@@ -46,28 +47,31 @@ class TTSNode(Node):
 
         self.get_logger().info('TTS node ready - listening on /tts/speak')
 
-    def write_face_command(self, command: dict):
-        try:
-            with open(self.control_file, 'w') as f:
-                json.dump(command, f)
-        except Exception as e:
-            self.get_logger().warn(f'Could not write face command: {e}')
-
     def set_face_emotion(self, emotion: str):
-        self.write_face_command({'command': 'set_emotion', 'emotion': emotion, 'timestamp': time.time()})
+        msg = String()
+        msg.data = json.dumps({'command': 'set_emotion', 'emotion': emotion})
+        self.face_cmd_pub.publish(msg)
 
     def set_face_mode(self, mode: str):
-        self.write_face_command({'command': 'set_mode', 'mode': mode, 'timestamp': time.time()})
+        msg = String()
+        msg.data = json.dumps({'command': 'set_mode', 'mode': mode})
+        self.face_cmd_pub.publish(msg)
 
     def send_visemes(self, visemes: list):
-        self.write_face_command({'command': 'set_visemes', 'visemes': visemes, 'timestamp': time.time()})
+        msg = String()
+        msg.data = json.dumps(visemes)
+        self.visemes_pub.publish(msg)
 
     def start_audio_sync(self):
-        self.write_face_command({'command': 'start_audio_sync', 'timestamp': time.time()})
+        msg = String()
+        msg.data = json.dumps({'command': 'start_audio_sync'})
+        self.face_cmd_pub.publish(msg)
 
     def stop_audio_sync(self):
-        self.write_face_command({'command': 'stop_audio_sync', 'timestamp': time.time()})
-
+        msg = String()
+        msg.data = json.dumps({'command': 'stop_audio_sync'})
+        self.face_cmd_pub.publish(msg)
+        
     def set_robot_state(self, state: str):
         msg = String()
         msg.data = state

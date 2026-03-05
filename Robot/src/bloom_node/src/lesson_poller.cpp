@@ -185,10 +185,18 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 						step.behaviors[key] = value.get<std::string>();
 					}
 				}
-
+				// Parse visual aid
+				if (step_json.contains("visual_aid")) {
+					if (step_json["visual_aid"].is_string()) {
+						step.visual_aid_url = step_json["visual_aid"].get<std::string>();
+					} else if (step_json["visual_aid"].is_array() && !step_json["visual_aid"].empty()) {
+						step.visual_aid_url = step_json["visual_aid"][0].get<std::string>();
+					}
+				}
 				// Parse interaction config if present
-				step.has_interaction = step_json.value("has_interaction", false);
-				if (step.has_interaction && step_json.contains("interaction")) {
+				// has_interaction is true if an interaction block exists, even without explicit flag
+				step.has_interaction = step_json.contains("interaction") && step_json["interaction"].is_object();
+				if (step.has_interaction) {
 					const auto &interaction_json = step_json["interaction"];
 					step.interaction.wait_for_response = interaction_json.value("wait_for_response", false);
 					step.interaction.max_wait_seconds = interaction_json.value("max_wait_seconds", 10);

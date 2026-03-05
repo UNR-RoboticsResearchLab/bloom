@@ -45,7 +45,7 @@ namespace bloom.Models.dto
     public class LogLessonInteractionDto
     {
         public int StepId { get; set; }
-        public string InteractionType { get; set; } = "Response";  // "Response", "Question", "Timeout", "Fallback"
+        public string InteractionType { get; set; } = "Response";  // "Response", "Question", "Timeout", "Fallback", "Feedback"
         public string? StudentResponse { get; set; }
         public bool? IsCorrect { get; set; }
         public int ResponseTimeMs { get; set; }
@@ -63,5 +63,36 @@ namespace bloom.Models.dto
         public bool? IsCorrect { get; set; }
         public DateTime Timestamp { get; set; }
         public int ResponseTimeMs { get; set; }
+    }
+
+    /// <summary>
+    /// Request DTO for SLP to record feedback (approve/retry) on a lesson step.
+    /// Used by: POST /api/lessoninteractions/{sessionId}/feedback
+    /// </summary>
+    public class RecordSLPFeedbackDto
+    {
+        /// <summary>
+        /// The lesson step this feedback applies to.
+        /// </summary>
+        public int StepId { get; set; }
+
+        /// <summary>
+        /// The feedback command: "approve" (advance to next step) or "retry" (replay current step).
+        /// Kept as string for forward-extensibility.
+        /// </summary>
+        public required string FeedbackCommand { get; set; }  // "approve" | "retry"
+    }
+
+    /// <summary>
+    /// Response DTO for GET /api/robotsessions/{sessionId}/pending-feedback.
+    /// Returned when an unacknowledged SLP feedback command exists for the session.
+    /// </summary>
+    public class PendingFeedbackResponseDto
+    {
+        public bool HasPendingFeedback { get; set; }
+        public Guid? FeedbackId { get; set; }          // ID of the LessonInteraction row
+        public int? StepId { get; set; }
+        public string? FeedbackCommand { get; set; }   // "approve" | "retry"
+        public DateTime? IssuedAt { get; set; }
     }
 }

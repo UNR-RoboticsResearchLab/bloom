@@ -2,6 +2,7 @@ namespace bloom.Models.dto
 {
     public class LessonDto
     {
+        public string? Id { get; set; }
         public required string Title { get; set; }
         public string? Description { get; set; }
         public DateTime CreatedDate { get; set; }

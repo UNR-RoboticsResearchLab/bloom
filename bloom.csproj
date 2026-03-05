@@ -54,6 +54,11 @@
     <Exec WorkingDirectory="$(SpaRoot)" Command="npm install" />
   </Target> -->
 
+  <!-- Dont include testing code in project build -->
+  <ItemGroup>
+    <Compile Remove="bloom.Tests/**/*.cs" />
+  </ItemGroup>
+
   <Target Name="PublishRunWebpack" AfterTargets="ComputeFilesToPublish">
     <!-- As part of publishing, ensure the JS resources are freshly built in production mode -->
     <!-- <Exec WorkingDirectory="$(SpaRoot)" Command="npm install" /> -->

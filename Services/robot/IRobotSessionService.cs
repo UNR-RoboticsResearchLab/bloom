@@ -111,5 +111,29 @@ namespace bloom.Services
         /// <param name="sessionId">ID of the active robot session</param>
         /// <returns>Pending lesson data or null if none exists</returns>
         Task<dynamic?> GetPendingLessonAsync(Guid sessionId);
+
+        /// <summary>
+        /// Records an SLP feedback command (approve/retry) as a LessonInteraction row
+        /// with InteractionType "SLPFeedback" and IsAcknowledged = false.
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        /// <param name="dto">Feedback command from SLP</param>
+        /// <returns>ID of the created LessonInteraction record</returns>
+        Task<Guid> RecordSLPFeedbackAsync(Guid sessionId, RecordSLPFeedbackDto dto);
+
+        /// <summary>
+        /// Returns the most recent unacknowledged SLP feedback for a session, or null.
+        /// Used by robot polling to discover pending commands.
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        /// <returns>PendingFeedbackResponseDto or null if no pending feedback</returns>
+        Task<PendingFeedbackResponseDto?> GetPendingFeedbackAsync(Guid sessionId);
+
+        /// <summary>
+        /// Marks a SLPFeedback interaction as acknowledged so the robot does not reprocess it.
+        /// </summary>
+        /// <param name="sessionId">Owning session (for validation)</param>
+        /// <param name="feedbackId">ID of the LessonInteraction to acknowledge</param>
+        Task AcknowledgeFeedbackAsync(Guid sessionId, Guid feedbackId);
     }
 }

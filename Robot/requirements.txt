@@ -1,13 +1,13 @@
 # Audio playback
-pygame==2.5.2
+pygame
 
 # STT
-sounddevice==0.5.1
-soundfile==0.12.1
-numpy==1.26.4
+sounddevice
+soundfile
+numpy
 
 # Azure Speech Services (STT and TTS)
-azure-cognitiveservices-speech==1.40.0
+azure-cognitiveservices-speech
 
 # Azure OpenAI (LLM)
-openai==1.58.1
+openai

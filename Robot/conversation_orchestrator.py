@@ -11,6 +11,8 @@ import webbrowser
 import pygame
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import threading
+import subprocess
+import platform
 
 # Add module paths
 sys.path.append(os.path.join(os.path.dirname(__file__), 'stt_module'))
@@ -83,6 +85,10 @@ class BloomOrchestrator:
         print("Orchestrator ready")
     
     def start_http_server(self):
+        # Allow port reuse so restarts don't hit "Address already in use"
+        class ReusableHTTPServer(HTTPServer):
+            allow_reuse_address = True
+
          # Start simple HTTP server so face can access files using AJAX
         os.chdir(self.face_dir)
         
@@ -92,10 +98,10 @@ class BloomOrchestrator:
                 # Suppress all HTTP request logs
                 pass
         
-        server = HTTPServer(('localhost', 8000), QuietHandler)
+        self.server = ReusableHTTPServer(('localhost', 8000), QuietHandler)
         
         # Run server in background thread
-        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         server_thread.start()
         
         print("Started HTTP server on localhost:8000")
@@ -103,10 +109,27 @@ class BloomOrchestrator:
     def open_face(self):
         # Open face via HTTP server 
         face_url = "http://localhost:8000/blossom_face.html"
-        webbrowser.open(face_url)
-        print("Opened face in browser")
         
-        # Wait for browser to load
+        
+        if platform.system() == 'Linux':
+            self.browser_process = subprocess.Popen([
+                'chromium',
+                '--kiosk',
+                '--noerrdialogs',
+                '--disable-infobars',
+                '--no-first-run',
+                '--disable-session-crashed-bubble',
+                '--disable-restore-session-state',
+                '--disable-features=TranslateUI',
+                '--overscroll-history-navigation=0',
+                '--no-default-browser-check',
+                face_url
+            ])
+        else:
+            # Mac/other - fallback to regular browser for development
+            webbrowser.open(face_url)
+        
+        print("Opened face in browser")
         time.sleep(3)
     
     def set_face_emotion(self, emotion):
@@ -368,6 +391,14 @@ class BloomOrchestrator:
             print("\n\nEnding conversation")
             self.speak("Goodbye! It was really nice talking to you!")
 
+    def shutdown(self):
+        if hasattr(self, 'server'):
+            self.server.shutdown()
+            self.server.server_close()
+            print("HTTP server closed")
+        if hasattr(self, 'browser_process'):
+            self.browser_process.terminate()
+            print("Browser closed")
 def main():
     print("Bloom conversation orchestrator")
     print("-" * 40)
@@ -375,8 +406,11 @@ def main():
     # Create orchestrator
     orchestrator = BloomOrchestrator()
     
-    # Run conversation
-    orchestrator.run_conversation()
-
+    try:
+        orchestrator.run_conversation()
+    except KeyboardInterrupt:
+        print("\nStopping...")
+    finally:
+        orchestrator.shutdown()
 if __name__ == "__main__":
     main()

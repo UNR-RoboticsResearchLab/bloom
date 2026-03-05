@@ -103,7 +103,8 @@ Be curious about their interests, hobbies, and experiences.""")
 
 
 def main(args=None):
-    env_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', '.env')
+    from ament_index_python.packages import get_package_share_directory
+    env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')
     if os.path.exists(env_path):
         with open(env_path) as f:
             for line in f:
@@ -111,6 +112,9 @@ def main(args=None):
                 if line and not line.startswith('#') and '=' in line:
                     key, value = line.split('=', 1)
                     os.environ.setdefault(key.strip(), value.strip())
+    else:
+        print(f'WARNING: .env not found at {env_path}')
+        print('Copy .env.example to .env and fill in your credentials')
 
     rclpy.init(args=args)
     node = LLMNode()

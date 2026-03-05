@@ -4,7 +4,7 @@
   <name>bloom_speech</name>
   <version>0.0.1</version>
   <description>TTS and LLM ROS2 nodes for the Bloom robot</description>
-  <maintainer email="you@unr.edu">bloom</maintainer>
+  <maintainer email="">bloom</maintainer>
   <license>MIT</license>
 
   <exec_depend>rclpy</exec_depend>

@@ -15,7 +15,7 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='bloom',
-    maintainer_email='you@unr.edu',
+    maintainer_email='',
     description='TTS and LLM ROS2 nodes for the Bloom robot',
     license='MIT',
     entry_points={

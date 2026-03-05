@@ -81,6 +81,10 @@ namespace bloom.Services
             if (session == null)
                 throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
 
+            // Validate robot ID is not empty
+            if (robotId == Guid.Empty)
+                throw new ArgumentException("RobotId cannot be empty (Guid.Empty)", nameof(robotId));
+
             // Add to in-memory storage
             _stateRepository.Add(sessionId.ToString(), new RobotState
             {

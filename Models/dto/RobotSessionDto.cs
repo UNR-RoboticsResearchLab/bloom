@@ -3,6 +3,8 @@
 // Data transfer objects for RobotSession API operations
 // Created: 11/18/2025
 
+using System.Text.Json.Serialization;
+
 namespace bloom.Models.dto
 {
     /// <summary>
@@ -13,14 +15,17 @@ namespace bloom.Models.dto
         /// <summary>
         /// Whether to create an anonymous session (null UserId)
         /// </summary>
+        [JsonPropertyName("anonymous")]
         public bool Anonymous { get; set; } = false;
         /// <summary>
         /// RobotId to associate with the session
         /// </summary>
+        [JsonPropertyName("robot_id")]
         public Guid RobotId { get; set; }
         /// <summary>
         /// Optional UserId for the session
         /// </summary>
+        [JsonPropertyName("user_id")]
         public string? UserId { get; set; }
     }
 

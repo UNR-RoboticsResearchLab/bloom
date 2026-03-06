@@ -435,13 +435,18 @@ class FaceNode(Node):
             get_package_share_directory('bloom_face'), 'visual_aids'
         )
 
-        
         pygame.init()
         pygame.font.init()
-        info = pygame.display.Info()
-        self.width = info.current_w
-        self.height = info.current_h
-        self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN)
+
+        num_displays = pygame.display.get_num_displays()
+        print(f'Displays found: {num_displays}')
+        for i in range(num_displays):
+            print(f'  Display {i}: {pygame.display.get_desktop_sizes()[i]}')
+
+        display_index = 1 if num_displays > 1 else 0
+        self.width, self.height = 800, 480
+        self.screen = pygame.display.set_mode((self.width, self.height), pygame.NOFRAME, display=display_index)
+        print(f'Using display {display_index}: {self.width}x{self.height}')
         pygame.mouse.set_visible(False)
         pygame.display.set_caption('Bloom')
 

@@ -59,6 +59,9 @@ install(DIRECTORY include/
 install(DIRECTORY config/
   DESTINATION share/${PROJECT_NAME}/config)
 
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch)
+
 ament_export_targets(bloom_nodeTargets HAS_LIBRARY_TARGET)
 ament_export_dependencies(rclcpp std_msgs std_srvs CURL)
 

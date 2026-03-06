@@ -145,7 +145,7 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
         // Don't set lesson_tangent mode yet — wait until Bloom finishes speaking
     }
 
-    if (step.has_interaction) {
+    if (step.has_interaction && step.interaction.wait_for_response) {
         speak_script(step.script);
         handle_interaction(step);
     } else {
@@ -273,8 +273,7 @@ void LessonCoordinator::handle_interaction(const LessonStep &step) {
         const InteractionConfig &interaction = step.interaction;
 
         if (!interaction.wait_for_response) {
-            RCLCPP_DEBUG(this->get_logger(), "Step %d has no response required", step.id);
-            advance_to_next_step();
+            RCLCPP_DEBUG(this->get_logger(), "Step %d has interaction but no response required", step.id);
             return;
         }
 
@@ -407,9 +406,8 @@ void LessonCoordinator::advance_to_next_step() {
     }
 
     const LessonStep &current_step = current_lesson_.sequence[current_step_index_];
-    execute_step(current_step);
-
     current_step_index_++;
+    execute_step(current_step);
 }
 
 void LessonCoordinator::update_progress_with_backend() {

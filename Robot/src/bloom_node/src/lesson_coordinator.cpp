@@ -94,7 +94,10 @@ void LessonCoordinator::reset_lesson() {
 
 void LessonCoordinator::execute_step(const LessonStep &step) {
     RCLCPP_INFO(this->get_logger(), "Executing step %d", step.id);
-
+    RCLCPP_INFO(this->get_logger(), "[EXECUTE] step %d type=%s has_interaction=%s llm_follow_up=%s",
+        step.id, step.type.c_str(),
+        step.has_interaction ? "true" : "false",
+        step.interaction.llm_follow_up ? "true" : "false");
     auto behavior_it = step.behaviors.find("behavior");
     if (behavior_it != step.behaviors.end()) {
         const std::string &behavior_value = behavior_it->second;
@@ -147,6 +150,10 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
 }
 
 void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) {
+   RCLCPP_INFO(this->get_logger(), "[TTS_DONE] waiting_for_tts_done_=%s | waiting_for_interaction_tts_=%s | waiting_for_wrap_up_=%s",
+        waiting_for_tts_done_ ? "true" : "false",
+        waiting_for_interaction_tts_ ? "true" : "false",
+        waiting_for_wrap_up_ ? "true" : "false");
     if (!lesson_active_) return;
 
     if (waiting_for_interaction_tts_) {
@@ -209,6 +216,9 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
 }
 
 void LessonCoordinator::on_llm_wrap_up(const std_msgs::msg::String::SharedPtr msg) {
+    RCLCPP_INFO(this->get_logger(), "[LLM_WRAP_UP] received | waiting_for_wrap_up_=%s | waiting_for_tts_done_=%s",
+        waiting_for_wrap_up_ ? "true" : "false",
+        waiting_for_tts_done_ ? "true" : "false");
     if (!waiting_for_wrap_up_ || !lesson_active_) return;
     waiting_for_wrap_up_ = false;
 
@@ -279,6 +289,11 @@ void LessonCoordinator::handle_interaction(const LessonStep &step) {
 }
 
 void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr msg) {
+    RCLCPP_INFO(this->get_logger(), "[VOSK] Received: '%s' | waiting_for_response_=%s | waiting_for_interaction_tts_=%s | waiting_for_wrap_up_=%s",
+        msg->data.c_str(),
+        waiting_for_response_ ? "true" : "false",
+        waiting_for_interaction_tts_ ? "true" : "false",
+        waiting_for_wrap_up_ ? "true" : "false");
     if (!msg || msg->data.empty() || !waiting_for_response_ || !current_interaction_step_) {
         return;
     }
@@ -354,6 +369,7 @@ void LessonCoordinator::schedule_next_step(int delay_seconds) {
 }
 
 void LessonCoordinator::advance_to_next_step() {
+    RCLCPP_INFO(this->get_logger(), "[ADVANCE] moving to step index %zu", current_step_index_);
     if (!lesson_active_) {
         return;
     }

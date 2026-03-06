@@ -85,12 +85,15 @@ class LLMNode(Node):
     def on_mode_update(self, msg: String):
         new_mode = msg.data
         if new_mode != self.mode:
-            self.get_logger().info(f'LLM mode -> {new_mode}')
+            self.get_logger().info(f'[LLM_MODE] {self.mode} -> {new_mode}, history cleared')
             self.mode = new_mode
-            self.conversation = []  # Clear conversation on mode switch
+            self.conversation = []
             if new_mode == 'lesson_tangent' and self.lesson_context:
                 prompt = LESSON_TANGENT_PROMPT_TEMPLATE.format(context=self.lesson_context)
                 self.llm_engine.set_system_prompt(prompt)
+            elif new_mode == 'lesson_mode':
+                self.lesson_context = ''  # clear stale context
+                self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
             else:
                 self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
 
@@ -144,10 +147,11 @@ class LLMNode(Node):
         # Check for wrap up token in lesson tangent mode
         if self.mode == 'lesson_tangent' and '[RETURN_TO_LESSON]' in response_text:
             response_text = response_text.replace('[RETURN_TO_LESSON]', '').strip()
-            self.get_logger().info('Tangent resolved - signaling lesson to continue')
-            wrap_up_msg = String()
-            wrap_up_msg.data = 'done'
-            self.wrap_up_pub.publish(wrap_up_msg)
+            self.mode = 'lesson_mode'  # immediately stop accepting input
+            self.get_logger().info('[LLM] RETURN_TO_LESSON detected, mode immediately set to lesson_mode')
+            wrap_msg = String()
+            wrap_msg.data = 'done'
+            self.wrap_up_pub.publish(wrap_msg)
 
         tts_msg = String()
         tts_msg.data = response_text

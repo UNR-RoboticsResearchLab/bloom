@@ -22,7 +22,7 @@ LessonCoordinator::LessonCoordinator(
     lesson_progress_publisher_ = this->create_publisher<std_msgs::msg::String>("lesson_progress", 10);
     tts_publisher_ = this->create_publisher<std_msgs::msg::String>("/tts/speak", 10);
     visual_aid_publisher_ = this->create_publisher<std_msgs::msg::String>("/face/visual_aid", 10);
-
+    
     vosk_subscriber_ = this->create_subscription<std_msgs::msg::String>(
         "/vosk/result", 10,
         std::bind(&LessonCoordinator::on_vosk_result, this, std::placeholders::_1));
@@ -36,6 +36,7 @@ LessonCoordinator::LessonCoordinator(
 
     llm_mode_pub_ = this->create_publisher<std_msgs::msg::String>("/llm/mode", 10);
     llm_context_pub_ = this->create_publisher<std_msgs::msg::String>("/llm/lesson_context", 10);
+    motor_pub_ = this->create_publisher<std_msgs::msg::String>("play_sequence", 10);
     RCLCPP_INFO(this->get_logger(), "LessonCoordinator initialized with Vosk subscriber");
 }
 
@@ -102,13 +103,25 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
             state_manager_->set_state(behavior_value, timing_ms);
         }
     }
-
+    
     queue_behavior(step);
 
+    if (!step.motor_sequence.empty()) {
+    auto motor_msg = std_msgs::msg::String();
+    motor_msg.data = step.motor_sequence;
+    motor_pub_->publish(motor_msg);
+    RCLCPP_INFO(this->get_logger(), "Playing motor sequence: %s", step.motor_sequence.c_str());
+}
     // Publish visual aid or hide
-    if (!step.visual_aid_url.empty()) {
+    if (!step.visual_aid_images.empty()) {
+        nlohmann::json va_json;
+        va_json["images"] = step.visual_aid_images;
+        va_json["labels"] = step.visual_aid_labels;
+        if (!step.visual_aid_footers.empty()) {
+            va_json["footers"] = step.visual_aid_footers;
+        }
         auto va_msg = std_msgs::msg::String();
-        va_msg.data = "{\"images\": [\"" + step.visual_aid_url + "\"], \"labels\": [\"\"]}";
+        va_msg.data = va_json.dump();
         visual_aid_publisher_->publish(va_msg);
     } else {
         auto va_msg = std_msgs::msg::String();

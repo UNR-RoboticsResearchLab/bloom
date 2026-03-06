@@ -145,6 +145,7 @@ class BlossomFace:
         self.visual_aid_images = []
         self.visual_aid_labels = []
         self.loaded_surfaces = []
+        self.visual_aid_footers = []
 
         
         pygame.font.init()
@@ -202,8 +203,9 @@ class BlossomFace:
         self.current_viseme_id = 0
         self.mouth_mode = 'emotion'
 
-    def show_visual_aid(self, images, labels, visual_aids_dir):
+    def show_visual_aid(self, images, labels, visual_aids_dir, footers=None):
         self.visual_aid_labels = labels
+        self.visual_aid_footers = footers or []
         self.loaded_surfaces = []
 
         for img_path in images:
@@ -215,6 +217,7 @@ class BlossomFace:
                 except Exception:
                     self.loaded_surfaces.append(None)
             else:
+                self.get_logger().warn(f'Visual aid not found: {full_path}') if hasattr(self, 'get_logger') else None
                 self.loaded_surfaces.append(None)
 
         self.visual_aid_active = True
@@ -223,6 +226,7 @@ class BlossomFace:
         self.visual_aid_active = False
         self.loaded_surfaces = []
         self.visual_aid_labels = []
+        self.visual_aid_footers = []
 
     def update(self, dt):
         self.time += dt
@@ -347,55 +351,71 @@ class BlossomFace:
             pygame.draw.circle(surface, outline_color, (mouth_x, mouth_y), r, line_width + 2)
 
     def draw_visual_aid(self, surface):
-        surface.fill((30, 30, 30))
+        bg_color = tuple(int(c) for c in self.bg_color)
+        surface.fill(bg_color)
         count = len(self.loaded_surfaces)
         if count == 0:
             return
 
-        label_height = int(self.height * 0.12)
         padding = int(self.width * 0.02)
+        header_height = int(self.height * 0.12)
+        footer_height = int(self.height * 0.10) if self.visual_aid_footers else 0
 
         if count == 1:
-            
             label = self.visual_aid_labels[0] if self.visual_aid_labels else ''
-            label_surf = self.label_font.render(label, True, (255, 255, 255))
+            label_surf = self.label_font.render(label, True, (50, 50, 50))
             label_x = self.width // 2 - label_surf.get_width() // 2
             surface.blit(label_surf, (label_x, padding))
 
             img_surf = self.loaded_surfaces[0]
             if img_surf:
-                img_area_h = self.height - label_height - padding
+                img_area_h = self.height - header_height - footer_height - padding
                 img_area_w = self.width - padding * 2
                 scaled = self.scale_image(img_surf, img_area_w, img_area_h)
                 img_x = self.width // 2 - scaled.get_width() // 2
-                img_y = label_height
+                img_y = header_height
                 surface.blit(scaled, (img_x, img_y))
 
+            if self.visual_aid_footers:
+                footer = self.visual_aid_footers[0]
+                footer_surf = self.label_font.render(footer, True, (50, 50, 50))
+                footer_x = self.width // 2 - footer_surf.get_width() // 2
+                footer_y = self.height - footer_height
+                surface.blit(footer_surf, (footer_x, footer_y))
+
         elif count >= 2:
-            
             half_w = self.width // 2
+
+            # Divider line
+            pygame.draw.line(surface, (180, 180, 180),
+                            (half_w, 0), (half_w, self.height), 2)
 
             for i in range(2):
                 offset_x = i * half_w
+
+                # Header label (word spelling)
                 label = self.visual_aid_labels[i] if i < len(self.visual_aid_labels) else ''
-
-                
-                if i == 1:
-                    pygame.draw.line(surface, (80, 80, 80),
-                                     (half_w, 0), (half_w, self.height), 2)
-
-                label_surf = self.label_font.render(label, True, (255, 255, 255))
+                label_surf = self.label_font.render(label, True, (50, 50, 50))
                 label_x = offset_x + half_w // 2 - label_surf.get_width() // 2
                 surface.blit(label_surf, (label_x, padding))
 
+                # Image
                 img_surf = self.loaded_surfaces[i] if i < len(self.loaded_surfaces) else None
                 if img_surf:
                     img_area_w = half_w - padding * 2
-                    img_area_h = self.height - label_height - padding
+                    img_area_h = self.height - header_height - footer_height - padding * 2
                     scaled = self.scale_image(img_surf, img_area_w, img_area_h)
                     img_x = offset_x + half_w // 2 - scaled.get_width() // 2
-                    img_y = label_height
+                    img_y = header_height
                     surface.blit(scaled, (img_x, img_y))
+
+                # Footer label (A/B)
+                if self.visual_aid_footers and i < len(self.visual_aid_footers):
+                    footer = self.visual_aid_footers[i]
+                    footer_surf = self.label_font.render(footer, True, (50, 50, 50))
+                    footer_x = offset_x + half_w // 2 - footer_surf.get_width() // 2
+                    footer_y = self.height - footer_height
+                    surface.blit(footer_surf, (footer_x, footer_y))
 
     def scale_image(self, surf, max_w, max_h):
         orig_w, orig_h = surf.get_size()
@@ -508,8 +528,9 @@ class FaceNode(Node):
             else:
                 images = data.get('images', [])
                 labels = data.get('labels', [])
+                footers = data.get('footers', [])
                 with self.lock:
-                    self.face.show_visual_aid(images, labels, self.visual_aids_dir)
+                    self.face.show_visual_aid(images, labels, self.visual_aids_dir, footers)
         except Exception as e:
             self.get_logger().warn(f'Failed to parse visual aid command: {e}')
 

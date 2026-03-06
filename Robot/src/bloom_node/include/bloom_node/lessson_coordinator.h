@@ -37,6 +37,10 @@ struct LessonStep {
     std::string visual_aid_url;
     bool has_interaction;
     InteractionConfig interaction;
+    std::vector<std::string> visual_aid_images;
+    std::vector<std::string> visual_aid_labels;
+    std::vector<std::string> visual_aid_footers;
+    std::string motor_sequence;
 };
 
 struct LessonData {
@@ -133,6 +137,7 @@ private:
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr llm_context_pub_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr tts_done_sub_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr wrap_up_sub_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr motor_pub_;
     bool waiting_for_tts_done_{false};
     bool waiting_for_wrap_up_{false};
 

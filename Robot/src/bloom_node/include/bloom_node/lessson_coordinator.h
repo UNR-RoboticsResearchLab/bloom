@@ -140,6 +140,7 @@ private:
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr motor_pub_;
     bool waiting_for_tts_done_{false};
     bool waiting_for_wrap_up_{false};
+    bool waiting_for_interaction_tts_{false};
 
 };
 }

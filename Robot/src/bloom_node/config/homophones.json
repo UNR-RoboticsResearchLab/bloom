@@ -54,13 +54,15 @@
         "wait_for_response": true,
         "llm_follow_up": true,
         "max_wait_seconds": 15,
-        "fallback_script": "That is okay! One example is write and right. Write means to put words on paper, and right means correct or a direction."
+        "fallback_script": "That is okay! One example is write and right. Write means to put words on paper, and right means correct or a direction.",
+        "fallback_visual_aid": ["slide_write.png", "slide_right.png"],
+        "fallback_visual_aid_labels": ["Write", "Right"]
       }
     },
     {
       "id": 7,
       "type": "guided_practice",
-      "script": "Great work! Now let us practice. Listen to this sentence. I went to the blank to swim. Is the missing word A, sea, or B, see?",
+      "script": "Great work! Now let us practice. Listen to this sentence. I went to the blank to swim. Is the missing word A or B?",
       "behaviors": {"behavior": "idle"},
       "motor_sequence": "look_up",
       "visual_aid": ["slide_sea.png", "slide_see.png"],
@@ -70,15 +72,15 @@
         "wait_for_response": true,
         "max_wait_seconds": 10,
         "correct_answer": "a",
-        "correct_response_script": "Yes! A, sea, is correct! You go to the sea to swim. Sea is the big body of water. Fantastic job!",
-        "incorrect_response_script": "Not quite! The answer is A, sea. Sea is the big body of water where you swim. See means to look at something.",
-        "fallback_script": "The answer is A, sea! Sea is the big body of water where you go to swim."
+        "correct_response_script": "Yes! A is correct! You go to the sea to swim. Sea is the big body of water. Fantastic job!",
+        "incorrect_response_script": "Not quite! The answer is A. The first Sea is the big body of water where you swim. The second See means to look at something.",
+        "fallback_script": "The answer is A! The first Sea is the big body of water where you go to swim."
       }
     },
     {
       "id": 8,
       "type": "guided_practice",
-      "script": "Here is another one. The blank growled and looked for honey in the forest. Is the missing word A, bear, or B, bare?",
+      "script": "Here is another one. The blank growled and looked for honey in the forest. Is the missing word A or B?",
       "behaviors": {"behavior": "idle"},
       "motor_sequence": "look_up",
       "visual_aid": ["slide_bear.png", "slide_bare.png"],
@@ -88,15 +90,15 @@
         "wait_for_response": true,
         "max_wait_seconds": 10,
         "correct_answer": "a",
-        "correct_response_script": "That is right! A, bear, is correct! A bear is the furry animal that loves honey. You are doing amazing!",
-        "incorrect_response_script": "Good try! The answer is A, bear. A bear is the big furry animal that growls and looks for honey.",
-        "fallback_script": "The answer is A, bear! A bear is the furry animal that lives in the forest and loves honey."
+        "correct_response_script": "That is right! A is correct! A bear is the furry animal that loves honey. You are doing amazing!",
+        "incorrect_response_script": "Good try! The answer is A. A bear is the big furry animal that growls and looks for honey.",
+        "fallback_script": "The answer is A! A bear is the furry animal that lives in the forest and loves honey."
       }
     },
     {
       "id": 9,
       "type": "guided_practice",
-      "script": "Last practice question! I want to blank a story in my journal. Is the missing word A, write, or B, right?",
+      "script": "Last practice question! I want to blank a story in my journal. Is the missing word A or B?",
       "behaviors": {"behavior": "idle"},
       "motor_sequence": "look_up",
       "visual_aid": ["slide_write.png", "slide_right.png"],
@@ -106,9 +108,9 @@
         "wait_for_response": true,
         "max_wait_seconds": 10,
         "correct_answer": "a",
-        "correct_response_script": "Excellent! A, write, is correct! Write means to put words on paper, exactly what you do in a journal. You are a homophone superstar!",
-        "incorrect_response_script": "Almost! The answer is A, write. Write means to put words on paper or in a journal. Right means correct or a direction.",
-        "fallback_script": "The answer is A, write! Write means to put words on paper, like writing in a journal."
+        "correct_response_script": "Excellent! A is correct! Write means to put words on paper, exactly what you do in a journal. You are a homophone superstar!",
+        "incorrect_response_script": "Almost! The answer is A. The first write means to put words on paper or in a journal. The second Right means correct or a direction.",
+        "fallback_script": "The answer is A! Write means to put words on paper, like writing in a journal."
       }
     },
     {

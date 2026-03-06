@@ -155,9 +155,56 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
 }
 
 void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) {
-    if (!waiting_for_tts_done_ || !lesson_active_) return;
-    waiting_for_tts_done_ = false;
-    advance_to_next_step();
+    if (!lesson_active_) return;
+
+    if (waiting_for_interaction_tts_) {
+        waiting_for_interaction_tts_ = false;
+        // Short pause then open the response window
+        step_timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(500),
+            [this]() {
+                step_timer_->cancel();
+                step_timer_ = nullptr;
+                waiting_for_response_ = true;
+                RCLCPP_INFO(this->get_logger(), "Now listening for student response");
+
+                // Start the timeout timer now that we're actually listening
+                if (current_interaction_step_) {
+                    int timeout_seconds = current_interaction_step_->interaction.max_wait_seconds > 0 
+                        ? current_interaction_step_->interaction.max_wait_seconds : 10;
+                    step_timer_ = this->create_wall_timer(
+                        std::chrono::seconds(timeout_seconds),
+                        [this]() {
+                            if (!waiting_for_response_) return;
+                            waiting_for_response_ = false;
+                            const LessonStep* step = current_interaction_step_;
+                            if (!step) return;
+
+                            if (!step->interaction.fallback_visual_aid.empty()) {
+                                nlohmann::json va_json;
+                                va_json["images"] = step->interaction.fallback_visual_aid;
+                                va_json["labels"] = step->interaction.fallback_visual_aid_labels;
+                                auto va_msg = std_msgs::msg::String();
+                                va_msg.data = va_json.dump();
+                                visual_aid_publisher_->publish(va_msg);
+                            }
+
+                            if (!step->interaction.fallback_script.empty()) {
+                                speak_script(step->interaction.fallback_script);
+                            }
+
+                            log_interaction_to_backend(step->id, "timeout", false);
+                            waiting_for_tts_done_ = true;
+                        });
+                }
+            });
+        return;
+    }
+
+    if (waiting_for_tts_done_) {
+        waiting_for_tts_done_ = false;
+        advance_to_next_step();
+    }
 }
 
 void LessonCoordinator::on_llm_wrap_up(const std_msgs::msg::String::SharedPtr msg) {
@@ -203,62 +250,26 @@ void LessonCoordinator::handle_interaction(const LessonStep &step) {
 
         if (!interaction.wait_for_response) {
             RCLCPP_DEBUG(this->get_logger(), "Step %d has no response required", step.id);
+            advance_to_next_step();
             return;
         }
 
-        int timeout_seconds = interaction.max_wait_seconds > 0 ? interaction.max_wait_seconds : 10;
-
         RCLCPP_INFO(this->get_logger(),
-            "Handling interaction for step %d (timeout: %d seconds, correct_answer: %s)",
-            step.id,
-            timeout_seconds,
-            interaction.correct_answer.c_str());
+            "Handling interaction for step %d (timeout: %d seconds)",
+            step.id, interaction.max_wait_seconds);
 
-        // Store current step for vosk callback to access
         current_interaction_step_ = const_cast<LessonStep*>(&step);
-        waiting_for_response_ = true;
+        waiting_for_response_ = false;
+        waiting_for_interaction_tts_ = true;
 
-        // Activate feedback polling while waiting for interaction
         if (feedback_poller_) {
             feedback_poller_->set_polling_active(true);
-            RCLCPP_DEBUG(this->get_logger(), "Activated feedback polling for interaction on step %d", step.id);
         }
 
-        // Cancel any existing timer
-        if (step_timer_) {
-            step_timer_->cancel();
-        }
-
-        // Set timeout timer as fallback
-        step_timer_ = this->create_wall_timer(
-            std::chrono::seconds(timeout_seconds),
-            [this, step]() {
-                if (!waiting_for_response_) return;
-
-                RCLCPP_WARN(this->get_logger(), "Step %d interaction timeout - using fallback", step.id);
-                waiting_for_response_ = false;
-
-                // Deactivate feedback polling
-                if (feedback_poller_) {
-                    feedback_poller_->set_polling_active(false);
-                }
-
-                // Use fallback script if provided
-                if (!step.interaction.fallback_script.empty()) {
-                    speak_script(step.interaction.fallback_script);
-                }
-
-                // Log timeout interaction
-                log_interaction_to_backend(step.id, "timeout", false);
-
-                // Move to next step
-                advance_to_next_step();
-            });
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Error handling interaction: %s", e.what());
         waiting_for_response_ = false;
-
-        // Deactivate feedback polling on error
+        waiting_for_interaction_tts_ = false;
         if (feedback_poller_) {
             feedback_poller_->set_polling_active(false);
         }

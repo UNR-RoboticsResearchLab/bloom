@@ -55,11 +55,12 @@ int main(int argc, char ** argv)
 
 	RCLCPP_INFO(node->get_logger(), "BehaviorCoordinator initialized with exclusive groups");
 
-	fs::path dir = "src/bloom_node/config";
+	fs::path dir = ament_index_cpp::get_package_share_directory("bloom_node") + "/config";
 
-	// Try absolute path if relative doesn't exist
-	if ((!fs::exists(dir) || !fs::is_directory(dir))) {
-		dir = "/home/jrkre/development/bloom-main/Robot/src/bloom_node/config";
+	if (!fs::exists(dir) || !fs::is_directory(dir)) {
+		RCLCPP_WARN(node->get_logger(), "Config directory not found at %s, continuing without config", dir.c_str());
+		RCLCPP_INFO(node->get_logger(), "Using default configuration");
+		dir = "";
 	}
 
 	if (!fs::exists(dir) || !fs::is_directory(dir)) {

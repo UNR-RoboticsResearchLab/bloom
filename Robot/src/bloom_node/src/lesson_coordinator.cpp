@@ -37,6 +37,11 @@ LessonCoordinator::LessonCoordinator(
     llm_mode_pub_ = this->create_publisher<std_msgs::msg::String>("/llm/mode", 10);
     llm_context_pub_ = this->create_publisher<std_msgs::msg::String>("/llm/lesson_context", 10);
     motor_pub_ = this->create_publisher<std_msgs::msg::String>("play_sequence", 10);
+    robot_state_sub_ = this->create_subscription<std_msgs::msg::String>(
+        "robot/state", 10,
+        [this](const std_msgs::msg::String::SharedPtr msg) {
+            robot_state_ = msg->data;
+        });
     RCLCPP_INFO(this->get_logger(), "LessonCoordinator initialized with Vosk subscriber");
 }
 
@@ -140,7 +145,7 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
         // Don't set lesson_tangent mode yet — wait until Bloom finishes speaking
     }
 
-    if (step.has_interaction) {
+    if (step.has_interaction && step.interaction.wait_for_response) {
         speak_script(step.script);
         handle_interaction(step);
     } else {
@@ -150,7 +155,9 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
 }
 
 void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) {
-   RCLCPP_INFO(this->get_logger(), "[TTS_DONE] waiting_for_tts_done_=%s | waiting_for_interaction_tts_=%s | waiting_for_wrap_up_=%s",
+    RCLCPP_INFO(this->get_logger(), "[TTS_DONE_RAW] lesson_active_=%s",
+        lesson_active_ ? "true" : "false");
+    RCLCPP_INFO(this->get_logger(), "[TTS_DONE] waiting_for_tts_done_=%s | waiting_for_interaction_tts_=%s | waiting_for_wrap_up_=%s",
         waiting_for_tts_done_ ? "true" : "false",
         waiting_for_interaction_tts_ ? "true" : "false",
         waiting_for_wrap_up_ ? "true" : "false");
@@ -210,6 +217,11 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
     }
 
     if (waiting_for_tts_done_) {
+        if (waiting_for_wrap_up_) {
+            RCLCPP_WARN(this->get_logger(), "[TTS_DONE] waiting_for_wrap_up_ still true, not advancing");
+            waiting_for_tts_done_ = false;
+            return;
+        }
         waiting_for_tts_done_ = false;
         advance_to_next_step();
     }
@@ -261,8 +273,7 @@ void LessonCoordinator::handle_interaction(const LessonStep &step) {
         const InteractionConfig &interaction = step.interaction;
 
         if (!interaction.wait_for_response) {
-            RCLCPP_DEBUG(this->get_logger(), "Step %d has no response required", step.id);
-            advance_to_next_step();
+            RCLCPP_DEBUG(this->get_logger(), "Step %d has interaction but no response required", step.id);
             return;
         }
 
@@ -295,6 +306,10 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
         waiting_for_interaction_tts_ ? "true" : "false",
         waiting_for_wrap_up_ ? "true" : "false");
     if (!msg || msg->data.empty() || !waiting_for_response_ || !current_interaction_step_) {
+        return;
+    }
+    if (robot_state_ == "talking" || robot_state_ == "loading") {
+        RCLCPP_INFO(this->get_logger(), "[VOSK] Ignoring - robot is %s", robot_state_.c_str());
         return;
     }
 
@@ -369,7 +384,12 @@ void LessonCoordinator::schedule_next_step(int delay_seconds) {
 }
 
 void LessonCoordinator::advance_to_next_step() {
-    RCLCPP_INFO(this->get_logger(), "[ADVANCE] moving to step index %zu", current_step_index_);
+    RCLCPP_INFO(this->get_logger(), "[ADVANCE] moving to step index %zu | tts_done=%s | interaction_tts=%s | wrap_up=%s | response=%s",
+        current_step_index_,
+        waiting_for_tts_done_ ? "true" : "false",
+        waiting_for_interaction_tts_ ? "true" : "false",
+        waiting_for_wrap_up_ ? "true" : "false",
+        waiting_for_response_ ? "true" : "false");
     if (!lesson_active_) {
         return;
     }
@@ -386,9 +406,8 @@ void LessonCoordinator::advance_to_next_step() {
     }
 
     const LessonStep &current_step = current_lesson_.sequence[current_step_index_];
-    execute_step(current_step);
-
     current_step_index_++;
+    execute_step(current_step);
 }
 
 void LessonCoordinator::update_progress_with_backend() {

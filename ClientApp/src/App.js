@@ -61,7 +61,7 @@ export default function App() {
         <Route path="/slp" element={<SlpDashboard />} />
 
         {/* Protected */}
-        <Route element={<RequireAuth />}>
+        {/* <Route element={<RequireAuth />}>
           <Route path="/dashboard">
             <Route element={<RequireRole allow={["admin"]} />}>
               <Route path="admin" element={<AdminDashboard />} />
@@ -76,7 +76,7 @@ export default function App() {
               <Route path="slp" element={<SlpDashboard />} />
             </Route>
           </Route>
-        </Route>
+        </Route> */}
 
         {/* Fallback */}
         <Route path="*" element={<div className="p-3">Not found</div>} />

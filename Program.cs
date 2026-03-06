@@ -64,15 +64,18 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 
 // =========== Add Custom Services ===========
+
+
 builder.Services.AddScoped<IAccountService, AccountService>();
-builder.Services.AddScoped<IRobotService, RobotService>();
 
 // Add RobotSession Services and Repositories
+builder.Services.AddScoped<IRobotService, RobotService>();
 builder.Services.AddSingleton<IRobotStateRepository, InMemoryRobotStateRepository>();
 builder.Services.AddScoped<IRobotSessionRepository, RobotSessionRepository>();
 builder.Services.AddScoped<ISessionCodeService, SessionCodeService>();
 builder.Services.AddScoped<IRobotSessionService, RobotSessionService>();
 builder.Services.AddScoped<IRobotStateService, RobotStateService>();
+builder.Services.AddScoped<ISLPClientService, SLPClientService>();
 
 // Add MVC model
 builder.Services.AddControllersWithViews();
@@ -124,14 +127,16 @@ builder.Services.AddCors(options => {
 // authorization policies
 builder.Services.AddAuthorization(options =>
 {
-    // options.AddPolicy(
-    //     //only Admins can create accounts
-    //     "CanCreateAccount", policy => policy.RequireRole("Admin", "Facilitator"));
+    options.AddPolicy(
+        //only Admins can create accounts
+        "CanCreateAccount", policy => policy.RequireRole("Admin", "SLP"));
 });
 
 var app = builder.Build();
 
 // ============ Configure the HTTP request pipeline. ============
+
+
 if (app.Environment.IsDevelopment())
 {
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
@@ -161,17 +166,17 @@ app.UseAuthorization();
 
 using (var scope = app.Services.CreateScope())
 {
-    // var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
-    // db.Database.Migrate();
+    var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
+    db.Database.Migrate();
 
-    // var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    // await BloomDbContext.SeedRolesAsync(roleManager);
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    await BloomDbContext.SeedDatabaseRoles(roleManager);
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
+    // Check if admin account exists, if not create one
+    await BloomDbContext.SeedDatabaseAdminUser(userManager);
 }
 
-
-// app.MapControllerRoute(
-//     name: "default",
-//     pattern: "{controller}/{action=Index}/{id?}");
 app.MapControllers();
 
 app.MapFallbackToFile("index.html");

@@ -3,6 +3,7 @@ using bloom.Services;
 using bloom.Models;
 using bloom.Models.dto;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -100,14 +101,8 @@ public class AccountsController : ControllerBase
             case "ADMIN":
                 result = await _accountService.RegisterAdminAsync(account);
                 break;
-            case "FACILITATOR":
-                result = await _accountService.RegisterFacilitatorAsync(account);
-                break;
             case "STUDENT":
                 result = await _accountService.RegisterStudentAsync(account);
-                break;
-            case "TEACHER":
-                result = await _accountService.RegisterTeacherAsync(account);
                 break;
             case "SLP":
                 result = await _accountService.RegisterSLPAsync(account);
@@ -152,7 +147,34 @@ public class AccountsController : ControllerBase
         return BadRequest();
     }
 
+    [Authorize]
+    [HttpDelete]
+    [Route("{id}")]
+    public async Task<IActionResult> DeleteUserProfile(string id)
+    {
+        var user = await _accountService.GetByIdAsync(id);
 
+        if (user == null)
+        {
+            return BadRequest("User not found");
+        }
+
+        var result = await _accountService.DeleteUserAsync(id);
+
+        if (!result.Succeeded)
+        {
+            return BadRequest(new { Message = result.Errors});
+        }
+        
+        return Ok(user);
+
+        
+    }
+
+    // TODO slp make student account
+
+
+    [Authorize]
     [HttpGet]
     [Route("{id}")]
     public async Task<IActionResult> GetUserProfile(string id)

@@ -124,6 +124,7 @@ private:
 
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr lesson_progress_publisher_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr tts_publisher_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr visual_aid_publisher_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr vosk_subscriber_;
 
 

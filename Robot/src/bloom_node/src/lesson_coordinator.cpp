@@ -21,6 +21,7 @@ LessonCoordinator::LessonCoordinator(
     
     lesson_progress_publisher_ = this->create_publisher<std_msgs::msg::String>("lesson_progress", 10);
     tts_publisher_ = this->create_publisher<std_msgs::msg::String>("/tts/speak", 10);
+    visual_aid_publisher_ = this->create_publisher<std_msgs::msg::String>("/face/visual_aid", 10);
 
     vosk_subscriber_ = this->create_subscription<std_msgs::msg::String>(
         "/vosk/result", 10,
@@ -98,6 +99,17 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
 
     queue_behavior(step);
     speak_script(step.script);
+
+    if (!step.visual_aid_url.empty()) {
+        auto va_msg = std_msgs::msg::String();
+        va_msg.data = "{\"images\": [\"" + step.visual_aid_url + "\"], \"labels\": [\"\"]}";
+        visual_aid_publisher_->publish(va_msg);
+        RCLCPP_INFO(this->get_logger(), "Showing visual aid: %s", step.visual_aid_url.c_str());
+    } else {
+        auto va_msg = std_msgs::msg::String();
+        va_msg.data = "{\"command\": \"hide\"}";
+        visual_aid_publisher_->publish(va_msg);
+    }
 
     if (step.has_interaction) {
         handle_interaction(step);

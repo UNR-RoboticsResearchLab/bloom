@@ -30,6 +30,7 @@ import Counter from "./pages/Counter";
 // import "./custom.css";
 
 import AddStudentCard from "./pages/AddStudentCard";
+import AddLessonCard from "./pages/AddLessonCard";
 
 export default function App() {
 
@@ -61,10 +62,11 @@ export default function App() {
         <Route path="/slp" element={<SlpDashboard />} />
 
         {/* Protected */}
-        {/* <Route element={<RequireAuth />}>
+        <Route element={<RequireAuth />}>
           <Route path="/dashboard">
             <Route element={<RequireRole allow={["admin"]} />}>
               <Route path="admin" element={<AdminDashboard />} />
+              <Route path="admin/add-lesson" element={<AddLessonCard />} />
             </Route>
             <Route element={<RequireRole allow={["teacher"]} />}>
               <Route path="teacher" element={<TeacherDashboard />} />
@@ -76,7 +78,7 @@ export default function App() {
               <Route path="slp" element={<SlpDashboard />} />
             </Route>
           </Route>
-        </Route> */}
+        </Route>
 
         {/* Fallback */}
         <Route path="*" element={<div className="p-3">Not found</div>} />

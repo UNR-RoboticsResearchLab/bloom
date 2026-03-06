@@ -67,6 +67,7 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
 
 
 builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<ILessonService, LessonService>();
 
 // Add RobotSession Services and Repositories
 builder.Services.AddScoped<IRobotService, RobotService>();

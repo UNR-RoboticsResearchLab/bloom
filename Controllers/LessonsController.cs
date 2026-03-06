@@ -36,7 +36,15 @@ namespace bloom.Controllers
                 }
 
                 // Get and parse lesson file to verify it's valid JSON
-                var lessonContent = await System.IO.File.ReadAllTextAsync(lesson.LessonFileUrl);
+                var filePath = lesson.LessonFileUrl;
+
+                // If the path is relative, resolve it against the content root
+                if (!System.IO.Path.IsPathRooted(filePath))
+                {
+                    filePath = System.IO.Path.Combine(_env.ContentRootPath, filePath);
+                }
+
+                var lessonContent = await System.IO.File.ReadAllTextAsync(filePath);
                 try
                 {
                     System.Text.Json.JsonDocument.Parse(lessonContent);
@@ -102,6 +110,12 @@ namespace bloom.Controllers
                     return NotFound();
                 }
                 var filePath = lesson.LessonFileUrl;
+
+                // If the path is relative, resolve it against the content root
+                if (!System.IO.Path.IsPathRooted(filePath))
+                {
+                    filePath = System.IO.Path.Combine(_env.ContentRootPath, filePath);
+                }
 
                 if (!System.IO.File.Exists(filePath))
                 {

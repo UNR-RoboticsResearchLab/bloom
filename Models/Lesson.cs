@@ -25,6 +25,8 @@ namespace bloom.Models
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
 
+        
+        public int TotalSteps { get; set; }
 
         public required string LessonFileUrl { get; set; }
 

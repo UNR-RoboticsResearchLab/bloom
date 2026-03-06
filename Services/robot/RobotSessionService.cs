@@ -9,6 +9,7 @@ using bloom.Models.dto;
 using bloom.Data;
 using bloom.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting;
 
 namespace bloom.Services
 {
@@ -18,17 +19,20 @@ namespace bloom.Services
         private readonly IRobotSessionRepository _sessionRepository;
         private readonly IRobotStateRepository _stateRepository;
         private readonly ISessionCodeService _sessionCodeService;
+        private readonly IWebHostEnvironment _env;
 
         public RobotSessionService(
             BloomDbContext dbContext,
             IRobotSessionRepository sessionRepository,
             IRobotStateRepository stateRepository,
-            ISessionCodeService sessionCodeService)
+            ISessionCodeService sessionCodeService,
+            IWebHostEnvironment env)
         {
             _dbContext = dbContext;
             _sessionRepository = sessionRepository;
             _stateRepository = stateRepository;
             _sessionCodeService = sessionCodeService;
+            _env = env;
         }
 
         public async Task<RobotSession> StartSessionAsync(Guid robotId, string? userId = null, bool anon = false)
@@ -264,8 +268,7 @@ namespace bloom.Services
                     LessonId = lessonId,
                     StudentId = studentId,
                     LessonStep = dto.CurrentStepId,
-                    TotalSteps = dto.TotalSteps,
-                    ProgressPercentage = dto.TotalSteps > 0 ? (dto.CompletedSteps * 100) / dto.TotalSteps : 0,
+                    // lol ProgressPercentage = dto.TotalSteps > 0 ? (dto.CompletedSteps * 100) / dto.TotalSteps : 0,
                     LastUpdated = DateTime.UtcNow
                 };
                 _dbContext.LessonProgresses.Add(progress);
@@ -273,8 +276,7 @@ namespace bloom.Services
             else
             {
                 progress.LessonStep = dto.CurrentStepId;
-                progress.TotalSteps = dto.TotalSteps;
-                progress.ProgressPercentage = dto.TotalSteps > 0 ? (dto.CompletedSteps * 100) / dto.TotalSteps : 0;
+                // lol progress.ProgressPercentage = dto.TotalSteps > 0 ? (dto.CompletedSteps * 100) / dto.TotalSteps : 0;
                 progress.LastUpdated = DateTime.UtcNow;
                 _dbContext.LessonProgresses.Update(progress);
             }
@@ -302,7 +304,15 @@ namespace bloom.Services
                 string lessonJson;
                 try
                 {
-                    lessonJson = await File.ReadAllTextAsync(session.ActiveLesson.LessonFileUrl);
+                    var filePath = session.ActiveLesson.LessonFileUrl;
+
+                    // If the path is relative, resolve it against the content root
+                    if (!Path.IsPathRooted(filePath))
+                    {
+                        filePath = Path.Combine(_env.ContentRootPath, filePath);
+                    }
+
+                    lessonJson = await File.ReadAllTextAsync(filePath);
                 }
                 catch (FileNotFoundException)
                 {
@@ -396,5 +406,24 @@ namespace bloom.Services
             _dbContext.LessonInteractions.Update(interaction);
             await _dbContext.SaveChangesAsync();
         }
+
+        public async Task<RobotSession> StartLessonAsync(Guid sessionId, StartLessonDto dto)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            // Validate input
+            if (dto.LessonId == Guid.Empty)
+                throw new ArgumentException("LessonId cannot be empty (Guid.Empty)", nameof(dto.LessonId));
+
+            // Update session with active lesson
+            session.ActiveLessonId = dto.LessonId;
+            session.LastUpdatedAt = DateTime.UtcNow;
+            _dbContext.Update(session);
+            await _dbContext.SaveChangesAsync();
+
+            return session;
+        }
+
     }
 }

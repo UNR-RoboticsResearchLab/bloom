@@ -30,7 +30,6 @@ namespace bloom.Services
                 StudentId = progress.StudentId,
                 ProgressPercentage = progress.ProgressPercentage,
                 LessonStep = progress.LessonStep,
-                TotalSteps = progress.TotalSteps,
                 LastUpdated = DateTime.UtcNow
             };
 
@@ -93,7 +92,6 @@ namespace bloom.Services
 
             existingProgress.ProgressPercentage = progress.ProgressPercentage;
             existingProgress.LessonStep = progress.LessonStep;
-            existingProgress.TotalSteps = progress.TotalSteps;
             existingProgress.LastUpdated = DateTime.UtcNow;
 
             _context.SaveChanges();

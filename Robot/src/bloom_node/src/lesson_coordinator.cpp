@@ -37,6 +37,11 @@ LessonCoordinator::LessonCoordinator(
     llm_mode_pub_ = this->create_publisher<std_msgs::msg::String>("/llm/mode", 10);
     llm_context_pub_ = this->create_publisher<std_msgs::msg::String>("/llm/lesson_context", 10);
     motor_pub_ = this->create_publisher<std_msgs::msg::String>("play_sequence", 10);
+    robot_state_sub_ = this->create_subscription<std_msgs::msg::String>(
+        "robot/state", 10,
+        [this](const std_msgs::msg::String::SharedPtr msg) {
+            robot_state_ = msg->data;
+        });
     RCLCPP_INFO(this->get_logger(), "LessonCoordinator initialized with Vosk subscriber");
 }
 
@@ -210,6 +215,11 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
     }
 
     if (waiting_for_tts_done_) {
+        if (waiting_for_wrap_up_) {
+            RCLCPP_WARN(this->get_logger(), "[TTS_DONE] waiting_for_wrap_up_ still true, not advancing");
+            waiting_for_tts_done_ = false;
+            return;
+        }
         waiting_for_tts_done_ = false;
         advance_to_next_step();
     }
@@ -295,6 +305,10 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
         waiting_for_interaction_tts_ ? "true" : "false",
         waiting_for_wrap_up_ ? "true" : "false");
     if (!msg || msg->data.empty() || !waiting_for_response_ || !current_interaction_step_) {
+        return;
+    }
+    if (robot_state_ == "talking" || robot_state_ == "loading") {
+        RCLCPP_INFO(this->get_logger(), "[VOSK] Ignoring - robot is %s", robot_state_.c_str());
         return;
     }
 

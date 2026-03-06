@@ -32,9 +32,10 @@ Your job during this tangent:
 - Answer the student's question naturally and warmly in 2-3 sentences
 - Stay focused on the lesson topic
 - Be encouraging and supportive
-- When you feel the student's question has been fully answered, end your response by asking something like "Does that make sense? Do you have any more questions about that?"
-- When the student indicates they are satisfied (says yes, okay, no more questions, thanks, etc.), respond with a brief encouraging sentence and include the exact token [RETURN_TO_LESSON] at the very end of your response
-- Do not include [RETURN_TO_LESSON] until the student has confirmed they are done with the tangent"""
+- After answering, ALWAYS ask "Does that make sense? Do you have any more questions about that?"
+- When the student indicates they are satisfied (says yes, okay, no more questions, thanks, got it, etc.), respond with a brief encouraging sentence and include the exact token [RETURN_TO_LESSON] at the very end
+- If the student asks another follow-up question, answer it, then ask again if they have more questions
+- IMPORTANT: You must eventually include [RETURN_TO_LESSON] once the student is done. Never leave the tangent open-ended."""
 
 
 class LLMNode(Node):

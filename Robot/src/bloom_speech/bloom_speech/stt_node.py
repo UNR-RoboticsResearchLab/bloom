@@ -26,59 +26,74 @@ class STTNode(Node):
         self.audio_config = speechsdk.audio.AudioConfig(use_default_microphone=True)
         self.speech_config = speech_config
 
-        self.current_state = 'waiting'
-        self.is_listening = False
-        self.lock = threading.Lock()
+        self.current_state = 'idle'
+        self.recognizer = None
+        self.recognizer_lock = threading.Lock()
+        self.is_recognizing = False
 
         self.result_pub = self.create_publisher(String, '/vosk/result', 10)
         self.state_sub = self.create_subscription(
             String, 'robot/state', self.on_state_update, 10)
 
-        self.listen_thread = threading.Thread(target=self.listen_loop, daemon=True)
-        self.listen_thread.start()
+        self._start_recognizer()
+        self.get_logger().info('STT node ready')
 
-        self.get_logger().info('STT node ready - listening for speech')
+    def _start_recognizer(self):
+        with self.recognizer_lock:
+            if self.is_recognizing:
+                return
+
+            self.recognizer = speechsdk.SpeechRecognizer(
+                speech_config=self.speech_config,
+                audio_config=self.audio_config
+            )
+
+            def on_recognized(evt):
+                text = evt.result.text.strip()
+                if not text:
+                    return
+                self.get_logger().info(f'[STT] Recognized: {text}')
+                msg = String()
+                msg.data = text
+                self.result_pub.publish(msg)
+
+            def on_canceled(evt):
+                self.get_logger().warn(f'STT canceled: {evt.result.cancellation_details.reason}')
+                if evt.result.cancellation_details.reason == speechsdk.CancellationReason.Error:
+                    self.get_logger().error(f'STT error: {evt.result.cancellation_details.error_details}')
+
+            self.recognizer.recognized.connect(on_recognized)
+            self.recognizer.canceled.connect(on_canceled)
+            self.recognizer.start_continuous_recognition()
+            self.is_recognizing = True
+            self.get_logger().info('[STT] Recognition started')
+
+    def _stop_recognizer(self):
+        with self.recognizer_lock:
+            if not self.is_recognizing or self.recognizer is None:
+                return
+            self.recognizer.stop_continuous_recognition()
+            self.recognizer = None
+            self.is_recognizing = False
+            self.get_logger().info('[STT] Recognition stopped')
 
     def on_state_update(self, msg: String):
-        self.current_state = msg.data
+        new_state = msg.data
+        if new_state == self.current_state:
+            return
 
-    def listen_loop(self):
-        self.get_logger().info('Starting continuous recognition')
+        self.current_state = new_state
+        self.get_logger().info(f'[STT] Robot state -> {new_state}')
 
-        recognizer = speechsdk.SpeechRecognizer(
-            speech_config=self.speech_config,
-            audio_config=self.audio_config
-        )
+        if new_state in ('talking', 'loading'):
+            threading.Thread(target=self._stop_recognizer, daemon=True).start()
+        else:
+            threading.Thread(target=self._start_recognizer, daemon=True).start()
 
-        def on_recognized(evt):
-            text = evt.result.text.strip()
-            if not text:
-                return
-            if self.current_state in ('talking', 'loading'):
-                self.get_logger().info(f'Ignoring STT input - robot is {self.current_state}')
-                return
-            self.get_logger().info(f'Recognized: {text}')
-            msg = String()
-            msg.data = text
-            self.result_pub.publish(msg)
+    def destroy_node(self):
+        self._stop_recognizer()
+        super().destroy_node()
 
-        def on_canceled(evt):
-            self.get_logger().warn(f'STT canceled: {evt.result.cancellation_details.reason}')
-            if evt.result.cancellation_details.reason == speechsdk.CancellationReason.Error:
-                self.get_logger().error(f'STT error: {evt.result.cancellation_details.error_details}')
-
-        recognizer.recognized.connect(on_recognized)
-        recognizer.canceled.connect(on_canceled)
-
-        recognizer.start_continuous_recognition()
-        self.get_logger().info('Continuous recognition started')
-
-        
-        import time
-        while rclpy.ok():
-            time.sleep(0.1)
-
-        recognizer.stop_continuous_recognition()
 
 def main(args=None):
     env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')

@@ -103,15 +103,16 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
             state_manager_->set_state(behavior_value, timing_ms);
         }
     }
-    
+
     queue_behavior(step);
 
     if (!step.motor_sequence.empty()) {
-    auto motor_msg = std_msgs::msg::String();
-    motor_msg.data = step.motor_sequence;
-    motor_pub_->publish(motor_msg);
-    RCLCPP_INFO(this->get_logger(), "Playing motor sequence: %s", step.motor_sequence.c_str());
-}
+        auto motor_msg = std_msgs::msg::String();
+        motor_msg.data = step.motor_sequence;
+        motor_pub_->publish(motor_msg);
+        RCLCPP_INFO(this->get_logger(), "Playing motor sequence: %s", step.motor_sequence.c_str());
+    }
+
     // Publish visual aid or hide
     if (!step.visual_aid_images.empty()) {
         nlohmann::json va_json;
@@ -129,26 +130,17 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
         visual_aid_publisher_->publish(va_msg);
     }
 
-    if (step.has_interaction && step.interaction.wait_for_response) {
-        // For llm_follow_up steps, set lesson tangent mode
-        if (step.interaction.llm_follow_up) {
-            auto ctx_msg = std_msgs::msg::String();
-            ctx_msg.data = "Lesson topic: homophones. Current question: " + step.script;
-            llm_context_pub_->publish(ctx_msg);
+    if (step.interaction.llm_follow_up) {
+        auto ctx_msg = std_msgs::msg::String();
+        ctx_msg.data = "Lesson topic: homophones. Current question: " + step.script;
+        llm_context_pub_->publish(ctx_msg);
+        // Don't set lesson_tangent mode yet — wait until Bloom finishes speaking
+    }
 
-            auto mode_msg = std_msgs::msg::String();
-            mode_msg.data = "lesson_tangent";
-            llm_mode_pub_->publish(mode_msg);
-
-            waiting_for_wrap_up_ = true;
-        }
-        speak_script(step.script);
-        handle_interaction(step);
-    } else if (step.has_interaction) {
+    if (step.has_interaction) {
         speak_script(step.script);
         handle_interaction(step);
     } else {
-        // Advance after TTS finishes, not on a timer
         waiting_for_tts_done_ = true;
         speak_script(step.script);
     }
@@ -159,6 +151,15 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
 
     if (waiting_for_interaction_tts_) {
         waiting_for_interaction_tts_ = false;
+
+        // If this is an llm_follow_up step, activate tangent mode now that Bloom is done speaking
+        if (current_interaction_step_ && current_interaction_step_->interaction.llm_follow_up) {
+            auto mode_msg = std_msgs::msg::String();
+            mode_msg.data = "lesson_tangent";
+            llm_mode_pub_->publish(mode_msg);
+            waiting_for_wrap_up_ = true;
+        }
+
         // Short pause then open the response window
         step_timer_ = this->create_wall_timer(
             std::chrono::milliseconds(500),
@@ -216,7 +217,8 @@ void LessonCoordinator::on_llm_wrap_up(const std_msgs::msg::String::SharedPtr ms
     mode_msg.data = "lesson_mode";
     llm_mode_pub_->publish(mode_msg);
 
-    advance_to_next_step();
+    // Wait for LLM's final TTS to finish before advancing
+    waiting_for_tts_done_ = true;
 }
 
 void LessonCoordinator::queue_behavior(const LessonStep &step) {
@@ -312,10 +314,8 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
         // Log interaction result to backend
         log_interaction_to_backend(step.id, response, is_correct);
 
-        // Mark as no longer waiting and cancel timeout
         waiting_for_response_ = false;
 
-        // Deactivate feedback polling
         if (feedback_poller_) {
             feedback_poller_->set_polling_active(false);
         }
@@ -325,8 +325,9 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
             step_timer_ = nullptr;
         }
 
-        // Move to next step
-        advance_to_next_step();
+        // Wait for feedback TTS to finish before advancing
+        waiting_for_tts_done_ = true;
+
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Error processing Vosk result: %s", e.what());
         waiting_for_response_ = false;

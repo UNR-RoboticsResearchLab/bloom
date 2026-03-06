@@ -86,6 +86,17 @@ int main(int argc, char ** argv)
 		config_mgr->load_from_file(files.front().c_str());
 	}
 
+	// Load from (and save to) a persistent user config that survives colcon builds.
+	// Values here override the install-dir config (e.g. robot_id persists across builds).
+	fs::path persistent_config;
+	if (const char* home = std::getenv("HOME")) {
+		persistent_config = fs::path(home) / ".bloom" / "robot.cfg";
+		fs::create_directories(persistent_config.parent_path());
+		config_mgr->load_from_file(persistent_config.string());
+	} else {
+		RCLCPP_WARN(node->get_logger(), "HOME not set, persistent config unavailable");
+	}
+
 	auto state_mgr = std::make_shared<bloom_node::StateManager>(rclcpp::NodeOptions());
 
 	// WebServiceClient constructor expects (node_name, base_url, default_timeout_ms, max_retries)
@@ -210,11 +221,10 @@ int main(int argc, char ** argv)
 		registration_future.get();
 		
 		// save robot id
-		// if (!robotId.empty()) {
-		// 	RCLCPP_INFO(node->get_logger(), "Saving new robot ID to config: %s", robotId.c_str());
-
-		// 	config_mgr->set("robot_id", robotId);
-		// }
+		if (!robotId.empty()) {
+			RCLCPP_INFO(node->get_logger(), "Saving new robot ID to config: %s", robotId.c_str());
+			config_mgr->set("robot_id", robotId);
+		}
 	}
 	
 

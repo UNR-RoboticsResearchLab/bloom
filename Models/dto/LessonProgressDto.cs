@@ -35,7 +35,6 @@ namespace bloom.Models.dto
     {
         public int CurrentStepId { get; set; }
         public int CompletedSteps { get; set; }
-        public int TotalSteps { get; set; }
         public string Status { get; set; } = "InProgress";  // "InProgress", "Completed", "Paused", "Failed"
     }
 

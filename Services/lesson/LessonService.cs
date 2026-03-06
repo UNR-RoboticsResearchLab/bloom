@@ -123,7 +123,15 @@ namespace bloom.Services
                 }
 
                 // Get and parse lesson file to verify it's valid JSON
-                var lessonContent = await File.ReadAllTextAsync(lesson.LessonFileUrl);
+                var filePath = lesson.LessonFileUrl;
+
+                // If the path is relative, resolve it against the content root
+                if (!Path.IsPathRooted(filePath))
+                {
+                    filePath = Path.Combine(_env.ContentRootPath, filePath);
+                }
+
+                var lessonContent = await File.ReadAllTextAsync(filePath);
                 try
                 {
                     var parsedJson = System.Text.Json.JsonDocument.Parse(lessonContent);
@@ -143,6 +151,23 @@ namespace bloom.Services
                 return null;
             }
         }
+
+        public async Task<IEnumerable<Lesson>> GetAllAsync()
+        {
+            try
+            {
+                var lessons = await _context.Lessons
+                    .Include(l => l.CreatedBy)
+                    .ToListAsync();
+
+                return lessons;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting all lessons: {ex.Message}");
+                return Enumerable.Empty<Lesson>();
+            }
+         }
 
         public async Task<IEnumerable<Lesson>> GetByUserIdAsync(string id)
         {

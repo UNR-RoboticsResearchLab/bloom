@@ -36,7 +36,15 @@ namespace bloom.Controllers
                 }
 
                 // Get and parse lesson file to verify it's valid JSON
-                var lessonContent = await System.IO.File.ReadAllTextAsync(lesson.LessonFileUrl);
+                var filePath = lesson.LessonFileUrl;
+
+                // If the path is relative, resolve it against the content root
+                if (!System.IO.Path.IsPathRooted(filePath))
+                {
+                    filePath = System.IO.Path.Combine(_env.ContentRootPath, filePath);
+                }
+
+                var lessonContent = await System.IO.File.ReadAllTextAsync(filePath);
                 try
                 {
                     System.Text.Json.JsonDocument.Parse(lessonContent);
@@ -64,6 +72,21 @@ namespace bloom.Controllers
             }
         }
 
+        [HttpGet]
+        [Route("all")]
+        public async Task<IActionResult> GetAllLessons()
+        {
+            try
+            {
+                var lessons = await _lessonService.GetAllAsync();
+                return Ok(lessons);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Request error: {ex.Message}" });
+            }
+        }
+
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> CreateLesson([FromBody] LessonDto lesson)
@@ -86,9 +109,6 @@ namespace bloom.Controllers
             }
         }
 
-
-
-
         // get json file and send file.
         [HttpPost]
         [Route("file")]
@@ -102,6 +122,12 @@ namespace bloom.Controllers
                     return NotFound();
                 }
                 var filePath = lesson.LessonFileUrl;
+
+                // If the path is relative, resolve it against the content root
+                if (!System.IO.Path.IsPathRooted(filePath))
+                {
+                    filePath = System.IO.Path.Combine(_env.ContentRootPath, filePath);
+                }
 
                 if (!System.IO.File.Exists(filePath))
                 {

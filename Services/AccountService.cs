@@ -91,7 +91,8 @@ namespace bloom.Services
                     FullName = user.FullName,
                     EmailConfirmed = false,
                     CreatedDate = DateTime.UtcNow,
-                    Role = "Admin"
+                    Role = "Admin",
+                    UserName = user.Email
                 }, user.Password);
 
                 return result;
@@ -118,7 +119,8 @@ namespace bloom.Services
                     FullName = user.FullName,
                     EmailConfirmed = false,
                     CreatedDate = DateTime.UtcNow,
-                    Role = "Student"
+                    Role = "Student",
+                    UserName = user.Email
                 }, user.Password);
 
                 return result;
@@ -145,7 +147,8 @@ namespace bloom.Services
                     FullName = user.FullName,
                     EmailConfirmed = false,
                     CreatedDate = DateTime.UtcNow,
-                    Role = "SLP"
+                    Role = "SLP",
+                    UserName = user.Email
                 }, user.Password);
 
                 return result;

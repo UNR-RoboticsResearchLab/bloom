@@ -41,6 +41,8 @@ namespace bloom.Controllers
             return User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         }
 
+        #region Session Management Endpoints
+
         /// <summary>
         /// Get all robot sessions ordered by creation date (newest first)
         /// </summary>
@@ -60,6 +62,7 @@ namespace bloom.Controllers
                     {
                         Id = session.Id,
                         UserId = session.UserId,
+                        SessionCode = session.SessionCode,
                         CreatedAt = session.CreatedAt,
                         LastUpdatedAt = session.LastUpdatedAt,
                         Robots = session.Robots,
@@ -72,7 +75,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving all robot sessions");
-                return BadRequest("Its bad if you get this");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
@@ -113,10 +116,12 @@ namespace bloom.Controllers
                 var session = await _sessionService.StartSessionAsync(dto.RobotId, userId, dto.Anonymous);
                 var robotIds = (await _sessionService.GetSessionRobotsAsync(session.Id)).ToList();
 
-                return CreatedAtAction(nameof(GetSession), new { sessionId = session.Id }, new RobotSessionResponseDto
+                return CreatedAtAction(nameof(GetSession), new { sessionId = session.Id }, 
+                new RobotSessionResponseDto
                 {
                     Id = session.Id,
                     UserId = session.UserId,
+                    SessionCode = session.SessionCode,
                     CreatedAt = session.CreatedAt,
                     LastUpdatedAt = session.LastUpdatedAt,
                     Robots = session.Robots,
@@ -126,7 +131,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error starting robot session");
-                return BadRequest("Its bad if you get this");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
@@ -162,7 +167,42 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robot session {SessionId}", sessionId);
-                return BadRequest("Its bad if you get this");
+                return BadRequest("It sure is bad if you get this!");
+            }
+        }
+
+        /// <summary>
+        /// User join a session using a 6-digit code. Validates code and returns session details if valid.
+        /// </summary>
+        /// <param name="code">6-digit session code</param>
+        /// <returns>Session details if code is valid</returns>
+        [HttpGet("join/{code}")]
+        public async Task<IActionResult> JoinSession(string code)
+        {
+            try
+            {
+                var session = await _sessionService.GetSessionByCodeAsync(code);
+
+                if (session == null)
+                {
+                    return NotFound(new { Message = $"Session with code {code} not found" });
+                }
+                var robotIds = (await _sessionService.GetSessionRobotsAsync(session.Id)).ToList();
+
+                return Ok(new RobotSessionResponseDto
+                {
+                    Id = session.Id,
+                    UserId = session.UserId,
+                    CreatedAt = session.CreatedAt,
+                    LastUpdatedAt = session.LastUpdatedAt,
+                    Robots = session.Robots,
+                    RobotIds = robotIds
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error joining session with code {Code}", code);
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
@@ -203,47 +243,11 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error ending robot session {SessionId}", sessionId);
-                return BadRequest("Its bad if you get this");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
-        /// <summary>
-        /// Polling endpoint for robot to see if a pending lesson exists and auto-start it
-        /// </summary>
-        /// <param name="sessionId">ID of the session</param>
-        /// <returns>Pending lesson details if exists, otherwise 204 No Content</returns>
-        [HttpGet("{sessionId}/pending-lesson")]
-        public async Task<IActionResult> GetPendingLesson(Guid sessionId)
-        {
-            try
-            {
-                var session = await _sessionService.GetSessionAsync(sessionId);
-
-                if (session == null)
-                {
-                    return NotFound(new { Message = $"Session with ID {sessionId} not found" });
-                }
-
-                var pendingLesson = await _sessionService.GetPendingLessonAsync(sessionId);
-
-                if (pendingLesson == null)
-                {
-                    return NoContent();
-                }
-
-                return Ok(pendingLesson);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                _logger.LogWarning(ex, "Session not found: {SessionId}", sessionId);
-                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving pending lesson for session {SessionId}", sessionId);
-                return BadRequest("Its bad if you get this");
-            }
-        }
+        
 
         /// <summary>
         /// Add a robot to an active session
@@ -294,7 +298,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding robot to session {SessionId}", sessionId);
-                return BadRequest("Its bad if you get this");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
@@ -336,7 +340,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error removing robot from session {SessionId}", sessionId);
-                return BadRequest("Its bad if you get this");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
@@ -369,7 +373,99 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robots for session {SessionId}", sessionId);
-                return BadRequest("Its bad if you get this");
+                return BadRequest("It sure is bad if you get this!");
+            }
+        }
+
+        #endregion
+
+        #region Lesson, Progress, and Interaction Endpoints
+
+        /// <summary>
+        /// Start a lesson in a session
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <param name="dto">Lesson start data</param>
+        /// <returns>Success message with lesson details</returns>
+        [HttpPost("{sessionId}/lesson")]
+        public async Task<IActionResult> StartLesson(Guid sessionId, [FromBody] StartLessonDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var session = await _sessionService.GetSessionAsync(sessionId);
+
+                if (session == null)
+                {
+                    return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+                }
+
+                // Verify session ownership if authenticated
+                var currentUserId = GetCurrentUserId();
+                if (session.UserId != null && session.UserId != currentUserId)
+                {
+                    _logger.LogWarning("User {UserId} attempted to start lesson in session owned by {SessionUserId}", currentUserId, session.UserId);
+                    return Forbid();
+                }
+
+                var lessonSession = await _sessionService.StartLessonAsync(sessionId, dto);
+
+                return Ok( new {
+                    Message = "Lesson started successfully",
+                    SessionId = sessionId,
+                    LessonId = lessonSession.ActiveLessonId,
+                    LessonTitle = lessonSession.ActiveLesson?.Title, 
+                    TotalSteps = lessonSession.ActiveLesson?.TotalSteps
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Session not found: {SessionId}", sessionId);
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+            }
+        }
+
+
+
+        /// <summary>
+        /// Polling endpoint for robot to see if a pending lesson exists and auto-start it
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <returns>Pending lesson details if exists, otherwise 204 No Content</returns>
+        [HttpGet("{sessionId}/pending-lesson")]
+        public async Task<IActionResult> GetPendingLesson(Guid sessionId)
+        {
+            try
+            {
+                var session = await _sessionService.GetSessionAsync(sessionId);
+
+                if (session == null)
+                {
+                    return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+                }
+
+                var pendingLesson = await _sessionService.GetPendingLessonAsync(sessionId);
+
+                if (pendingLesson == null)
+                {
+                    return NoContent();
+                }
+
+                return Ok(pendingLesson);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Session not found: {SessionId}", sessionId);
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving pending lesson for session {SessionId}", sessionId);
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
@@ -553,39 +649,42 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating robot state in session {SessionId}", sessionId);
-                return BadRequest("Its bad if you get this");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
 
-        /// <summary>
-        /// Sets the approve or disapprove tag on a session with an active lesson
-        /// </summary>
-        /// <param name="sessionId"> ID of sesion</param>
-        /// <param name="feedback"> "approve" or "disapprove" feedback from SLP. true, false respectively</param>
-        /// <returns>success/failure of the request</returns>
-        [HttpPost("{sessionId}/lesson")]
-        public async Task<IActionResult> ApproveOrDisapproveLessonStage(string sessionId, [FromBody] bool feedback)
-        {
-            try
-            {
-                var session = await _sessionService.GetSessionAsync(new Guid(sessionId));
+
+        // commenting for consistency - moved to lessoninteractionscontroller for now
+
+        // /// <summary>
+        // /// Sets the approve or disapprove tag on a session with an active lesson
+        // /// </summary>
+        // /// <param name="sessionId"> ID of sesion</param>
+        // /// <param name="feedback"> "approve" or "disapprove" feedback from SLP. true, false respectively</param>
+        // /// <returns>success/failure of the request</returns>
+        // [HttpPost("{sessionId}/lesson-feedback")]
+        // public async Task<IActionResult> ApproveOrDisapproveLessonStage(string sessionId, [FromBody] bool feedback)
+        // {
+        //     try
+        //     {
+        //         var session = await _sessionService.GetSessionAsync(new Guid(sessionId));
 
                 
 
-                return Ok();
-            }
-            catch (KeyNotFoundException ex)
-            {
-                _logger.LogWarning(ex, "Session not found: {SessionId}", sessionId);
-                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving robot states for session {SessionId}", sessionId);
-                return BadRequest("Its bad if you get this");
-            }
-        }
+        //         return Ok();
+        //     }
+        //     catch (KeyNotFoundException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Session not found: {SessionId}", sessionId);
+        //         return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error retrieving robot states for session {SessionId}", sessionId);
+        //         return BadRequest("It sure is bad if you get this!");
+        //     }
+        // }
 
         /// <summary>
         /// Get all currently active robot states in a session
@@ -616,7 +715,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robot states for session {SessionId}", sessionId);
-                return BadRequest("Its bad if you get this");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
@@ -659,7 +758,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving session history for {SessionId}", sessionId);
-                return BadRequest("Its bad if you get this");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
@@ -693,7 +792,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving pending feedback for session {SessionId}", sessionId);
-                return BadRequest("Its bad if you get this");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
@@ -727,8 +826,10 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error acknowledging feedback {FeedbackId} for session {SessionId}", feedbackId, sessionId);
-                return BadRequest("Its bad if you get this");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
+
+        #endregion
     }
 }

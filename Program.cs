@@ -67,6 +67,7 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
 
 
 builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<ILessonService, LessonService>();
 
 // Add RobotSession Services and Repositories
 builder.Services.AddScoped<IRobotService, RobotService>();
@@ -84,14 +85,21 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = builder.Configuration.GetValue<string>("LoginPath");
-        options.LogoutPath = builder.Configuration.GetValue<string>("LogoutPath");
-        options.Cookie.HttpOnly = true;
+        // options.LoginPath = builder.Configuration.GetValue<string>("LoginPath");
+        // options.LogoutPath = builder.Configuration.GetValue<string>("LogoutPath");
+        // options.Cookie.HttpOnly = true;
 
         //TODO: development comment lul
         //options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         //options.Cookie.SameSite = SameSiteMode.Strict;
+        // options.Cookie.Name = "bloom_cookie";
+
+
         options.Cookie.Name = "bloom_cookie";
+        options.Cookie.HttpOnly = true;
+
+        options.Cookie.SameSite = SameSiteMode.None;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     });
 
 
@@ -104,12 +112,17 @@ builder.Services.AddSession(options =>
 
 // Enable CORS for development
 // TODO: add production check
-builder.Services.AddCors(options => {
-    options.AddDefaultPolicy(policy => {
-        policy
-            .AllowAnyOrigin()
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:3000"
+            )
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -139,11 +152,14 @@ else
 }
 
 // app.UseHttpsRedirection();
-app.UseCors();
+app.UseCors("AllowFrontend");
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+//
+app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();

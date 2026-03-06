@@ -135,5 +135,13 @@ namespace bloom.Services
         /// <param name="sessionId">Owning session (for validation)</param>
         /// <param name="feedbackId">ID of the LessonInteraction to acknowledge</param>
         Task AcknowledgeFeedbackAsync(Guid sessionId, Guid feedbackId);
+
+        /// <summary>
+        /// Starts a new lesson in the specified session
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <param name="dto">Lesson start configuration</param>
+        /// <returns>The created lesson session</returns>
+        Task<RobotSession> StartLessonAsync(Guid sessionId, StartLessonDto dto);
     }
 }

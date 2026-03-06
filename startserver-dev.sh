@@ -39,6 +39,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+echo "Stopping any existing development containers..."
+docker compose -f $COMPOSE_FILE down
+
 echo "Starting Bloom development environment..."
 
 # --- Start database first ---

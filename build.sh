@@ -36,9 +36,9 @@ for arg in "$@"; do
   esac
 done
 
-echo "================================"
-echo "Bloom Production Deployment"
-echo "================================"
+echo "=================================="
+echo "   Bloom Production Deployment"
+echo "=================================="
 
 # --- Ensure required tools are available ---
 for tool in dotnet node mysql npm; do

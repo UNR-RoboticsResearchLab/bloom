@@ -36,6 +36,7 @@ namespace bloom.Models.dto
     {
         public Guid Id { get; set; }
         public string? UserId { get; set; }
+        public string? SessionCode { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime LastUpdatedAt { get; set; }
         public int Robots { get; set; }

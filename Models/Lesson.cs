@@ -25,12 +25,14 @@ namespace bloom.Models
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
 
+        
+        public int TotalSteps { get; set; }
 
         public required string LessonFileUrl { get; set; }
 
         [Required]
         public required string CreatedById { get; set; }
-        public required Account CreatedBy { get; set; }
+        public Account CreatedBy { get; set; }
 
         public LessonType LessonType { get; set; }
 

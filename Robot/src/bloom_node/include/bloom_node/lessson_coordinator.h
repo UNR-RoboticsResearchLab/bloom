@@ -26,6 +26,8 @@ struct InteractionConfig {
     std::string incorrect_response_script;
     std::string fallback_script;
     bool llm_follow_up{false};
+    std::vector<std::string> fallback_visual_aid;
+    std::vector<std::string> fallback_visual_aid_labels;
 };
 
 struct LessonStep {

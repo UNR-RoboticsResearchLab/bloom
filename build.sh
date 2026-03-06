@@ -72,7 +72,7 @@ fi
 # --- Run migrations if requested ---
 if [ "$RUN_MIGRATIONS" = true ]; then
   echo "Running EF Core migrations..."
-  cd "$PROJECT_ROOT"
+  cd "$PROJECT_ROOT/backend"
   if dotnet ef database update --configuration Release; then
     echo "Migrations applied successfully."
   else
@@ -84,7 +84,7 @@ fi
 # --- Build React frontend ---
 if [ "$SKIP_BUILD" = false ]; then
   echo "Building React frontend..."
-  cd "$PROJECT_ROOT/ClientApp"
+  cd "$PROJECT_ROOT/frontend"
   if npm install && npm run build; then
     echo "React frontend built successfully."
   else
@@ -96,7 +96,7 @@ fi
 # --- Build .NET backend ---
 if [ "$SKIP_BUILD" = false ]; then
   echo "Building .NET backend..."
-  cd "$PROJECT_ROOT"
+  cd "$PROJECT_ROOT/backend"
   if dotnet publish -c Release -o /var/www/bloom-build/net9.0/publish; then
     echo ".NET backend built successfully."
   else

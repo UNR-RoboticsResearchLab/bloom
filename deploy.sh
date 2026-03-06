@@ -17,7 +17,7 @@ set -euo pipefail
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBLISH_DIR="$(ls -d "/var/www/bloom-build/net9.0/publish" 2>/dev/null | head -n 1)"
-FRONTEND_BUILD_DIR="$SCRIPT_DIR/ClientApp/build"
+FRONTEND_BUILD_DIR="$SCRIPT_DIR/frontend/build"
 TARGET_DIR=""
 RUN_MIGRATIONS=false
 RESTART_ONLY=false

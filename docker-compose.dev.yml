@@ -2,15 +2,15 @@
 services:
   bloom-react-dev:
     build:
-      context: ./ClientApp
+      context: ./frontend
       dockerfile: ./Dockerfile.dev
     image: bloom-react-dev:latest
     container_name: bloom-react-dev
     ports:
       - "3000:3000"
     volumes:
-      - ./ClientApp/src:/app/src       # Live update for src folder
-      - ./ClientApp/public:/app/public # Live update for public assets
+      - ./frontend/src:/app/src       # Live update for src folder
+      - ./frontend/public:/app/public # Live update for public assets
       - /app/node_modules    # Keep container node_modules isolated
     environment:
       - REACT_APP_API_URL=http://bloom-server-dev:8080/

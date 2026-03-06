@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../bloom.csproj" />
+    <ProjectReference Include="../backend/bloom.csproj" />
     
   </ItemGroup>
 

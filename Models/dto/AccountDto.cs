@@ -17,7 +17,6 @@ namespace bloom.Models.dto
         public required string Email { get; set; }
         public required string Password { get; set; }
         public required string SelectedRole { get; set; }
-        public required string UserName { get; set; }
     }
     
 }

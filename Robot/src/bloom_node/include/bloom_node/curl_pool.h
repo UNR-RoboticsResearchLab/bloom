@@ -6,6 +6,7 @@
 #include <memory>
 #include <mutex>
 #include <atomic>
+#include <stdexcept>
 
 namespace bloom_node {
 

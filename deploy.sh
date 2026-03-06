@@ -17,6 +17,7 @@ set -euo pipefail
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBLISH_DIR="$(ls -d "/var/www/bloom-build/net9.0/publish" 2>/dev/null | head -n 1)"
+FRONTEND_BUILD_DIR="$SCRIPT_DIR/ClientApp/build"
 TARGET_DIR=""
 RUN_MIGRATIONS=false
 RESTART_ONLY=false
@@ -53,9 +54,9 @@ if [ -z "$TARGET_DIR" ]; then
   TARGET_DIR="/var/www/bloom-dev"
 fi
 
-echo "================================"
-echo "Bloom Application Deployment"
-echo "================================"
+echo "=================================="
+echo "   Bloom Application Deployment"
+echo "=================================="
 echo "Target directory: $TARGET_DIR"
 echo ""
 
@@ -114,6 +115,11 @@ find "$TARGET_DIR" -mindepth 1 -maxdepth 1 ! -name logs ! -name backups -exec rm
 mkdir -p "$TARGET_DIR"
 mkdir -p "$TARGET_DIR/logs"
 mkdir -p "$TARGET_DIR/backups"
+mkdir -p "$TARGET_DIR/build"
+
+# --- Deploy frontend files ---
+echo "Deploying frontend files..."
+cp -r "$FRONTEND_BUILD_DIR/"* "$TARGET_DIR/build"
 
 # --- Deploy application files ---
 echo "Deploying application files..."

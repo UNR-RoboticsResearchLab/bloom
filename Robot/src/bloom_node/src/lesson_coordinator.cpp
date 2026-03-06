@@ -155,7 +155,9 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
 }
 
 void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) {
-   RCLCPP_INFO(this->get_logger(), "[TTS_DONE] waiting_for_tts_done_=%s | waiting_for_interaction_tts_=%s | waiting_for_wrap_up_=%s",
+    RCLCPP_INFO(this->get_logger(), "[TTS_DONE_RAW] lesson_active_=%s",
+        lesson_active_ ? "true" : "false");
+    RCLCPP_INFO(this->get_logger(), "[TTS_DONE] waiting_for_tts_done_=%s | waiting_for_interaction_tts_=%s | waiting_for_wrap_up_=%s",
         waiting_for_tts_done_ ? "true" : "false",
         waiting_for_interaction_tts_ ? "true" : "false",
         waiting_for_wrap_up_ ? "true" : "false");
@@ -383,7 +385,12 @@ void LessonCoordinator::schedule_next_step(int delay_seconds) {
 }
 
 void LessonCoordinator::advance_to_next_step() {
-    RCLCPP_INFO(this->get_logger(), "[ADVANCE] moving to step index %zu", current_step_index_);
+    RCLCPP_INFO(this->get_logger(), "[ADVANCE] moving to step index %zu | tts_done=%s | interaction_tts=%s | wrap_up=%s | response=%s",
+        current_step_index_,
+        waiting_for_tts_done_ ? "true" : "false",
+        waiting_for_interaction_tts_ ? "true" : "false",
+        waiting_for_wrap_up_ ? "true" : "false",
+        waiting_for_response_ ? "true" : "false");
     if (!lesson_active_) {
         return;
     }

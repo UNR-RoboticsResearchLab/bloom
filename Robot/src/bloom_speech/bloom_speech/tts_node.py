@@ -1,6 +1,10 @@
 import os
 import sys
 import time
+_robot_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              '..', '..', '..', '..', '..', 'bloom', 'Robot'))
+if _robot_dir not in sys.path:
+    sys.path.insert(0, _robot_dir)
 import json
 import threading
 import rclpy
@@ -29,10 +33,6 @@ class TTSNode(Node):
             default_voice=tts_voice
         )
 
-        robot_dir = os.path.realpath(os.path.join(
-            get_package_share_directory('bloom_speech'),
-            '..', '..', '..', '..', '..', 'bloom', 'Robot'
-        ))
         self.visemes_pub = self.create_publisher(String, '/face/visemes', 10)
         self.face_cmd_pub = self.create_publisher(String, '/face/command', 10)
 
@@ -71,7 +71,7 @@ class TTSNode(Node):
         msg = String()
         msg.data = json.dumps({'command': 'stop_audio_sync'})
         self.face_cmd_pub.publish(msg)
-        
+
     def set_robot_state(self, state: str):
         msg = String()
         msg.data = state

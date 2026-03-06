@@ -1,5 +1,9 @@
 import os
 import sys
+_robot_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              '..', '..', '..', '..', '..', 'bloom', 'Robot'))
+if _robot_dir not in sys.path:
+    sys.path.insert(0, _robot_dir)
 import threading
 import rclpy
 from rclpy.node import Node

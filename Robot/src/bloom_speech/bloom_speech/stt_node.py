@@ -80,24 +80,24 @@ class STTNode(Node):
 
         recognizer.stop_continuous_recognition()
 
-    def main(args=None):
-        env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')
-        if os.path.exists(env_path):
-            with open(env_path) as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        key, value = line.split('=', 1)
-                        os.environ.setdefault(key.strip(), value.strip())
-        else:
-            print(f'WARNING: .env not found at {env_path}')
-            print('Copy .env.example to .env and fill in your credentials')
+def main(args=None):
+    env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ.setdefault(key.strip(), value.strip())
+    else:
+        print(f'WARNING: .env not found at {env_path}')
+        print('Copy .env.example to .env and fill in your credentials')
 
-        rclpy.init(args=args)
-        node = STTNode()
-        rclpy.spin(node)
-        node.destroy_node()
-        rclpy.shutdown()
+    rclpy.init(args=args)
+    node = STTNode()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':

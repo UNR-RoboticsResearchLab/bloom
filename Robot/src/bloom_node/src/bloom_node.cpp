@@ -11,6 +11,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include "bloom_node/state_manager.h"
 #include "bloom_node/web_service_client.h"
 #include "bloom_node/configuration_manager.h"
@@ -72,11 +73,13 @@ int main(int argc, char ** argv)
     std::vector<fs::path> files;
 
 	// Loop through the directory and store all file paths
+	if (dir.empty()) goto skip_config;
 	for (const auto& entry : fs::directory_iterator(dir)) {
 		if (fs::is_regular_file(entry)) {
 			files.push_back(entry.path());
 		}
 	}
+	skip_config:;
 	std::sort(files.begin(), files.end());
 
 	if (!files.empty()) {

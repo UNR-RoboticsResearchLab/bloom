@@ -110,7 +110,6 @@ builder.Services.AddSession(options =>
 });
 
 // Enable CORS for development
-// TODO: add production check
 builder.Services.AddCors(options => {
     options.AddDefaultPolicy(policy => {
         policy
@@ -150,7 +149,7 @@ else
 }
 
 // app.UseHttpsRedirection();
-app.UseCors("Client");
+app.UseCors();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 

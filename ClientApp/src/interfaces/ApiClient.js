@@ -156,6 +156,13 @@ export default class ApiClient {
     return res;
   }
 
+  async getSessionIdFromRobotCode(robotCode) {
+    const res = await this.request(`/api/robotsessions/join/${encodeURIComponent(robotCode)}`, {
+      method: "GET",
+    });
+    return res;
+  }
+
   async addRobotToSession(sessionId, robotId, currentState = {}) {
     const body = {
       robotId,

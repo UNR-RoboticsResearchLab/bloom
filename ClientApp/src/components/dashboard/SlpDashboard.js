@@ -3,6 +3,7 @@ import DashboardLayout from "./DashboardLayout";
 import { LessonCard } from "../../pages/LessonCard";
 import {StudentCard} from "../../pages/StudentCard";
 import { useNavigate } from "react-router-dom";
+import { PairRobotCard } from "../../pages/PairRobotCard";
 
 
 
@@ -68,6 +69,7 @@ export default function SlpDashboard() {
   const [selectedLessonId, setSelectedLessonId] = useState("L1");
   const [selectedStudentId, setSelectedStudentId] = useState("S1");
   const { addNote, getNotes } = useNotes();
+  const [showPairRobotCard, setShowPairRobotCard] = useState(false);
 
   const selectedLesson = useMemo(
     () => mockLessons.find((l) => l.id === selectedLessonId),
@@ -112,12 +114,17 @@ export default function SlpDashboard() {
         </div>
         <div className="rounded-lg bg-white p-4 shadow">
           <div className="text-sm text-gray-600">Robot Status</div>
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1 flex items-center gap-2" 
+            onClick={()=>{
+                setShowPairRobotCard(true);
+              }}>
             <span
               className={`h-2.5 w-2.5 rounded-full ${
                 isConnected ? "bg-green-500" : "bg-red-500"
               }`}
+              
             />
+            
             <span className="text-2xl font-semibold">
               {isConnected ? "Connected" : "Disconnected"}
             </span>
@@ -325,6 +332,19 @@ export default function SlpDashboard() {
           </ul>
         </section>
       </div>
+      {showPairRobotCard && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center">
+                          <div
+                          className="absolute inset-0 bg-black/40"
+                          onClick={() => setShowPairRobotCard(false)}
+                          />
+      
+                          <div className="relative z-10 w-full max-w-xl px-4">
+                              <PairRobotCard onCancel={() => setShowPairRobotCard(false)} />
+                          </div>
+                      </div>
+                  )}
     </DashboardLayout>
+    
   );
 }

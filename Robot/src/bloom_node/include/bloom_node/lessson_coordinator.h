@@ -25,6 +25,7 @@ struct InteractionConfig {
     std::string correct_response_script;
     std::string incorrect_response_script;
     std::string fallback_script;
+    bool llm_follow_up{false};
 };
 
 struct LessonStep {
@@ -98,6 +99,8 @@ private:
     void update_progress_with_backend();
     void log_interaction_to_backend(int step_id, const std::string &response, bool is_correct);
 
+    void on_tts_done(const std_msgs::msg::String::SharedPtr msg);
+    void on_llm_wrap_up(const std_msgs::msg::String::SharedPtr msg);
 
     LessonData current_lesson_;
     size_t current_step_index_;
@@ -126,7 +129,12 @@ private:
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr tts_publisher_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr visual_aid_publisher_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr vosk_subscriber_;
-
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr llm_mode_pub_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr llm_context_pub_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr tts_done_sub_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr wrap_up_sub_;
+    bool waiting_for_tts_done_{false};
+    bool waiting_for_wrap_up_{false};
 
 };
 }

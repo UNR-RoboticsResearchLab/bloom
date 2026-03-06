@@ -26,7 +26,16 @@ LessonCoordinator::LessonCoordinator(
     vosk_subscriber_ = this->create_subscription<std_msgs::msg::String>(
         "/vosk/result", 10,
         std::bind(&LessonCoordinator::on_vosk_result, this, std::placeholders::_1));
+    tts_done_sub_ = this->create_subscription<std_msgs::msg::String>(
+        "/tts/done", 10,
+        std::bind(&LessonCoordinator::on_tts_done, this, std::placeholders::_1));
 
+    wrap_up_sub_ = this->create_subscription<std_msgs::msg::String>(
+        "/llm/wrap_up", 10,
+        std::bind(&LessonCoordinator::on_llm_wrap_up, this, std::placeholders::_1));
+
+    llm_mode_pub_ = this->create_publisher<std_msgs::msg::String>("/llm/mode", 10);
+    llm_context_pub_ = this->create_publisher<std_msgs::msg::String>("/llm/lesson_context", 10);
     RCLCPP_INFO(this->get_logger(), "LessonCoordinator initialized with Vosk subscriber");
 }
 
@@ -85,38 +94,69 @@ void LessonCoordinator::reset_lesson() {
 void LessonCoordinator::execute_step(const LessonStep &step) {
     RCLCPP_INFO(this->get_logger(), "Executing step %d", step.id);
 
-    // Set robot state based on the 'behavior' field from the lesson step
     auto behavior_it = step.behaviors.find("behavior");
     if (behavior_it != step.behaviors.end()) {
         const std::string &behavior_value = behavior_it->second;
         if (!behavior_value.empty() && state_manager_) {
-            // Convert timing_seconds to milliseconds and pass to set_state
             int timing_ms = step.timing_seconds > 0 ? (step.timing_seconds * 1000) : 0;
             state_manager_->set_state(behavior_value, timing_ms);
-            RCLCPP_INFO(this->get_logger(), "Set state to: %s (timing: %d ms)", behavior_value.c_str(), timing_ms);
         }
     }
 
     queue_behavior(step);
-    speak_script(step.script);
 
+    // Publish visual aid or hide
     if (!step.visual_aid_url.empty()) {
         auto va_msg = std_msgs::msg::String();
         va_msg.data = "{\"images\": [\"" + step.visual_aid_url + "\"], \"labels\": [\"\"]}";
         visual_aid_publisher_->publish(va_msg);
-        RCLCPP_INFO(this->get_logger(), "Showing visual aid: %s", step.visual_aid_url.c_str());
     } else {
         auto va_msg = std_msgs::msg::String();
         va_msg.data = "{\"command\": \"hide\"}";
         visual_aid_publisher_->publish(va_msg);
     }
 
-    if (step.has_interaction) {
+    if (step.has_interaction && step.interaction.wait_for_response) {
+        // For llm_follow_up steps, set lesson tangent mode
+        if (step.interaction.llm_follow_up) {
+            auto ctx_msg = std_msgs::msg::String();
+            ctx_msg.data = "Lesson topic: homophones. Current question: " + step.script;
+            llm_context_pub_->publish(ctx_msg);
+
+            auto mode_msg = std_msgs::msg::String();
+            mode_msg.data = "lesson_tangent";
+            llm_mode_pub_->publish(mode_msg);
+
+            waiting_for_wrap_up_ = true;
+        }
+        speak_script(step.script);
+        handle_interaction(step);
+    } else if (step.has_interaction) {
+        speak_script(step.script);
         handle_interaction(step);
     } else {
-        // For non-interactive steps, schedule the next step after the timing duration
-        schedule_next_step(step.timing_seconds);
+        // Advance after TTS finishes, not on a timer
+        waiting_for_tts_done_ = true;
+        speak_script(step.script);
     }
+}
+
+void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) {
+    if (!waiting_for_tts_done_ || !lesson_active_) return;
+    waiting_for_tts_done_ = false;
+    advance_to_next_step();
+}
+
+void LessonCoordinator::on_llm_wrap_up(const std_msgs::msg::String::SharedPtr msg) {
+    if (!waiting_for_wrap_up_ || !lesson_active_) return;
+    waiting_for_wrap_up_ = false;
+
+    // Reset LLM to lesson mode
+    auto mode_msg = std_msgs::msg::String();
+    mode_msg.data = "lesson_mode";
+    llm_mode_pub_->publish(mode_msg);
+
+    advance_to_next_step();
 }
 
 void LessonCoordinator::queue_behavior(const LessonStep &step) {

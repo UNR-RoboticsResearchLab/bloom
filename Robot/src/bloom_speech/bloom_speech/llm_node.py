@@ -11,6 +11,31 @@ from std_msgs.msg import String
 from ament_index_python.packages import get_package_share_directory
 from llm_module.engine_azure_openai import AzureOpenAIEngine
 
+FREE_CONVERSATION_PROMPT = """You are Bloom, a friendly robot helper designed to have conversations with children. You are patient, warm, and genuinely interested in what they have to say.
+
+Your conversation style:
+- Ask open-ended questions to learn about them
+- When they share something specific (like "I like basketball"), ask follow-up questions about it
+- Keep responses short (2-3 sentences max)
+- Be encouraging and supportive
+- Let the child lead - if they want to change topics, go with it
+- If they seem stuck, gently help with a new question
+- Sound natural and conversational, not robotic
+
+Be curious about their interests, hobbies, and experiences."""
+
+LESSON_TANGENT_PROMPT_TEMPLATE = """You are Bloom, a friendly robot teacher helping a child during a lesson. You are currently handling a tangent question from the student.
+
+Lesson context: {context}
+
+Your job during this tangent:
+- Answer the student's question naturally and warmly in 2-3 sentences
+- Stay focused on the lesson topic
+- Be encouraging and supportive
+- When you feel the student's question has been fully answered, end your response by asking something like "Does that make sense? Do you have any more questions about that?"
+- When the student indicates they are satisfied (says yes, okay, no more questions, thanks, etc.), respond with a brief encouraging sentence and include the exact token [RETURN_TO_LESSON] at the very end of your response
+- Do not include [RETURN_TO_LESSON] until the student has confirmed they are done with the tangent"""
+
 
 class LLMNode(Node):
     def __init__(self):
@@ -32,34 +57,49 @@ class LLMNode(Node):
             api_version=llm_api_version
         )
 
-        self.llm_engine.set_system_prompt("""You are Bloom, a friendly robot helper designed to have conversations with children. You are patient, warm, and genuinely interested in what they have to say.
-
-Your conversation style:
-- Ask open-ended questions to learn about them
-- When they share something specific (like "I like basketball"), ask follow-up questions about it
-- Keep responses short (2-3 sentences max)
-- Be encouraging and supportive
-- Let the child lead - if they want to change topics, go with it
-- If they seem stuck, gently help with a new question
-- Sound natural and conversational, not robotic
-
-Be curious about their interests, hobbies, and experiences.""")
+        self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
 
         self.conversation = []
         self.current_state = 'waiting'
+        self.mode = 'free_conversation'
+        self.lesson_context = ''
 
         self.stt_sub = self.create_subscription(
             String, '/vosk/result', self.on_stt_result, 10)
         self.state_sub = self.create_subscription(
             String, 'robot/state', self.on_state_update, 10)
+        self.mode_sub = self.create_subscription(
+            String, '/llm/mode', self.on_mode_update, 10)
+        self.context_sub = self.create_subscription(
+            String, '/llm/lesson_context', self.on_lesson_context, 10)
 
         self.tts_pub = self.create_publisher(String, '/tts/speak', 10)
         self.state_cmd_pub = self.create_publisher(String, 'robot/state_cmd', 10)
+        self.wrap_up_pub = self.create_publisher(String, '/llm/wrap_up', 10)
 
         self.get_logger().info('LLM node ready - listening on /vosk/result')
 
     def on_state_update(self, msg: String):
         self.current_state = msg.data
+
+    def on_mode_update(self, msg: String):
+        new_mode = msg.data
+        if new_mode != self.mode:
+            self.get_logger().info(f'LLM mode -> {new_mode}')
+            self.mode = new_mode
+            self.conversation = []  # Clear conversation on mode switch
+            if new_mode == 'lesson_tangent' and self.lesson_context:
+                prompt = LESSON_TANGENT_PROMPT_TEMPLATE.format(context=self.lesson_context)
+                self.llm_engine.set_system_prompt(prompt)
+            else:
+                self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
+
+    def on_lesson_context(self, msg: String):
+        self.lesson_context = msg.data
+        self.get_logger().info(f'Lesson context updated: {self.lesson_context}')
+        if self.mode == 'lesson_tangent':
+            prompt = LESSON_TANGENT_PROMPT_TEMPLATE.format(context=self.lesson_context)
+            self.llm_engine.set_system_prompt(prompt)
 
     def set_robot_state(self, state: str):
         msg = String()
@@ -72,6 +112,10 @@ Be curious about their interests, hobbies, and experiences.""")
             return
         if self.current_state in ('talking', 'loading'):
             self.get_logger().info(f'Ignoring STT input - robot is currently {self.current_state}')
+            return
+        # In lesson mode, only respond during tangent steps
+        if self.mode == 'lesson_mode':
+            self.get_logger().info('Ignoring STT input - lesson is active, not in tangent')
             return
         thread = threading.Thread(target=self.think, args=(msg.data,), daemon=True)
         thread.start()
@@ -96,6 +140,14 @@ Be curious about their interests, hobbies, and experiences.""")
                 self.get_logger().error(f'LLM error: {error}')
             response_text = "I'm sorry, I had trouble thinking of what to say. Can you say that differently?"
             self.conversation.append({'role': 'assistant', 'content': response_text})
+
+        # Check for wrap up token in lesson tangent mode
+        if self.mode == 'lesson_tangent' and '[RETURN_TO_LESSON]' in response_text:
+            response_text = response_text.replace('[RETURN_TO_LESSON]', '').strip()
+            self.get_logger().info('Tangent resolved - signaling lesson to continue')
+            wrap_up_msg = String()
+            wrap_up_msg.data = 'done'
+            self.wrap_up_pub.publish(wrap_up_msg)
 
         tts_msg = String()
         tts_msg.data = response_text

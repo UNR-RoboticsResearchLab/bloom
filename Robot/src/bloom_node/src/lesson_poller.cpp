@@ -204,6 +204,7 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 					step.interaction.correct_response_script = interaction_json.value("correct_response_script", "");
 					step.interaction.incorrect_response_script = interaction_json.value("incorrect_response_script", "");
 					step.interaction.fallback_script = interaction_json.value("fallback_script", "");
+					step.interaction.llm_follow_up = interaction_json.value("llm_follow_up", false);
 				}
 
 				lesson_data.sequence.push_back(step);

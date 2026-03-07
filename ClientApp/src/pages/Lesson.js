@@ -1,11 +1,13 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useApiClient } from "../context/ApiClientContext";
 import SelectStudentCard from "./SelectStudentCard";
 
+
 export default function Lesson() {
     const { lessonId } = useParams();
     const apiClient = useApiClient();
+    const navigate = useNavigate();
 
     const [lesson, setLesson] = useState(null);
     const [showSelectStudent, setShowSelectStudent] = useState(false);
@@ -18,7 +20,15 @@ export default function Lesson() {
 
     function handleStudentSelect(student) {
         console.log("Selected student:", student);
+
         setShowSelectStudent(false);
+
+        navigate("/lesson-view", {
+            state: {
+                lesson,
+                student,
+            },
+        });
     }
 
     function getLessonTypeLabel(value) {

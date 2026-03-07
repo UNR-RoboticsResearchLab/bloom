@@ -129,11 +129,13 @@ cp -r "$FRONTEND_BUILD_DIR/"* "$TARGET_DIR/build"
 echo "Deploying application files..."
 cp -r "$PUBLISH_DIR/"* "$TARGET_DIR/"
 
+
+
 # --- Run migrations if requested ---
 if [ "$RUN_MIGRATIONS" = true ]; then
   echo "Running database migrations..."
   cd "$TARGET_DIR"
-  if dotnet Bloom.dll --run-migrations; then
+  if dotnet bloom.dll --run-migrations; then
     echo "Migrations completed successfully."
   else
     echo "Warning: Migrations may have failed. Check logs."
@@ -143,7 +145,7 @@ fi
 # --- Start the application ---
 echo "Starting Bloom application..."
 cd "$TARGET_DIR"
-nohup dotnet Bloom.dll --urls "http://*:$APP_PORT" > "$TARGET_DIR/logs/app.log" 2>&1 &
+nohup dotnet bloom.dll --urls "http://*:$APP_PORT" > "$TARGET_DIR/logs/app.log" 2>&1 &
 APP_PID=$!
 echo $APP_PID > "$TARGET_DIR/app.pid"
 

@@ -34,8 +34,8 @@ export default function DashboardLayout({ title, children, actions = null }) {
   const role = session?.role?.toUpperCase();
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
-      <div className="mx-auto max-w-6xl px-6 py-10 lg:px-8 mt-[100px]">
+    <div className="rounded-lg border p-6 shadow-sm min-h-screen bg-white text-gray-900 mt-[50px]">
+      <div className="mx-auto max-w-6xl px-6 py-10 lg:px-8">
         {/* Header */}
         <header className="mb-6">
           <div className="flex items-start justify-between gap-4">

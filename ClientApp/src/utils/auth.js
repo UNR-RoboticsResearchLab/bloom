@@ -26,6 +26,7 @@ export function signInSession(user) {
   localStorage.setItem(
     "authUser",
     JSON.stringify({
+      id: user.id || "",
       email: user.email,
       role: user.role,
       name: user.fullName || "",

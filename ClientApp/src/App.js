@@ -51,15 +51,16 @@ export default function App() {
         <Route path="/lessons" element={<Lessons />} />
         <Route path="/students" element={<Students />} />
         <Route path="/student/:name" element={<Student />} />
-        <Route path="/lesson/:lessonName" element={<Lesson />} />
+        <Route path="/lesson/:lessonId" element={<Lesson />} />
 
         <Route path="/add-student" element={<AddStudentCard />} />
-
 
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/teacher" element={<TeacherDashboard />} />
         {/* <Route path="/student" element={<StudentDashboard />} /> */}
         <Route path="/slp" element={<SlpDashboard />} />
+
+
 
         {/* Protected */}
         <Route element={<RequireAuth />}>

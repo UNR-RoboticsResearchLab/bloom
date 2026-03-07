@@ -112,10 +112,12 @@ namespace bloom.Services
                     throw new ArgumentNullException(nameof(id));
                 }
 
+                var guid = Guid.Parse(id);
+
                 var lesson = await _context.Lessons
                     .Include(l => l.CreatedBy)
                     .Include(l => l.Assignments)
-                    .FirstOrDefaultAsync(l => l.Id == new Guid(id));
+                    .FirstOrDefaultAsync(l => l.Id == guid);
 
                 if (lesson == null)
                 {
@@ -131,16 +133,23 @@ namespace bloom.Services
                     filePath = Path.Combine(_env.ContentRootPath, filePath);
                 }
 
-                var lessonContent = await File.ReadAllTextAsync(filePath);
-                try
+                // var lessonContent = await File.ReadAllTextAsync(filePath);
+                // try
+                // {
+                //     var parsedJson = System.Text.Json.JsonDocument.Parse(lessonContent);
+                // }
+                // catch (System.Text.Json.JsonException)
+                // {
+                //     throw new ArgumentException("LessonFileUrl must point to a valid JSON file.");
+                // }
+
+                if (!File.Exists(filePath))
                 {
-                    var parsedJson = System.Text.Json.JsonDocument.Parse(lessonContent);
-                }
-                catch (System.Text.Json.JsonException)
-                {
-                    throw new ArgumentException("LessonFileUrl must point to a valid JSON file.");
+                    Console.WriteLine($"Lesson file missing in container: {filePath}");
+                    return lesson;
                 }
 
+                var lessonContent = await File.ReadAllTextAsync(filePath);
 
                 return lesson;
 

@@ -4,6 +4,7 @@ import { LessonCard } from "../../pages/LessonCard";
 import {StudentCard} from "../../pages/StudentCard";
 import { useNavigate } from "react-router-dom";
 import { PairRobotCard } from "../../pages/PairRobotCard";
+import { useApiClient } from "../../context/ApiClientContext";
 
 
 
@@ -66,6 +67,9 @@ function AccuracyBar({ value }) {
 export default function SlpDashboard() {
   const navigate = useNavigate();
 
+  const apiClient = useApiClient();
+  const [lessons, setLessons] = useState([]);
+
   const [selectedLessonId, setSelectedLessonId] = useState("L1");
   const [selectedStudentId, setSelectedStudentId] = useState("S1");
   const { addNote, getNotes } = useNotes();
@@ -100,6 +104,21 @@ export default function SlpDashboard() {
     addNote(selectedStudentId, selectedLessonId, text);
     form.reset();
   }
+
+  useEffect(() => {
+    async function loadLessons() {
+      try {
+        const data = await apiClient.getLessons();
+        console.log("Lessons from backend:", data);
+        setLessons(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to load lessons:", error);
+        setLessons([]);
+      }
+    }
+
+    loadLessons();
+  }, [apiClient]);
 
   return (
     <DashboardLayout title="SLP Dashboard">
@@ -172,26 +191,21 @@ export default function SlpDashboard() {
           </div>
 
           <div className="mt-3 space-y-3">
-            {mockLessons.map((lesson) => (
+            {lessons.map((lesson) => (
               <LessonCard
-                key={lesson.id}
+                key={lesson.id || lesson.Id}
                 title={lesson.title}
-                description={`Students: ${lesson.students
-                  .map((sid) => mockStudents[sid].name)
-                  .join(", ")}`}
+                description={lesson.description ?? ""}
                 onClick={() => {
-                  setSelectedLessonId(lesson.id);
-                  navigate(`/lessons?selected=${lesson.id}`);
+                  const lessonId = lesson.id ?? lesson.Id;
+                  navigate(`/lesson/${lessonId}`);
                 }}
               />
             ))}
           </div>
         </section>
       </div>
-
-
-
-      
+          
       {/* <div className="mt-6">
         <section className="rounded-lg bg-white p-4 shadow">
           <h3 className="text-base font-semibold">Students in Selected Lesson</h3>

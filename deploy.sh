@@ -145,10 +145,12 @@ echo $APP_PID > "$TARGET_DIR/app.pid"
 
 echo "Application started with PID: $APP_PID"
 
+set +e
+
 # --- Wait for application to be ready ---
 echo "Waiting for application to become ready..."
 ATTEMPTS=0
-until curl -s http://localhost:$APP_PORT/health &> /dev/null; do
+until curl -s http://localhost:$APP_PORT/ &> /dev/null; do
   sleep 2
   ((ATTEMPTS++))
   if [ "$ATTEMPTS" -gt 30 ]; then
@@ -157,6 +159,8 @@ until curl -s http://localhost:$APP_PORT/health &> /dev/null; do
     break
   fi
 done
+
+set -e
 
 # --- Deployment summary ---
 echo ""
@@ -170,3 +174,5 @@ echo ""
 echo "To restart: ./deploy.sh $([ "$TARGET_DIR" = "/var/www/bloom" ] && echo "--prod" || echo "") --restart-only"
 echo "To stop: kill $APP_PID"
 echo "================================"
+
+exit 0

@@ -114,13 +114,12 @@ export default class ApiClient {
     return res;
   }
 
-  //temp
-  async getLessons() {
-    const res = await this.request(`/api/lessons`, {
-      method: "GET",
-    });
-    return res;
-  }
+ async getLessons() {
+  const res = await this.request(`/api/lessons/all`, {
+    method: "GET",
+  });
+  return res;
+}
 
   //temp
   async getLesson(id) {

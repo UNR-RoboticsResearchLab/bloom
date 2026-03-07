@@ -26,9 +26,11 @@ namespace bloom.Controllers
         [Route("{lessonId}")]
         public async Task<IActionResult> GetLessonInfo(string lessonId)
         {
+            Console.WriteLine($"GetLessonInfo called with lessonId: {lessonId}");//debugging
+            var lesson = await _lessonService.GetByIdAsync(lessonId);
             try
             {
-                var lesson = await _lessonService.GetByIdAsync(lessonId);
+                
 
                 if (lesson == null)
                 {
@@ -66,10 +68,24 @@ namespace bloom.Controllers
                     CreatedById = lesson.CreatedById
                 });
             }
+            // catch(Exception ex)
+            // {
+            //     return BadRequest(new { message = $"Request error: {ex.Message}" });
+            // }
             catch(Exception ex)
             {
-                return BadRequest(new { message = $"Request error: {ex.Message}" });
-            }
+                Console.WriteLine(ex.Message);
+                // return Ok(new { warning = ex.Message });
+                return Ok(new
+                {
+                    lesson.Id,
+                    lesson.Title,
+                    lesson.Description,
+                    lesson.LessonType,
+                    lesson.CreatedDate,
+                    lesson.CreatedById
+                });
+            }       
         }
 
         [HttpGet]
@@ -79,7 +95,21 @@ namespace bloom.Controllers
             try
             {
                 var lessons = await _lessonService.GetAllAsync();
-                return Ok(lessons);
+
+                var result = lessons.Select(l => new LessonDto
+                {
+                    Id = l.Id.ToString(),
+                    Title = l.Title,
+                    Description = l.Description,
+                    CreatedDate = l.CreatedDate,
+                    UpdatedDate = l.UpdatedDate,
+                    LessonType = l.LessonType,
+                    CreatedById = l.CreatedById
+                });
+
+                return Ok(result);
+
+                // return Ok(lessons);
             }
             catch (Exception ex)
             {

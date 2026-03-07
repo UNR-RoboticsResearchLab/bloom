@@ -51,7 +51,7 @@ export default function App() {
         <Route path="/lessons" element={<Lessons />} />
         <Route path="/students" element={<Students />} />
         <Route path="/student/:name" element={<Student />} />
-        <Route path="/lesson/:lessonName" element={<Lesson />} />
+        <Route path="/lesson/:lessonId" element={<Lesson />} />
 
         <Route path="/add-student" element={<AddStudentCard />} />
 

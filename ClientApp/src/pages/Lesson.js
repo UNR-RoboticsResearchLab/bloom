@@ -1,7 +1,22 @@
 import { useParams } from "react-router-dom";
+import { useState } from "react";
+import SelectStudentCard from "./SelectStudentCard";
 
 export default function Lesson() {
     const { lessonName } = useParams();
+    const [showSelectStudent, setShowSelectStudent] = useState(false);
+
+    const students = [
+    { id: 1, firstName: "John", lastName: "Doe", level: "Beginner" },
+    { id: 2, firstName: "Jane", lastName: "Smith", level: "Intermediate" },
+    { id: 3, firstName: "Alice", lastName: "Johnson", level: "Advanced" },
+    ];
+
+    function handleStudentSelect(student) {
+        console.log("Selected student:", student);
+        setShowSelectStudent(false);
+    }
+
     return (
         <div>
             <p className=" text-sm font-semibold text-gray-900">
@@ -35,7 +50,26 @@ export default function Lesson() {
                         </p> */}
                     </div>
                 </div>
+                {/* Start Lesson Button */}
+                <div className="flex justify-center mt-8">
+                    <button
+                        onClick={() => setShowSelectStudent(true)}
+                        className="rounded-md bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+                    >
+                        Select Student to Start Lesson
+                    </button>
+                </div>
             </div>
+            {/* Popup Modal */}
+            {showSelectStudent && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+                    <SelectStudentCard
+                        students={students}
+                        onSelect={handleStudentSelect}
+                        onCancel={() => setShowSelectStudent(false)}
+                    />
+                </div>
+            )}
         </div>
          
     );

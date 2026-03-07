@@ -30,6 +30,7 @@ import Counter from "./pages/Counter";
 // import "./custom.css";
 
 import AddStudentCard from "./pages/AddStudentCard";
+import AddLessonCard from "./pages/AddLessonCard";
 
 export default function App() {
 
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="/dashboard">
             <Route element={<RequireRole allow={["admin"]} />}>
               <Route path="admin" element={<AdminDashboard />} />
+              <Route path="admin/add-lesson" element={<AddLessonCard />} />
             </Route>
             <Route element={<RequireRole allow={["teacher"]} />}>
               <Route path="teacher" element={<TeacherDashboard />} />

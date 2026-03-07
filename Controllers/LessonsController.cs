@@ -72,6 +72,21 @@ namespace bloom.Controllers
             }
         }
 
+        [HttpGet]
+        [Route("all")]
+        public async Task<IActionResult> GetAllLessons()
+        {
+            try
+            {
+                var lessons = await _lessonService.GetAllAsync();
+                return Ok(lessons);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Request error: {ex.Message}" });
+            }
+        }
+
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> CreateLesson([FromBody] LessonDto lesson)
@@ -93,9 +108,6 @@ namespace bloom.Controllers
                 return BadRequest(new { message = $"Request error: {ex.Message}" });
             }
         }
-
-
-
 
         // get json file and send file.
         [HttpPost]

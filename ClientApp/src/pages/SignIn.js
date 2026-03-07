@@ -45,6 +45,7 @@ export default function SignIn() {
       }
 
       const user = {
+        id: userId,
         email: userEmail,
         fullName: fullName ?? "",
         role: role,

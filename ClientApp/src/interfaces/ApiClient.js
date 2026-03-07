@@ -281,4 +281,20 @@ export default class ApiClient {
     return res;
   }
 
+  async createLesson(payload) {
+    const body = {
+      title: payload.title,
+      description: payload.description ?? "",
+      lessonType: payload.lessonType,
+      lessonDescription: payload.lessonDescription,
+      createdById: payload.createdById,
+    };
+
+    const res = await this.request("/api/lessons/create", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return res;
+  }
+
 }

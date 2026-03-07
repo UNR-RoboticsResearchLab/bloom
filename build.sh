@@ -9,7 +9,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER_PORT=${SERVER_PORT:-5000}
 DB_HOST=${DB_HOST:-localhost}
 DB_PORT=${DB_PORT:-3306}
-DB_NAME=${DB_NAME:-bloom}
+DB_NAME=${DB_NAME:-bloomdb}
 DOTNET_ENV="Production"
 RUN_MIGRATIONS=false
 BACKUP_DB=false
@@ -50,7 +50,7 @@ done
 
 # --- Check database connectivity ---
 echo "Checking database connectivity..."
-if ! mysql -h "$DB_HOST" -P "$DB_PORT" -u root -p"${DB_PASSWORD:-}" -e "SELECT 1" &> /dev/null; then
+if ! mysql -h "$DB_HOST" -P "$DB_PORT" -u jenkins -p"${DB_PASSWORD:-}" -e "SELECT 1" &> /dev/null; then
   echo "Error: Cannot connect to database at $DB_HOST:$DB_PORT"
   echo "Please ensure MariaDB/MySQL is running and accessible."
   exit 1

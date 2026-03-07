@@ -30,6 +30,10 @@ for arg in "$@"; do
     --prod)
       TARGET_DIR="/var/www/bloom"
       ;;
+    --dev)
+      TARGET_DIR="/var/www/bloom-dev"
+      APP_PORT=5001
+      ;;
     --migration)
       RUN_MIGRATIONS=true
       ;;
@@ -139,7 +143,7 @@ fi
 # --- Start the application ---
 echo "Starting Bloom application..."
 cd "$TARGET_DIR"
-nohup dotnet bloom.dll > "$TARGET_DIR/logs/app.log" 2>&1 &
+nohup dotnet Bloom.dll --urls "http://*:$APP_PORT" > "$TARGET_DIR/logs/app.log" 2>&1 &
 APP_PID=$!
 echo $APP_PID > "$TARGET_DIR/app.pid"
 

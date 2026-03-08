@@ -198,6 +198,9 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
                     step_timer_ = this->create_wall_timer(
                         std::chrono::seconds(timeout_seconds),
                         [this]() {
+                            step_timer_->cancel();  
+                            step_timer_ = nullptr;
+
                             if (!waiting_for_response_) return;
                             waiting_for_response_ = false;
                             const LessonStep* step = current_interaction_step_;

@@ -492,7 +492,7 @@ class FaceNode(Node):
     def on_robot_state(self, msg: String):
         state = msg.data.lower()
         state_emotion_map = {
-            'waiting':  'neutral',
+            'waiting':  'calm',
             'talking':  'happy',
             'loading':  'thinking',
             'idle':     'calm',

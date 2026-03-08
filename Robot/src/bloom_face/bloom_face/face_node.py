@@ -69,7 +69,7 @@ class Eye:
         self.current_size += (self.target_size - self.current_size) * 0.3
         self.pupil_offset_x += (self.target_pupil_x - self.pupil_offset_x) * 0.1
         self.pupil_offset_y += (self.target_pupil_y - self.pupil_offset_y) * 0.1
-
+    """
     def draw(self, surface, emotion):
         w = int(self.current_size * 2)
         h = int(self.current_size * 1.4)
@@ -91,7 +91,19 @@ class Eye:
         highlight_x = int(pupil_x - pupil_size * 0.2)
         highlight_y = int(pupil_y - pupil_size * 0.2)
         pygame.draw.circle(surface, (255, 255, 255), (highlight_x, highlight_y), highlight_size)
+"""
+    def draw(self, surface, emotion):
+        pupil_size = int(self.current_size * 0.85)
+        pupil_x = int(self.x + self.pupil_offset_x)
+        pupil_y = int(self.y + self.pupil_offset_y)
+        pygame.draw.circle(surface, (50, 50, 50), (pupil_x, pupil_y), pupil_size)
 
+        
+        highlight_size = max(1, int(pupil_size * 0.25))
+        highlight_x = int(pupil_x - pupil_size * 0.25)
+        highlight_y = int(pupil_y - pupil_size * 0.25)
+        pygame.draw.circle(surface, (255, 255, 255), (highlight_x, highlight_y), highlight_size)
+        
     def blink(self):
         self.target_size = self.base_size * 0.1
         self.blink_timer = 0.2

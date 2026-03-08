@@ -37,6 +37,15 @@ Your job during this tangent:
 - If the student asks another follow-up question, answer it, then ask again if they have more questions
 - IMPORTANT: You must eventually include [RETURN_TO_LESSON] once the student is done. Never leave the tangent open-ended."""
 
+SINGLE_TURN_PROMPT_TEMPLATE = """You are Bloom, a friendly robot teacher. You are evaluating a student's response to a question during a lesson.
+
+{prompt}
+
+Important rules:
+- Keep your response to 2-3 sentences maximum
+- Be warm, encouraging, and age-appropriate
+- Always end your response with the exact token [LESSON_CONTINUE] on its own
+- Do not ask follow-up questions or invite more responses"""
 
 class LLMNode(Node):
     def __init__(self):
@@ -79,6 +88,7 @@ class LLMNode(Node):
         self.wrap_up_pub = self.create_publisher(String, '/llm/wrap_up', 10)
 
         self.get_logger().info('LLM node ready - listening on /vosk/result')
+        self.single_turn_consumed = False
 
     def on_state_update(self, msg: String):
         self.current_state = msg.data
@@ -92,8 +102,12 @@ class LLMNode(Node):
             if new_mode == 'lesson_tangent' and self.lesson_context:
                 prompt = LESSON_TANGENT_PROMPT_TEMPLATE.format(context=self.lesson_context)
                 self.llm_engine.set_system_prompt(prompt)
+            elif new_mode == 'single_turn' and self.lesson_context:
+                prompt = SINGLE_TURN_PROMPT_TEMPLATE.format(prompt=self.lesson_context)
+                self.llm_engine.set_system_prompt(prompt)
+                self.single_turn_consumed = False
             elif new_mode == 'lesson_mode':
-                self.lesson_context = ''  # clear stale context
+                self.lesson_context = ''
                 self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
             else:
                 self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
@@ -117,9 +131,11 @@ class LLMNode(Node):
         if self.current_state in ('talking', 'loading'):
             self.get_logger().info(f'Ignoring STT input - robot is currently {self.current_state}')
             return
-        # In lesson mode, only respond during tangent steps
         if self.mode == 'lesson_mode':
             self.get_logger().info('Ignoring STT input - lesson is active, not in tangent')
+            return
+        if self.mode == 'single_turn' and self.single_turn_consumed:  # NEW - only accept one response
+            self.get_logger().info('Ignoring STT input - single turn already consumed')
             return
         thread = threading.Thread(target=self.think, args=(msg.data,), daemon=True)
         thread.start()
@@ -153,6 +169,16 @@ class LLMNode(Node):
             wrap_msg = String()
             wrap_msg.data = 'done'
             self.wrap_up_pub.publish(wrap_msg)
+        
+        # Handle single_turn mode
+        if self.mode == 'single_turn' and '[LESSON_CONTINUE]' in response_text:
+            response_text = response_text.replace('[LESSON_CONTINUE]', '').strip()
+            self.single_turn_consumed = True
+            self.mode = 'lesson_mode'
+            self.get_logger().info('[LLM] LESSON_CONTINUE detected, returning to lesson_mode')
+            wrap_msg = String()
+            wrap_msg.data = 'continue'
+            self.wrap_up_pub.publish(wrap_msg)  # reuse wrap_up topic to signal coordinator
 
         tts_msg = String()
         tts_msg.data = response_text

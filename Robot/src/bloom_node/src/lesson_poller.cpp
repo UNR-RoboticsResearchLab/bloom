@@ -218,6 +218,20 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 					step.interaction.incorrect_response_script = interaction_json.value("incorrect_response_script", "");
 					step.interaction.fallback_script = interaction_json.value("fallback_script", "");
 					step.interaction.llm_follow_up = interaction_json.value("llm_follow_up", false);
+					step.interaction.single_turn_llm = interaction_json.value("single_turn_llm", false);
+					step.interaction.single_turn_llm_prompt = interaction_json.value("single_turn_llm_prompt", "");
+
+					if (interaction_json.contains("fallback_visual_aid") && interaction_json["fallback_visual_aid"].is_array()) {
+						for (const auto &img : interaction_json["fallback_visual_aid"]) {
+							step.interaction.fallback_visual_aid.push_back(img.get<std::string>());
+						}
+					}
+					if (interaction_json.contains("fallback_visual_aid_labels") && interaction_json["fallback_visual_aid_labels"].is_array()) {
+						for (const auto &lbl : interaction_json["fallback_visual_aid_labels"]) {
+							step.interaction.fallback_visual_aid_labels.push_back(lbl.get<std::string>());
+						}
+					}
+					
 				}
 
 				lesson_data.sequence.push_back(step);

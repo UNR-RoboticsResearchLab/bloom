@@ -142,7 +142,11 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
         auto ctx_msg = std_msgs::msg::String();
         ctx_msg.data = "Lesson topic: homophones. Current question: " + step.script;
         llm_context_pub_->publish(ctx_msg);
-        // Don't set lesson_tangent mode yet — wait until Bloom finishes speaking
+    } else if (step.interaction.single_turn_llm) {
+        // Publish the prompt template as context
+        auto ctx_msg = std_msgs::msg::String();
+        ctx_msg.data = step.interaction.single_turn_llm_prompt;
+        llm_context_pub_->publish(ctx_msg);
     }
 
     if (step.has_interaction && step.interaction.wait_for_response) {
@@ -166,12 +170,16 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
     if (waiting_for_interaction_tts_) {
         waiting_for_interaction_tts_ = false;
 
-        // If this is an llm_follow_up step, activate tangent mode now that Bloom is done speaking
         if (current_interaction_step_ && current_interaction_step_->interaction.llm_follow_up) {
             auto mode_msg = std_msgs::msg::String();
             mode_msg.data = "lesson_tangent";
             llm_mode_pub_->publish(mode_msg);
             waiting_for_wrap_up_ = true;
+        } else if (current_interaction_step_ && current_interaction_step_->interaction.single_turn_llm) {
+            auto mode_msg = std_msgs::msg::String();
+            mode_msg.data = "single_turn";
+            llm_mode_pub_->publish(mode_msg);
+            waiting_for_single_turn_ = true; 
         }
 
         // Short pause then open the response window
@@ -194,6 +202,13 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
                             waiting_for_response_ = false;
                             const LessonStep* step = current_interaction_step_;
                             if (!step) return;
+
+                            // Cancel wrap_up wait and reset LLM to lesson_mode
+                            waiting_for_wrap_up_ = false;
+                            waiting_for_single_turn_ = false;
+                            auto mode_msg = std_msgs::msg::String();
+                            mode_msg.data = "lesson_mode";
+                            llm_mode_pub_->publish(mode_msg);
 
                             if (!step->interaction.fallback_visual_aid.empty()) {
                                 nlohmann::json va_json;
@@ -228,19 +243,21 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
 }
 
 void LessonCoordinator::on_llm_wrap_up(const std_msgs::msg::String::SharedPtr msg) {
-    RCLCPP_INFO(this->get_logger(), "[LLM_WRAP_UP] received | waiting_for_wrap_up_=%s | waiting_for_tts_done_=%s",
+    RCLCPP_INFO(this->get_logger(), "[LLM_WRAP_UP] received | waiting_for_wrap_up_=%s | waiting_for_single_turn_=%s",
         waiting_for_wrap_up_ ? "true" : "false",
-        waiting_for_tts_done_ ? "true" : "false");
-    if (!waiting_for_wrap_up_ || !lesson_active_) return;
-    waiting_for_wrap_up_ = false;
+        waiting_for_single_turn_ ? "true" : "false");
+    if (!lesson_active_) return;
 
-    // Reset LLM to lesson mode
-    auto mode_msg = std_msgs::msg::String();
-    mode_msg.data = "lesson_mode";
-    llm_mode_pub_->publish(mode_msg);
-
-    // Wait for LLM's final TTS to finish before advancing
-    waiting_for_tts_done_ = true;
+    if (waiting_for_wrap_up_) {
+        waiting_for_wrap_up_ = false;
+        auto mode_msg = std_msgs::msg::String();
+        mode_msg.data = "lesson_mode";
+        llm_mode_pub_->publish(mode_msg);
+        waiting_for_tts_done_ = true;
+    } else if (waiting_for_single_turn_) {
+        waiting_for_single_turn_ = false;
+        waiting_for_tts_done_ = true;
+    }
 }
 
 void LessonCoordinator::queue_behavior(const LessonStep &step) {
@@ -321,7 +338,18 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
         RCLCPP_DEBUG(this->get_logger(), "Received speech input: %s", response.c_str());
 
         // Check if response matches correct answer
-        bool is_correct = (response == interaction.correct_answer);
+        // Fuzzy match: normalize both strings and check if correct answer appears in response
+        auto normalize = [](std::string s) -> std::string {
+            std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+            s.erase(std::remove_if(s.begin(), s.end(), [](char c) {
+                return !std::isalnum(c) && c != ' ';
+            }), s.end());
+            return s;
+        };
+        std::string norm_response = normalize(response);
+        std::string norm_answer = normalize(interaction.correct_answer);
+        bool is_correct = !norm_answer.empty() && 
+                        (norm_response.find(norm_answer) != std::string::npos);
 
         // Provide feedback based on correctness
         if (is_correct) {

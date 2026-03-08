@@ -26,6 +26,8 @@ struct InteractionConfig {
     std::string incorrect_response_script;
     std::string fallback_script;
     bool llm_follow_up{false};
+    bool single_turn_llm{false};          
+    std::string single_turn_llm_prompt;   
     std::vector<std::string> fallback_visual_aid;
     std::vector<std::string> fallback_visual_aid_labels;
 };
@@ -143,8 +145,10 @@ private:
     bool waiting_for_tts_done_{false};
     bool waiting_for_wrap_up_{false};
     bool waiting_for_interaction_tts_{false};
+    bool waiting_for_single_turn_{false};
     std::string robot_state_{"idle"};
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_state_sub_;
+
 
 };
 }

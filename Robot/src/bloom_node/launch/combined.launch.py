@@ -2,7 +2,7 @@
 """
 Combined launch file for Bloom robot driver and OpenHMI Blossom system
 """
-
+import os
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -91,6 +91,7 @@ def generate_launch_description():
     face_launch = Node(
         package='bloom_face',
         executable='face_node',
+        additional_env={'DISPLAY': os.environ.get('DISPLAY', ':0')},
     )
 
     return LaunchDescription([

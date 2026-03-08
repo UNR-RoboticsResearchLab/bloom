@@ -445,7 +445,7 @@ class FaceNode(Node):
 
         display_index = 1 if num_displays > 1 else 0
         self.width, self.height = 800, 480
-        self.screen = pygame.display.set_mode((self.width, self.height), pygame.NOFRAME, display=display_index)
+        self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN, display=display_index)
         print(f'Using display {display_index}: {self.width}x{self.height}')
         pygame.mouse.set_visible(False)
         pygame.display.set_caption('Bloom')

@@ -7,8 +7,8 @@ import sys
 import os
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.dirname(SCRIPT_DIR)
-DEFAULT_LESSON = os.path.join(REPO_ROOT, 'Robot', 'src', 'bloom_node', 'config', 'homophones.json')
+REPO_ROOT = os.path.dirname(SCRIPT_DIR)  
+DEFAULT_LESSON = os.path.join(REPO_ROOT, 'src', 'bloom_node', 'config', 'homophones.json')
 
 def main():
     lesson_path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_LESSON

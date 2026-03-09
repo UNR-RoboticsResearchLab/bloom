@@ -121,6 +121,7 @@ class TTSNode(Node):
                     self.start_audio_sync()
                     time.sleep(0.05)
 
+                time.sleep(0.15)
                 pygame.mixer.music.play()
 
                 while pygame.mixer.music.get_busy():

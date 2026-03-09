@@ -147,6 +147,8 @@ private:
     bool waiting_for_wrap_up_{false};
     bool waiting_for_interaction_tts_{false};
     bool waiting_for_single_turn_{false};
+    bool waiting_for_llm_tts_done_{false};
+
     std::string robot_state_{"idle"};
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_state_sub_;
 

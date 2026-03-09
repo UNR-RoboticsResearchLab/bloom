@@ -2,6 +2,7 @@
 #include <sstream>
 #include <mutex>
 #include <functional>
+#include <regex>
 
 using namespace bloom_node;
 
@@ -168,6 +169,11 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
         waiting_for_wrap_up_ ? "true" : "false");
     if (!lesson_active_) return;
 
+    if (waiting_for_llm_tts_done_) {
+        waiting_for_llm_tts_done_ = false;
+        advance_to_next_step();
+        return;
+    }
     if (waiting_for_interaction_tts_) {
         waiting_for_interaction_tts_ = false;
 
@@ -266,7 +272,7 @@ void LessonCoordinator::on_llm_wrap_up(const std_msgs::msg::String::SharedPtr ms
         waiting_for_tts_done_ = true;
     } else if (waiting_for_single_turn_) {
         waiting_for_single_turn_ = false;
-        waiting_for_tts_done_ = true;
+        waiting_for_llm_tts_done_ = true;
     }
 }
 
@@ -352,8 +358,16 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
             }), s.end());
             return s;
         };
-        std::string norm_response = normalize(response);
-        std::string norm_answer = normalize(interaction.correct_answer);
+        auto digits_to_words = [](std::string s) -> std::string {
+            std::regex r1("\\b1\\b"); s = std::regex_replace(s, r1, "one");
+            std::regex r2("\\b2\\b"); s = std::regex_replace(s, r2, "two");
+            std::regex r3("\\b3\\b"); s = std::regex_replace(s, r3, "three");
+            std::regex r4("\\b4\\b"); s = std::regex_replace(s, r4, "four");
+            std::regex r5("\\b5\\b"); s = std::regex_replace(s, r5, "five");
+            return s;
+        };
+        std::string norm_response = normalize(digits_to_words(response));
+std::string norm_answer = normalize(digits_to_words(interaction.correct_answer));
         bool is_correct = !norm_answer.empty() && 
                         (norm_response.find(norm_answer) != std::string::npos);
 

@@ -314,8 +314,10 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 		currently_executing_.store(false);
 	}
 
-	void LessonPoller::set_pairing_code(const std::string &pairing_code) {
+	
+}
+
+void LessonPoller::set_pairing_code(const std::string &pairing_code) {
 		std::lock_guard<std::mutex> lock(session_mutex_);
 		pairing_code_ = pairing_code;
 	}
-}

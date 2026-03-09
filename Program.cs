@@ -36,6 +36,16 @@ if (build_environmment == "Development")
     //     options.ListenAnyIP(2443, listenOptions => listenOptions.UseHttps()); // HTTPS optional
     // });
 }
+else
+{
+    var cert = X509CertificateLoader.LoadPkcs12FromFile("certs/bloomserver.pfx", "bloomserver");
+
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
+        .SetApplicationName("BloomServer")
+        .SetDefaultKeyLifetime(TimeSpan.FromDays(90))
+        .ProtectKeysWithCertificate(cert);
+}
 
 // Add DB Context
 builder.Services.AddDbContext<BloomDbContext>(options =>
@@ -48,13 +58,7 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
 
     )));
 
-var cert = X509CertificateLoader.LoadPkcs12FromFile("certs/bloomserver.pfx", "bloomserver");
 
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
-    .SetApplicationName("BloomServer")
-    .SetDefaultKeyLifetime(TimeSpan.FromDays(90))
-    .ProtectKeysWithCertificate(cert);
 
 
 // Add identity

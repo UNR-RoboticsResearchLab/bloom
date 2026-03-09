@@ -75,7 +75,10 @@ namespace bloom.Controllers
             catch(Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                // return Ok(new { warning = ex.Message });
+                if (lesson == null)
+                {
+                    return BadRequest(new { message = $"Request error: {ex.Message}" });
+                }
                 return Ok(new
                 {
                     lesson.Id,

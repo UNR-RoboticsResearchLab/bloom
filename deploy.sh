@@ -145,7 +145,7 @@ fi
 # --- Start the application ---
 echo "Starting Bloom application..."
 cd "$TARGET_DIR"
-nohup dotnet bloom.dll --urls "http://*:$APP_PORT" > "$TARGET_DIR/logs/app.log" 2>&1 &
+nohup dotnet bloom.dll --urls "http://localhost:$APP_PORT" > "$TARGET_DIR/logs/app.log" 2>&1 &
 APP_PID=$!
 echo $APP_PID > "$TARGET_DIR/app.pid"
 

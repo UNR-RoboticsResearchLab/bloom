@@ -90,7 +90,7 @@ namespace bloom.Services
                 }
 
                 var lessons = await _context.Lessons
-                    .Where(l => l.CreatedBy.Email == email)
+                    .Where(l => l.CreatedBy != null && l.CreatedBy.Email == email)
                     .ToListAsync();
 
                 return lessons;
@@ -102,7 +102,7 @@ namespace bloom.Services
             }
         }
 
-        public async Task<Lesson> GetByIdAsync(string id)
+        public async Task<Lesson?> GetByIdAsync(string id)
         {
 
             try

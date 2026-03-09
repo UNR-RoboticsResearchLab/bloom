@@ -32,6 +32,8 @@ import Counter from "./pages/Counter";
 import AddStudentCard from "./pages/AddStudentCard";
 import AddLessonCard from "./pages/AddLessonCard";
 
+import LessonView from "./pages/LessonView";
+
 export default function App() {
 
   const apiBase = process.env.REACT_APP_API_BASE_URL || "http://bloom-server-dev:5000/";
@@ -52,6 +54,8 @@ export default function App() {
         <Route path="/students" element={<Students />} />
         <Route path="/student/:name" element={<Student />} />
         <Route path="/lesson/:lessonId" element={<Lesson />} />
+        <Route path="/lesson-view" element={<LessonView />} />
+        
 
         <Route path="/add-student" element={<AddStudentCard />} />
 

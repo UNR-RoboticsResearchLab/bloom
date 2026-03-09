@@ -73,7 +73,7 @@ export function PairRobotCard() {
               type="submit"
               className="rounded-md border border-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm bg-indigo-600 hover:bg-indigo-400 "
             >
-              Add Student
+              Pair Robot
             </button>
           </div>
         </div>

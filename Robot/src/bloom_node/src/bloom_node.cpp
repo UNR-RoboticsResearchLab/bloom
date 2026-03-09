@@ -265,9 +265,9 @@ int main(int argc, char ** argv)
 						RCLCPP_INFO(web_client->get_logger(), "Session ID: %s", session_id.c_str());
 					}
 					if (response.contains("sessionCode")) {
-						std::string code = response["sessionCode"].get<std::string>();
-						RCLCPP_INFO(web_client->get_logger(), "Session Code: %s", code.c_str());
-						web_client->publishSessionCode(code);
+						pairing_code = response["sessionCode"].get<std::string>();
+						RCLCPP_INFO(web_client->get_logger(), "Session Code: %s", pairing_code.c_str());
+						web_client->publishSessionCode(pairing_code);
 					}
 				} catch (const std::exception &e) {
 					RCLCPP_WARN(web_client->get_logger(), "Failed to parse session ID from response: %s", e.what());

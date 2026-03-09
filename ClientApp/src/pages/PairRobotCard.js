@@ -1,47 +1,41 @@
 import React, { useState } from "react";
-
 import { useApiClient } from "../context/ApiClientContext";
 
-export function PairRobotCard() {
+export function PairRobotCard({ onCancel, onPaired }) {
+  const [robotCode, setRobotCode] = useState("");
+  const [sessionId, setSessionId] = useState("");
+  const [error, setError] = useState("");
 
-    const [robotCode, setRobotCode] = useState("");
+  const api = useApiClient();
 
-    const api = useApiClient();
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!robotCode.trim()) return;
 
-    function handleSubmit(e) {
-        e.preventDefault();
-        if(!robotCode) return;
-        // Call API to get session ID from robot code
+    try {
+      setError("");
 
-        const sessionId = null;
-        
-        api.getSessionIdFromRobotCode(robotCode)
-            .then((res) => {
-                sessionId = res?.sessionId;
-                if (sessionId) {
-                    // Store session ID in state or context as needed
-                    console.log("Session ID:", sessionId);
-                    // Optionally navigate to the session page
-                    // navigate(`/session/${sessionId}`);
-                } else {
-                    console.error("No session ID returned from server");
-                }
-            });
-        
+      const res = await api.getSessionIdFromRobotCode(robotCode);
+      const returnedSessionId = res?.sessionId ?? res?.sessionCode ?? res?.id ?? "";
 
-        
-        
+      if (returnedSessionId) {
+        setSessionId(returnedSessionId);
+        console.log("Session ID:", returnedSessionId);
+
+        if (onPaired) {
+          onPaired(returnedSessionId);
+        }
+      } else {
+        setError("No session ID returned from server.");
+        console.error("No session ID returned from server");
+      }
+    } catch (err) {
+      console.error("Failed to pair robot:", err);
+      setError("Failed to pair robot.");
     }
+  }
 
-    function onCancel(){
-        return;
-    }
-
-    function onAdd(){
-        return;
-    }
-
-        return (
+  return (
     <div className="w-full max-w-xl rounded-lg border border-gray-300 bg-white shadow-sm">
       <div className="border-b border-gray-300 px-6 py-4">
         <p className="text-lg font-semibold text-gray-900">Pair Robot</p>
@@ -59,6 +53,18 @@ export function PairRobotCard() {
               placeholder="Enter robot code"
             />
           </div>
+
+          {sessionId && (
+            <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              Session ID: {sessionId}
+            </div>
+          )}
+
+          {error && (
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
         </div>
 
         <div className="mt-6 border-t border-gray-200 pt-5">
@@ -66,12 +72,14 @@ export function PairRobotCard() {
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-white shadow-sm bg-red-500 hover:bg-red-400"
-            >Cancel</button>
+              className="rounded-md border border-gray-300 bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-400"
+            >
+              Cancel
+            </button>
 
             <button
               type="submit"
-              className="rounded-md border border-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm bg-indigo-600 hover:bg-indigo-400 "
+              className="rounded-md border border-gray-900 bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-400"
             >
               Pair Robot
             </button>

@@ -156,9 +156,12 @@ export default class ApiClient {
   }
 
   async getSessionIdFromRobotCode(robotCode) {
-    const res = await this.request(`/api/robotsessions/join/${encodeURIComponent(robotCode)}`, {
-      method: "GET",
-    });
+    const res = await this.request(
+      `/api/robotsessions/join/${encodeURIComponent(robotCode)}`,
+      {
+        method: "GET",
+      }
+    );
     return res;
   }
 
@@ -295,12 +298,4 @@ export default class ApiClient {
     });
     return res;
   }
-
-  async getSessionCodeFromRobotCode(robotCode) {
-    const res = await this.request(`/api/robotsessions/join/${encodeURIComponent(robotCode)}`, {
-      method: "GET",
-    });
-    return res;
-  }
-
 }

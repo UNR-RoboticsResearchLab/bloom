@@ -30,13 +30,17 @@ class STTNode(Node):
         self.recognizer = None
         self.recognizer_lock = threading.Lock()
         self.is_recognizing = False
+        self.mic_enabled = False  
 
         self.result_pub = self.create_publisher(String, '/vosk/result', 10)
         self.state_sub = self.create_subscription(
             String, 'robot/state', self.on_state_update, 10)
+        self.enable_sub = self.create_subscription(
+            String, '/stt/enable', self.on_enable_update, 10)
+        self.mode_sub = self.create_subscription(
+            String, '/llm/mode', self.on_mode_update, 10)
 
-        self._start_recognizer()
-        self.get_logger().info('STT node ready')
+        self.get_logger().info('STT node ready - mic muted, waiting for mode activation')
 
     def _start_recognizer(self):
         with self.recognizer_lock:
@@ -81,14 +85,37 @@ class STTNode(Node):
         new_state = msg.data
         if new_state == self.current_state:
             return
-
         self.current_state = new_state
         self.get_logger().info(f'[STT] Robot state -> {new_state}')
 
-        if new_state in ('talking', 'loading'):
+        if new_state in ('talking', 'loading', 'idle'):
             threading.Thread(target=self._stop_recognizer, daemon=True).start()
-        else:
+        elif new_state == 'waiting':
+            if self.mic_enabled:
+                threading.Thread(target=self._start_recognizer, daemon=True).start()
+
+
+
+    def on_enable_update(self, msg: String):
+        enabled = msg.data.lower() == 'true'
+        if enabled == self.mic_enabled:
+            return
+        self.mic_enabled = enabled
+        self.get_logger().info(f'[STT] Mic enabled -> {enabled}')
+        if enabled and self.current_state not in ('talking', 'loading', 'idle'):
             threading.Thread(target=self._start_recognizer, daemon=True).start()
+        elif not enabled:
+            threading.Thread(target=self._stop_recognizer, daemon=True).start()
+
+    def on_mode_update(self, msg: String):
+        new_mode = msg.data
+        self.get_logger().info(f'[STT] LLM mode -> {new_mode}')
+        if new_mode == 'free_conversation':
+            self.mic_enabled = True
+        elif new_mode in ('lesson_mode', 'single_turn', 'lesson_tangent'):
+            self.mic_enabled = False
+            threading.Thread(target=self._stop_recognizer, daemon=True).start()
+
 
     def destroy_node(self):
         self._stop_recognizer()

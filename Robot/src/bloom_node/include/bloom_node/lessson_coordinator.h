@@ -142,6 +142,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr tts_done_sub_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr wrap_up_sub_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr motor_pub_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr stt_enable_pub_;
     bool waiting_for_tts_done_{false};
     bool waiting_for_wrap_up_{false};
     bool waiting_for_interaction_tts_{false};

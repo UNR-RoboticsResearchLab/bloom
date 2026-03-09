@@ -37,6 +37,7 @@ LessonCoordinator::LessonCoordinator(
     llm_mode_pub_ = this->create_publisher<std_msgs::msg::String>("/llm/mode", 10);
     llm_context_pub_ = this->create_publisher<std_msgs::msg::String>("/llm/lesson_context", 10);
     motor_pub_ = this->create_publisher<std_msgs::msg::String>("play_sequence", 10);
+    stt_enable_pub_ = this->create_publisher<std_msgs::msg::String>("/stt/enable", 10);
     robot_state_sub_ = this->create_subscription<std_msgs::msg::String>(
         "robot/state", 10,
         [this](const std_msgs::msg::String::SharedPtr msg) {
@@ -188,6 +189,9 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
             [this]() {
                 step_timer_->cancel();
                 step_timer_ = nullptr;
+                auto stt_msg = std_msgs::msg::String();
+                stt_msg.data = "true";
+                stt_enable_pub_->publish(stt_msg);
                 waiting_for_response_ = true;
                 RCLCPP_INFO(this->get_logger(), "Now listening for student response");
 
@@ -203,6 +207,9 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
 
                             if (!waiting_for_response_) return;
                             waiting_for_response_ = false;
+                            auto stt_msg = std_msgs::msg::String();
+                            stt_msg.data = "false";
+                            stt_enable_pub_->publish(stt_msg);
                             const LessonStep* step = current_interaction_step_;
                             if (!step) return;
 
@@ -376,6 +383,10 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
         log_interaction_to_backend(step.id, response, is_correct);
 
         waiting_for_response_ = false;
+
+        auto stt_msg = std_msgs::msg::String();
+        stt_msg.data = "false";
+        stt_enable_pub_->publish(stt_msg);
 
         if (feedback_poller_) {
             feedback_poller_->set_polling_active(false);

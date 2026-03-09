@@ -134,7 +134,7 @@ class LLMNode(Node):
         if self.mode == 'lesson_mode':
             self.get_logger().info('Ignoring STT input - lesson is active, not in tangent')
             return
-        if self.mode == 'single_turn' and self.single_turn_consumed:  # NEW - only accept one response
+        if self.mode == 'single_turn' and self.single_turn_consumed:
             self.get_logger().info('Ignoring STT input - single turn already consumed')
             return
         thread = threading.Thread(target=self.think, args=(msg.data,), daemon=True)
@@ -179,6 +179,8 @@ class LLMNode(Node):
             wrap_msg = String()
             wrap_msg.data = 'continue'
             self.wrap_up_pub.publish(wrap_msg)  # reuse wrap_up topic to signal coordinator
+
+        
 
         tts_msg = String()
         tts_msg.data = response_text

@@ -335,10 +335,6 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
     if (!msg || msg->data.empty() || !waiting_for_response_ || !current_interaction_step_) {
         return;
     }
-    if (robot_state_ == "talking" || robot_state_ == "loading") {
-        RCLCPP_INFO(this->get_logger(), "[VOSK] Ignoring - robot is %s", robot_state_.c_str());
-        return;
-    }
 
     try {
         std::string response = msg->data;

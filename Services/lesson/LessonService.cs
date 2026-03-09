@@ -41,7 +41,7 @@ namespace bloom.Services
                     Title = lesson.Title,
                     Description = lesson.Description,
                     CreatedDate = lesson.CreatedDate,
-                    LessonFileUrl = filePath,
+                    LessonFileUrl = Path.Combine("lessons", fileName),
                     LessonType = lesson.LessonType,
                     CreatedById = lesson.CreatedById,
                     CreatedBy = account

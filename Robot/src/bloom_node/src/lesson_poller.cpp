@@ -11,6 +11,7 @@ LessonPoller::LessonPoller(
 	const std::string &session_id,
 	int poll_interval_ms,
 	const std::string &node_name
+
 )
 	: rclcpp::Node(node_name),
 	  web_client_(web_client),
@@ -35,6 +36,8 @@ LessonPoller::LessonPoller(
 		});
 
 	RCLCPP_INFO(this->get_logger(), "Subscribed to /load_lesson for backendless lesson loading");
+	session_code_pub_ = this->create_publisher<std_msgs::msg::String>("/robot/session_code", 10);
+
 }
 
 LessonPoller::~LessonPoller() {
@@ -74,67 +77,113 @@ bool LessonPoller::set_session_id(const std::string &session_id) {
 }
 
 void LessonPoller::on_polling_tick() {
-	// Skip polling if a lesson is currently executing
-	RCLCPP_DEBUG(this->get_logger(), "polling tick...");
-	if (currently_executing_.load()) {
-		RCLCPP_DEBUG(this->get_logger(), "Skipping poll: lesson currently executing");
-		return;
-	}
+    RCLCPP_DEBUG(this->get_logger(), "polling tick...");
 
-	// Get session ID safely
-	std::string current_session_id;
-	{
-		std::lock_guard<std::mutex> lock(session_mutex_);
-		current_session_id = session_id_;
-	}
+    // Get session ID
+    std::string current_session_id;
+    std::string current_pairing_code;
+    {
+        std::lock_guard<std::mutex> lock(session_mutex_);
+        current_session_id = session_id_;
+        current_pairing_code = pairing_code_;
+    }
 
-	if (current_session_id.empty()) {
-		RCLCPP_DEBUG(this->get_logger(), "Cannot poll: session_id not set");
-		return;
-	}
+    if (current_session_id.empty()) {
+        RCLCPP_DEBUG(this->get_logger(), "Cannot poll: session_id not set");
+        return;
+    }
 
-	// Build endpoint path
-	std::ostringstream path_builder;
-	path_builder << "/api/robotsessions/" << current_session_id << "/pending-lesson";
-	std::string endpoint = path_builder.str();
+    // Session status check (pairing)
+    // Always check session status to detect pairing and disconnection
+    std::ostringstream status_path;
+    status_path << "/api/robotsessions/" << current_session_id;
 
+    web_client_->sendGetAsync(
+        status_path.str(),
+        std::nullopt,
+        std::vector<std::string>{},
+        [this, current_pairing_code](const std::string &body, long http_code) {
+            auto msg = std_msgs::msg::String();
 
-	// Async HTTP GET request
-	web_client_->sendGetAsync(
-		endpoint,
-		std::nullopt,
-		std::vector<std::string>{},
-		[this, endpoint](const std::string &body, long http_code) {
-			if (http_code == 204) {
-				// No Content - no pending lesson
-				RCLCPP_DEBUG(this->get_logger(), "No pending lesson");
-				return;
-			}
+            if (http_code == 200) {
+                try {
+                    auto j = json::parse(body);
+                    bool has_user = j.contains("userId") && !j["userId"].is_null();
 
-			if (http_code < 200 || http_code >= 300) {
-				RCLCPP_WARN(this->get_logger(), "Failed to poll pending lesson (HTTP %ld): %s",
-					http_code, body.c_str());
-				return;
-			}
+                    if (has_user && !paired_.load()) {
+                        // Just got paired - clear the face
+                        paired_.store(true);
+                        msg.data = "";
+                        session_code_pub_->publish(msg);
+                        RCLCPP_INFO(this->get_logger(), "Session paired — clearing pairing code from face");
+                    } else if (!has_user && paired_.load()) {
+                        // Lost pairing - show code again
+                        paired_.store(false);
+                        msg.data = current_pairing_code;
+                        session_code_pub_->publish(msg);
+                        RCLCPP_WARN(this->get_logger(), "Session lost pairing — showing pairing code again");
+                    } else if (!has_user && !paired_.load()) {
+                        // Still waiting - keep republishing code so face_node has it
+                        msg.data = current_pairing_code;
+                        session_code_pub_->publish(msg);
+                    }
+                } catch (...) {
+                    RCLCPP_WARN(this->get_logger(), "Failed to parse session status response");
+                }
+            } else {
+                // Backend unreachable or session gone - show code again
+                if (paired_.load()) {
+                    paired_.store(false);
+                    RCLCPP_WARN(this->get_logger(), "Backend unreachable (HTTP %ld) — showing pairing code again", http_code);
+                }
+                msg.data = current_pairing_code;
+                session_code_pub_->publish(msg);
+            }
+        });
 
-			// Parse response JSON
-			try {
-				json response = json::parse(body);
-				if (!response.contains("hasPendingLesson") || !response["hasPendingLesson"].get<bool>()) {
-					RCLCPP_DEBUG(this->get_logger(), "Response indicates no pending lesson");
-					return;
-				}
+    //Lesson polling
+    if (currently_executing_.load()) {
+        RCLCPP_DEBUG(this->get_logger(), "Skipping lesson poll: lesson currently executing");
+        return;
+    }
 
-				if (!response.contains("lesson")) {
-					RCLCPP_WARN(this->get_logger(), "Response missing 'lesson' field");
-					return;
-				}
+    std::ostringstream path_builder;
+    path_builder << "/api/robotsessions/" << current_session_id << "/pending-lesson";
+    std::string endpoint = path_builder.str();
 
-				handle_pending_lesson(response["lesson"]);
-			} catch (const json::exception &e) {
-				RCLCPP_ERROR(this->get_logger(), "Failed to parse lesson JSON: %s", e.what());
-			}
-		});
+    web_client_->sendGetAsync(
+        endpoint,
+        std::nullopt,
+        std::vector<std::string>{},
+        [this, endpoint](const std::string &body, long http_code) {
+            if (http_code == 204) {
+                RCLCPP_DEBUG(this->get_logger(), "No pending lesson");
+                return;
+            }
+
+            if (http_code < 200 || http_code >= 300) {
+                RCLCPP_WARN(this->get_logger(), "Failed to poll pending lesson (HTTP %ld): %s",
+                    http_code, body.c_str());
+                return;
+            }
+
+            try {
+                json response = json::parse(body);
+                if (!response.contains("hasPendingLesson") || !response["hasPendingLesson"].get<bool>()) {
+                    RCLCPP_DEBUG(this->get_logger(), "Response indicates no pending lesson");
+                    return;
+                }
+
+                if (!response.contains("lesson")) {
+                    RCLCPP_WARN(this->get_logger(), "Response missing 'lesson' field");
+                    return;
+                }
+
+                handle_pending_lesson(response["lesson"]);
+            } catch (const json::exception &e) {
+                RCLCPP_ERROR(this->get_logger(), "Failed to parse lesson JSON: %s", e.what());
+            }
+        });
 }
 
 void LessonPoller::handle_pending_lesson(const json &lesson_json) {
@@ -263,5 +312,10 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 	} catch (const std::exception &e) {
 		RCLCPP_ERROR(this->get_logger(), "Exception handling pending lesson: %s", e.what());
 		currently_executing_.store(false);
+	}
+
+	void LessonPoller::set_pairing_code(const std::string &pairing_code) {
+		std::lock_guard<std::mutex> lock(session_mutex_);
+		pairing_code_ = pairing_code;
 	}
 }

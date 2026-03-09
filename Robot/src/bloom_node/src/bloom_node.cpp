@@ -281,6 +281,16 @@ int main(int argc, char ** argv)
 	// Wait for session creation to complete
 	session_future.get();
 
+	// Republish session code every 2s so face_node catches it after its delayed startup
+	if (!pairing_code.empty()) {
+		auto session_code_timer = node->create_wall_timer(
+			std::chrono::milliseconds(2000),
+			[web_client, pairing_code]() {
+				web_client->publishSessionCode(pairing_code);
+			}
+		);
+	}
+
 	// Create LessonCoordinator
 	auto lesson_coord = std::make_shared<bloom_node::LessonCoordinator>(behavior_coord, web_client, state_mgr);
 	RCLCPP_INFO(node->get_logger(), "LessonCoordinator created");

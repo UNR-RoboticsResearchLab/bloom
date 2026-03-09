@@ -91,6 +91,7 @@ def generate_launch_description():
     face_launch = Node(
         package='bloom_face',
         executable='face_node',
+        output='screen',
         additional_env={'DISPLAY': os.environ.get('DISPLAY', ':0')},
     )
 

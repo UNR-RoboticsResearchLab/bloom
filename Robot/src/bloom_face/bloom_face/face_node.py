@@ -163,6 +163,8 @@ class BlossomFace:
         pygame.font.init()
         label_size = max(24, int(height * 0.06))
         self.label_font = pygame.font.SysFont('Arial', label_size, bold=True)
+        pairing_size = max(18, int(height * 0.045))
+        self.pairing_font = pygame.font.SysFont('Arial', pairing_size, bold=True)
 
     def set_emotion(self, emotion):
         self.emotion = emotion
@@ -506,6 +508,8 @@ class FaceNode(Node):
         self.create_subscription(String, '/face/visemes', self.on_visemes, 10)
         self.create_subscription(String, '/face/command', self.on_face_command, 10)
         self.create_subscription(String, '/face/visual_aid', self.on_visual_aid, 10)
+        self.pairing_code = None
+        self.create_subscription(String, '/robot/session_code', self.on_session_code, 10)
 
         
         self.create_timer(1.0 / 30.0, self.render)
@@ -581,6 +585,11 @@ class FaceNode(Node):
         except Exception as e:
             self.get_logger().warn(f'Failed to parse visual aid command: {e}')
 
+    def on_session_code(self, msg: String):
+        with self.lock:
+            self.pairing_code = msg.data.strip()
+            self.get_logger().info(f'Received pairing code: {self.pairing_code}')
+
     def render(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -594,8 +603,18 @@ class FaceNode(Node):
         with self.lock:
             self.face.update(dt)
             self.face.draw(self.screen)
+            if self.pairing_code:
+                self._draw_pairing_code(self.pairing_code)
 
         pygame.display.flip()
+
+    def _draw_pairing_code(self, code: str):
+        label = f'Pairing Code: {code}'
+        font = self.face.pairing_font
+        text_surf = font.render(label, True, (0, 0, 0))
+        x = self.width // 2 - text_surf.get_width() // 2
+        y = self.height - text_surf.get_height() - 12
+        self.screen.blit(text_surf, (x, y))
 
     def destroy_node(self):
         pygame.quit()

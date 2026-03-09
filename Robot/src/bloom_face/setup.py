@@ -12,7 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/visual_aids', []),
+        ('share/' + package_name + '/visual_aids', glob('visual_aids/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

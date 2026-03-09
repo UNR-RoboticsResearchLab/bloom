@@ -20,6 +20,8 @@ ConfigurationManager::ConfigurationManager(const rclcpp::Node::SharedPtr& node)
 
 bool ConfigurationManager::load_from_file(const std::string & path)
 {
+  config_file_path_ = path;
+
   std::ifstream in(path);
   if (!in.is_open()) return false;
 
@@ -35,8 +37,6 @@ bool ConfigurationManager::load_from_file(const std::string & path)
       tmp[key] = value;
     }
   }
-
-  config_file_path_ = path;
 
   {
     std::lock_guard<std::mutex> lk(mutex_);
@@ -164,15 +164,19 @@ std::optional<bool> ConfigurationManager::get_bool(const std::string & key) cons
 
 void ConfigurationManager::set(const std::string & key, const std::string & value)
 {
-  std::lock_guard<std::mutex> lk(mutex_);
-  store_[key] = value;
+  std::string path_to_save;
+  {
+    std::lock_guard<std::mutex> lk(mutex_);
+    store_[key] = value;
+    path_to_save = config_file_path_;
+  }
   if (node_) {
     RCLCPP_INFO(node_->get_logger(), "Config set: %s=%s", key.c_str(), value.c_str());
-    
+
     // save to file immediately on change
     // (could be optimized with a debounce mechanism if config changes are frequent)
-    if (!config_file_path_.empty()) {
-      save_to_file(config_file_path_);
+    if (!path_to_save.empty()) {
+      save_to_file(path_to_save);
     } else {
       RCLCPP_WARN(node_->get_logger(), "No config file path set, not saving config to file");
     }

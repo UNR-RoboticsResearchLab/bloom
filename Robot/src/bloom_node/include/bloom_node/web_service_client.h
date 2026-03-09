@@ -138,6 +138,8 @@ public:
     // Set authentication header (e.g., "Authorization: Bearer <token>")
     void setAuthHeader(const std::string &auth_header);
 
+    // Publish session pairing code to face display
+    void publishSessionCode(const std::string &session_code);
 
     // Get performance statistics
     size_t getThreadPoolQueueSize() const;
@@ -175,6 +177,7 @@ private:
 
     // ROS publishers / services
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr response_pub_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr session_code_pub_;
     bool publish_responses_{false};
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr trigger_service_;
 };

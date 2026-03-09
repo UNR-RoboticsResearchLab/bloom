@@ -185,12 +185,25 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 						step.behaviors[key] = value.get<std::string>();
 					}
 				}
+				step.motor_sequence = step_json.value("motor_sequence", "");
 				// Parse visual aid
 				if (step_json.contains("visual_aid")) {
-					if (step_json["visual_aid"].is_string()) {
-						step.visual_aid_url = step_json["visual_aid"].get<std::string>();
-					} else if (step_json["visual_aid"].is_array() && !step_json["visual_aid"].empty()) {
-						step.visual_aid_url = step_json["visual_aid"][0].get<std::string>();
+					if (step_json["visual_aid"].is_array()) {
+						for (const auto &img : step_json["visual_aid"]) {
+							step.visual_aid_images.push_back(img.get<std::string>());
+						}
+					} else if (step_json["visual_aid"].is_string()) {
+						step.visual_aid_images.push_back(step_json["visual_aid"].get<std::string>());
+					}
+				}
+				if (step_json.contains("visual_aid_labels") && step_json["visual_aid_labels"].is_array()) {
+					for (const auto &lbl : step_json["visual_aid_labels"]) {
+						step.visual_aid_labels.push_back(lbl.get<std::string>());
+					}
+				}
+				if (step_json.contains("visual_aid_footers") && step_json["visual_aid_footers"].is_array()) {
+					for (const auto &ftr : step_json["visual_aid_footers"]) {
+						step.visual_aid_footers.push_back(ftr.get<std::string>());
 					}
 				}
 				// Parse interaction config if present
@@ -204,6 +217,21 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 					step.interaction.correct_response_script = interaction_json.value("correct_response_script", "");
 					step.interaction.incorrect_response_script = interaction_json.value("incorrect_response_script", "");
 					step.interaction.fallback_script = interaction_json.value("fallback_script", "");
+					step.interaction.llm_follow_up = interaction_json.value("llm_follow_up", false);
+					step.interaction.single_turn_llm = interaction_json.value("single_turn_llm", false);
+					step.interaction.single_turn_llm_prompt = interaction_json.value("single_turn_llm_prompt", "");
+
+					if (interaction_json.contains("fallback_visual_aid") && interaction_json["fallback_visual_aid"].is_array()) {
+						for (const auto &img : interaction_json["fallback_visual_aid"]) {
+							step.interaction.fallback_visual_aid.push_back(img.get<std::string>());
+						}
+					}
+					if (interaction_json.contains("fallback_visual_aid_labels") && interaction_json["fallback_visual_aid_labels"].is_array()) {
+						for (const auto &lbl : interaction_json["fallback_visual_aid_labels"]) {
+							step.interaction.fallback_visual_aid_labels.push_back(lbl.get<std::string>());
+						}
+					}
+					
 				}
 
 				lesson_data.sequence.push_back(step);

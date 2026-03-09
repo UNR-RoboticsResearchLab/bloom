@@ -1,18 +1,22 @@
-__pycache__/
-*.pyc
+# Python
+**/__pycache__/
+**/*.pyc
+**/*.pyo
 venv/
 .venv/
 env/
-temp_speech.wav          # Audio files created during speech
-*.wav
-face_control.json        # Commands sent to face
-current_visemes.json.    # Produced by face test scripts
-config.py
-*.pyo
-.env
 
-
-# ros files
+# ROS2 build artifacts
 build/
 install/
+log/
 logs/
+
+# Audio/temp files
+*.wav
+face_control.json
+current_visemes.json
+
+# Secrets
+.env
+config.py

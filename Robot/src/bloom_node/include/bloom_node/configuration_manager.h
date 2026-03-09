@@ -15,7 +15,7 @@
 
 namespace bloom_node {
 
-/// ConfigurationManager provides an (untested) thread-safe configuration store for
+/// ConfigurationManager provides a thread-safe configuration store for
 /// the robot. It can load simple key=value files and import parameters from a
 /// provided ROS2 node. Values are stored as strings and basic typed getters
 /// (string/int/double/bool) are provided.

@@ -69,7 +69,7 @@ class Eye:
         self.current_size += (self.target_size - self.current_size) * 0.3
         self.pupil_offset_x += (self.target_pupil_x - self.pupil_offset_x) * 0.1
         self.pupil_offset_y += (self.target_pupil_y - self.pupil_offset_y) * 0.1
-
+    """
     def draw(self, surface, emotion):
         w = int(self.current_size * 2)
         h = int(self.current_size * 1.4)
@@ -90,6 +90,18 @@ class Eye:
         highlight_size = max(1, int(pupil_size * 0.3))
         highlight_x = int(pupil_x - pupil_size * 0.2)
         highlight_y = int(pupil_y - pupil_size * 0.2)
+        pygame.draw.circle(surface, (255, 255, 255), (highlight_x, highlight_y), highlight_size)
+"""
+    def draw(self, surface, emotion):
+        pupil_size = int(self.current_size * 0.85)
+        pupil_x = int(self.x + self.pupil_offset_x)
+        pupil_y = int(self.y + self.pupil_offset_y)
+        pygame.draw.circle(surface, (50, 50, 50), (pupil_x, pupil_y), pupil_size)
+
+        
+        highlight_size = max(1, int(pupil_size * 0.25))
+        highlight_x = int(pupil_x - pupil_size * 0.25)
+        highlight_y = int(pupil_y - pupil_size * 0.25)
         pygame.draw.circle(surface, (255, 255, 255), (highlight_x, highlight_y), highlight_size)
 
     def blink(self):
@@ -145,11 +157,14 @@ class BlossomFace:
         self.visual_aid_images = []
         self.visual_aid_labels = []
         self.loaded_surfaces = []
+        self.visual_aid_footers = []
 
         
         pygame.font.init()
         label_size = max(24, int(height * 0.06))
         self.label_font = pygame.font.SysFont('Arial', label_size, bold=True)
+        pairing_size = max(18, int(height * 0.045))
+        self.pairing_font = pygame.font.SysFont('Arial', pairing_size, bold=True)
 
     def set_emotion(self, emotion):
         self.emotion = emotion
@@ -158,31 +173,60 @@ class BlossomFace:
 
         if emotion == 'happy':
             self.target_mouth_curve = 40
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
         elif emotion == 'sad':
             self.target_mouth_curve = -30
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
         elif emotion == 'excited':
             self.target_mouth_curve = 50
             self.left_eye.target_size = self.left_eye.base_size * 1.2
             self.right_eye.target_size = self.right_eye.base_size * 1.2
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
         elif emotion == 'calm':
             self.target_mouth_curve = 10
             self.left_eye.target_size = self.left_eye.base_size * 0.9
             self.right_eye.target_size = self.right_eye.base_size * 0.9
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
         elif emotion == 'surprised':
             self.target_mouth_curve = 0
             self.left_eye.target_size = self.left_eye.base_size * 1.4
             self.right_eye.target_size = self.right_eye.base_size * 1.4
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
         elif emotion == 'thinking':
             self.target_mouth_curve = 5
             self.left_eye.look_at(self.width * 0.3, self.height * 0.3)
+            self.right_eye.look_at(self.width * 0.3, self.height * 0.3)
         elif emotion == 'sleepy':
             self.target_mouth_curve = 0
             self.left_eye.target_size = self.left_eye.base_size * 0.5
             self.right_eye.target_size = self.right_eye.base_size * 0.5
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
         else:
             self.target_mouth_curve = 0
             self.left_eye.target_size = self.left_eye.base_size
             self.right_eye.target_size = self.right_eye.base_size
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
 
     def set_mouth_mode(self, mode):
         self.mouth_mode = mode
@@ -202,8 +246,9 @@ class BlossomFace:
         self.current_viseme_id = 0
         self.mouth_mode = 'emotion'
 
-    def show_visual_aid(self, images, labels, visual_aids_dir):
+    def show_visual_aid(self, images, labels, visual_aids_dir, footers=None):
         self.visual_aid_labels = labels
+        self.visual_aid_footers = footers or []
         self.loaded_surfaces = []
 
         for img_path in images:
@@ -215,6 +260,7 @@ class BlossomFace:
                 except Exception:
                     self.loaded_surfaces.append(None)
             else:
+                self.get_logger().warn(f'Visual aid not found: {full_path}') if hasattr(self, 'get_logger') else None
                 self.loaded_surfaces.append(None)
 
         self.visual_aid_active = True
@@ -223,6 +269,7 @@ class BlossomFace:
         self.visual_aid_active = False
         self.loaded_surfaces = []
         self.visual_aid_labels = []
+        self.visual_aid_footers = []
 
     def update(self, dt):
         self.time += dt
@@ -347,55 +394,71 @@ class BlossomFace:
             pygame.draw.circle(surface, outline_color, (mouth_x, mouth_y), r, line_width + 2)
 
     def draw_visual_aid(self, surface):
-        surface.fill((30, 30, 30))
+        bg_color = tuple(int(c) for c in self.bg_color)
+        surface.fill(bg_color)
         count = len(self.loaded_surfaces)
         if count == 0:
             return
 
-        label_height = int(self.height * 0.12)
         padding = int(self.width * 0.02)
+        header_height = int(self.height * 0.12)
+        footer_height = int(self.height * 0.10) if self.visual_aid_footers else 0
 
         if count == 1:
-            
             label = self.visual_aid_labels[0] if self.visual_aid_labels else ''
-            label_surf = self.label_font.render(label, True, (255, 255, 255))
+            label_surf = self.label_font.render(label, True, (50, 50, 50))
             label_x = self.width // 2 - label_surf.get_width() // 2
             surface.blit(label_surf, (label_x, padding))
 
             img_surf = self.loaded_surfaces[0]
             if img_surf:
-                img_area_h = self.height - label_height - padding
+                img_area_h = self.height - header_height - footer_height - padding
                 img_area_w = self.width - padding * 2
                 scaled = self.scale_image(img_surf, img_area_w, img_area_h)
                 img_x = self.width // 2 - scaled.get_width() // 2
-                img_y = label_height
+                img_y = header_height
                 surface.blit(scaled, (img_x, img_y))
 
+            if self.visual_aid_footers:
+                footer = self.visual_aid_footers[0]
+                footer_surf = self.label_font.render(footer, True, (50, 50, 50))
+                footer_x = self.width // 2 - footer_surf.get_width() // 2
+                footer_y = self.height - footer_height
+                surface.blit(footer_surf, (footer_x, footer_y))
+
         elif count >= 2:
-            
             half_w = self.width // 2
+
+            # Divider line
+            pygame.draw.line(surface, (180, 180, 180),
+                            (half_w, 0), (half_w, self.height), 2)
 
             for i in range(2):
                 offset_x = i * half_w
+
+                # Header label (word spelling)
                 label = self.visual_aid_labels[i] if i < len(self.visual_aid_labels) else ''
-
-                
-                if i == 1:
-                    pygame.draw.line(surface, (80, 80, 80),
-                                     (half_w, 0), (half_w, self.height), 2)
-
-                label_surf = self.label_font.render(label, True, (255, 255, 255))
+                label_surf = self.label_font.render(label, True, (50, 50, 50))
                 label_x = offset_x + half_w // 2 - label_surf.get_width() // 2
                 surface.blit(label_surf, (label_x, padding))
 
+                # Image
                 img_surf = self.loaded_surfaces[i] if i < len(self.loaded_surfaces) else None
                 if img_surf:
                     img_area_w = half_w - padding * 2
-                    img_area_h = self.height - label_height - padding
+                    img_area_h = self.height - header_height - footer_height - padding * 2
                     scaled = self.scale_image(img_surf, img_area_w, img_area_h)
                     img_x = offset_x + half_w // 2 - scaled.get_width() // 2
-                    img_y = label_height
+                    img_y = header_height
                     surface.blit(scaled, (img_x, img_y))
+
+                # Footer label (A/B)
+                if self.visual_aid_footers and i < len(self.visual_aid_footers):
+                    footer = self.visual_aid_footers[i]
+                    footer_surf = self.label_font.render(footer, True, (50, 50, 50))
+                    footer_x = offset_x + half_w // 2 - footer_surf.get_width() // 2
+                    footer_y = self.height - footer_height
+                    surface.blit(footer_surf, (footer_x, footer_y))
 
     def scale_image(self, surf, max_w, max_h):
         orig_w, orig_h = surf.get_size()
@@ -415,13 +478,19 @@ class FaceNode(Node):
             get_package_share_directory('bloom_face'), 'visual_aids'
         )
 
-        
         pygame.init()
         pygame.font.init()
-        info = pygame.display.Info()
-        self.width = info.current_w
-        self.height = info.current_h
-        self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN)
+
+        num_displays = pygame.display.get_num_displays()
+        print(f'Displays found: {num_displays}')
+        for i in range(num_displays):
+            print(f'  Display {i}: {pygame.display.get_desktop_sizes()[i]}')
+
+        display_index = 1 if num_displays > 1 else 0
+        self.width, self.height = 800, 480
+        self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN | pygame.NOFRAME, display=display_index)
+
+        print(f'Using display {display_index}: {self.width}x{self.height}')
         pygame.mouse.set_visible(False)
         pygame.display.set_caption('Bloom')
 
@@ -439,6 +508,8 @@ class FaceNode(Node):
         self.create_subscription(String, '/face/visemes', self.on_visemes, 10)
         self.create_subscription(String, '/face/command', self.on_face_command, 10)
         self.create_subscription(String, '/face/visual_aid', self.on_visual_aid, 10)
+        self.pairing_code = None
+        self.create_subscription(String, '/robot/session_code', self.on_session_code, 10)
 
         
         self.create_timer(1.0 / 30.0, self.render)
@@ -466,7 +537,7 @@ class FaceNode(Node):
     def on_robot_state(self, msg: String):
         state = msg.data.lower()
         state_emotion_map = {
-            'waiting':  'neutral',
+            'waiting':  'calm',
             'talking':  'happy',
             'loading':  'thinking',
             'idle':     'calm',
@@ -508,10 +579,16 @@ class FaceNode(Node):
             else:
                 images = data.get('images', [])
                 labels = data.get('labels', [])
+                footers = data.get('footers', [])
                 with self.lock:
-                    self.face.show_visual_aid(images, labels, self.visual_aids_dir)
+                    self.face.show_visual_aid(images, labels, self.visual_aids_dir, footers)
         except Exception as e:
             self.get_logger().warn(f'Failed to parse visual aid command: {e}')
+
+    def on_session_code(self, msg: String):
+        with self.lock:
+            self.pairing_code = msg.data.strip()
+            self.get_logger().info(f'Received pairing code: {self.pairing_code}')
 
     def render(self):
         for event in pygame.event.get():
@@ -526,8 +603,18 @@ class FaceNode(Node):
         with self.lock:
             self.face.update(dt)
             self.face.draw(self.screen)
+            if self.pairing_code:
+                self._draw_pairing_code(self.pairing_code)
 
         pygame.display.flip()
+
+    def _draw_pairing_code(self, code: str):
+        label = f'Pairing Code: {code}'
+        font = self.face.pairing_font
+        text_surf = font.render(label, True, (0, 0, 0))
+        x = self.width // 2 - text_surf.get_width() // 2
+        y = self.height - text_surf.get_height() - 12
+        self.screen.blit(text_surf, (x, y))
 
     def destroy_node(self):
         pygame.quit()

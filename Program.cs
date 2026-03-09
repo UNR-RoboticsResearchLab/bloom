@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Options;
 using Pomelo.EntityFrameworkCore.MySql.Internal;
 using Microsoft.AspNetCore.DataProtection;
+using System.Security.Cryptography.X509Certificates;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,10 +48,13 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
 
     )));
 
+var cert = X509CertificateLoader.LoadPkcs12FromFile("certs/bloomserver.pfx", "bloomserver");
+
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
     .SetApplicationName("BloomServer")
-    .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
+    .SetDefaultKeyLifetime(TimeSpan.FromDays(90))
+    .ProtectKeysWithCertificate(cert);
 
 
 // Add identity

@@ -12,8 +12,8 @@ using bloom.Data;
 namespace bloom.Migrations
 {
     [DbContext(typeof(BloomDbContext))]
-    [Migration("20260305222845_continuity")]
-    partial class continuity
+    [Migration("20260308004403_dbInit")]
+    partial class dbInit
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

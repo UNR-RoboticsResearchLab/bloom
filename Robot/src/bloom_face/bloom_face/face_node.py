@@ -103,7 +103,7 @@ class Eye:
         highlight_x = int(pupil_x - pupil_size * 0.25)
         highlight_y = int(pupil_y - pupil_size * 0.25)
         pygame.draw.circle(surface, (255, 255, 255), (highlight_x, highlight_y), highlight_size)
-        
+
     def blink(self):
         self.target_size = self.base_size * 0.1
         self.blink_timer = 0.2
@@ -171,31 +171,60 @@ class BlossomFace:
 
         if emotion == 'happy':
             self.target_mouth_curve = 40
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
         elif emotion == 'sad':
             self.target_mouth_curve = -30
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
         elif emotion == 'excited':
             self.target_mouth_curve = 50
             self.left_eye.target_size = self.left_eye.base_size * 1.2
             self.right_eye.target_size = self.right_eye.base_size * 1.2
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
         elif emotion == 'calm':
             self.target_mouth_curve = 10
             self.left_eye.target_size = self.left_eye.base_size * 0.9
             self.right_eye.target_size = self.right_eye.base_size * 0.9
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
         elif emotion == 'surprised':
             self.target_mouth_curve = 0
             self.left_eye.target_size = self.left_eye.base_size * 1.4
             self.right_eye.target_size = self.right_eye.base_size * 1.4
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
         elif emotion == 'thinking':
             self.target_mouth_curve = 5
             self.left_eye.look_at(self.width * 0.3, self.height * 0.3)
+            self.right_eye.look_at(self.width * 0.3, self.height * 0.3)
         elif emotion == 'sleepy':
             self.target_mouth_curve = 0
             self.left_eye.target_size = self.left_eye.base_size * 0.5
             self.right_eye.target_size = self.right_eye.base_size * 0.5
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
         else:
             self.target_mouth_curve = 0
             self.left_eye.target_size = self.left_eye.base_size
             self.right_eye.target_size = self.right_eye.base_size
+            self.left_eye.target_pupil_x = 0
+            self.left_eye.target_pupil_y = 0
+            self.right_eye.target_pupil_x = 0
+            self.right_eye.target_pupil_y = 0
 
     def set_mouth_mode(self, mode):
         self.mouth_mode = mode

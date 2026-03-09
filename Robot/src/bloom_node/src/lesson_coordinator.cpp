@@ -100,6 +100,13 @@ void LessonCoordinator::reset_lesson() {
 }
 
 void LessonCoordinator::execute_step(const LessonStep &step) {
+    waiting_for_tts_done_ = false;
+    waiting_for_interaction_tts_ = false;
+    waiting_for_wrap_up_ = false;
+    waiting_for_single_turn_ = false;
+    waiting_for_llm_tts_done_ = false;
+    waiting_for_response_ = false;
+
     RCLCPP_INFO(this->get_logger(), "Executing step %d", step.id);
     RCLCPP_INFO(this->get_logger(), "[EXECUTE] step %d type=%s has_interaction=%s llm_follow_up=%s",
         step.id, step.type.c_str(),
@@ -367,7 +374,7 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
             return s;
         };
         std::string norm_response = normalize(digits_to_words(response));
-std::string norm_answer = normalize(digits_to_words(interaction.correct_answer));
+        std::string norm_answer = normalize(digits_to_words(interaction.correct_answer));
         bool is_correct = !norm_answer.empty() && 
                         (norm_response.find(norm_answer) != std::string::npos);
 
@@ -393,6 +400,7 @@ std::string norm_answer = normalize(digits_to_words(interaction.correct_answer))
         log_interaction_to_backend(step.id, response, is_correct);
 
         waiting_for_response_ = false;
+        waiting_for_interaction_tts_ = false;
 
         auto stt_msg = std_msgs::msg::String();
         stt_msg.data = "false";

@@ -161,30 +161,33 @@ class LLMNode(Node):
             response_text = "I'm sorry, I had trouble thinking of what to say. Can you say that differently?"
             self.conversation.append({'role': 'assistant', 'content': response_text})
 
-        # Check for wrap up token in lesson tangent mode
+        return_to_lesson = False
+        lesson_continue = False
+
         if self.mode == 'lesson_tangent' and '[RETURN_TO_LESSON]' in response_text:
             response_text = response_text.replace('[RETURN_TO_LESSON]', '').strip()
-            self.mode = 'lesson_mode'  # immediately stop accepting input
-            self.get_logger().info('[LLM] RETURN_TO_LESSON detected, mode immediately set to lesson_mode')
-            wrap_msg = String()
-            wrap_msg.data = 'done'
-            self.wrap_up_pub.publish(wrap_msg)
-        
-        # Handle single_turn mode
-        if self.mode == 'single_turn' and '[LESSON_CONTINUE]' in response_text:
+            self.mode = 'lesson_mode'
+            self.get_logger().info('[LLM] RETURN_TO_LESSON detected')
+            return_to_lesson = True
+        elif self.mode == 'single_turn' and '[LESSON_CONTINUE]' in response_text:
             response_text = response_text.replace('[LESSON_CONTINUE]', '').strip()
             self.single_turn_consumed = True
             self.mode = 'lesson_mode'
-            self.get_logger().info('[LLM] LESSON_CONTINUE detected, returning to lesson_mode')
-            wrap_msg = String()
-            wrap_msg.data = 'continue'
-            self.wrap_up_pub.publish(wrap_msg)  # reuse wrap_up topic to signal coordinator
-
-        
+            self.get_logger().info('[LLM] LESSON_CONTINUE detected')
+            lesson_continue = True
 
         tts_msg = String()
         tts_msg.data = response_text
         self.tts_pub.publish(tts_msg)
+
+        if return_to_lesson:
+            wrap_msg = String()
+            wrap_msg.data = 'done'
+            self.wrap_up_pub.publish(wrap_msg)
+        elif lesson_continue:
+            wrap_msg = String()
+            wrap_msg.data = 'continue'
+            self.wrap_up_pub.publish(wrap_msg)
 
     def clear_conversation(self):
         self.conversation = []

@@ -296,4 +296,11 @@ export default class ApiClient {
     return res;
   }
 
+  async getSessionCodeFromRobotCode(robotCode) {
+    const res = await this.request(`/api/robotsessions/join/${encodeURIComponent(robotCode)}`, {
+      method: "GET",
+    });
+    return res;
+  }
+
 }

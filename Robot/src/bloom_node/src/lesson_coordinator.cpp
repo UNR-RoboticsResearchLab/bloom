@@ -198,7 +198,7 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
 
         // Short pause then open the response window
         step_timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(500),
+            std::chrono::milliseconds(50),
             [this]() {
                 step_timer_->cancel();
                 step_timer_ = nullptr;

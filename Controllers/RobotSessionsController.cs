@@ -66,7 +66,8 @@ namespace bloom.Controllers
                         CreatedAt = session.CreatedAt,
                         LastUpdatedAt = session.LastUpdatedAt,
                         Robots = session.Robots,
-                        RobotIds = robotIds
+                        RobotIds = robotIds,
+                        ActiveLessonId = session.ActiveLessonId
                     });
                 }
 
@@ -116,7 +117,7 @@ namespace bloom.Controllers
                 var session = await _sessionService.StartSessionAsync(dto.RobotId, userId, dto.Anonymous);
                 var robotIds = (await _sessionService.GetSessionRobotsAsync(session.Id)).ToList();
 
-                return CreatedAtAction(nameof(GetSession), new { sessionId = session.Id }, 
+                return CreatedAtAction(nameof(GetSession), new { sessionId = session.Id },
                 new RobotSessionResponseDto
                 {
                     Id = session.Id,
@@ -125,7 +126,8 @@ namespace bloom.Controllers
                     CreatedAt = session.CreatedAt,
                     LastUpdatedAt = session.LastUpdatedAt,
                     Robots = session.Robots,
-                    RobotIds = robotIds
+                    RobotIds = robotIds,
+                    ActiveLessonId = session.ActiveLessonId
                 });
             }
             catch (Exception ex)
@@ -161,7 +163,8 @@ namespace bloom.Controllers
                     CreatedAt = session.CreatedAt,
                     LastUpdatedAt = session.LastUpdatedAt,
                     Robots = session.Robots,
-                    RobotIds = robotIds
+                    RobotIds = robotIds,
+                    ActiveLessonId = session.ActiveLessonId
                 });
             }
             catch (Exception ex)
@@ -173,6 +176,7 @@ namespace bloom.Controllers
 
         /// <summary>
         /// User join a session using a 6-digit code. Validates code and returns session details if valid.
+        /// Sets the userId on the session if the user is authenticated.
         /// </summary>
         /// <param name="code">6-digit session code</param>
         /// <returns>Session details if code is valid</returns>
@@ -187,6 +191,15 @@ namespace bloom.Controllers
                 {
                     return NotFound(new { Message = $"Session with code {code} not found" });
                 }
+
+                // Set userId if the user is authenticated
+                var userId = GetCurrentUserId();
+                if (userId != null && session.UserId == null)
+                {
+                    await _sessionService.SetSessionUserIdAsync(session.Id, userId);
+                    session = await _sessionService.GetSessionAsync(session.Id) ?? session;
+                }
+
                 var robotIds = (await _sessionService.GetSessionRobotsAsync(session.Id)).ToList();
 
                 return Ok(new RobotSessionResponseDto
@@ -196,7 +209,8 @@ namespace bloom.Controllers
                     CreatedAt = session.CreatedAt,
                     LastUpdatedAt = session.LastUpdatedAt,
                     Robots = session.Robots,
-                    RobotIds = robotIds
+                    RobotIds = robotIds,
+                    ActiveLessonId = session.ActiveLessonId
                 });
             }
             catch (Exception ex)

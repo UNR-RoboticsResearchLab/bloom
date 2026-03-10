@@ -302,31 +302,49 @@ namespace bloom.Services
 
                 // Load the lesson JSON file
                 string lessonJson;
+                var filePath = session.ActiveLesson.LessonFileUrl;
+
+                // If the path is relative, resolve it against the content root
+                if (!Path.IsPathRooted(filePath))
+                {
+                    filePath = Path.Combine(_env.ContentRootPath, filePath);
+                }
+
+                // If the lesson file doesn't exist, return null (no pending lesson)
+                if (!File.Exists(filePath))
+                {
+                    return null;
+                }
+
                 try
                 {
-                    var filePath = session.ActiveLesson.LessonFileUrl;
-
-                    // If the path is relative, resolve it against the content root
-                    if (!Path.IsPathRooted(filePath))
-                    {
-                        filePath = Path.Combine(_env.ContentRootPath, filePath);
-                    }
-
                     lessonJson = await File.ReadAllTextAsync(filePath);
                 }
                 catch (FileNotFoundException)
                 {
-                    throw new InvalidOperationException($"Lesson file not found at {session.ActiveLesson.LessonFileUrl}");
+                    return null;
                 }
 
-                // Parse the lesson JSON to ensure it's valid
-                var parsedLesson = System.Text.Json.JsonSerializer.Deserialize<dynamic>(lessonJson);
-
-                return new
+                // Parse the lesson JSON as JsonElement first to preserve structure
+                using (var jsonDoc = System.Text.Json.JsonDocument.Parse(lessonJson))
                 {
-                    hasPendingLesson = true,
-                    lesson = parsedLesson
-                };
+                    var lessonElement = jsonDoc.RootElement;
+
+                    // Build a new object with the lesson content, ensuring "id" is present
+                    var lessonDict = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(lessonElement.GetRawText());
+
+                    if (lessonDict != null && !lessonDict.ContainsKey("id"))
+                    {
+                        // Add the database lesson ID if not present in the file
+                        lessonDict["id"] = session.ActiveLesson.Id.ToString();
+                    }
+
+                    return new
+                    {
+                        hasPendingLesson = true,
+                        lesson = lessonDict
+                    };
+                }
             }
             catch (KeyNotFoundException)
             {
@@ -423,6 +441,20 @@ namespace bloom.Services
             await _dbContext.SaveChangesAsync();
 
             return session;
+        }
+
+        public async Task SetSessionUserIdAsync(Guid sessionId, string userId)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("UserId cannot be null or empty", nameof(userId));
+
+            session.UserId = userId;
+            session.LastUpdatedAt = DateTime.UtcNow;
+            _dbContext.Update(session);
+            await _dbContext.SaveChangesAsync();
         }
 
     }

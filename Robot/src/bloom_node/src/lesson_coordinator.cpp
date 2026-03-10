@@ -75,7 +75,8 @@ void LessonCoordinator::start_lesson() {
     lesson_active_ = true;
     current_step_index_ = 0;
 
-    RCLCPP_INFO(this->get_logger(), "Starting lesson: %s", current_lesson_.title.c_str());
+    RCLCPP_INFO(this->get_logger(), "[LESSON_START] Starting lesson: %s with %zu steps", current_lesson_.title.c_str(), current_lesson_.sequence.size());
+    RCLCPP_INFO(this->get_logger(), "[LESSON_STATE] lesson_active_=%s, calling advance_to_next_step()", lesson_active_ ? "true" : "false");
     advance_to_next_step();
 }
 
@@ -167,7 +168,7 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
     }
 }
 
-void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) {
+void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr) {
     RCLCPP_INFO(this->get_logger(), "[TTS_DONE_RAW] lesson_active_=%s",
         lesson_active_ ? "true" : "false");
     RCLCPP_INFO(this->get_logger(), "[TTS_DONE] waiting_for_tts_done_=%s | waiting_for_interaction_tts_=%s | waiting_for_wrap_up_=%s",
@@ -220,6 +221,12 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
 
                             if (!waiting_for_response_) return;
                             waiting_for_response_ = false;
+
+                            // Deactivate feedback polling when interaction times out
+                            if (feedback_poller_) {
+                                feedback_poller_->set_polling_active(false);
+                            }
+
                             auto stt_msg = std_msgs::msg::String();
                             stt_msg.data = "false";
                             stt_enable_pub_->publish(stt_msg);
@@ -265,7 +272,7 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr msg) 
     }
 }
 
-void LessonCoordinator::on_llm_wrap_up(const std_msgs::msg::String::SharedPtr msg) {
+void LessonCoordinator::on_llm_wrap_up(const std_msgs::msg::String::SharedPtr) {
     RCLCPP_INFO(this->get_logger(), "[LLM_WRAP_UP] received | waiting_for_wrap_up_=%s | waiting_for_single_turn_=%s",
         waiting_for_wrap_up_ ? "true" : "false",
         waiting_for_single_turn_ ? "true" : "false");
@@ -571,6 +578,17 @@ void LessonCoordinator::set_feedback_poller(std::shared_ptr<FeedbackPoller> feed
     std::lock_guard<std::mutex> lock(lesson_mutex_);
     feedback_poller_ = feedback_poller;
     RCLCPP_INFO(this->get_logger(), "FeedbackPoller registered with LessonCoordinator");
+}
+
+void LessonCoordinator::set_session_id(const std::string &session_id) {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    session_id_ = session_id;
+    RCLCPP_INFO(this->get_logger(), "Session ID set to: %s", session_id_.c_str());
+}
+
+std::string LessonCoordinator::get_session_id() const {
+    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(lesson_mutex_));
+    return session_id_;
 }
 
 

@@ -143,5 +143,12 @@ namespace bloom.Services
         /// <param name="dto">Lesson start configuration</param>
         /// <returns>The created lesson session</returns>
         Task<RobotSession> StartLessonAsync(Guid sessionId, StartLessonDto dto);
+
+        /// <summary>
+        /// Sets the userId on a session (e.g., when a user joins via pairing code)
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <param name="userId">ID of the user joining the session</param>
+        Task SetSessionUserIdAsync(Guid sessionId, string userId);
     }
 }

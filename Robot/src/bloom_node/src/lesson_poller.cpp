@@ -102,7 +102,7 @@ void LessonPoller::on_polling_tick() {
         status_path.str(),
         std::nullopt,
         std::vector<std::string>{},
-        [this, current_pairing_code](const std::string &body, long http_code) {
+        [this, current_pairing_code, current_session_id](const std::string &body, long http_code) {
             auto msg = std_msgs::msg::String();
 
             if (http_code == 200) {
@@ -111,10 +111,17 @@ void LessonPoller::on_polling_tick() {
                     bool has_user = j.contains("userId") && !j["userId"].is_null();
 
                     if (has_user && !paired_.load()) {
-                        // Just got paired - clear the face
+                        // Just got paired - clear the face and update LessonCoordinator with session ID
                         paired_.store(true);
                         msg.data = "";
                         session_code_pub_->publish(msg);
+
+                        // Propagate session_id to LessonCoordinator now that user is set
+                        if (lesson_coord_) {
+                            lesson_coord_->set_session_id(current_session_id);
+                            RCLCPP_INFO(this->get_logger(), "Updated LessonCoordinator with session ID: %s", current_session_id.c_str());
+                        }
+
                         RCLCPP_INFO(this->get_logger(), "Session paired — clearing pairing code from face");
                     } else if (!has_user && paired_.load()) {
                         // Lost pairing - show code again
@@ -143,7 +150,7 @@ void LessonPoller::on_polling_tick() {
 
     //Lesson polling
     if (currently_executing_.load()) {
-        RCLCPP_DEBUG(this->get_logger(), "Skipping lesson poll: lesson currently executing");
+        RCLCPP_WARN(this->get_logger(), "Skipping lesson poll: lesson currently executing (may be stuck)");
         return;
     }
 
@@ -155,22 +162,24 @@ void LessonPoller::on_polling_tick() {
         endpoint,
         std::nullopt,
         std::vector<std::string>{},
-        [this, endpoint](const std::string &body, long http_code) {
+        [this, endpoint, lesson_coord = lesson_coord_](const std::string &body, long http_code) {
             if (http_code == 204) {
-                RCLCPP_DEBUG(this->get_logger(), "No pending lesson");
+                RCLCPP_INFO(this->get_logger(), "No pending lesson");
                 return;
             }
 
             if (http_code < 200 || http_code >= 300) {
-                RCLCPP_WARN(this->get_logger(), "Failed to poll pending lesson (HTTP %ld): %s",
+                RCLCPP_INFO(this->get_logger(), "Failed to poll pending lesson (HTTP %ld): %s",
                     http_code, body.c_str());
                 return;
             }
 
             try {
                 json response = json::parse(body);
+                RCLCPP_INFO(this->get_logger(), "Pending lesson response: %s", response.dump().c_str());
+
                 if (!response.contains("hasPendingLesson") || !response["hasPendingLesson"].get<bool>()) {
-                    RCLCPP_DEBUG(this->get_logger(), "Response indicates no pending lesson");
+                    RCLCPP_INFO(this->get_logger(), "Response indicates no pending lesson");
                     return;
                 }
 
@@ -179,6 +188,7 @@ void LessonPoller::on_polling_tick() {
                     return;
                 }
 
+                RCLCPP_INFO(this->get_logger(), "Pending lesson received, calling handle_pending_lesson");
                 handle_pending_lesson(response["lesson"]);
             } catch (const json::exception &e) {
                 RCLCPP_ERROR(this->get_logger(), "Failed to parse lesson JSON: %s", e.what());
@@ -298,7 +308,8 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 			return;
 		}
 
-		RCLCPP_INFO(this->get_logger(), "Starting lesson: %s", lesson_id.c_str());
+		RCLCPP_INFO(this->get_logger(), "[SUCCESS] Lesson loaded: %s", lesson_id.c_str());
+		RCLCPP_INFO(this->get_logger(), "[STARTING] Calling start_lesson() on LessonCoordinator");
 
 		// Set completion callback to clear currently_executing_ flag when lesson finishes
 		lesson_coord_->set_completion_callback(
@@ -308,6 +319,7 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 			});
 
 		lesson_coord_->start_lesson();
+		RCLCPP_INFO(this->get_logger(), "[DONE] start_lesson() completed");
 
 	} catch (const std::exception &e) {
 		RCLCPP_ERROR(this->get_logger(), "Exception handling pending lesson: %s", e.what());

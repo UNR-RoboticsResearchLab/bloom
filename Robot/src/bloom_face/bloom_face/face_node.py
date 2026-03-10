@@ -488,7 +488,14 @@ class FaceNode(Node):
 
         display_index = 1 if num_displays > 1 else 0
         self.width, self.height = 800, 480
-        self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN | pygame.NOFRAME, display=display_index)
+
+        # For multi-monitor support: set window position before creating fullscreen display
+        if display_index > 0 and num_displays > 1:
+            desktop_sizes = pygame.display.get_desktop_sizes()
+            x_offset = sum(desktop_sizes[i][0] for i in range(display_index))
+            os.environ['SDL_VIDEO_WINDOW_POS'] = f'{x_offset + 1},{0}'
+
+        self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN | pygame.NOFRAME)
 
         print(f'Using display {display_index}: {self.width}x{self.height}')
         pygame.mouse.set_visible(False)

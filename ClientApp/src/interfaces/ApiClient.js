@@ -304,5 +304,6 @@ export default class ApiClient {
       method: "POST",
       body: JSON.stringify({ lessonId }),
     });
+    return res;
   }
 }

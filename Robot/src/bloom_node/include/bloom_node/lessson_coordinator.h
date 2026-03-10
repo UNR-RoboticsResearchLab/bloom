@@ -92,6 +92,12 @@ public:
     // Set the feedback poller to control during interactions
     void set_feedback_poller(std::shared_ptr<FeedbackPoller> feedback_poller);
 
+    // Set the session ID (called when user joins with pairing code and userId is set)
+    void set_session_id(const std::string &session_id);
+
+    // Get the current session ID
+    std::string get_session_id() const;
+
 private:
 
     void execute_step(const LessonStep &step);

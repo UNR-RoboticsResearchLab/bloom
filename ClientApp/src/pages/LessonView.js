@@ -1,17 +1,43 @@
+import { useApiClient } from "../context/ApiClientContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 
 export default function LessonView() {
     const location = useLocation();
     const navigate = useNavigate();
+    const api = useApiClient();
 
+    const sessionId = localStorage.getItem("pairedSessionId");
     const { lesson, student } = location.state || {};
+    const lessonId = lesson?.id ?? lesson?.Id;
 
     useEffect(() => {
-        if (!lesson || !student) {
-            navigate("/lessons");
+        async function startLesson() {
+            if (!lesson || !student) {
+                navigate("/lessons");
+                return;
+            }
+
+            if (!sessionId || !lessonId) {
+                console.error("Missing sessionId or lessonId");
+                return;
+            }
+            try {
+                console.log("Starting lesson session with:", {
+                    lessonId,
+                    sessionId,
+                    student,
+                });
+
+                const res = await api.startLessonSession(lessonId, sessionId);
+                console.log("Lesson session started:", res);
+            } catch (error) {
+                console.error("Failed to start lesson session:", error);
+            }
         }
-    }, [lesson, student, navigate]);
+
+        startLesson();
+    }, [lesson, student, lessonId, sessionId, navigate, api]);
 
     if (!lesson || !student) {
         return null;

@@ -298,4 +298,11 @@ export default class ApiClient {
     });
     return res;
   }
+
+  async startLessonSession(lessonId, sessionId) {
+    const res = await this.request(`/api/robotsessions/${sessionId}/lesson`, {
+      method: "POST",
+      body: JSON.stringify({ lessonId }),
+    });
+  }
 }

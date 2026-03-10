@@ -20,6 +20,7 @@ export function PairRobotCard({ onCancel, onPaired }) {
 
       if (returnedSessionId) {
         setSessionId(returnedSessionId);
+        localStorage.setItem("sessionId", returnedSessionId);
         console.log("Session ID:", returnedSessionId);
 
         if (onPaired) {

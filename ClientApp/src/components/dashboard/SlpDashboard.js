@@ -74,6 +74,7 @@ export default function SlpDashboard() {
   const [selectedStudentId, setSelectedStudentId] = useState("S1");
   const { addNote, getNotes } = useNotes();
   const [showPairRobotCard, setShowPairRobotCard] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   const selectedLesson = useMemo(
     () => mockLessons.find((l) => l.id === selectedLessonId),
@@ -93,8 +94,6 @@ export default function SlpDashboard() {
     const avgAcc = accVals.length ? accVals.reduce((a, b) => a + b, 0) / accVals.length : 0;
     return { totalLessons, totalStudents, avgAcc };
   }, []);
-
-  const isConnected = true;
 
   function handleAddNote(e) {
     e.preventDefault();
@@ -131,12 +130,12 @@ export default function SlpDashboard() {
           <div className="text-sm text-gray-600">Students Assigned</div>
           <div className="mt-1 text-2xl font-semibold">{headerStats.totalStudents}</div>
         </div>
-        <div className="rounded-lg bg-white p-4 shadow">
-          <div className="text-sm text-gray-600">Robot Status</div>
-          <div className="mt-1 flex items-center gap-2" 
+        <div className="rounded-lg bg-white p-4 shadow" 
             onClick={()=>{
                 setShowPairRobotCard(true);
               }}>
+          <div className="text-sm text-gray-600">Robot Status</div>
+          <div className="mt-1 flex items-center gap-2">
             <span
               className={`h-2.5 w-2.5 rounded-full ${
                 isConnected ? "bg-green-500" : "bg-red-500"
@@ -150,30 +149,6 @@ export default function SlpDashboard() {
           </div>
         </div>
       </div>
-
-
-
-      {/* <div className="mt-6">
-        <section className="rounded-lg bg-white p-4 shadow">
-          <h3 className="text-base font-semibold">Lessons</h3>
-          <ul className="mt-3 divide-y list-none pl-0">
-            {mockLessons.map((lesson) => (
-              <li key={lesson.id} className="py-2">
-                <button
-                  onClick={() => setSelectedLessonId(lesson.id)}
-                  className={`w-full text-left ${selectedLessonId === lesson.id ? "font-semibold text-indigo-700" : "text-gray-800"} `}
-                >
-                  {lesson.title}
-                </button>
-                <div className="text-xs text-gray-500">
-                  Students: {lesson.students.map((sid) => mockStudents[sid].name).join(", ")}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div> */}
-
 
 
       <div className="mt-6">
@@ -205,29 +180,6 @@ export default function SlpDashboard() {
           </div>
         </section>
       </div>
-          
-      {/* <div className="mt-6">
-        <section className="rounded-lg bg-white p-4 shadow">
-          <h3 className="text-base font-semibold">Students in Selected Lesson</h3>
-          <ul className="mt-3 divide-y list-none pl-0">
-            {studentsForLesson.map((s) => (
-              <li key={s.id} className="py-2">
-                <button
-                  onClick={() => setSelectedStudentId(s.id)}
-                  className={`w-full text-left ${selectedStudentId === s.id ? "font-semibold text-indigo-700" : "text-gray-800"} `}
-                >
-                  {s.name}
-                </button>
-                <div className="mt-1 grid grid-cols-2 gap-3 text-xs text-gray-600">
-                  <div>Active: {s.active.join(", ") || "None"}</div>
-                  <div>Completed: {s.completed.join(", ") || "None"}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div> */}
-
 
       <div className="mt-6">
         <section className="rounded-lg bg-white p-4 shadow">
@@ -256,30 +208,6 @@ export default function SlpDashboard() {
           </div>
         </section>
       </div>
-
-
-
-      {/* <div className="mt-6">
-        <section className="rounded-lg bg-white p-4 shadow">
-          <h3 className="text-base font-semibold">STT Accuracy by Student</h3>
-          <ul className="mt-3 space-y-3 list-none pl-0">
-            {Object.entries(sttForLesson).map(([sid, m]) => (
-              <li key={sid} className="rounded border p-3">
-                <div className="flex items-center justify-between">
-                  <div className="font-medium">{mockStudents[sid].name}</div>
-                  <div className="text-sm text-gray-600">Success {m.success} • Fail {m.fail}</div>
-                </div>
-                <div className="mt-2">
-                  <AccuracyBar value={m.accuracy} />
-                </div>
-              </li>
-            ))}
-            {!Object.keys(sttForLesson).length && (
-              <li className="text-sm text-gray-600">No accuracy data yet</li>
-            )}
-          </ul>
-        </section>
-      </div> */}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg bg-white p-4 shadow">
@@ -354,7 +282,14 @@ export default function SlpDashboard() {
                           />
       
                           <div className="relative z-10 w-full max-w-xl px-4">
-                              <PairRobotCard onCancel={() => setShowPairRobotCard(false)} />
+                              <PairRobotCard
+                                onCancel={() => setShowPairRobotCard(false)}
+                                onPaired={(sessionId) => {
+                                  console.log("Paired in dashboard:", sessionId);
+                                  setIsConnected(true);
+                                  setShowPairRobotCard(false);
+                                }}
+                              />
                           </div>
                       </div>
                   )}

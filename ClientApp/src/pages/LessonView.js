@@ -206,20 +206,23 @@ export default function LessonView() {
                     <h2 className="text-lg font-semibold text-gray-900">Lesson Controls</h2>
                 </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-3 items-center">
+                <div className="mt-4 h-[200px] overflow-y-auto rounded-2xl border bg-white p-4 space-y-4">
+
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-[1fr_2fr_1fr] items-stretch">
     
                     {/* Back Button */}
                     <button
                         type="button"
                         onClick={handleBackStep}
-                        className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 hover:shadow-md"
-                    >
+                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 hover:shadow-md"                    >
                         <span className="text-lg">{"<"}</span>
                         Back
                     </button>
 
                     {/* Middle Control */}
-                    <div className="flex flex-col items-center rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
+                    <div className="flex flex-col items-center rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                         <p className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             Jump to Step
                         </p>
@@ -245,7 +248,7 @@ export default function LessonView() {
                     <button
                         type="button"
                         onClick={handleForwardStep}
-                        className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 hover:shadow-md"
+                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 hover:shadow-md"
                     >
                         Forward
                         <span className="text-lg">{">"}</span>

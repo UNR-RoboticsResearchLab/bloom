@@ -15,6 +15,25 @@ export default function LessonView() {
     const [noteText, setNoteText] = useState("");
     const [stepInput, setStepInput] = useState("");
 
+    const [step, setStep] = useState([
+        {
+            id: 1,
+            title: "Step 1: Introduction",
+            text: "Hello. We are starting the lesson now.",
+        },
+        {
+            id: 2,
+            title: "Step 2: Practice",
+            text: "Please say the word red.",
+        },
+        {
+            id: 3,
+            title: "Step 3: Review",
+            text: "Let's review what we've learned.",
+        }
+    ]);
+
+
     // Fake data needs to be replaced with real conversation data from the backend
     const [conversation, setConversation] = useState([
         {
@@ -35,6 +54,24 @@ export default function LessonView() {
             text: "Please say the word red.",
             ts: new Date().toLocaleTimeString(),
         },
+        {
+            id: 4,
+            type: "student",
+            text: "Red.",
+            ts: new Date().toLocaleTimeString(),
+        },
+        {
+            id: 5,
+            type: "note",
+            text: "Student pronounced 'red' correctly but with a slight hesitation.",
+            ts: new Date().toLocaleTimeString(),
+        },
+        {
+            id: 6,
+            type: "robot",
+            text: "Let's review what we've learned.",
+            ts: new Date().toLocaleTimeString(),
+        }
     ]);
 
     // This effect starts the lesson. It checks if the lesson and student data are available, and if not, it redirects back to the lessons list. It also ensures that the lesson session is only started once using a ref.
@@ -206,8 +243,18 @@ export default function LessonView() {
                     <h2 className="text-lg font-semibold text-gray-900">Lesson Controls</h2>
                 </div>
 
-                <div className="mt-4 h-[200px] overflow-y-auto rounded-2xl border bg-white p-4 space-y-4">
-
+                <div className="mt-4 h-[250px] overflow-x-auto overflow-y-hidden rounded-2xl border bg-white p-4">
+                    <div className="flex gap-4 h-full items-stretch">
+                        {step.map((item) => (
+                            <div
+                                key={item.id}
+                                className="min-w-[250px] flex-shrink-0 h-full rounded-xl bg-cyan-500 border border-gray-300 p-4 shadow-sm flex flex-col"
+                            >
+                                <h4 className="font-semibold text-white">{item.title}</h4>
+                                <p className="mt-1 text-white">{item.text}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="mt-4 grid gap-4 md:grid-cols-[1fr_2fr_1fr] items-stretch">

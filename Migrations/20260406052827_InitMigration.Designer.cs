@@ -12,8 +12,8 @@ using bloom.Data;
 namespace bloom.Migrations
 {
     [DbContext(typeof(BloomDbContext))]
-    [Migration("20260305222845_continuity")]
-    partial class continuity
+    [Migration("20260406052827_InitMigration")]
+    partial class InitMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -363,8 +363,7 @@ namespace bloom.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("longtext");
 
-                    b.Property<string>("LessonFileUrl")
-                        .IsRequired()
+                    b.Property<string>("LearningObjectives")
                         .HasColumnType("longtext");
 
                     b.Property<int>("LessonType")
@@ -396,11 +395,13 @@ namespace bloom.Migrations
                     b.Property<DateTime?>("AcknowledgedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("DialogTurn")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("FeedbackCommand")
                         .HasColumnType("longtext");
 
                     b.Property<string>("InteractionType")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<bool?>("IsAcknowledged")
@@ -420,9 +421,6 @@ namespace bloom.Migrations
 
                     b.Property<int>("StepId")
                         .HasColumnType("int");
-
-                    b.Property<string>("StudentResponse")
-                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime(6)");
@@ -465,6 +463,45 @@ namespace bloom.Migrations
                     b.HasIndex("StudentId");
 
                     b.ToTable("LessonProgresses", (string)null);
+                });
+
+            modelBuilder.Entity("bloom.Models.LessonStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Behaviors")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Interaction")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Script")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("StepOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TimingSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("VisualAid")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonId");
+
+                    b.ToTable("LessonSteps", (string)null);
                 });
 
             modelBuilder.Entity("bloom.Models.Robot", b =>
@@ -755,6 +792,17 @@ namespace bloom.Migrations
                     b.Navigation("Student");
                 });
 
+            modelBuilder.Entity("bloom.Models.LessonStep", b =>
+                {
+                    b.HasOne("bloom.Models.Lesson", "Lesson")
+                        .WithMany("Steps")
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
+                });
+
             modelBuilder.Entity("bloom.Models.Robot", b =>
                 {
                     b.HasOne("bloom.Models.Account", "RegisteredUser")
@@ -863,6 +911,8 @@ namespace bloom.Migrations
             modelBuilder.Entity("bloom.Models.Lesson", b =>
                 {
                     b.Navigation("Assignments");
+
+                    b.Navigation("Steps");
                 });
 
             modelBuilder.Entity("bloom.Models.RobotSession", b =>

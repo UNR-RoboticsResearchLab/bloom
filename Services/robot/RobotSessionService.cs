@@ -9,7 +9,6 @@ using bloom.Models.dto;
 using bloom.Data;
 using bloom.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Hosting;
 
 namespace bloom.Services
 {
@@ -19,20 +18,17 @@ namespace bloom.Services
         private readonly IRobotSessionRepository _sessionRepository;
         private readonly IRobotStateRepository _stateRepository;
         private readonly ISessionCodeService _sessionCodeService;
-        private readonly IWebHostEnvironment _env;
 
         public RobotSessionService(
             BloomDbContext dbContext,
             IRobotSessionRepository sessionRepository,
             IRobotStateRepository stateRepository,
-            ISessionCodeService sessionCodeService,
-            IWebHostEnvironment env)
+            ISessionCodeService sessionCodeService)
         {
             _dbContext = dbContext;
             _sessionRepository = sessionRepository;
             _stateRepository = stateRepository;
             _sessionCodeService = sessionCodeService;
-            _env = env;
         }
 
         public async Task<RobotSession> StartSessionAsync(Guid robotId, string? userId = null, bool anon = false)
@@ -286,56 +282,20 @@ namespace bloom.Services
 
         public async Task<dynamic?> GetPendingLessonAsync(Guid sessionId)
         {
-            try
+            var session = await _dbContext.RobotSessions
+                .Include(s => s.ActiveLesson)
+                    .ThenInclude(l => l!.Steps.OrderBy(step => step.StepOrder))
+                .FirstOrDefaultAsync(s => s.Id == sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            if (session.ActiveLessonId == null || session.ActiveLesson == null)
+                return null;
+
+            return new
             {
-                // Get the session with its active lesson
-                var session = await _dbContext.RobotSessions
-                    .Include(s => s.ActiveLesson)
-                    .FirstOrDefaultAsync(s => s.Id == sessionId);
-
-                if (session == null)
-                    throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
-
-                // If no active lesson, return null (no pending lesson)
-                if (session.ActiveLessonId == null || session.ActiveLesson == null)
-                    return null;
-
-                // Load the lesson JSON file
-                string lessonJson;
-                try
-                {
-                    var filePath = session.ActiveLesson.LessonFileUrl;
-
-                    // If the path is relative, resolve it against the content root
-                    if (!Path.IsPathRooted(filePath))
-                    {
-                        filePath = Path.Combine(_env.ContentRootPath, filePath);
-                    }
-
-                    lessonJson = await File.ReadAllTextAsync(filePath);
-                }
-                catch (FileNotFoundException)
-                {
-                    throw new InvalidOperationException($"Lesson file not found at {session.ActiveLesson.LessonFileUrl}");
-                }
-
-                // Parse the lesson JSON to ensure it's valid
-                var parsedLesson = System.Text.Json.JsonSerializer.Deserialize<dynamic>(lessonJson);
-
-                return new
-                {
-                    hasPendingLesson = true,
-                    lesson = parsedLesson
-                };
-            }
-            catch (KeyNotFoundException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Error retrieving pending lesson for session {sessionId}: {ex.Message}", ex);
-            }
+                hasPendingLesson = true,
+                lesson = session.ActiveLesson
+            };
         }
 
         public async Task<Guid> RecordSLPFeedbackAsync(Guid sessionId, RecordSLPFeedbackDto dto)

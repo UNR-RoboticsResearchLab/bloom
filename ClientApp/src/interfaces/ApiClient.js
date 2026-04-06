@@ -36,7 +36,7 @@ export default class ApiClient {
       selectedRole: String(payload.role),
     };
 
-    const res = await this.request("/api/accounts/create", {
+    const res = await this.request("/api/account/create", {
       method: "POST",
       body: JSON.stringify(body),
     });
@@ -48,7 +48,7 @@ export default class ApiClient {
   async signIn(email, password) {
     const payload = { email, password };
 
-    const data = await this.request("/api/accounts/login", {
+    const data = await this.request("/api/account/login", {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -68,9 +68,16 @@ export default class ApiClient {
 
 
   async getUserProfile(id) {
-    const res = await this.request(`/api/accounts/${id}`, {
+    const res = await this.request(`/api/account/${id}`, {
       method: "GET",
     });
     return res;
+  }
+
+  async createLesson(lessonDto) {
+    return this.request("/api/lesson/create", {
+      method: "POST",
+      body: JSON.stringify(lessonDto),
+    });
   }
 }

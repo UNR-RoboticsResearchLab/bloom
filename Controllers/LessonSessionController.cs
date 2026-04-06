@@ -20,13 +20,16 @@ namespace bloom.Controllers
     {
         private readonly ILogger<LessonSessionController> _logger;
         private readonly IRobotSessionService _sessionService;
+        private readonly IStepControlService _stepControlService;
 
         public LessonSessionController(
             ILogger<LessonSessionController> logger,
-            IRobotSessionService sessionService)
+            IRobotSessionService sessionService,
+            IStepControlService stepControlService)
         {
             _logger = logger;
             _sessionService = sessionService;
+            _stepControlService = stepControlService;
         }
 
         /// <summary>
@@ -170,6 +173,88 @@ namespace bloom.Controllers
                 _logger.LogError(ex, "Error updating lesson progress for session {SessionId}", sessionId);
                 return StatusCode(500, "Internal server error");
             }
+        }
+
+        /// <summary>
+        /// Skip the current lesson step. The robot will advance to the next step on its next poll.
+        /// </summary>
+        [HttpPost("{sessionId}/lessons/skip")]
+        public async Task<IActionResult> SkipStep(Guid sessionId)
+        {
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            _stepControlService.SetPendingControl(sessionId, "skip");
+            _logger.LogInformation("Skip command issued for session {SessionId}", sessionId);
+            return Ok(new { Message = "Skip command queued", SessionId = sessionId });
+        }
+
+        /// <summary>
+        /// Replay the current lesson step. The robot will restart the current step on its next poll.
+        /// </summary>
+        [HttpPost("{sessionId}/lessons/replay")]
+        public async Task<IActionResult> ReplayStep(Guid sessionId)
+        {
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            _stepControlService.SetPendingControl(sessionId, "replay");
+            _logger.LogInformation("Replay command issued for session {SessionId}", sessionId);
+            return Ok(new { Message = "Replay command queued", SessionId = sessionId });
+        }
+
+        /// <summary>
+        /// Jump to a specific lesson step. The robot will move to the given step on its next poll.
+        /// </summary>
+        [HttpPost("{sessionId}/lessons/set-step")]
+        public async Task<IActionResult> SetStep(Guid sessionId, [FromBody] SetStepDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            _stepControlService.SetPendingControl(sessionId, "set_step", dto.TargetStep);
+            _logger.LogInformation("Set step {TargetStep} command issued for session {SessionId}", dto.TargetStep, sessionId);
+            return Ok(new { Message = "Set step command queued", SessionId = sessionId, dto.TargetStep });
+        }
+
+        /// <summary>
+        /// Polling endpoint for the robot to check for a pending step control command.
+        /// Returns 200 with command details if one is queued, or 204 if none.
+        /// </summary>
+        [HttpGet("{sessionId}/lessons/step-control")]
+        public async Task<IActionResult> GetPendingStepControl(Guid sessionId)
+        {
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            var control = _stepControlService.GetPendingControl(sessionId);
+            if (control == null)
+                return NoContent();
+
+            return Ok(control);
+        }
+
+        /// <summary>
+        /// Acknowledge and clear the pending step control command for a session.
+        /// Called by the robot after it has acted on the command.
+        /// </summary>
+        [HttpDelete("{sessionId}/lessons/step-control")]
+        public async Task<IActionResult> AcknowledgeStepControl(Guid sessionId)
+        {
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            _stepControlService.ClearControl(sessionId);
+            _logger.LogInformation("Step control acknowledged and cleared for session {SessionId}", sessionId);
+            return Ok(new { Message = "Step control cleared", SessionId = sessionId });
         }
 
         private string? GetCurrentUserId()

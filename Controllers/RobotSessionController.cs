@@ -87,62 +87,6 @@ namespace bloom.Controllers
         }
 
         /// <summary>
-        /// Start a new robot session
-        /// </summary>
-        /// <param name="dto">Session configuration</param>
-        /// <returns>The created RobotSession</returns>
-        [HttpPost]
-        public async Task<IActionResult> StartSession([FromBody] StartSessionDto dto)
-        {
-            try
-            {
-                if (!ModelState.IsValid)
-                {
-                    _logger.LogError("ModelState invalid for StartSession. Errors: {Errors}",
-                        string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
-                    return BadRequest(ModelState);
-                }
-
-                _logger.LogInformation("StartSession called with RobotId: {RobotId}, Anonymous: {Anonymous}",
-                    dto.RobotId, dto.Anonymous);
-
-                var userId = GetCurrentUserId();
-
-                // For anonymous sessions, userId can be null
-                // For authenticated sessions, verify user exists
-                if (!dto.Anonymous && userId != null)
-                {
-                    var user = await _accountService.GetByIdAsync(userId);
-                    if (user == null)
-                    {
-                        _logger.LogWarning("Attempted to start session with non-existent user {UserId}", userId);
-                        return Unauthorized();
-                    }
-                }
-
-                var session = await _sessionService.StartSessionAsync(dto.RobotId, userId, dto.Anonymous);
-                var robotIds = (await _sessionService.GetSessionRobotsAsync(session.Id)).ToList();
-
-                return CreatedAtAction(nameof(GetSession), new { sessionId = session.Id }, 
-                new RobotSessionResponseDto
-                {
-                    Id = session.Id,
-                    UserId = session.UserId,
-                    SessionCode = session.SessionCode,
-                    CreatedAt = session.CreatedAt,
-                    LastUpdatedAt = session.LastUpdatedAt,
-                    Robots = session.Robots,
-                    RobotIds = robotIds
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error starting robot session");
-                return BadRequest("It sure is bad if you get this!");
-            }
-        }
-
-        /// <summary>
         /// Get session details
         /// </summary>
         /// <param name="sessionId">ID of the session</param>

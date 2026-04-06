@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import DashboardLayout from "./DashboardLayout";
+import LessonBuilder from "../LessonBuilder";
+import { useApiClient } from "../../context/ApiClientContext";
 
 function Stat({ label, value, unit = "", percent = null }) {
   return (
@@ -24,6 +26,16 @@ function Stat({ label, value, unit = "", percent = null }) {
 }
 
 export default function AdminDashboard() {
+  const api = useApiClient();
+  const [lessonPaneOpen, setLessonPaneOpen] = useState(false);
+  const [lessonSuccess, setLessonSuccess] = useState("");
+
+  async function handleLessonSubmit(dto) {
+    await api.createLesson(dto);
+    setLessonSuccess(`"${dto.title}" saved.`);
+    setLessonPaneOpen(false);
+  }
+
   // Simulated readings; replace with real values from your API later
   const [tick, setTick] = useState(0);
   const readings = useMemo(() => {
@@ -55,13 +67,52 @@ export default function AdminDashboard() {
     <DashboardLayout title="Admin Dashboard">
       <div className="mb-4 flex items-center justify-between">
         <div className="text-sm text-gray-600">Last updated: {readings.updatedAt}</div>
-        <button
-          onClick={refresh}
-          className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setLessonPaneOpen(true)}
+            className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
+          >
+            + Add Lesson
+          </button>
+          <button
+            onClick={refresh}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {lessonSuccess && (
+        <div className="mb-4 rounded-md bg-green-50 px-4 py-2 text-sm text-green-700">
+          {lessonSuccess}
+        </div>
+      )}
+
+      {/* Add Lesson modal */}
+      {lessonPaneOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setLessonPaneOpen(false)}
+          />
+          <div className="relative z-50 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-gray-50 shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 rounded-t-xl">
+              <h2 className="text-base font-semibold text-gray-900">Add Lesson</h2>
+              <button
+                onClick={() => setLessonPaneOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            <LessonBuilder
+              onSubmit={handleLessonSubmit}
+              onCancel={() => setLessonPaneOpen(false)}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Stat label="PI Memory Usage" value={readings.memUsedPct.toFixed(0)} unit="%" percent={readings.memUsedPct} />

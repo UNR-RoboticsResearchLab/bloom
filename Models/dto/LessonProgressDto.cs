@@ -94,4 +94,22 @@ namespace bloom.Models.dto
         public string? FeedbackCommand { get; set; }   // "approve" | "retry"
         public DateTime? IssuedAt { get; set; }
     }
+
+    /// <summary>
+    /// Request DTO for the set-step step control command.
+    /// </summary>
+    public class SetStepDto
+    {
+        public required int TargetStep { get; set; }
+    }
+
+    /// <summary>
+    /// In-memory step control command polled by the robot.
+    /// Cleared once the robot acknowledges it.
+    /// </summary>
+    public class PendingStepControlDto
+    {
+        public string Command { get; set; } = string.Empty;  // "skip" | "replay" | "set_step"
+        public int? TargetStep { get; set; }                 // Only set for "set_step"
+    }
 }

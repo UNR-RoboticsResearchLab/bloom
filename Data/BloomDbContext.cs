@@ -20,6 +20,7 @@ namespace bloom.Data
         public DbSet<Robot> Robots { get; set; }
         public DbSet<RobotSession> RobotSessions { get; set; }
         public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
+        public DbSet<LessonStep> LessonSteps { get; set; }
         public DbSet<LessonProgress> LessonProgresses { get; set; }
         public DbSet<LessonInteraction> LessonInteractions { get; set; }
 
@@ -50,6 +51,16 @@ namespace bloom.Data
                     .WithOne(a => a.Lesson)
                     .HasForeignKey(a => a.LessonId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(l => l.Steps)
+                    .WithOne(s => s.Lesson)
+                    .HasForeignKey(s => s.LessonId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<LessonStep>(entity =>
+            {
+                entity.ToTable("LessonSteps");
             });
 
             builder.Entity<Assignment>(entity =>

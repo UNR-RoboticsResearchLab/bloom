@@ -4,15 +4,21 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace bloom.Controllers
 {
+    /// <summary>
+    /// Records and relays all interaction events during an active lesson session.
+    /// The robot posts student interactions; the SLP posts approve/retry feedback commands.
+    /// The robot polls for pending feedback and acknowledges each command after acting on it,
+    /// completing the approve/retry round-trip through this controller.
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    public class LessonInteractionsController : ControllerBase
+    public class LessonInteractionController : ControllerBase
     {
-        private readonly ILogger<LessonInteractionsController> _logger;
+        private readonly ILogger<LessonInteractionController> _logger;
         private readonly IRobotSessionService _sessionService;
 
-        public LessonInteractionsController(
-            ILogger<LessonInteractionsController> logger,
+        public LessonInteractionController(
+            ILogger<LessonInteractionController> logger,
             IRobotSessionService sessionService)
         {
             _logger = logger;
@@ -94,6 +100,75 @@ namespace bloom.Controllers
             {
                 _logger.LogError(ex, "Error recording SLP feedback for session {SessionId}", sessionId);
                 return BadRequest(new { message = "An error occurred while recording the lesson feedback.", details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Robot polls this endpoint to check if an SLP has issued a feedback command
+        /// (approve or retry) that has not yet been acknowledged.
+        /// Returns 200 with command data, or 204 if no pending feedback.
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        [HttpGet("{sessionId}/pending-feedback")]
+        public async Task<IActionResult> GetPendingFeedback(Guid sessionId)
+        {
+            try
+            {
+                var session = await _sessionService.GetSessionAsync(sessionId);
+                if (session == null)
+                    return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+                var pending = await _sessionService.GetPendingFeedbackAsync(sessionId);
+
+                if (pending == null)
+                    return NoContent();
+
+                return Ok(pending);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Session not found: {SessionId}", sessionId);
+                return NotFound(new { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving pending feedback for session {SessionId}", sessionId);
+                return BadRequest(new { message = "An error occurred while retrieving pending feedback.", details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Robot calls this after acting on an SLP feedback command to prevent re-execution.
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        /// <param name="feedbackId">ID of the feedback record to acknowledge</param>
+        [HttpPut("{sessionId}/pending-feedback/{feedbackId}/acknowledge")]
+        public async Task<IActionResult> AcknowledgeFeedback(Guid sessionId, Guid feedbackId)
+        {
+            try
+            {
+                var session = await _sessionService.GetSessionAsync(sessionId);
+                if (session == null)
+                    return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+                await _sessionService.AcknowledgeFeedbackAsync(sessionId, feedbackId);
+
+                return Ok(new
+                {
+                    Message = "Feedback acknowledged.",
+                    SessionId = sessionId,
+                    FeedbackId = feedbackId
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Feedback or session not found: {SessionId} {FeedbackId}", sessionId, feedbackId);
+                return NotFound(new { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error acknowledging feedback {FeedbackId} for session {SessionId}", feedbackId, sessionId);
+                return BadRequest(new { message = "An error occurred while acknowledging feedback.", details = ex.Message });
             }
         }
     }

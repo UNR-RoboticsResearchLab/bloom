@@ -6,15 +6,21 @@ using bloom.Services;
 
 namespace bloom.Controllers
 {
-    [ApiController] 
+    /// <summary>
+    /// Manages robot device registration and lookup.
+    /// Provides CRUD operations for robot records and supports
+    /// filtering by owner user ID or firmware version.
+    /// Has no session or lesson awareness — purely device management.
+    /// </summary>
+    [ApiController]
     [Route("api/[controller]")]
-    public class RobotsController : ControllerBase
+    public class RobotController : ControllerBase
     {
-        private readonly ILogger<RobotsController> _logger;
+        private readonly ILogger<RobotController> _logger;
         private readonly IRobotService _robotService;
 
         
-        public RobotsController(ILogger<RobotsController> logger, IRobotService robotService)
+        public RobotController(ILogger<RobotController> logger, IRobotService robotService)
         {
             _logger = logger;
             _robotService = robotService;

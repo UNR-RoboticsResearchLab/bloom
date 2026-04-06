@@ -16,8 +16,14 @@ namespace bloom.Models
 
 
         public int StepId { get; set; }
-        public string InteractionType { get; set; } = "Response";
-        public string? StudentResponse { get; set; }
+        /// <summary>
+        /// the type of the interaction
+        ///   - robot: the robot response
+        ///   - speaker: the speaker dialogue
+        ///   - note: the note added by the SLP during the session
+        /// </summary>
+        public string? InteractionType { get; set; }
+        public string? DialogTurn { get; set; }
         public bool? IsCorrect { get; set; }
         public int ResponseTimeMs { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;

@@ -232,7 +232,7 @@ namespace bloom.Services
                 LessonId = session.ActiveLessonId,
                 StepId = dto.StepId,
                 InteractionType = dto.InteractionType,
-                StudentResponse = dto.StudentResponse,
+                // StudentResponse = dto.StudentResponse,
                 IsCorrect = dto.IsCorrect,
                 ResponseTimeMs = dto.ResponseTimeMs,
                 Timestamp = DateTime.UtcNow

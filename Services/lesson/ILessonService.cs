@@ -1,7 +1,6 @@
 // bloom
 // ILessonService.cs
-// Interface defining behavior of LessonService.cs (WIP)
-// Created: 10/22/2025
+// Interface defining behavior of LessonService.cs
 
 using bloom.Models;
 using bloom.Models.dto;
@@ -18,11 +17,13 @@ namespace bloom.Services
         // Create
         Task<bool> CreateAsync(LessonDto lesson);
 
-
         // Modify
         Task<bool> ModifyAsync(Lesson lesson);
 
         // Delete
         Task DeleteByIdAsync(string id);
+
+        // Steps
+        Task<bool> RemoveStepAsync(Guid lessonId, Guid stepId);
     }
 }

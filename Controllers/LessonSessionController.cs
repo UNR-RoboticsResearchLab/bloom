@@ -38,6 +38,10 @@ namespace bloom.Controllers
         /// <param name="sessionId">ID of the session</param>
         /// <param name="dto">Lesson start data</param>
         /// <returns>Success message with lesson details</returns>
+        /// <response code="200">Lesson started successfully</response>
+        /// <response code="400">Invalid request data</response>
+        /// <response code="403">User not authorized to start lesson in this session</response>
+        /// <response code="404">Session not found</response>
         [HttpPost("{sessionId}/lesson")]
         public async Task<IActionResult> StartLesson(Guid sessionId, [FromBody] StartLessonDto dto)
         {

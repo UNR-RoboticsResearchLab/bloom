@@ -86,6 +86,7 @@ public class AccountController : ControllerBase
 
     }
 
+    [Authorize(Policy = "CanCreateAccount")]
     [HttpPost]
     [Route("create")]
     public async Task<IActionResult> Create([FromBody] CreateAccountDto account)
@@ -149,6 +150,48 @@ public class AccountController : ControllerBase
                 return BadRequest(new { Message = error.Description });
             }
         }
+        return BadRequest();
+    }
+
+    [Authorize(Policy = "CanCreateAccount")]
+    [HttpPost]
+    [Route("create/student")]
+    public async Task<IActionResult> CreateStudentAccount([FromBody] CreateStudentByPrivilegedUserDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var (result, generatedPassword) = await _accountService.RegisterStudentWithGeneratedPasswordAsync(dto);
+
+        if (result.Succeeded)
+        {
+            var newUser = await _accountService.GetByEmailAsync(dto.Email);
+            if (newUser == null)
+            {
+                return BadRequest(new { Message = "An error occurred during account creation." });
+            }
+
+            return Ok(new
+            {
+                Message = "Student account created successfully.",
+                User = new
+                {
+                    Id = newUser.Id,
+                    FullName = newUser.FullName,
+                    Email = newUser.Email,
+                    Role = newUser.Role
+                },
+                TemporaryPassword = generatedPassword
+            });
+        }
+
+        foreach (var error in result.Errors)
+        {
+            return BadRequest(new { Message = error.Description });
+        }
+
         return BadRequest();
     }
 

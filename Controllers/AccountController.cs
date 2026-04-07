@@ -14,14 +14,19 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace bloom.Controllers;
 
+/// <summary>
+/// Handles user authentication and account management.
+/// Supports cookie-based login, role-based registration (Admin, Student, SLP),
+/// profile retrieval by ID, and account deletion.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class AccountsController : ControllerBase
+public class AccountController : ControllerBase
 {
 
     private readonly IAccountService _accountService;
 
-    public AccountsController(IAccountService accountService)
+    public AccountController(IAccountService accountService)
     {
         _accountService = accountService;
     }

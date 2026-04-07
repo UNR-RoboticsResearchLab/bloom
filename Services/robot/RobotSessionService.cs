@@ -9,7 +9,6 @@ using bloom.Models.dto;
 using bloom.Data;
 using bloom.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Hosting;
 
 namespace bloom.Services
 {
@@ -19,20 +18,17 @@ namespace bloom.Services
         private readonly IRobotSessionRepository _sessionRepository;
         private readonly IRobotStateRepository _stateRepository;
         private readonly ISessionCodeService _sessionCodeService;
-        private readonly IWebHostEnvironment _env;
 
         public RobotSessionService(
             BloomDbContext dbContext,
             IRobotSessionRepository sessionRepository,
             IRobotStateRepository stateRepository,
-            ISessionCodeService sessionCodeService,
-            IWebHostEnvironment env)
+            ISessionCodeService sessionCodeService)
         {
             _dbContext = dbContext;
             _sessionRepository = sessionRepository;
             _stateRepository = stateRepository;
             _sessionCodeService = sessionCodeService;
-            _env = env;
         }
 
         public async Task<RobotSession> StartSessionAsync(Guid robotId, string? userId = null, bool anon = false)
@@ -232,7 +228,7 @@ namespace bloom.Services
                 LessonId = session.ActiveLessonId,
                 StepId = dto.StepId,
                 InteractionType = dto.InteractionType,
-                StudentResponse = dto.StudentResponse,
+                // StudentResponse = dto.StudentResponse,
                 IsCorrect = dto.IsCorrect,
                 ResponseTimeMs = dto.ResponseTimeMs,
                 Timestamp = DateTime.UtcNow
@@ -286,74 +282,20 @@ namespace bloom.Services
 
         public async Task<dynamic?> GetPendingLessonAsync(Guid sessionId)
         {
-            try
+            var session = await _dbContext.RobotSessions
+                .Include(s => s.ActiveLesson)
+                    .ThenInclude(l => l!.Steps.OrderBy(step => step.StepOrder))
+                .FirstOrDefaultAsync(s => s.Id == sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            if (session.ActiveLessonId == null || session.ActiveLesson == null)
+                return null;
+
+            return new
             {
-                // Get the session with its active lesson
-                var session = await _dbContext.RobotSessions
-                    .Include(s => s.ActiveLesson)
-                    .FirstOrDefaultAsync(s => s.Id == sessionId);
-
-                if (session == null)
-                    throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
-
-                // If no active lesson, return null (no pending lesson)
-                if (session.ActiveLessonId == null || session.ActiveLesson == null)
-                    return null;
-
-                // Load the lesson JSON file
-                string lessonJson;
-                var filePath = session.ActiveLesson.LessonFileUrl;
-
-                // If the path is relative, resolve it against the content root
-                if (!Path.IsPathRooted(filePath))
-                {
-                    filePath = Path.Combine(_env.ContentRootPath, filePath);
-                }
-
-                // If the lesson file doesn't exist, return null (no pending lesson)
-                if (!File.Exists(filePath))
-                {
-                    return null;
-                }
-
-                try
-                {
-                    lessonJson = await File.ReadAllTextAsync(filePath);
-                }
-                catch (FileNotFoundException)
-                {
-                    return null;
-                }
-
-                // Parse the lesson JSON as JsonElement first to preserve structure
-                using (var jsonDoc = System.Text.Json.JsonDocument.Parse(lessonJson))
-                {
-                    var lessonElement = jsonDoc.RootElement;
-
-                    // Build a new object with the lesson content, ensuring "id" is present
-                    var lessonDict = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(lessonElement.GetRawText());
-
-                    if (lessonDict != null && !lessonDict.ContainsKey("id"))
-                    {
-                        // Add the database lesson ID if not present in the file
-                        lessonDict["id"] = session.ActiveLesson.Id.ToString();
-                    }
-
-                    return new
-                    {
-                        hasPendingLesson = true,
-                        lesson = lessonDict
-                    };
-                }
-            }
-            catch (KeyNotFoundException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Error retrieving pending lesson for session {sessionId}: {ex.Message}", ex);
-            }
+                hasPendingLesson = true,
+                lesson = session.ActiveLesson
+            };
         }
 
         public async Task<Guid> RecordSLPFeedbackAsync(Guid sessionId, RecordSLPFeedbackDto dto)

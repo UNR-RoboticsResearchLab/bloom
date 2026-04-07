@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import DashboardLayout from "./DashboardLayout";
+import LessonBuilder from "../LessonBuilder";
+import { useApiClient } from "../../context/ApiClientContext";
 
 function Stat({ label, value, unit = "", percent = null }) {
   return (
@@ -38,6 +40,16 @@ function SeverityTag({ severity }) {
 }
 
 export default function AdminDashboard() {
+  const api = useApiClient();
+  const [lessonPaneOpen, setLessonPaneOpen] = useState(false);
+  const [lessonSuccess, setLessonSuccess] = useState("");
+
+  async function handleLessonSubmit(dto) {
+    await api.createLesson(dto);
+    setLessonSuccess(`"${dto.title}" saved.`);
+    setLessonPaneOpen(false);
+  }
+
   // Simulated readings; replace with real values from your API later
   const [tick, setTick] = useState(0);
   const readings = useMemo(() => {
@@ -185,12 +197,20 @@ export default function AdminDashboard() {
     <DashboardLayout title="Admin Dashboard">
       <div className="mb-4 flex items-center justify-between">
         <div className="text-sm text-gray-600">Last updated: {readings.updatedAt}</div>
-        <button
-          onClick={refresh}
-          className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setLessonPaneOpen(true)}
+            className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
+          >
+            + Add Lesson
+          </button>
+          <button
+            onClick={refresh}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Placeholder for system events log; replace with real event data from your API */}

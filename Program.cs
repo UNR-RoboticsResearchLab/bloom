@@ -85,6 +85,7 @@ builder.Services.AddScoped<ISessionCodeService, SessionCodeService>();
 builder.Services.AddScoped<IRobotSessionService, RobotSessionService>();
 builder.Services.AddScoped<IRobotStateService, RobotStateService>();
 builder.Services.AddScoped<ISLPClientService, SLPClientService>();
+builder.Services.AddSingleton<IStepControlService, StepControlService>();
 
 // Add MVC model
 builder.Services.AddControllersWithViews();

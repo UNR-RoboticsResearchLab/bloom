@@ -9,6 +9,8 @@ namespace bloom.Services
         Task<LessonInteraction> GetByIDAsync(string id);
         Task<IEnumerable<LessonInteraction>> GetByUserIdAsync(string id);
         Task<IEnumerable<LessonInteraction>> GetByEmailAsync(string email);
+
+        // Task<IEnumerable<
         
         Task<bool> CreateAsync(LessonInteraction interaction);
         Task<bool> ModifyAsync(LessonInteraction interaction);

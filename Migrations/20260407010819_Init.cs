@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace bloom.Migrations
 {
     /// <inheritdoc />
-    public partial class dbInit : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -184,7 +184,7 @@ namespace bloom.Migrations
                     CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     TotalSteps = table.Column<int>(type: "int", nullable: false),
-                    LessonFileUrl = table.Column<string>(type: "longtext", nullable: false)
+                    LearningObjectives = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedById = table.Column<string>(type: "varchar(255)", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -380,6 +380,37 @@ namespace bloom.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "LessonSteps",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    LessonId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    StepOrder = table.Column<int>(type: "int", nullable: false),
+                    Type = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Script = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TimingSeconds = table.Column<int>(type: "int", nullable: true),
+                    VisualAid = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Behaviors = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Interaction = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LessonSteps", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_LessonSteps_Lessons_LessonId",
+                        column: x => x.LessonId,
+                        principalTable: "Lessons",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "RobotSessions",
                 columns: table => new
                 {
@@ -494,9 +525,9 @@ namespace bloom.Migrations
                     LessonId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     RobotSessionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     StepId = table.Column<int>(type: "int", nullable: false),
-                    InteractionType = table.Column<string>(type: "longtext", nullable: false)
+                    InteractionType = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    StudentResponse = table.Column<string>(type: "longtext", nullable: true)
+                    DialogTurn = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     IsCorrect = table.Column<bool>(type: "tinyint(1)", nullable: true),
                     ResponseTimeMs = table.Column<int>(type: "int", nullable: false),
@@ -652,6 +683,11 @@ namespace bloom.Migrations
                 column: "SLPClientId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_LessonSteps_LessonId",
+                table: "LessonSteps",
+                column: "LessonId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Robots_RegisteredUserId",
                 table: "Robots",
                 column: "RegisteredUserId");
@@ -714,6 +750,9 @@ namespace bloom.Migrations
 
             migrationBuilder.DropTable(
                 name: "LessonSLPClient");
+
+            migrationBuilder.DropTable(
+                name: "LessonSteps");
 
             migrationBuilder.DropTable(
                 name: "Robots");

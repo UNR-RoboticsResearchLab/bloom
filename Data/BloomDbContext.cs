@@ -20,6 +20,7 @@ namespace bloom.Data
         public DbSet<Robot> Robots { get; set; }
         public DbSet<RobotSession> RobotSessions { get; set; }
         public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
+        public DbSet<LessonStep> LessonSteps { get; set; }
         public DbSet<LessonProgress> LessonProgresses { get; set; }
         public DbSet<LessonInteraction> LessonInteractions { get; set; }
 
@@ -50,6 +51,16 @@ namespace bloom.Data
                     .WithOne(a => a.Lesson)
                     .HasForeignKey(a => a.LessonId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(l => l.Steps)
+                    .WithOne(s => s.Lesson)
+                    .HasForeignKey(s => s.LessonId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<LessonStep>(entity =>
+            {
+                entity.ToTable("LessonSteps");
             });
 
             builder.Entity<Assignment>(entity =>
@@ -199,7 +210,6 @@ namespace bloom.Data
                             Description = "A sample language lesson for testing.",
                             CreatedDate = DateTime.UtcNow,
                             CreatedById = Accounts.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(),
-                            LessonFileUrl = "https://example.com/sample-language-lesson.json",
                             LessonType = LessonType.Language,
                             TotalSteps = 5
                         },
@@ -209,7 +219,6 @@ namespace bloom.Data
                             Description = "A sample speech therapy lesson for testing.",
                             CreatedDate = DateTime.UtcNow,
                             CreatedById = Accounts.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(),
-                            LessonFileUrl = "https://example.com/sample-speech-therapy-lesson.json",
                             LessonType = LessonType.SpeechTherapy,
                             TotalSteps = 7
                         }

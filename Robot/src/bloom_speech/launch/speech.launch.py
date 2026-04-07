@@ -12,6 +12,12 @@ def generate_launch_description():
         ),
         Node(
             package='bloom_speech',
+            executable='stt_node',
+            name='stt_node',
+            output='screen',
+        ),
+        Node(
+            package='bloom_speech',
             executable='llm_node',
             name='llm_node',
             output='screen',

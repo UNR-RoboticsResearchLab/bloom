@@ -57,6 +57,8 @@ public:
 	/// Dynamically update the session ID
 	bool set_session_id(const std::string &session_id);
 
+	void set_pairing_code(const std::string &pairing_code);
+
 private:
 	/// Timer callback - executed every poll_interval_ms
 	void on_polling_tick();
@@ -82,6 +84,10 @@ private:
 
 	// Mutex for thread-safe session_id updates
 	mutable std::mutex session_mutex_;
+
+	std::atomic<bool> paired_{false};
+	std::string pairing_code_;
+	rclcpp::Publisher<std_msgs::msg::String>::SharedPtr session_code_pub_;
 };
 
 }  // namespace bloom_node

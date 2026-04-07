@@ -385,5 +385,19 @@ namespace bloom.Services
             return session;
         }
 
+        public async Task SetSessionUserIdAsync(Guid sessionId, string userId)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("UserId cannot be null or empty", nameof(userId));
+
+            session.UserId = userId;
+            session.LastUpdatedAt = DateTime.UtcNow;
+            _dbContext.Update(session);
+            await _dbContext.SaveChangesAsync();
+        }
+
     }
 }

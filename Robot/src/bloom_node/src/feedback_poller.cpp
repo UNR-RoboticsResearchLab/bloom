@@ -85,6 +85,7 @@ bool FeedbackPoller::is_polling_active() const {
 void FeedbackPoller::on_polling_tick() {
 	// Skip polling if not currently waiting for interaction
 	if (!polling_active_.load()) {
+		RCLCPP_DEBUG(this->get_logger(), "Feedback polling not active, skipping tick");
 		return;
 	}
 
@@ -96,9 +97,11 @@ void FeedbackPoller::on_polling_tick() {
 	}
 
 	if (current_session_id.empty()) {
-		RCLCPP_DEBUG(this->get_logger(), "Cannot poll: session_id not set");
+		RCLCPP_WARN(this->get_logger(), "Cannot poll feedback: session_id not set");
 		return;
 	}
+
+	RCLCPP_DEBUG(this->get_logger(), "[FEEDBACK_POLL] Polling for pending feedback on session: %s", current_session_id.c_str());
 
 	// Build endpoint path
 	std::ostringstream path_builder;
@@ -113,7 +116,7 @@ void FeedbackPoller::on_polling_tick() {
 		[this, current_session_id](const std::string &body, long http_code) {
 			if (http_code == 204) {
 				// No Content - no pending feedback
-				RCLCPP_DEBUG(this->get_logger(), "No pending feedback");
+				RCLCPP_DEBUG(this->get_logger(), "[FEEDBACK_POLL] No pending feedback (204)");
 				return;
 			}
 

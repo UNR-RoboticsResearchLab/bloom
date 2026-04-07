@@ -23,6 +23,7 @@ setup(
         'console_scripts': [
             'tts_node = bloom_speech.tts_node:main',
             'llm_node = bloom_speech.llm_node:main',
+            'stt_node = bloom_speech.stt_node:main',
         ],
     },
 )

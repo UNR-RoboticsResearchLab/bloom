@@ -74,7 +74,7 @@ namespace bloom.Services
             }
         }
 
-        public async Task<Lesson> GetByIdAsync(string id)
+        public async Task<Lesson?> GetByIdAsync(string id)
         {
             try
             {
@@ -98,6 +98,23 @@ namespace bloom.Services
                 return null;
             }
         }
+
+        public async Task<IEnumerable<Lesson>> GetAllAsync()
+        {
+            try
+            {
+                var lessons = await _context.Lessons
+                    .Include(l => l.CreatedBy)
+                    .ToListAsync();
+
+                return lessons;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting all lessons: {ex.Message}");
+                return Enumerable.Empty<Lesson>();
+            }
+         }
 
         public async Task<IEnumerable<Lesson>> GetByUserIdAsync(string id)
         {

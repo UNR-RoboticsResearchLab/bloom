@@ -11,6 +11,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include "bloom_node/state_manager.h"
 #include "bloom_node/web_service_client.h"
 #include "bloom_node/configuration_manager.h"
@@ -55,11 +56,12 @@ int main(int argc, char ** argv)
 
 	RCLCPP_INFO(node->get_logger(), "BehaviorCoordinator initialized with exclusive groups");
 
-	fs::path dir = "src/bloom_node/config";
+	fs::path dir = ament_index_cpp::get_package_share_directory("bloom_node") + "/config";
 
-	// Try absolute path if relative doesn't exist
-	if ((!fs::exists(dir) || !fs::is_directory(dir))) {
-		dir = "/home/jrkre/development/bloom-main/Robot/src/bloom_node/config";
+	if (!fs::exists(dir) || !fs::is_directory(dir)) {
+		RCLCPP_WARN(node->get_logger(), "Config directory not found at %s, continuing without config", dir.c_str());
+		RCLCPP_INFO(node->get_logger(), "Using default configuration");
+		dir = "";
 	}
 
 	if (!fs::exists(dir) || !fs::is_directory(dir)) {
@@ -71,15 +73,28 @@ int main(int argc, char ** argv)
     std::vector<fs::path> files;
 
 	// Loop through the directory and store all file paths
+	if (dir.empty()) goto skip_config;
 	for (const auto& entry : fs::directory_iterator(dir)) {
 		if (fs::is_regular_file(entry)) {
 			files.push_back(entry.path());
 		}
 	}
+	skip_config:;
 	std::sort(files.begin(), files.end());
 
 	if (!files.empty()) {
 		config_mgr->load_from_file(files.front().c_str());
+	}
+
+	// Load from (and save to) a persistent user config that survives colcon builds.
+	// Values here override the install-dir config (e.g. robot_id persists across builds).
+	fs::path persistent_config;
+	if (const char* home = std::getenv("HOME")) {
+		persistent_config = fs::path(home) / ".bloom" / "robot.cfg";
+		fs::create_directories(persistent_config.parent_path());
+		config_mgr->load_from_file(persistent_config.string());
+	} else {
+		RCLCPP_WARN(node->get_logger(), "HOME not set, persistent config unavailable");
 	}
 
 	auto state_mgr = std::make_shared<bloom_node::StateManager>(rclcpp::NodeOptions());
@@ -206,11 +221,10 @@ int main(int argc, char ** argv)
 		registration_future.get();
 		
 		// save robot id
-		// if (!robotId.empty()) {
-		// 	RCLCPP_INFO(node->get_logger(), "Saving new robot ID to config: %s", robotId.c_str());
-
-		// 	config_mgr->set("robot_id", robotId);
-		// }
+		if (!robotId.empty()) {
+			RCLCPP_INFO(node->get_logger(), "Saving new robot ID to config: %s", robotId.c_str());
+			config_mgr->set("robot_id", robotId);
+		}
 	}
 	
 
@@ -237,7 +251,7 @@ int main(int argc, char ** argv)
 		session_payload.dump(),
 		std::nullopt,
 		{"Content-Type: application/json"},
-		[web_client, &session_id, &robotId](const std::string &body, long http_code) {
+		[web_client, &session_id, &robotId, &pairing_code](const std::string &body, long http_code) {
 			if (http_code >= 200 && http_code < 300) {
 				RCLCPP_INFO(web_client->get_logger(), "Session started successfully (HTTP %ld)", http_code);
 				RCLCPP_INFO(web_client->get_logger(), "Response: %s", body.c_str());
@@ -249,6 +263,11 @@ int main(int argc, char ** argv)
 					if (response.contains("id")) {
 						session_id = response["id"].get<std::string>();
 						RCLCPP_INFO(web_client->get_logger(), "Session ID: %s", session_id.c_str());
+					}
+					if (response.contains("sessionCode")) {
+						pairing_code = response["sessionCode"].get<std::string>();
+						RCLCPP_INFO(web_client->get_logger(), "Session Code: %s", pairing_code.c_str());
+						web_client->publishSessionCode(pairing_code);
 					}
 				} catch (const std::exception &e) {
 					RCLCPP_WARN(web_client->get_logger(), "Failed to parse session ID from response: %s", e.what());
@@ -273,6 +292,8 @@ int main(int argc, char ** argv)
 		session_id,
 		7000  // Poll every 7 seconds
 	);
+
+	lesson_poller->start_polling();  // Start polling immediately to check for pending lessons
 	RCLCPP_INFO(node->get_logger(), "LessonPoller created with session_id: %s", session_id.c_str());
 
 	// Create FeedbackPoller for SLP feedback polling (1 second interval)
@@ -298,6 +319,7 @@ int main(int argc, char ** argv)
 
 	// Start the lesson and feedback polling loops
 	lesson_poller->start_polling();
+	lesson_poller->set_pairing_code(pairing_code);
 	feedback_poller->start_polling();  // Starts in inactive state, activated by LessonCoordinator during interactions
 
 	RCLCPP_INFO(node->get_logger(), "bloom_node started - state_manager + web_service_client + lesson_coordinator + lesson_poller + feedback_poller running");

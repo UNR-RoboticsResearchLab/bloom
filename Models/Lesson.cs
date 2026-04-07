@@ -28,7 +28,7 @@ namespace bloom.Models
 
         [Required]
         public required string CreatedById { get; set; }
-        public required Account CreatedBy { get; set; }
+        public Account? CreatedBy { get; set; }
 
         public LessonType LessonType { get; set; }
 

@@ -58,13 +58,13 @@ namespace bloom.Services
 
         public async Task<IEnumerable<LessonProgress>> GetByEmailAsync(string email)
         {
-        
+
             var lessonProgresses = await _context.LessonProgresses
                 .Include(p => p.Student)
-                .Where(p => p.Student.Email == email)
+                .Where(p => p.Student != null && p.Student.Email == email)
                 .ToListAsync();
 
-            
+
             return lessonProgresses;
         }
 
@@ -83,8 +83,15 @@ namespace bloom.Services
 
         public async Task<bool> ModifyAsync(LessonProgress progress)
         {
-            LessonProgress existingProgress = await _context.LessonProgresses.FirstOrDefaultAsync(p => p.Id == progress.Id);
-            
+            ArgumentNullException.ThrowIfNull(progress);
+
+            if (progress.Id == Guid.Empty)
+            {
+                throw new ArgumentException("Lesson progress Id cannot be empty.", nameof(progress));
+            }
+
+            LessonProgress? existingProgress = await _context.LessonProgresses.FirstOrDefaultAsync(p => p.Id == progress.Id);
+
             if (existingProgress == null)
             {
                 throw new Exception("Lesson progress not found.");

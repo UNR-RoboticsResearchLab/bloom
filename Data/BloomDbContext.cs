@@ -197,5 +197,38 @@ namespace bloom.Data
                 }
             }
         }
+
+        public async Task SeedLessons()
+        {
+                if (!Lessons.Any())
+                {
+                    var sampleLessons = new List<Lesson>
+                    {
+                        new Lesson
+                        {
+                            Title = "Sample Language Lesson",
+                            Description = "A sample language lesson for testing.",
+                            CreatedDate = DateTime.UtcNow,
+                            CreatedById = Accounts.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(),
+                            LessonFileUrl = "https://example.com/sample-language-lesson.json",
+                            LessonType = LessonType.Language,
+                            TotalSteps = 5
+                        },
+                        new Lesson
+                        {
+                            Title = "Sample Speech Therapy Lesson",
+                            Description = "A sample speech therapy lesson for testing.",
+                            CreatedDate = DateTime.UtcNow,
+                            CreatedById = Accounts.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(),
+                            LessonFileUrl = "https://example.com/sample-speech-therapy-lesson.json",
+                            LessonType = LessonType.SpeechTherapy,
+                            TotalSteps = 7
+                        }
+                    };
+    
+                    Lessons.AddRange(sampleLessons);
+                    await SaveChangesAsync();
+                }
+        }
     }
 }

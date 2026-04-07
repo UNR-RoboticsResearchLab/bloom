@@ -273,7 +273,7 @@ export default function AdminDashboard() {
           <h3 className="text-base font-semibold">Lesson Management</h3>
           <p className="mt-2 text-sm text-gray-600">Create and manage lessons for the system.</p>
           <button
-            onClick={() => window.location.href = "/dashboard/admin/add-lesson"}
+            onClick={() => setLessonPaneOpen(true)}
             className="mt-4 w-full rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500"
           >
             Add Lesson
@@ -297,6 +297,41 @@ export default function AdminDashboard() {
           </ul>
         </section>
       </div>
+      {lessonPaneOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setLessonPaneOpen(false)}
+          />
+          <div className="relative z-50 w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-50 shadow-xl rounded-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+              <h2 className="text-lg font-semibold text-gray-900">New Lesson</h2>
+              <button
+                onClick={() => setLessonPaneOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <LessonBuilder
+              onSubmit={handleLessonSubmit}
+              onCancel={() => setLessonPaneOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {lessonSuccess && (
+        <div className="fixed bottom-4 right-4 z-50 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow">
+          {lessonSuccess}
+          <button
+            onClick={() => setLessonSuccess("")}
+            className="ml-3 text-green-100 hover:text-white"
+          >
+            &times;
+          </button>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

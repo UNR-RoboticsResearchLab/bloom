@@ -30,6 +30,32 @@ namespace bloom.Controllers
         }
 
         [HttpGet]
+        [Route("all")]
+        public async Task<IActionResult> GetAllLessons()
+        {
+            try
+            {
+                var lessons = await _lessonService.GetAllAsync();
+                var lessonDtos = lessons.Select(lesson => new LessonDto
+                {
+                    Id = lesson.Id.ToString(),
+                    Title = lesson.Title,
+                    Description = lesson.Description,
+                    CreatedDate = lesson.CreatedDate,
+                    UpdatedDate = lesson.UpdatedDate,
+                    LessonType = lesson.LessonType,
+                    CreatedById = lesson.CreatedById,
+                    LearningObjectives = lesson.LearningObjectives
+                });
+                return Ok(lessonDtos);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Request error: {ex.Message}" });
+            }
+        }
+
+        [HttpGet]
         [Route("{lessonId}")]
         public async Task<IActionResult> GetLessonInfo(string lessonId)
         {

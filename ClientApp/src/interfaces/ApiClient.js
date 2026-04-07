@@ -62,7 +62,7 @@ export default class ApiClient {
       selectedRole: "STUDENT",
     };
 
-      const res = await this.request("/api/accounts/create", {
+      const res = await this.request("/api/account/create", {
         method: "POST",
         body: JSON.stringify(body),
       });
@@ -81,12 +81,12 @@ export default class ApiClient {
     }
 
       async getSessions() {
-        const res = await this.request(`/api/robotsessions`, { method: "GET" });
+        const res = await this.request(`/api/robotsession`, { method: "GET" });
         return res || [];
       }
 
       async getSessionHistory(sessionId) {
-          const res = await this.request(`/api/robotsessions/${sessionId}/history`);
+          const res = await this.request(`/api/robotsession/${sessionId}/history`);
           return res;
       }
 
@@ -100,7 +100,7 @@ export default class ApiClient {
 
   //temp
   async getStudents(id) {
-    const res = await this.request(`/api/accounts/${id}`, {
+    const res = await this.request(`/api/account/${id}`, {
       method: "GET",
     });
     return res;
@@ -108,14 +108,14 @@ export default class ApiClient {
 
   //temp
   async getStudent(id) {
-    const res = await this.request(`/api/students/${id}`, {
+    const res = await this.request(`/api/student/${id}`, {
       method: "GET",
     });
     return res;
   }
 
  async getLessons() {
-  const res = await this.request(`/api/lessons/all`, {
+  const res = await this.request(`/api/lesson/all`, {
     method: "GET",
   });
   return res;
@@ -123,7 +123,7 @@ export default class ApiClient {
 
   //temp
   async getLesson(id) {
-    const res = await this.request(`/api/lessons/${id}`, {
+    const res = await this.request(`/api/lesson/${id}`, {
       method: "GET",
     });
     return res;
@@ -131,7 +131,7 @@ export default class ApiClient {
 
   //temp
   async addNoteToSession(sessionId, note) {
-    const res = await this.request(`/api/robotsessions/${sessionId}/notes`, {
+    const res = await this.request(`/api/robotsession/${sessionId}/notes`, {
       method: "POST",
       body: JSON.stringify({ note }),
     });
@@ -140,7 +140,7 @@ export default class ApiClient {
 
   //temp
   async updateStudentProgress(studentId, progressData) {
-    const res = await this.request(`/api/students/${studentId}/progress`, {
+    const res = await this.request(`/api/student/${studentId}/progress`, {
       method: "POST",
       body: JSON.stringify(progressData),
     });
@@ -148,7 +148,7 @@ export default class ApiClient {
   }
 
   async startSession({ anonymous = false } = {}) {
-    const res = await this.request("/api/robotsessions", {
+    const res = await this.request("/api/robotsession", {
       method: "POST",
       body: JSON.stringify({ anonymous }),
     });
@@ -176,7 +176,7 @@ export default class ApiClient {
       }
     };
 
-    const res = await this.request(`/api/robotsessions/${sessionId}/robots`, {
+    const res = await this.request(`/api/robotsession/${sessionId}/robots`, {
       method: "POST",
       body: JSON.stringify(body),
     });
@@ -191,7 +191,7 @@ export default class ApiClient {
       speechLog: state.speechLog ?? ""
     };
 
-    const res = await this.request(`/api/robotsessions/${sessionId}/robots/${robotId}/state`, {
+    const res = await this.request(`/api/robotsession/${sessionId}/robots/${robotId}/state`, {
       method: "PUT",
       body: JSON.stringify(body),
     });
@@ -199,21 +199,21 @@ export default class ApiClient {
   }
 
   async getCurrentStates(sessionId) {
-    const res = await this.request(`/api/robotsessions/${sessionId}/states`, {
+    const res = await this.request(`/api/robotsession/${sessionId}/states`, {
       method: "GET",
     });
     return res;
   }
 
   async removeRobotFromSession(sessionId, robotId) {
-    const res = await this.request(`/api/robotsessions/${sessionId}/robots/${robotId}`, {
+    const res = await this.request(`/api/robotsession/${sessionId}/robots/${robotId}`, {
       method: "DELETE",
     });
     return res;
   }
 
   async endSession(sessionId) {
-    const res = await this.request(`/api/robotsessions/${sessionId}/end`, {
+    const res = await this.request(`/api/robotsession/${sessionId}/end`, {
       method: "POST",
     });
     return res;
@@ -231,7 +231,7 @@ export default class ApiClient {
     registeredUserId: payload.registeredUserId ?? null,
   };
 
-  const res = await this.request("/api/robots/register", {
+  const res = await this.request("/api/robot/register", {
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -249,7 +249,7 @@ export default class ApiClient {
       registeredUserId: payload.registeredUserId ?? null,
     };
 
-    const res = await this.request(`/api/robots/${id}`, {
+    const res = await this.request(`/api/robot/${id}`, {
       method: "PUT",
       body: JSON.stringify(body),
     });
@@ -257,22 +257,22 @@ export default class ApiClient {
   }
 
   async deleteRobot(id) {
-    const res = await this.request(`/api/robots/${id}`, { method: "DELETE" });
+    const res = await this.request(`/api/robot/${id}`, { method: "DELETE" });
     return res;
   }
 
   async getRobot(id) {
-    const res = await this.request(`/api/robots/${id}`, { method: "GET" });
+    const res = await this.request(`/api/robot/${id}`, { method: "GET" });
     return res;
   }
 
   async getAllRobots() {
-    const res = await this.request(`/api/robots`, { method: "GET" });
+    const res = await this.request(`/api/robot`, { method: "GET" });
     return res;
   }
 
   async getRobotsByUserId(userId) {
-    const res = await this.request(`/api/robots/user/${userId}`, { method: "GET" });
+    const res = await this.request(`/api/robot/user/${userId}`, { method: "GET" });
     return res;
   }
 
@@ -292,7 +292,7 @@ export default class ApiClient {
       createdById: payload.createdById,
     };
 
-    const res = await this.request("/api/lessons/create", {
+    const res = await this.request("/api/lesson/create", {
       method: "POST",
       body: JSON.stringify(body),
     });
@@ -300,7 +300,7 @@ export default class ApiClient {
   }
 
   async startLessonSession(lessonId, sessionId) {
-    const res = await this.request(`/api/robotsessions/${sessionId}/lesson`, {
+    const res = await this.request(`/api/robotsession/${sessionId}/lesson`, {
       method: "POST",
       body: JSON.stringify({ lessonId }),
     });

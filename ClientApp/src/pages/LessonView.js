@@ -30,7 +30,17 @@ export default function LessonView() {
             id: 3,
             title: "Step 3: Review",
             text: "Let's review what we've learned.",
-        }
+        },
+        {
+            id: 4,
+            title: "Step 4: Assessment",
+            text: "Can you identify the color blue?",
+        },
+        {
+            id: 5,
+            title: "Step 5: Conclusion",
+            text: "Great job! Let's wrap up the lesson.",
+        },
     ]);
 
 
@@ -70,6 +80,42 @@ export default function LessonView() {
             id: 6,
             type: "robot",
             text: "Let's review what we've learned.",
+            ts: new Date().toLocaleTimeString(),
+        },
+        {
+            id: 7,
+            type: "student",
+            text: "Okay, sounds good!",
+            ts: new Date().toLocaleTimeString(),
+        },
+        {
+            id: 8,
+            type: "robot",
+            text: "Can you say the word 'blue'?",
+            ts: new Date().toLocaleTimeString(),
+        },
+        {
+            id: 9,
+            type: "student",
+            text: "Blue.",
+            ts: new Date().toLocaleTimeString(),
+        },
+        {
+            id: 10,
+            type: "note",
+            text: "Student demonstrated good understanding of the word 'blue' and showed improvement in pronunciation. Consider introducing more complex words in the next lesson.",
+            ts: new Date().toLocaleTimeString(),
+        },
+        {
+            id: 11,
+            type: "robot",
+            text: "Great job! Let's wrap up the lesson.",
+            ts: new Date().toLocaleTimeString(),
+        },
+        {
+            id: 12,
+            type: "note",
+            text: "Lesson completed successfully. Student showed good progress.",
             ts: new Date().toLocaleTimeString(),
         }
     ]);
@@ -248,10 +294,10 @@ export default function LessonView() {
                         {step.map((item) => (
                             <div
                                 key={item.id}
-                                className="min-w-[250px] flex-shrink-0 h-full rounded-xl bg-cyan-500 border border-gray-300 p-4 shadow-sm flex flex-col"
+                                className="min-w-[250px] flex-shrink-0 h-full rounded-xl bg-gray-200 border border-gray-900 p-4 shadow-sm flex flex-col"
                             >
-                                <h4 className="font-semibold text-white">{item.title}</h4>
-                                <p className="mt-1 text-white">{item.text}</p>
+                                <h4 className="font-semibold text-black">{item.title}</h4>
+                                <p className="mt-1 text-gray-500">{item.text}</p>
                             </div>
                         ))}
                     </div>

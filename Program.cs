@@ -104,15 +104,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         // options.Cookie.HttpOnly = true;
 
         //TODO: development comment lul
-        //options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        //options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
         // options.Cookie.Name = "bloom_cookie";
 
 
         options.Cookie.Name = "bloom_cookie";
         options.Cookie.HttpOnly = true;
-
-        options.Cookie.SameSite = SameSiteMode.None;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     });
 
@@ -191,6 +189,8 @@ using (var scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
     // Check if admin account exists, if not create one
     await BloomDbContext.SeedDatabaseAdminUser(userManager);
+
+    await LessonSeeder.SeedLessonsFromFilesAsync(db, userManager);
 }
 
 app.MapControllers();

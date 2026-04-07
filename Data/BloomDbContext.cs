@@ -210,7 +210,6 @@ namespace bloom.Data
                             Description = "A sample language lesson for testing.",
                             CreatedDate = DateTime.UtcNow,
                             CreatedById = Accounts.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(),
-                            LessonFileUrl = "https://example.com/sample-language-lesson.json",
                             LessonType = LessonType.Language,
                             TotalSteps = 5
                         },
@@ -220,7 +219,6 @@ namespace bloom.Data
                             Description = "A sample speech therapy lesson for testing.",
                             CreatedDate = DateTime.UtcNow,
                             CreatedById = Accounts.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(),
-                            LessonFileUrl = "https://example.com/sample-speech-therapy-lesson.json",
                             LessonType = LessonType.SpeechTherapy,
                             TotalSteps = 7
                         }

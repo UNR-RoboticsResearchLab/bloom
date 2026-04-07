@@ -7,11 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace bloom.Migrations
 {
     /// <inheritdoc />
-<<<<<<<< HEAD:Migrations/20260406052827_InitMigration.cs
-    public partial class InitMigration : Migration
-========
-    public partial class dbInit : Migration
->>>>>>>> 045126183f6ad90bc1c6a7782907034d426fb73a:Migrations/20260308004403_dbInit.cs
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -188,11 +184,7 @@ namespace bloom.Migrations
                     CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     TotalSteps = table.Column<int>(type: "int", nullable: false),
-<<<<<<<< HEAD:Migrations/20260406052827_InitMigration.cs
                     LearningObjectives = table.Column<string>(type: "longtext", nullable: true)
-========
-                    LessonFileUrl = table.Column<string>(type: "longtext", nullable: false)
->>>>>>>> 045126183f6ad90bc1c6a7782907034d426fb73a:Migrations/20260308004403_dbInit.cs
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedById = table.Column<string>(type: "varchar(255)", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),

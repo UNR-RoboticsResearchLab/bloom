@@ -300,7 +300,7 @@ export default class ApiClient {
   }
 
   async startLessonSession(lessonId, sessionId) {
-    const res = await this.request(`/api/robotsession/${sessionId}/lesson`, {
+    const res = await this.request(`/api/LessonSession/${sessionId}/lesson`, {
       method: "POST",
       body: JSON.stringify({ lessonId }),
     });

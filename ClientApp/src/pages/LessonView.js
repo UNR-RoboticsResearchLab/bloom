@@ -14,6 +14,7 @@ export default function LessonView() {
 
     const [noteText, setNoteText] = useState("");
     const [stepInput, setStepInput] = useState("");
+    const [isSendingStepCommand, setIsSendingStepCommand] = useState(false);
 
     const [step, setStep] = useState([
         {
@@ -42,7 +43,6 @@ export default function LessonView() {
             text: "Great job! Let's wrap up the lesson.",
         },
     ]);
-
 
     // Fake data needs to be replaced with real conversation data from the backend
     const [conversation, setConversation] = useState([
@@ -120,7 +120,6 @@ export default function LessonView() {
         }
     ]);
 
-    // This effect starts the lesson. It checks if the lesson and student data are available, and if not, it redirects back to the lessons list. It also ensures that the lesson session is only started once using a ref.
     useEffect(() => {
         async function startLesson() {
             if (!lesson || !student) {
@@ -156,7 +155,6 @@ export default function LessonView() {
         startLesson();
     }, [lesson, student, lessonId, sessionId, navigate, api]);
 
-    // This function handles adding a new note to the conversation. It creates a new note object with a unique ID, the current timestamp, and the text from the input. The new note is then added to the conversation state, and the input field is cleared.
     function addNote(e) {
         e.preventDefault();
 
@@ -174,23 +172,79 @@ export default function LessonView() {
         setNoteText("");
     }
 
-    // Handles going back one step in the lesson.
-    function handleBackStep() {
-        console.log("Back one step");
-    }
-    // Handles skipping forward one step in the lesson.
-    function handleForwardStep() {
-        console.log("Skip forward one step");
-    }
-    // Handles skipping to a specific step in the lesson based on user input.
-    function handleSkipToStep() {
-        const trimmed = stepInput.trim();
-        if (!trimmed) return;
-        console.log("Skip to step:", trimmed);
-        setStepInput("");
+    async function handleBackStep() {
+        if (!sessionId || isSendingStepCommand) return;
+
+        try {
+            setIsSendingStepCommand(true);
+
+            const res = await api.request(
+                `/api/LessonSession/${sessionId}/lessons/replay`,
+                {
+                    method: "POST",
+                }
+            );
+
+            console.log("Replay command queued:", res);
+        } catch (error) {
+            console.error("Failed to queue replay command:", error);
+        } finally {
+            setIsSendingStepCommand(false);
+        }
     }
 
-    // This function renders a single message in the conversation based on its type (robot, student, or note). It applies different styling for each type to visually distinguish them in the UI.
+    async function handleForwardStep() {
+        if (!sessionId || isSendingStepCommand) return;
+
+        try {
+            setIsSendingStepCommand(true);
+
+            const res = await api.request(
+                `/api/LessonSession/${sessionId}/lessons/skip`,
+                {
+                    method: "POST",
+                }
+            );
+
+            console.log("Skip command queued:", res);
+        } catch (error) {
+            console.error("Failed to queue skip command:", error);
+        } finally {
+            setIsSendingStepCommand(false);
+        }
+    }
+
+    async function handleSkipToStep() {
+        const trimmed = stepInput.trim();
+        if (!trimmed || !sessionId || isSendingStepCommand) return;
+
+        const targetStep = Number(trimmed);
+
+        if (!Number.isInteger(targetStep) || targetStep < 1) {
+            console.error("Invalid step number:", trimmed);
+            return;
+        }
+
+        try {
+            setIsSendingStepCommand(true);
+
+            const res = await api.request(
+                `/api/LessonSession/${sessionId}/lessons/set-step`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({ targetStep }),
+                }
+            );
+
+            console.log("Set step command queued:", res);
+            setStepInput("");
+        } catch (error) {
+            console.error("Failed to queue set-step command:", error);
+        } finally {
+            setIsSendingStepCommand(false);
+        }
+    }
+
     function renderMessage(item) {
         if (item.type === "robot") {
             return (
@@ -238,6 +292,7 @@ export default function LessonView() {
             </div>
         );
     }
+
     if (!lesson || !student) {
         return null;
     }
@@ -282,8 +337,6 @@ export default function LessonView() {
                 </div>
             </div>
 
-
-
             <div className="mt-6 rounded-lg border p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-900">Lesson Controls</h2>
@@ -304,17 +357,16 @@ export default function LessonView() {
                 </div>
 
                 <div className="mt-4 grid gap-4 md:grid-cols-[1fr_2fr_1fr] items-stretch">
-    
-                    {/* Back Button */}
                     <button
                         type="button"
                         onClick={handleBackStep}
-                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 hover:shadow-md"                    >
+                        disabled={isSendingStepCommand}
+                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                    >
                         <span className="text-lg">{"<"}</span>
                         Back
                     </button>
 
-                    {/* Middle Control */}
                     <div className="flex flex-col items-center rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                         <p className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             Jump to Step
@@ -325,34 +377,31 @@ export default function LessonView() {
                             value={stepInput}
                             onChange={(e) => setStepInput(e.target.value)}
                             placeholder="Step #"
-                            className="w-full rounded-xl border border-gray-300 p-3 text-center text-sm font-medium shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                            disabled={isSendingStepCommand}
+                            className="w-full rounded-xl border border-gray-300 p-3 text-center text-sm font-medium shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:opacity-60"
                         />
 
                         <button
                             type="button"
                             onClick={handleSkipToStep}
-                            className="mt-3 w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 hover:shadow-md"
+                            disabled={isSendingStepCommand}
+                            className="mt-3 w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            Go
+                            {isSendingStepCommand ? "Sending..." : "Go"}
                         </button>
                     </div>
 
-                    {/* Forward Button */}
                     <button
                         type="button"
                         onClick={handleForwardStep}
-                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 hover:shadow-md"
+                        disabled={isSendingStepCommand}
+                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Forward
                         <span className="text-lg">{">"}</span>
                     </button>
-                    
                 </div>
             </div>
-
-
-
-
 
             <div className="mt-6 rounded-lg border p-4 shadow-sm">
                 <div className="flex items-center justify-between">

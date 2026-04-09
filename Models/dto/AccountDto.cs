@@ -25,5 +25,11 @@ namespace bloom.Models.dto
         public required string Email { get; set; }
         public required string SLPEmail { get; set; }
     }
-    
+
+    public class CreateStudentByPrivilegedUserDto
+    {
+        public required string FullName { get; set; }
+        public required string Email { get; set; }
+    }
+
 }

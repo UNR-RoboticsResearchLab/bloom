@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using bloom.Models;
 using bloom.Services;
 using bloom.Data;
@@ -29,7 +30,11 @@ if (build_environmment == "Development")
 {
     builder.Services.AddOpenApi();
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
+    builder.Services.AddSwaggerGen(options =>
+    {
+        var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+        options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+    });
     // builder.WebHost.ConfigureKestrel(options =>
     // {
     //     options.ListenAnyIP(8080);   // HTTP

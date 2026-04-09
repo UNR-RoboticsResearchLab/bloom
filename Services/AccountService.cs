@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.AspNetCore.Http.HttpResults;
+using System.Security.Cryptography;
 
 namespace bloom.Services
 {
@@ -129,6 +130,69 @@ namespace bloom.Services
             {
                 throw new Exception("Error creating a new student user", ex);
             }
+        }
+
+        public async Task<(IdentityResult Result, string GeneratedPassword)> RegisterStudentWithGeneratedPasswordAsync(CreateStudentByPrivilegedUserDto dto)
+        {
+            if (dto == null)
+            {
+                throw new ArgumentNullException(nameof(dto));
+            }
+
+            var password = GenerateTemporaryPassword();
+
+            try
+            {
+                var result = await _userManager.CreateAsync(new Account
+                {
+                    Email = dto.Email,
+                    FullName = dto.FullName,
+                    EmailConfirmed = false,
+                    CreatedDate = DateTime.UtcNow,
+                    Role = "Student",
+                    UserName = dto.Email
+                }, password);
+
+                return (result, result.Succeeded ? password : string.Empty);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error creating student account", ex);
+            }
+        }
+
+        private static string GenerateTemporaryPassword()
+        {
+            const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+            const string lower = "abcdefghjkmnpqrstuvwxyz";
+            const string digits = "23456789";
+            const string all = upper + lower + digits;
+
+            var chars = new char[8];
+            var bytes = new byte[8];
+            RandomNumberGenerator.Fill(bytes);
+
+            // Guarantee at least one char from each required class
+            chars[0] = upper[bytes[0] % upper.Length];
+            chars[1] = lower[bytes[1] % lower.Length];
+            chars[2] = digits[bytes[2] % digits.Length];
+
+            // Fill remaining positions from the full set
+            for (int i = 3; i < 8; i++)
+            {
+                chars[i] = all[bytes[i] % all.Length];
+            }
+
+            // Shuffle using Fisher-Yates with a fresh random buffer
+            var shuffleBytes = new byte[8];
+            RandomNumberGenerator.Fill(shuffleBytes);
+            for (int i = 7; i > 0; i--)
+            {
+                int j = shuffleBytes[i] % (i + 1);
+                (chars[i], chars[j]) = (chars[j], chars[i]);
+            }
+
+            return new string(chars);
         }
 
         public async Task<IdentityResult> RegisterSLPAsync(CreateAccountDto user)

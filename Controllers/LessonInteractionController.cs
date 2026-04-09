@@ -61,7 +61,7 @@ namespace bloom.Controllers
         /// Body: { "stepId": 3, "feedbackCommand": "approve" }
         /// </summary>
         /// <param name="sessionId">ID of the active robot session</param>
-        /// <param name="dto">Feedback command from SLP indicating whether to approve (advance
+        /// <param name="dto">Feedback command from SLP indicating whether to approve (advance)` or retry the current step</param>
         [HttpPost("{sessionId}/feedback")]
         public async Task<IActionResult> RecordLessonFeedback(
             string sessionId,

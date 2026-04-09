@@ -43,15 +43,9 @@ export default function AdminDashboard() {
   const api = useApiClient();
   const [lessonPaneOpen, setLessonPaneOpen] = useState(false);
   const [lessonSuccess, setLessonSuccess] = useState("");
-
-  async function handleLessonSubmit(dto) {
-    await api.createLesson(dto);
-    setLessonSuccess(`"${dto.title}" saved.`);
-    setLessonPaneOpen(false);
-  }
-
   // Simulated readings; replace with real values from your API later
   const [tick, setTick] = useState(0);
+
   const readings = useMemo(() => {
     const rand = (min, max) => Math.random() * (max - min) + min;
 
@@ -193,6 +187,27 @@ export default function AdminDashboard() {
     ];
   }, []);
 
+  // filter state for events log. 
+  const [filter, setFilter] = useState("all");
+  const [systemFilter, setSystemFilter] = useState("all");
+  const filteredEvents = useMemo(() => {
+    return events.filter((e) => {
+      const severityMatch =
+        filter === "all" || e.severity === filter;
+
+      const systemMatch =
+        systemFilter === "all" || e.source === systemFilter;
+
+      return severityMatch && systemMatch;
+    });
+  }, [events, filter, systemFilter]);
+
+  async function handleLessonSubmit(dto) {
+    await api.createLesson(dto);
+    setLessonSuccess(`"${dto.title}" saved.`);
+    setLessonPaneOpen(false);
+  }
+
   return (
     <DashboardLayout title="Admin Dashboard">
       <div className="mb-4 flex items-center justify-between">
@@ -215,7 +230,52 @@ export default function AdminDashboard() {
 
       {/* Placeholder for system events log; replace with real event data from your API */}
       <section className="mt-6 rounded-lg bg-white p-4 shadow">
-        <div className="mb-4">
+        <div className="mb-4 ">
+          <div className="mb-4 flex flex-wrap items-center gap-3 ">
+            {/* Severity Filter */}
+            <div className="flex flex-col gap-1 rounded-lg border border-gray-200 py-4 px-3 bg-gray-400/10">
+              <label
+                htmlFor="severityFilter"
+                className="text-lg font-medium text-center"
+              >
+                Severity
+              </label>
+
+              <select
+                id="severityFilter"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="min-w-[140px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              >
+                <option value="all">All</option>
+                <option value="info">Info</option>
+                <option value="warning">Warning</option>
+                <option value="error">Error</option>
+              </select>
+            </div>
+            {/* System Filter */}
+            <div className="flex flex-col gap-1 rounded-lg border border-gray-200 py-4 px-3 bg-gray-400/10">
+              <label className="text-lg font-medium text-center">
+                System
+              </label>
+
+              <select
+                value={systemFilter}
+                onChange={(e) => setSystemFilter(e.target.value)}
+                className="min-w-[140px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              >
+                <option value="all">All</option>
+                <option value="Session">Session</option>
+                <option value="Robot">Robot</option>
+                <option value="Lesson">Lesson</option>
+                <option value="Speech To Text">Speech To Text</option>
+                <option value="Text To Speech">Text To Speech</option>
+                <option value="Audio">Audio</option>
+                <option value="Network">Network</option>
+                <option value="Notes">Notes</option>
+              </select>
+            </div>
+          </div>
           <h3 className="text-base font-semibold">System Events</h3>
           <p className="mt-1 text-sm text-gray-600">
             Recent activity, warnings, and errors from Bloom sessions.
@@ -223,8 +283,8 @@ export default function AdminDashboard() {
         </div>
 
         <div className="overflow-hidden rounded-lg border border-gray-200">
-          <div className="max-h-[420px] overflow-y-auto">
-            {events.map((event) => (
+          <div className="max-h-[1000px] overflow-y-auto">
+            {filteredEvents.map((event) => (
               <div
                 key={event.id}
                 className="border-b border-gray-100 px-4 py-4 last:border-b-0"

@@ -125,9 +125,9 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
+    <div className="mx-auto max-w-5xl space-y-5 px-4 py-6">
+      <div className="rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow-sm">
+        <h1 className="text-2xl font-semibold text-gray-900">
           {initialLesson ? "Edit Lesson" : "New Lesson"}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
@@ -142,7 +142,7 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+        <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm space-y-5">
           <h2 className="text-base font-semibold text-gray-800">Lesson Info</h2>
 
           <div>
@@ -220,7 +220,7 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-800">
             Steps{" "}
             <span className="ml-1 text-sm font-normal text-gray-400">({steps.length})</span>
@@ -249,13 +249,13 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
           <button
             type="button"
             onClick={addStep}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-indigo-300 py-3 text-sm font-medium text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300 bg-white py-3 text-sm font-semibold text-indigo-600 shadow-sm transition hover:border-indigo-400 hover:bg-indigo-50"
           >
             + Add Step
           </button>
         </section>
 
-        <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
+        <div className="flex items-center justify-end gap-3 border-t border-gray-100 ">
           {onCancel && (
             <button
               type="button"

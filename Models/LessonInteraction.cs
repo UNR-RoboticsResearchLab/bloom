@@ -22,7 +22,7 @@ namespace bloom.Models
         ///   - speaker: the speaker dialogue
         ///   - note: the note added by the SLP during the session
         /// </summary>
-        public string? InteractionType { get; set; }
+        public string InteractionType { get; set; } = string.Empty;
         public string? DialogTurn { get; set; }
         public bool? IsCorrect { get; set; }
         public int ResponseTimeMs { get; set; }

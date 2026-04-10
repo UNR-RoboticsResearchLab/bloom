@@ -85,6 +85,7 @@ namespace bloom.Services
                     .Include(l => l.CreatedBy)
                     .Include(l => l.Assignments)
                     .Include(l => l.Steps.OrderBy(s => s.StepOrder))
+                    .AsSplitQuery()
                     .FirstOrDefaultAsync(l => l.Id == new Guid(id));
 
                 if (lesson == null)
@@ -142,9 +143,15 @@ namespace bloom.Services
                 if (string.IsNullOrEmpty(email))
                     throw new ArgumentNullException(nameof(email));
 
-                return await _context.Lessons
-                    .Where(l => l.CreatedBy.Email == email)
+                var result = await _context.Lessons
+                    .Where(l => l.CreatedBy != null && l.CreatedBy.Email == email)
                     .ToListAsync();
+
+                if (result == null)
+                {
+                    throw new KeyNotFoundException("The Lesson could not be found for user" + email);
+                }
+                return result;
             }
             catch (Exception ex)
             {

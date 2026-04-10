@@ -105,7 +105,7 @@ void FeedbackPoller::on_polling_tick() {
 
 	// Build endpoint path
 	std::ostringstream path_builder;
-	path_builder << "/api/robotsessions/" << current_session_id << "/pending-feedback";
+	path_builder << "/api/robotsession/" << current_session_id << "/pending-feedback";
 	std::string endpoint = path_builder.str();
 
 	// Async HTTP GET request
@@ -192,7 +192,7 @@ void FeedbackPoller::acknowledge_feedback(const std::string &session_id, const s
 
 	// Build acknowledgment endpoint path
 	std::ostringstream path_builder;
-	path_builder << "/api/robotsessions/" << session_id
+	path_builder << "/api/robotsession/" << session_id
 				 << "/pending-feedback/" << feedback_id
 				 << "/acknowledge";
 	std::string endpoint = path_builder.str();

@@ -194,7 +194,7 @@ int main(int argc, char ** argv)
 	if (robotId.empty())
 	{
 		auto registration_future = web_client->sendJsonPostAsync(
-			"/api/robots/register",
+			"/api/robot/register",
 			robotInfo,
 			{"Content-Type: application/json"},
 			[web_client, &robotId](const std::string &body, long http_code) {
@@ -247,7 +247,7 @@ int main(int argc, char ** argv)
 	std::string pairing_code;
 	auto session_future = web_client->sendRequestAsync(
 		"POST",
-		"/api/robotsessions/",
+		"/api/robotsession/",
 		session_payload.dump(),
 		std::nullopt,
 		{"Content-Type: application/json"},

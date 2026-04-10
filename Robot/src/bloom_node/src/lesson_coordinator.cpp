@@ -491,7 +491,7 @@ void LessonCoordinator::update_progress_with_backend() {
         progress.status = lesson_active_ ? "InProgress" : "Completed";
 
         // Build endpoint URL
-        std::string progress_endpoint = "/api/robotsessions/" + session_id_ + "lessons/progress";
+        std::string progress_endpoint = "/api/robotsession/" + session_id_ + "lessons/progress";
 
         // Send PUT request to backend
         web_client_->sendRequestAsync(
@@ -533,7 +533,7 @@ void LessonCoordinator::log_interaction_to_backend(int step_id, const std::strin
         interaction.response_time_ms = 0;  // TODO: Track actual response time
 
         // Build endpoint URL
-        std::string interaction_endpoint = "/api/robotsessions/" + session_id_ + "/lessons/interactions";
+        std::string interaction_endpoint = "/api/robotsession/" + session_id_ + "/lessons/interactions";
 
         // Send POST request to backend
         web_client_->sendRequestAsync(

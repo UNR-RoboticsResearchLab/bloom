@@ -157,7 +157,7 @@ export default class ApiClient {
 
   async getSessionIdFromRobotCode(robotCode) {
     const res = await this.request(
-      `/api/robotsessions/join/${encodeURIComponent(robotCode)}`,
+      `/api/robotsession/join/${encodeURIComponent(robotCode)}`,
       {
         method: "GET",
       }

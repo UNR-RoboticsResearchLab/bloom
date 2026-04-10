@@ -3,27 +3,27 @@ import DashboardLayout from "./DashboardLayout";
 import LessonBuilder from "../LessonBuilder";
 import { useApiClient } from "../../context/ApiClientContext";
 
-function Stat({ label, value, unit = "", percent = null }) {
-  return (
-    <div className="rounded-lg bg-white p-4 shadow">
-      <div className="text-sm text-gray-600">{label}</div>
-      <div className="mt-1 text-2xl font-semibold">
-        {value}{unit && <span className="text-sm font-normal text-gray-600 ml-1">{unit}</span>}
-      </div>
-      {typeof percent === "number" && (
-        <div className="mt-3">
-          <div className="h-2 w-full rounded bg-gray-200">
-            <div
-              className="h-2 rounded bg-indigo-600"
-              style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
-            />
-          </div>
-          <div className="mt-1 text-xs text-gray-500">{percent.toFixed(0)}%</div>
-        </div>
-      )}
-    </div>
-  );
-}
+// function Stat({ label, value, unit = "", percent = null }) {
+//   return (
+//     <div className="rounded-lg bg-white p-4 shadow">
+//       <div className="text-sm text-gray-600">{label}</div>
+//       <div className="mt-1 text-2xl font-semibold">
+//         {value}{unit && <span className="text-sm font-normal text-gray-600 ml-1">{unit}</span>}
+//       </div>
+//       {typeof percent === "number" && (
+//         <div className="mt-3">
+//           <div className="h-2 w-full rounded bg-gray-200">
+//             <div
+//               className="h-2 rounded bg-indigo-600"
+//               style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
+//             />
+//           </div>
+//           <div className="mt-1 text-xs text-gray-500">{percent.toFixed(0)}%</div>
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
 
 function SeverityTag({ severity }) {
   const styles = {
@@ -46,30 +46,30 @@ export default function AdminDashboard() {
   // Simulated readings; replace with real values from your API later
   const [tick, setTick] = useState(0);
 
-  const readings = useMemo(() => {
-    const rand = (min, max) => Math.random() * (max - min) + min;
+  // const readings = useMemo(() => {
+  //   const rand = (min, max) => Math.random() * (max - min) + min;
 
-    const memUsedPct = rand(28, 76);
-    const speakerLatency = rand(18, 45);   // ms
-    const micLatency = rand(10, 30);       // ms
-    const networkLatency = rand(25, 90);   // ms
-    const sttError = rand(2, 9);           // %
-    const ttsError = rand(1, 6);           // %
+  //   const memUsedPct = rand(28, 76);
+  //   const speakerLatency = rand(18, 45);   // ms
+  //   const micLatency = rand(10, 30);       // ms
+  //   const networkLatency = rand(25, 90);   // ms
+  //   const sttError = rand(2, 9);           // %
+  //   const ttsError = rand(1, 6);           // %
 
-    return {
-      memUsedPct,
-      speakerLatency,
-      micLatency,
-      networkLatency,
-      sttError,
-      ttsError,
-      updatedAt: new Date().toLocaleTimeString(),
-    };
-  }, [tick]);
+  //   return {
+  //     memUsedPct,
+  //     speakerLatency,
+  //     micLatency,
+  //     networkLatency,
+  //     sttError,
+  //     ttsError,
+  //     updatedAt: new Date().toLocaleTimeString(),
+  //   };
+  // }, [tick]);
 
-  function refresh() {
-    setTick((t) => t + 1);
-  }
+  // function refresh() {
+  //   setTick((t) => t + 1);
+  // }
 
   //Mock event data
   const events = useMemo(() => {
@@ -221,6 +221,22 @@ export default function AdminDashboard() {
     });
   }, [events, filter, systemFilter, studentFilter, lessonFilter, sessionFilter]);
 
+  const studentOptions = useMemo(() => {
+    return ["all", ...new Set(events.map(e => e.studentName))];
+  }, [events]);
+
+  const lessonOptions = useMemo(() => {
+    return ["all", ...new Set(events.map(e => e.lessonTitle))];
+  }, [events]);
+
+  const sessionOptions = useMemo(() => {
+    return ["all", ...new Set(events.map(e => e.sessionId))];
+  }, [events]);
+
+  const systemOptions = useMemo(() => {
+    return ["all", ...new Set(events.map(e => e.source))];
+  }, [events]);
+
   async function handleLessonSubmit(dto) {
     await api.createLesson(dto);
     setLessonSuccess(`"${dto.title}" saved.`);
@@ -229,7 +245,7 @@ export default function AdminDashboard() {
 
   return (
     <DashboardLayout title="Admin Dashboard">
-      <div className="mb-4 flex items-center justify-between">
+      {/* <div className="mb-4 flex items-center justify-between">
         <div className="text-sm text-gray-600">Last updated: {readings.updatedAt}</div>
         <div className="flex items-center gap-2">
           <button
@@ -245,7 +261,7 @@ export default function AdminDashboard() {
             Refresh
           </button>
         </div>
-      </div>
+      </div> */}
 
       {/* Placeholder for system events log; replace with real event data from your API */}
       <section className="mt-6 rounded-lg bg-white p-4 border border-gray-200">
@@ -287,15 +303,11 @@ export default function AdminDashboard() {
                 onChange={(e) => setSystemFilter(e.target.value)}
                 className="min-w-[150px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
-                <option value="all">All</option>
-                <option value="Session">Session</option>
-                <option value="Robot">Robot</option>
-                <option value="Lesson">Lesson</option>
-                <option value="Speech To Text">Speech To Text</option>
-                <option value="Text To Speech">Text To Speech</option>
-                <option value="Audio">Audio</option>
-                <option value="Network">Network</option>
-                <option value="Notes">Notes</option>
+                {systemOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt === "all" ? "All" : opt}
+                  </option>
+                ))}
               </select>
             </div>
             {/* Student Filter */}
@@ -309,8 +321,11 @@ export default function AdminDashboard() {
                 onChange={(e) => setStudentFilter(e.target.value)}
                  className="min-w-[150px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
-                <option value="all">All</option>
-                <option value="Alex Carter">Alex Carter</option>
+                {studentOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt === "all" ? "All" : opt}
+                  </option>
+                ))}
               </select>
             </div>
             {/* Lesson Filter */}
@@ -324,8 +339,11 @@ export default function AdminDashboard() {
                 onChange={(e) => setLessonFilter(e.target.value)}
                 className="min-w-[150px] max-w-[150px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
-                <option value="all">All</option>
-                <option value="Animal Sounds Practice">Animal Sounds Practice</option>
+                {lessonOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt === "all" ? "All" : opt}
+                  </option>
+                ))}
               </select>
             </div>
             {/* Session Filter */}
@@ -339,8 +357,11 @@ export default function AdminDashboard() {
                 onChange={(e) => setSessionFilter(e.target.value)}
                  className="min-w-[150px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
-                <option value="all">All</option>
-                <option value="RS 2041">RS 2041</option>
+                {sessionOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt === "all" ? "All" : opt}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -382,18 +403,8 @@ export default function AdminDashboard() {
         </div>
       </section>
 
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Stat label="PI Memory Usage" value={readings.memUsedPct.toFixed(0)} unit="%" percent={readings.memUsedPct} />
-        <Stat label="Speaker Latency" value={readings.speakerLatency.toFixed(0)} unit="ms" />
-        <Stat label="Microphone Latency" value={readings.micLatency.toFixed(0)} unit="ms" />
-        <Stat label="Network Latency" value={readings.networkLatency.toFixed(0)} unit="ms" />
-        <Stat label="STT Error Rate" value={readings.sttError.toFixed(1)} unit="%" percent={readings.sttError} />
-        <Stat label="TTS Error Rate" value={readings.ttsError.toFixed(1)} unit="%" percent={readings.ttsError} />
-      </div>
-
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <section className="rounded-lg bg-white p-4 shadow">
+      <div className="mt-6">
+        <section className="rounded-lg bg-white p-4 border border-gray-200">
           <h3 className="text-base font-semibold">Lesson Management</h3>
           <p className="mt-2 text-sm text-gray-600">Create and manage lessons for the system.</p>
           <button
@@ -404,22 +415,6 @@ export default function AdminDashboard() {
           </button>
         </section>
 
-        <section className="rounded-lg bg-white p-4 shadow">
-          <h3 className="text-base font-semibold">Health Notes</h3>
-          <ul className="mt-3 list-disc pl-5 text-sm text-gray-700">
-            <li>Use this page to compare cloud vs on-device placement for STT, LLM, and TTS once the robot is live.</li>
-            <li>Replace the random values with metrics from your telemetry endpoint.</li>
-          </ul>
-        </section>
-
-        <section className="rounded-lg bg-white p-4 shadow">
-          <h3 className="text-base font-semibold">Planned Metrics</h3>
-          <ul className="mt-3 list-disc pl-5 text-sm text-gray-700">
-            <li>CPU temperature and throttling state</li>
-            <li>Audio device availability and reconnect count</li>
-            <li>Robust network quality score over time</li>
-          </ul>
-        </section>
       </div>
       {lessonPaneOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center p-4">

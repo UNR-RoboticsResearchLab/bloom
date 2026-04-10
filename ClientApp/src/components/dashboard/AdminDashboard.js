@@ -190,6 +190,10 @@ export default function AdminDashboard() {
   // filter state for events log. 
   const [filter, setFilter] = useState("all");
   const [systemFilter, setSystemFilter] = useState("all");
+  const [studentFilter, setStudentFilter] = useState("all");
+  const [lessonFilter, setLessonFilter] = useState("all");
+  const [sessionFilter, setSessionFilter] = useState("all");
+
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
       const severityMatch =
@@ -198,9 +202,24 @@ export default function AdminDashboard() {
       const systemMatch =
         systemFilter === "all" || e.source === systemFilter;
 
-      return severityMatch && systemMatch;
+      const studentMatch =
+        studentFilter === "all" || e.studentName === studentFilter;
+
+      const lessonMatch =
+        lessonFilter === "all" || e.lessonTitle === lessonFilter;
+
+      const sessionMatch =
+        sessionFilter === "all" || e.sessionId === sessionFilter;
+
+      return (
+        severityMatch &&
+        systemMatch &&
+        studentMatch &&
+        lessonMatch &&
+        sessionMatch
+      );
     });
-  }, [events, filter, systemFilter]);
+  }, [events, filter, systemFilter, studentFilter, lessonFilter, sessionFilter]);
 
   async function handleLessonSubmit(dto) {
     await api.createLesson(dto);
@@ -229,9 +248,13 @@ export default function AdminDashboard() {
       </div>
 
       {/* Placeholder for system events log; replace with real event data from your API */}
-      <section className="mt-6 rounded-lg bg-white p-4 shadow">
+      <section className="mt-6 rounded-lg bg-white p-4 border border-gray-200">
         <div className="mb-4 ">
-          <div className="mb-4 flex flex-wrap items-center gap-3 ">
+          <h3 className="text-base font-semibold">System Events</h3>
+          <p className="mt-1 text-sm text-gray-600">
+            Recent activity, warnings, and errors from Bloom sessions.
+          </p>
+          <div className="mb-4 flex flex-wrap items-start gap-3 ">
             {/* Severity Filter */}
             <div className="flex flex-col gap-1 rounded-lg border border-gray-200 py-4 px-3 bg-gray-400/10">
               <label
@@ -245,7 +268,7 @@ export default function AdminDashboard() {
                 id="severityFilter"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="min-w-[140px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="min-w-[150px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
                 <option value="all">All</option>
                 <option value="info">Info</option>
@@ -262,7 +285,7 @@ export default function AdminDashboard() {
               <select
                 value={systemFilter}
                 onChange={(e) => setSystemFilter(e.target.value)}
-                className="min-w-[140px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="min-w-[150px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
                 <option value="all">All</option>
                 <option value="Session">Session</option>
@@ -275,11 +298,52 @@ export default function AdminDashboard() {
                 <option value="Notes">Notes</option>
               </select>
             </div>
+            {/* Student Filter */}
+            <div className="flex flex-col gap-1 rounded-lg border border-gray-200 py-4 px-3 bg-gray-400/10">
+              <label className="text-lg font-medium text-center">
+                Student
+              </label>
+
+              <select
+                value={studentFilter}
+                onChange={(e) => setStudentFilter(e.target.value)}
+                 className="min-w-[150px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              >
+                <option value="all">All</option>
+                <option value="Alex Carter">Alex Carter</option>
+              </select>
+            </div>
+            {/* Lesson Filter */}
+            <div className="flex flex-col gap-1 rounded-lg border border-gray-200 py-4 px-3 bg-gray-400/10">
+              <label className="text-lg font-medium text-center">
+                Lesson
+              </label>
+
+              <select
+                value={lessonFilter}
+                onChange={(e) => setLessonFilter(e.target.value)}
+                className="min-w-[150px] max-w-[150px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              >
+                <option value="all">All</option>
+                <option value="Animal Sounds Practice">Animal Sounds Practice</option>
+              </select>
+            </div>
+            {/* Session Filter */}
+            <div className="flex flex-col gap-1 rounded-lg border border-gray-200 py-4 px-3 bg-gray-400/10">
+              <label className="text-lg font-medium text-center">
+                Session
+              </label>
+
+              <select
+                value={sessionFilter}
+                onChange={(e) => setSessionFilter(e.target.value)}
+                 className="min-w-[150px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              >
+                <option value="all">All</option>
+                <option value="RS 2041">RS 2041</option>
+              </select>
+            </div>
           </div>
-          <h3 className="text-base font-semibold">System Events</h3>
-          <p className="mt-1 text-sm text-gray-600">
-            Recent activity, warnings, and errors from Bloom sessions.
-          </p>
         </div>
 
         <div className="overflow-hidden rounded-lg border border-gray-200">

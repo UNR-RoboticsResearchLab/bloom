@@ -415,7 +415,7 @@ export default function LessonView() {
                         type="button"
                         onClick={handleBackStep}
                         disabled={isSendingStepCommand}
-                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200  hover:bg-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <span className="text-lg">{"<"}</span>
                         Back
@@ -449,7 +449,7 @@ export default function LessonView() {
                         type="button"
                         onClick={handleForwardStep}
                         disabled={isSendingStepCommand}
-                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 hover:bg-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition  hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Forward
                         <span className="text-lg">{">"}</span>

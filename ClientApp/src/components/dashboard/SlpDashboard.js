@@ -130,7 +130,7 @@ export default function SlpDashboard() {
           <div className="text-sm text-gray-600">Students Assigned</div>
           <div className="mt-1 text-2xl font-semibold">{headerStats.totalStudents}</div>
         </div>
-        <div className="rounded-lg bg-white p-4 shadow" 
+        <div className="rounded-lg hover:bg-blue-200 hover:cursor-pointer p-4 shadow" 
             onClick={()=>{
                 setShowPairRobotCard(true);
               }}>

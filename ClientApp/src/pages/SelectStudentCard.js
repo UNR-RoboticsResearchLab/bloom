@@ -20,7 +20,7 @@ export default function SelectStudentCard({ students = [], onSelect, onCancel })
             <button
               key={student.id}
               onClick={() => onSelect(student)}
-              className="w-full rounded-md border border-gray-300 px-4 py-3 text-left hover:bg-gray-100 transition"
+              className="w-full rounded-md border border-gray-300 px-4 py-3 text-left hover:bg-blue-200 transition"
             >
               <p className="font-medium text-gray-900">
                 {student.firstName} {student.lastName}

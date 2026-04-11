@@ -108,9 +108,9 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
     waiting_for_llm_tts_done_ = false;
     waiting_for_response_ = false;
 
-    RCLCPP_INFO(this->get_logger(), "Executing step %s", step.id);
+    RCLCPP_INFO(this->get_logger(), "Executing step %s", step.id.c_str());
     RCLCPP_INFO(this->get_logger(), "[EXECUTE] step %s type=%s has_interaction=%s llm_follow_up=%s",
-        step.id, step.type.c_str(),
+        step.id.c_str(), step.type.c_str(),
         step.has_interaction ? "true" : "false",
         step.interaction.llm_follow_up ? "true" : "false");
     auto behavior_it = step.behaviors.find("behavior");
@@ -320,13 +320,13 @@ void LessonCoordinator::handle_interaction(const LessonStep &step) {
         const InteractionConfig &interaction = step.interaction;
 
         if (!interaction.wait_for_response) {
-            RCLCPP_DEBUG(this->get_logger(), "Step %s has interaction but no response required", step.id);
+            RCLCPP_DEBUG(this->get_logger(), "Step %s has interaction but no response required", step.id.c_str());
             return;
         }
 
         RCLCPP_INFO(this->get_logger(),
             "Handling interaction for step %s (timeout: %d seconds)",
-            step.id, interaction.max_wait_seconds);
+            step.id.c_str(), interaction.max_wait_seconds);
 
         current_interaction_step_ = const_cast<LessonStep*>(&step);
         waiting_for_response_ = false;
@@ -394,13 +394,13 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
             if (behavior_coordinator_) {
                 behavior_coordinator_->request_behavior("happy", 5, false);
             }
-            RCLCPP_INFO(this->get_logger(), "Step %s: Correct response '%s'", step.id, response.c_str());
+            RCLCPP_INFO(this->get_logger(), "Step %s: Correct response '%s'", step.id.c_str(), response.c_str());
         } else {
             if (!interaction.incorrect_response_script.empty()) {
                 speak_script(interaction.incorrect_response_script);
             }
             RCLCPP_INFO(this->get_logger(), "Step %s: Incorrect response '%s' (expected '%s')",
-                step.id, response.c_str(), interaction.correct_answer.c_str());
+                step.id.c_str(), response.c_str(), interaction.correct_answer.c_str());
         }
 
         // Log interaction result to backend
@@ -486,7 +486,7 @@ void LessonCoordinator::update_progress_with_backend() {
 
         // Create progress update
         LessonProgressUpdate progress;
-        progress.current_step_id = current_step_index_;
+        progress.current_step_id = current_lesson_.sequence[current_step_index_ > 0 ? current_step_index_ - 1 : 0].id;
         progress.completed_steps = current_step_index_;
         progress.status = lesson_active_ ? "InProgress" : "Completed";
 
@@ -544,18 +544,18 @@ void LessonCoordinator::log_interaction_to_backend(const std::string &step_id, c
             {"Content-Type: application/json"},
             [this, step_id](const std::string &body, long http_code) {
                 if (http_code >= 200 && http_code < 300) {
-                    RCLCPP_DEBUG(this->get_logger(), "Interaction for step %s logged successfully", step_id);
+                    RCLCPP_DEBUG(this->get_logger(), "Interaction for step %s logged successfully", step_id.c_str());
                 } else {
                     RCLCPP_WARN(this->get_logger(),
                         "Failed to log interaction for step %s (HTTP %ld): %s",
-                        step_id,
+                        step_id.c_str(),
                         http_code,
                         body.c_str());
                 }
             });
 
         RCLCPP_DEBUG(this->get_logger(), "Interaction logged for step %s: response='%s', correct=%s",
-            step_id, response.c_str(), is_correct ? "true" : "false");
+            step_id.c_str(), response.c_str(), is_correct ? "true" : "false");
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Error logging interaction: %s", e.what());
     }

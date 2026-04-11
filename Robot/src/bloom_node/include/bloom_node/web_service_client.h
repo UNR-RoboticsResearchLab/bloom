@@ -45,7 +45,7 @@ namespace bloom_node
     };
 
     struct StudentInteractionLog {
-        std::string current_step_id;
+        std::string step_id;
         std::string interaction_type;  // "Response", "Question", "Timeout", "Fallback"
         std::string student_response;
         bool is_correct;

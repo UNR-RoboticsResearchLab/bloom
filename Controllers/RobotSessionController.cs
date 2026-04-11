@@ -531,6 +531,14 @@ namespace bloom.Controllers
             }
         }
 
+        [HttpGet("{sessionId}/tracker-events")]
+        public async Task<IActionResult> GetTrackerEvents(Guid sessionId)
+        {
+            // var events = await _robotSessionService.GetTrackerEventsAsync(sessionId);
+            var events = await _sessionService.GetTrackerEventsAsync(sessionId);
+            return Ok(events);
+        }
+
         #endregion
     }
 }

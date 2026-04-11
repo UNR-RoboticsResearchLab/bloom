@@ -399,5 +399,178 @@ namespace bloom.Services
             await _dbContext.SaveChangesAsync();
         }
 
+
+        public async Task<List<TrackerEventDto>> GetTrackerEventsAsync(Guid sessionId)
+        {
+            var events = new List<TrackerEventDto>();
+
+            // //  TEMP TEST EVENT (add this)
+            // events.Add(new TrackerEventDto
+            // {
+            //     Id = Guid.NewGuid(),
+            //     Timestamp = DateTime.UtcNow,
+            //     Severity = "info",
+            //     Source = "System",
+            //     EventType = "test_event",
+            //     Message = "Test event working",
+            //     SessionId = sessionId,
+            //     LessonTitle = "Test Lesson",
+            //     StudentName = "Test Student",
+            //     RobotName = "BLOSSOM 01"
+            // });
+
+            // Get session
+            // var session = await _robotSessionRepository.GetSessionByIdAsync(sessionId);
+            var session = await _sessionRepository.GetAsync(sessionId);
+            if (session == null)
+            {
+                return events;
+            }
+            
+            // Robots in session
+            var robots = await GetSessionRobotsAsync(sessionId);
+
+            foreach (var robotId in robots)
+            {
+                events.Add(new TrackerEventDto
+                {
+                    Id = Guid.NewGuid(),
+                    Timestamp = session.CreatedAt,
+                    Severity = "info",
+                    Source = "Robot",
+                    EventType = "robot_joined",
+                    Message = $"Robot {robotId} joined session",
+                    SessionId = session.Id,
+                    RobotName = robotId.ToString()
+                });
+            }
+
+            var currentStates = await GetCurrentStatesAsync(sessionId);
+
+            foreach (var state in currentStates)
+            {
+                events.Add(new TrackerEventDto
+                {
+                    Id = Guid.NewGuid(),
+                    Timestamp = state.LastStatusChange,
+                    Severity = state.Status == "error" ? "error" : "info",
+                    Source = "Robot",
+                    EventType = "current_state",
+                    Message = $"Status: {state.Status}, Task: {state.CurrentTask}",
+                    SessionId = session.Id,
+                    RobotName = state.RobotId.ToString()
+                });
+            }
+
+            // 1. Session Created Event
+            events.Add(new TrackerEventDto
+            {
+                Id = Guid.NewGuid(),
+                Timestamp = session.CreatedAt,
+                Severity = "info",
+                Source = "Session",
+                EventType = "session_created",
+                Message = "Session started",
+                SessionId = session.Id
+            });
+
+            // 2. Lesson Attached Event
+            if (session.ActiveLesson != null)
+            {
+                events.Add(new TrackerEventDto
+                {
+                    Id = Guid.NewGuid(),
+                    Timestamp = session.LastUpdatedAt,
+                    Severity = "info",
+                    Source = "Lesson",
+                    EventType = "lesson_attached",
+                    Message = $"Lesson \"{session.ActiveLesson.Title}\" attached",
+                    SessionId = session.Id,
+                    LessonTitle = session.ActiveLesson.Title
+                });
+            }
+
+            // 3. Robot State History
+            // var history = await _robotSessionRepository.GetSessionHistoryAsync(sessionId);
+            var history = await _sessionRepository.GetHistoryAsync(sessionId);
+            foreach (var h in history)
+            {
+                events.Add(new TrackerEventDto
+                {
+                    Id = Guid.NewGuid(),
+                    Timestamp = h.Timestamp,
+                    Severity = "info",
+                    Source = "Robot",
+                    EventType = "state_change",
+                    Message = $"Robot status: {h.RobotState.Status}, Task: {h.RobotState.CurrentTask}",
+                    SessionId = session.Id
+                });
+            }
+
+            // 4. Lesson Interactions
+            // var interactions = await _context.LessonInteractions
+            var interactions = await _dbContext.LessonInteractions
+                .Where(i => i.RobotSessionId == sessionId)
+                .ToListAsync();
+
+            foreach (var i in interactions)
+            {
+                var severity = "info";
+
+                if (i.InteractionType == "Timeout")
+                    severity = "warning";
+
+                if (i.InteractionType == "Fallback")
+                    severity = "error";
+
+                events.Add(new TrackerEventDto
+                {
+                    Id = Guid.NewGuid(),
+                    Timestamp = i.Timestamp,
+                    Severity = severity,
+                    Source = "Lesson",
+                    EventType = i.InteractionType,
+                    Message = $"Step {i.StepId}: {i.InteractionType}",
+                    SessionId = session.Id,
+                    StepId = i.StepId
+                });
+
+                // Feedback events
+                if (!string.IsNullOrEmpty(i.FeedbackCommand))
+                {
+                    events.Add(new TrackerEventDto
+                    {
+                        Id = Guid.NewGuid(),
+                        Timestamp = i.Timestamp,
+                        Severity = "info",
+                        Source = "SLP",
+                        EventType = "feedback",
+                        Message = $"SLP requested: {i.FeedbackCommand}",
+                        SessionId = session.Id,
+                        StepId = i.StepId
+                    });
+                }
+
+                if (i.IsAcknowledged == true && i.AcknowledgedAt != null)
+                {
+                    events.Add(new TrackerEventDto
+                    {
+                        Id = Guid.NewGuid(),
+                        Timestamp = i.AcknowledgedAt.Value,
+                        Severity = "info",
+                        Source = "Robot",
+                        EventType = "feedback_ack",
+                        Message = $"Robot acknowledged feedback",
+                        SessionId = session.Id,
+                        StepId = i.StepId
+                    });
+                }
+            }
+
+            // Sort newest first
+            return events
+                .OrderByDescending(e => e.Timestamp)
+                .ToList();
+        }
     }
 }

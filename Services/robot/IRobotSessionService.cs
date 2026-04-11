@@ -151,5 +151,12 @@ namespace bloom.Services
         /// <param name="sessionId">ID of the session</param>
         /// <param name="userId">ID of the user joining the session</param>
         Task SetSessionUserIdAsync(Guid sessionId, string userId);
+
+        /// <summary>
+        /// Gets tracker events for a session (for analysis)
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <returns>Collection of tracker events ordered by timestamp descending</returns>
+        Task<List<TrackerEventDto>> GetTrackerEventsAsync(Guid sessionId);
     }
 }

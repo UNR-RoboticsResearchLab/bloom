@@ -285,6 +285,7 @@ namespace bloom.Services
             var session = await _dbContext.RobotSessions
                 .Include(s => s.ActiveLesson)
                     .ThenInclude(l => l!.Steps.OrderBy(step => step.StepOrder))
+                        .ThenInclude(s => s.Interaction)
                 .FirstOrDefaultAsync(s => s.Id == sessionId)
                 ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
 

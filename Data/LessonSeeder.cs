@@ -93,9 +93,27 @@ namespace bloom.Data
                         visualAid = vaEl.ValueKind == JsonValueKind.Array ? vaEl.GetRawText() : vaEl.GetString();
 
                     string? behaviors = stepEl.TryGetProperty("behaviors", out var behavEl) ? behavEl.GetRawText() : null;
-                    string? interaction = stepEl.TryGetProperty("interaction", out var interEl) ? interEl.GetRawText() : null;
 
-                    steps.Add(new LessonStep
+                    StepInteraction? interaction = null;
+                    if (stepEl.TryGetProperty("interaction", out var interEl))
+                    {
+                        interaction = new StepInteraction
+                        {
+                            WaitForResponse = interEl.TryGetProperty("wait_for_response", out var wfr) && wfr.GetBoolean(),
+                            MaxWaitSeconds = interEl.TryGetProperty("max_wait_seconds", out var mws) ? mws.GetInt32() : null,
+                            CorrectAnswer = interEl.TryGetProperty("correct_answer", out var ca) ? ca.GetString() : null,
+                            CorrectResponseScript = interEl.TryGetProperty("correct_response_script", out var crs) ? crs.GetString() : null,
+                            IncorrectResponseScript = interEl.TryGetProperty("incorrect_response_script", out var irs) ? irs.GetString() : null,
+                            SingleTurnLlm = interEl.TryGetProperty("single_turn_llm", out var stl) && stl.GetBoolean(),
+                            SingleTurnLlmPrompt = interEl.TryGetProperty("single_turn_llm_prompt", out var stlp) ? stlp.GetString() : null,
+                            LlmFollowUp = interEl.TryGetProperty("llm_follow_up", out var lfu) && lfu.GetBoolean(),
+                            FallbackScript = interEl.TryGetProperty("fallback_script", out var fs) ? fs.GetString() : null,
+                            FallbackVisualAid = interEl.TryGetProperty("fallback_visual_aid", out var fva) ? fva.GetRawText() : null,
+                            FallbackVisualAidLabels = interEl.TryGetProperty("fallback_visual_aid_labels", out var fval) ? fval.GetRawText() : null,
+                        };
+                    }
+
+                    var step = new LessonStep
                     {
                         StepOrder = stepOrder,
                         Type = type,
@@ -103,8 +121,14 @@ namespace bloom.Data
                         TimingSeconds = timingSeconds,
                         VisualAid = visualAid,
                         Behaviors = behaviors,
-                        Interaction = interaction
-                    });
+                    };
+
+                    if (interaction != null)
+                    {
+                        step.Interaction = interaction;
+                    }
+
+                    steps.Add(step);
                 }
             }
 

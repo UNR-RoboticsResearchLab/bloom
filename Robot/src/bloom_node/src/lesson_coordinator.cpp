@@ -108,8 +108,8 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
     waiting_for_llm_tts_done_ = false;
     waiting_for_response_ = false;
 
-    RCLCPP_INFO(this->get_logger(), "Executing step %d", step.id);
-    RCLCPP_INFO(this->get_logger(), "[EXECUTE] step %d type=%s has_interaction=%s llm_follow_up=%s",
+    RCLCPP_INFO(this->get_logger(), "Executing step %s", step.id);
+    RCLCPP_INFO(this->get_logger(), "[EXECUTE] step %s type=%s has_interaction=%s llm_follow_up=%s",
         step.id, step.type.c_str(),
         step.has_interaction ? "true" : "false",
         step.interaction.llm_follow_up ? "true" : "false");
@@ -320,12 +320,12 @@ void LessonCoordinator::handle_interaction(const LessonStep &step) {
         const InteractionConfig &interaction = step.interaction;
 
         if (!interaction.wait_for_response) {
-            RCLCPP_DEBUG(this->get_logger(), "Step %d has interaction but no response required", step.id);
+            RCLCPP_DEBUG(this->get_logger(), "Step %s has interaction but no response required", step.id);
             return;
         }
 
         RCLCPP_INFO(this->get_logger(),
-            "Handling interaction for step %d (timeout: %d seconds)",
+            "Handling interaction for step %s (timeout: %d seconds)",
             step.id, interaction.max_wait_seconds);
 
         current_interaction_step_ = const_cast<LessonStep*>(&step);
@@ -394,12 +394,12 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
             if (behavior_coordinator_) {
                 behavior_coordinator_->request_behavior("happy", 5, false);
             }
-            RCLCPP_INFO(this->get_logger(), "Step %d: Correct response '%s'", step.id, response.c_str());
+            RCLCPP_INFO(this->get_logger(), "Step %s: Correct response '%s'", step.id, response.c_str());
         } else {
             if (!interaction.incorrect_response_script.empty()) {
                 speak_script(interaction.incorrect_response_script);
             }
-            RCLCPP_INFO(this->get_logger(), "Step %d: Incorrect response '%s' (expected '%s')",
+            RCLCPP_INFO(this->get_logger(), "Step %s: Incorrect response '%s' (expected '%s')",
                 step.id, response.c_str(), interaction.correct_answer.c_str());
         }
 
@@ -517,7 +517,7 @@ void LessonCoordinator::update_progress_with_backend() {
     }
 }
 
-void LessonCoordinator::log_interaction_to_backend(std::string step_id, const std::string &response, bool is_correct) {
+void LessonCoordinator::log_interaction_to_backend(const std::string &step_id, const std::string &response, bool is_correct) {
     try {
         if (!web_client_ || session_id_.empty()) {
             RCLCPP_DEBUG(this->get_logger(), "Cannot log interaction: web_client or session_id missing");
@@ -544,17 +544,17 @@ void LessonCoordinator::log_interaction_to_backend(std::string step_id, const st
             {"Content-Type: application/json"},
             [this, step_id](const std::string &body, long http_code) {
                 if (http_code >= 200 && http_code < 300) {
-                    RCLCPP_DEBUG(this->get_logger(), "Interaction for step %d logged successfully", step_id);
+                    RCLCPP_DEBUG(this->get_logger(), "Interaction for step %s logged successfully", step_id);
                 } else {
                     RCLCPP_WARN(this->get_logger(),
-                        "Failed to log interaction for step %d (HTTP %ld): %s",
+                        "Failed to log interaction for step %s (HTTP %ld): %s",
                         step_id,
                         http_code,
                         body.c_str());
                 }
             });
 
-        RCLCPP_DEBUG(this->get_logger(), "Interaction logged for step %d: response='%s', correct=%s",
+        RCLCPP_DEBUG(this->get_logger(), "Interaction logged for step %s: response='%s', correct=%s",
             step_id, response.c_str(), is_correct ? "true" : "false");
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Error logging interaction: %s", e.what());

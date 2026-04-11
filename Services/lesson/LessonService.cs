@@ -50,16 +50,38 @@ namespace bloom.Services
 
                 if (steps != null && steps.Count > 0)
                 {
-                    newLesson.Steps = steps.Select((s, i) => new LessonStep
+                    newLesson.Steps = steps.Select((s, i) =>
                     {
-                        LessonId = newLesson.Id,
-                        StepOrder = s.StepOrder > 0 ? s.StepOrder : i + 1,
-                        Type = s.Type,
-                        Script = s.Script,
-                        TimingSeconds = s.TimingSeconds,
-                        VisualAid = s.VisualAid,
-                        Behaviors = s.Behaviors,
-                        Interaction = s.Interaction
+                        var step = new LessonStep
+                        {
+                            LessonId = newLesson.Id,
+                            StepOrder = s.StepOrder > 0 ? s.StepOrder : i + 1,
+                            Type = s.Type,
+                            Script = s.Script,
+                            TimingSeconds = s.TimingSeconds,
+                            VisualAid = s.VisualAid,
+                            Behaviors = s.Behaviors,
+                        };
+
+                        if (s.Interaction != null)
+                        {
+                            step.Interaction = new StepInteraction
+                            {
+                                WaitForResponse = s.Interaction.WaitForResponse,
+                                MaxWaitSeconds = s.Interaction.MaxWaitSeconds,
+                                CorrectAnswer = s.Interaction.CorrectAnswer,
+                                CorrectResponseScript = s.Interaction.CorrectResponseScript,
+                                IncorrectResponseScript = s.Interaction.IncorrectResponseScript,
+                                SingleTurnLlm = s.Interaction.SingleTurnLlm,
+                                SingleTurnLlmPrompt = s.Interaction.SingleTurnLlmPrompt,
+                                LlmFollowUp = s.Interaction.LlmFollowUp,
+                                FallbackScript = s.Interaction.FallbackScript,
+                                FallbackVisualAid = s.Interaction.FallbackVisualAid,
+                                FallbackVisualAidLabels = s.Interaction.FallbackVisualAidLabels,
+                            };
+                        }
+
+                        return step;
                     }).ToList();
                 }
 
@@ -85,6 +107,7 @@ namespace bloom.Services
                     .Include(l => l.CreatedBy)
                     .Include(l => l.Assignments)
                     .Include(l => l.Steps.OrderBy(s => s.StepOrder))
+                        .ThenInclude(s => s.Interaction)
                     .AsSplitQuery()
                     .FirstOrDefaultAsync(l => l.Id == new Guid(id));
 
@@ -260,6 +283,25 @@ namespace bloom.Services
                 int order = 1;
                 foreach (var step in sequence.EnumerateArray())
                 {
+                    StepInteractionDto? interactionDto = null;
+                    if (step.TryGetProperty("interaction", out var inter))
+                    {
+                        interactionDto = new StepInteractionDto
+                        {
+                            WaitForResponse = inter.TryGetProperty("wait_for_response", out var wfr) && wfr.GetBoolean(),
+                            MaxWaitSeconds = inter.TryGetProperty("max_wait_seconds", out var mws) ? mws.GetInt32() : null,
+                            CorrectAnswer = inter.TryGetProperty("correct_answer", out var ca) ? ca.GetString() : null,
+                            CorrectResponseScript = inter.TryGetProperty("correct_response_script", out var crs) ? crs.GetString() : null,
+                            IncorrectResponseScript = inter.TryGetProperty("incorrect_response_script", out var irs) ? irs.GetString() : null,
+                            SingleTurnLlm = inter.TryGetProperty("single_turn_llm", out var stl) && stl.GetBoolean(),
+                            SingleTurnLlmPrompt = inter.TryGetProperty("single_turn_llm_prompt", out var stlp) ? stlp.GetString() : null,
+                            LlmFollowUp = inter.TryGetProperty("llm_follow_up", out var lfu) && lfu.GetBoolean(),
+                            FallbackScript = inter.TryGetProperty("fallback_script", out var fs) ? fs.GetString() : null,
+                            FallbackVisualAid = inter.TryGetProperty("fallback_visual_aid", out var fva) ? fva.GetRawText() : null,
+                            FallbackVisualAidLabels = inter.TryGetProperty("fallback_visual_aid_labels", out var fval) ? fval.GetRawText() : null,
+                        };
+                    }
+
                     steps.Add(new LessonStepDto
                     {
                         StepOrder = step.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.Number
@@ -274,8 +316,7 @@ namespace bloom.Services
                             ? va.GetRawText() : null,
                         Behaviors = step.TryGetProperty("behaviors", out var beh)
                             ? beh.GetRawText() : null,
-                        Interaction = step.TryGetProperty("interaction", out var inter)
-                            ? inter.GetRawText() : null
+                        Interaction = interactionDto
                     });
                     order++;
                 }

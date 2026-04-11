@@ -31,7 +31,8 @@ namespace bloom.Models
         // JSON string: { behavior, facial_expression, gaze, head_movement, posture, ... }
         public string? Behaviors { get; set; }
 
-        // JSON string: schema varies by step type (wait_for_response, correct_answer, repeat_count, etc.)
-        public string? Interaction { get; set; }
+        // Structured interaction definition for this step (optional — not all steps have interactions)
+        public Guid? InteractionId { get; set; }
+        public StepInteraction? Interaction { get; set; }
     }
 }

@@ -517,7 +517,7 @@ void LessonCoordinator::update_progress_with_backend() {
     }
 }
 
-void LessonCoordinator::log_interaction_to_backend(int step_id, const std::string &response, bool is_correct) {
+void LessonCoordinator::log_interaction_to_backend(std::string step_id, const std::string &response, bool is_correct) {
     try {
         if (!web_client_ || session_id_.empty()) {
             RCLCPP_DEBUG(this->get_logger(), "Cannot log interaction: web_client or session_id missing");

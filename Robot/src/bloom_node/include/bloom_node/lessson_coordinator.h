@@ -33,7 +33,8 @@ struct InteractionConfig {
 };
 
 struct LessonStep {
-    int id;
+    std::string id;        
+    int step_order;        
     std::string type;
     std::string script;
     std::map<std::string, std::string> behaviors;  // gesture, facial_expression, gaze, etc.
@@ -111,7 +112,7 @@ private:
     void advance_to_next_step();
 
     void update_progress_with_backend();
-    void log_interaction_to_backend(int step_id, const std::string &response, bool is_correct);
+    void log_interaction_to_backend(std::string step_id, const std::string &response, bool is_correct);
 
     void on_tts_done(const std_msgs::msg::String::SharedPtr msg);
     void on_llm_wrap_up(const std_msgs::msg::String::SharedPtr msg);

@@ -231,70 +231,84 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 		}
 
 		// Parse sequence steps
-		if (lesson_json.contains("sequence") && lesson_json["sequence"].is_array()) {
-			for (const auto &step_json : lesson_json["sequence"]) {
+		if (lesson_json.contains("steps") && lesson_json["steps"].is_array()) {
+			for (const auto &step_json : lesson_json["steps"]) {
 				LessonStep step;
-				step.id = step_json.value("id", 0);
+				step.id = step_json.value("id", "");
+				step.step_order = step_json.value("stepOrder", 0);
 				step.type = step_json.value("type", "");
 				step.script = step_json.value("script", "");
-				step.timing_seconds = step_json.value("timing_seconds", 0);
+				step.timing_seconds = step_json.value("timingSeconds", 0);
 
-				// Parse behaviors map
-				if (step_json.contains("behaviors") && step_json["behaviors"].is_object()) {
-					for (auto &[key, value] : step_json["behaviors"].items()) {
-						step.behaviors[key] = value.get<std::string>();
-					}
-				}
-				step.motor_sequence = step_json.value("motor_sequence", "");
-				// Parse visual aid
-				if (step_json.contains("visual_aid")) {
-					if (step_json["visual_aid"].is_array()) {
-						for (const auto &img : step_json["visual_aid"]) {
-							step.visual_aid_images.push_back(img.get<std::string>());
-						}
-					} else if (step_json["visual_aid"].is_string()) {
-						step.visual_aid_images.push_back(step_json["visual_aid"].get<std::string>());
-					}
-				}
-				if (step_json.contains("visual_aid_labels") && step_json["visual_aid_labels"].is_array()) {
-					for (const auto &lbl : step_json["visual_aid_labels"]) {
-						step.visual_aid_labels.push_back(lbl.get<std::string>());
-					}
-				}
-				if (step_json.contains("visual_aid_footers") && step_json["visual_aid_footers"].is_array()) {
-					for (const auto &ftr : step_json["visual_aid_footers"]) {
-						step.visual_aid_footers.push_back(ftr.get<std::string>());
-					}
-				}
-				// Parse interaction config if present
-				// has_interaction is true if an interaction block exists, even without explicit flag
-				step.has_interaction = step_json.contains("interaction") && step_json["interaction"].is_object();
-				if (step.has_interaction) {
-					const auto &interaction_json = step_json["interaction"];
-					step.interaction.wait_for_response = interaction_json.value("wait_for_response", false);
-					step.interaction.max_wait_seconds = interaction_json.value("max_wait_seconds", 10);
-					step.interaction.correct_answer = interaction_json.value("correct_answer", "");
-					step.interaction.correct_response_script = interaction_json.value("correct_response_script", "");
-					step.interaction.incorrect_response_script = interaction_json.value("incorrect_response_script", "");
-					step.interaction.fallback_script = interaction_json.value("fallback_script", "");
-					step.interaction.llm_follow_up = interaction_json.value("llm_follow_up", false);
-					step.interaction.single_turn_llm = interaction_json.value("single_turn_llm", false);
-					step.interaction.single_turn_llm_prompt = interaction_json.value("single_turn_llm_prompt", "");
-
-					if (interaction_json.contains("fallback_visual_aid") && interaction_json["fallback_visual_aid"].is_array()) {
-						for (const auto &img : interaction_json["fallback_visual_aid"]) {
-							step.interaction.fallback_visual_aid.push_back(img.get<std::string>());
+				if (step_json.contains("behaviors") && step_json["behaviors"].is_string()) {
+					std::string behaviors_str = step_json["behaviors"].get<std::string>();
+					if (!behaviors_str.empty()) {
+						try {
+							auto behaviors_json = json::parse(behaviors_str);
+							if (behaviors_json.is_object()) {
+								for (auto &[key, value] : behaviors_json.items()) {
+									if (value.is_string()) {
+										step.behaviors[key] = value.get<std::string>();
+									}
+								}
+							}
+						} catch (...) {
+							RCLCPP_WARN(this->get_logger(), "Failed to parse behaviors JSON string for step %s", step.id.c_str());
 						}
 					}
-					if (interaction_json.contains("fallback_visual_aid_labels") && interaction_json["fallback_visual_aid_labels"].is_array()) {
-						for (const auto &lbl : interaction_json["fallback_visual_aid_labels"]) {
-							step.interaction.fallback_visual_aid_labels.push_back(lbl.get<std::string>());
+				}
+				if (step_json.contains("visualAid") && !step_json["visualAid"].is_null()) {
+					if (step_json["visualAid"].is_string()) {
+						std::string va_str = step_json["visualAid"].get<std::string>();
+						if (!va_str.empty()) {
+							try {
+								auto va_json = json::parse(va_str);
+								if (va_json.is_array()) {
+									for (const auto &img : va_json) {
+										step.visual_aid_images.push_back(img.get<std::string>());
+									}
+								}
+							} catch (...) {
+								step.visual_aid_images.push_back(va_str);
+							}
 						}
 					}
-					
+				}
+				step.has_interaction = false;
+				if (step_json.contains("interaction") && !step_json["interaction"].is_null()) {
+					if (step_json["interaction"].is_string()) {
+						std::string interaction_str = step_json["interaction"].get<std::string>();
+						if (!interaction_str.empty()) {
+							try {
+								auto interaction_json = json::parse(interaction_str);
+								step.has_interaction = true;
+								step.interaction.wait_for_response = interaction_json.value("wait_for_response", false);
+								step.interaction.max_wait_seconds = interaction_json.value("max_wait_seconds", 10);
+								step.interaction.correct_answer = interaction_json.value("correct_answer", "");
+								step.interaction.correct_response_script = interaction_json.value("correct_response_script", "");
+								step.interaction.incorrect_response_script = interaction_json.value("incorrect_response_script", "");
+								step.interaction.fallback_script = interaction_json.value("fallback_script", "");
+								step.interaction.llm_follow_up = interaction_json.value("llm_follow_up", false);
+								step.interaction.single_turn_llm = interaction_json.value("single_turn_llm", false);
+								step.interaction.single_turn_llm_prompt = interaction_json.value("single_turn_llm_prompt", "");
+							} catch (...) {
+								RCLCPP_WARN(this->get_logger(), "Failed to parse interaction JSON string for step %s", step.id.c_str());
+								step.has_interaction = false;
+							}
+						}
+					}
 				}
 
 				lesson_data.sequence.push_back(step);
+				RCLCPP_INFO(this->get_logger(), 
+					"[PARSE] Step %s order=%d type=%s script='%.50s' has_interaction=%s behaviors=%zu visual_aids=%zu",
+					step.id.c_str(),
+					step.step_order,
+					step.type.c_str(),
+					step.script.c_str(),
+					step.has_interaction ? "true" : "false",
+					step.behaviors.size(),
+					step.visual_aid_images.size());
 			}
 		}
 

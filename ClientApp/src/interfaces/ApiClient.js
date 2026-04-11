@@ -313,4 +313,16 @@ export default class ApiClient {
       body: JSON.stringify(lessonDto),
     });
   }
+
+  async getTrackerEvents(sessionId) {
+    const res = await fetch(`${this.baseUrl}/api/RobotSession/${sessionId}/tracker-events`, {
+      credentials: "include"
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch tracker events");
+    }
+
+    return await res.json();
+  }
 }

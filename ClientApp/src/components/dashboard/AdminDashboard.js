@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect} from "react";
 import DashboardLayout from "./DashboardLayout";
 import LessonBuilder from "../LessonBuilder";
 import { useApiClient } from "../../context/ApiClientContext";
@@ -34,17 +34,20 @@ function SeverityTag({ severity }) {
 
   return (
     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${styles[severity] || styles.info}`}>
-      {severity.toUpperCase()}
-    </span>
+      {(severity || "info").toUpperCase()}    </span>
   );
 }
 
 export default function AdminDashboard() {
   const api = useApiClient();
+  // const api = null;
   const [lessonPaneOpen, setLessonPaneOpen] = useState(false);
   const [lessonSuccess, setLessonSuccess] = useState("");
+  const [events, setEvents] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [selectedSessionId, setSelectedSessionId] = useState("");
   // Simulated readings; replace with real values from your API later
-  const [tick, setTick] = useState(0);
+  // const [tick, setTick] = useState(0);
 
   // const readings = useMemo(() => {
   //   const rand = (min, max) => Math.random() * (max - min) + min;
@@ -71,177 +74,205 @@ export default function AdminDashboard() {
   //   setTick((t) => t + 1);
   // }
 
+  // Load events from API on mount
+  useEffect(() => {
+    if (!selectedSessionId) return;
+
+    let mounted = true;
+
+    async function loadEvents() {
+      try {
+        const data = await api.getTrackerEvents(selectedSessionId);
+
+        if (mounted) {
+          console.log("tracker events:", data);
+          setEvents(data);
+        }
+      } catch (err) {
+        console.error("tracker fetch failed:", err);
+      }
+    }
+
+    loadEvents();
+
+    return () => {
+      mounted = false;
+    };
+  }, [api, selectedSessionId]);
+
   //Mock event data
-  const events = useMemo(() => {
-    return [
-      {
-        id: 1,
-        timestamp: "10:42:11 AM",
-        severity: "info",
-        source: "Session",
-        eventType: "session_started",
-        message: "Robot session started successfully",
-        sessionId: "RS 2041",
-        lessonTitle: "Animal Sounds Practice",
-        studentName: "Alex Carter",
-      },
-      {
-        id: 2,
-        timestamp: "10:42:34 AM",
-        severity: "info",
-        source: "Robot",
-        eventType: "robot_joined",
-        message: "Robot BLOSSOM 01 joined the active session",
-        sessionId: "RS 2041",
-        lessonTitle: "Animal Sounds Practice",
-        studentName: "Alex Carter",
-      },
-      {
-        id: 3,
-        timestamp: "10:43:02 AM",
-        severity: "info",
-        source: "Lesson",
-        eventType: "lesson_attached",
-        message: "Lesson was attached to the session",
-        sessionId: "RS 2041",
-        lessonTitle: "Animal Sounds Practice",
-        studentName: "Alex Carter",
-      },
-      {
-        id: 4,
-        timestamp: "10:43:18 AM",
-        severity: "warning",
-        source: "Speech To Text",
-        eventType: "stt_latency_high",
-        message: "Speech recognition latency exceeded expected threshold",
-        sessionId: "RS 2041",
-        lessonTitle: "Animal Sounds Practice",
-        studentName: "Alex Carter",
-      },
-      {
-        id: 5,
-        timestamp: "10:43:41 AM",
-        severity: "error",
-        source: "Speech To Text",
-        eventType: "stt_timeout",
-        message: "Speech recognition request timed out after 5 seconds",
-        sessionId: "RS 2041",
-        lessonTitle: "Animal Sounds Practice",
-        studentName: "Alex Carter",
-      },
-      {
-        id: 6,
-        timestamp: "10:44:05 AM",
-        severity: "warning",
-        source: "Audio",
-        eventType: "microphone_reconnected",
-        message: "Microphone input was lost and then reconnected",
-        sessionId: "RS 2041",
-        lessonTitle: "Animal Sounds Practice",
-        studentName: "Alex Carter",
-      },
-      {
-        id: 7,
-        timestamp: "10:44:22 AM",
-        severity: "info",
-        source: "Text To Speech",
-        eventType: "tts_completed",
-        message: "Robot speech output completed successfully",
-        sessionId: "RS 2041",
-        lessonTitle: "Animal Sounds Practice",
-        studentName: "Alex Carter",
-      },
-      {
-        id: 8,
-        timestamp: "10:44:49 AM",
-        severity: "warning",
-        source: "Network",
-        eventType: "network_latency_spike",
-        message: "Network latency spike detected during lesson playback",
-        sessionId: "RS 2041",
-        lessonTitle: "Animal Sounds Practice",
-        studentName: "Alex Carter",
-      },
-      {
-        id: 9,
-        timestamp: "10:45:10 AM",
-        severity: "info",
-        source: "Notes",
-        eventType: "note_added",
-        message: "SLP note added to session timeline",
-        sessionId: "RS 2041",
-        lessonTitle: "Animal Sounds Practice",
-        studentName: "Alex Carter",
-      },
-      {
-        id: 10,
-        timestamp: "10:45:37 AM",
-        severity: "info",
-        source: "Session",
-        eventType: "session_ended",
-        message: "Robot session ended normally",
-        sessionId: "RS 2041",
-        lessonTitle: "Animal Sounds Practice",
-        studentName: "Alex Carter",
-      },
-    ];
-  }, []);
+  // const events = useMemo(() => {
+  //   return [
+  //     {
+  //       id: 1,
+  //       timestamp: "10:42:11 AM",
+  //       severity: "info",
+  //       source: "Session",
+  //       eventType: "session_started",
+  //       message: "Robot session started successfully",
+  //       sessionId: "RS 2041",
+  //       lessonTitle: "Animal Sounds Practice",
+  //       studentName: "Alex Carter",
+  //     },
+  //     {
+  //       id: 2,
+  //       timestamp: "10:42:34 AM",
+  //       severity: "info",
+  //       source: "Robot",
+  //       eventType: "robot_joined",
+  //       message: "Robot BLOSSOM 01 joined the active session",
+  //       sessionId: "RS 2041",
+  //       lessonTitle: "Animal Sounds Practice",
+  //       studentName: "Alex Carter",
+  //     },
+  //     {
+  //       id: 3,
+  //       timestamp: "10:43:02 AM",
+  //       severity: "info",
+  //       source: "Lesson",
+  //       eventType: "lesson_attached",
+  //       message: "Lesson was attached to the session",
+  //       sessionId: "RS 2041",
+  //       lessonTitle: "Animal Sounds Practice",
+  //       studentName: "Alex Carter",
+  //     },
+  //     {
+  //       id: 4,
+  //       timestamp: "10:43:18 AM",
+  //       severity: "warning",
+  //       source: "Speech To Text",
+  //       eventType: "stt_latency_high",
+  //       message: "Speech recognition latency exceeded expected threshold",
+  //       sessionId: "RS 2041",
+  //       lessonTitle: "Animal Sounds Practice",
+  //       studentName: "Alex Carter",
+  //     },
+  //     {
+  //       id: 5,
+  //       timestamp: "10:43:41 AM",
+  //       severity: "error",
+  //       source: "Speech To Text",
+  //       eventType: "stt_timeout",
+  //       message: "Speech recognition request timed out after 5 seconds",
+  //       sessionId: "RS 2041",
+  //       lessonTitle: "Animal Sounds Practice",
+  //       studentName: "Alex Carter",
+  //     },
+  //     {
+  //       id: 6,
+  //       timestamp: "10:44:05 AM",
+  //       severity: "warning",
+  //       source: "Audio",
+  //       eventType: "microphone_reconnected",
+  //       message: "Microphone input was lost and then reconnected",
+  //       sessionId: "RS 2041",
+  //       lessonTitle: "Animal Sounds Practice",
+  //       studentName: "Alex Carter",
+  //     },
+  //     {
+  //       id: 7,
+  //       timestamp: "10:44:22 AM",
+  //       severity: "info",
+  //       source: "Text To Speech",
+  //       eventType: "tts_completed",
+  //       message: "Robot speech output completed successfully",
+  //       sessionId: "RS 2041",
+  //       lessonTitle: "Animal Sounds Practice",
+  //       studentName: "Alex Carter",
+  //     },
+  //     {
+  //       id: 8,
+  //       timestamp: "10:44:49 AM",
+  //       severity: "warning",
+  //       source: "Network",
+  //       eventType: "network_latency_spike",
+  //       message: "Network latency spike detected during lesson playback",
+  //       sessionId: "RS 2041",
+  //       lessonTitle: "Animal Sounds Practice",
+  //       studentName: "Alex Carter",
+  //     },
+  //     {
+  //       id: 9,
+  //       timestamp: "10:45:10 AM",
+  //       severity: "info",
+  //       source: "Notes",
+  //       eventType: "note_added",
+  //       message: "SLP note added to session timeline",
+  //       sessionId: "RS 2041",
+  //       lessonTitle: "Animal Sounds Practice",
+  //       studentName: "Alex Carter",
+  //     },
+  //     {
+  //       id: 10,
+  //       timestamp: "10:45:37 AM",
+  //       severity: "info",
+  //       source: "Session",
+  //       eventType: "session_ended",
+  //       message: "Robot session ended normally",
+  //       sessionId: "RS 2041",
+  //       lessonTitle: "Animal Sounds Practice",
+  //       studentName: "Alex Carter",
+  //     },
+  //   ];
+  // }, []);
 
   // filter state for events log. 
   const [filter, setFilter] = useState("all");
   const [systemFilter, setSystemFilter] = useState("all");
   const [studentFilter, setStudentFilter] = useState("all");
   const [lessonFilter, setLessonFilter] = useState("all");
-  const [sessionFilter, setSessionFilter] = useState("all");
+  // const [sessionFilter, setSessionFilter] = useState("all");
 
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
       const severityMatch =
-        filter === "all" || e.severity === filter;
+        filter === "all" || (e.severity || e.Severity) === filter;
 
       const systemMatch =
-        systemFilter === "all" || e.source === systemFilter;
+        systemFilter === "all" || (e.source || e.Source) === systemFilter;
 
       const studentMatch =
-        studentFilter === "all" || e.studentName === studentFilter;
+        studentFilter === "all" || (e.studentName || e.StudentName) === studentFilter;
 
       const lessonMatch =
-        lessonFilter === "all" || e.lessonTitle === lessonFilter;
+        lessonFilter === "all" || (e.lessonTitle || e.LessonTitle) === lessonFilter;
 
-      const sessionMatch =
-        sessionFilter === "all" || e.sessionId === sessionFilter;
+      // const sessionMatch =
+      //   sessionFilter === "all" || (e.sessionId || e.SessionId) === sessionFilter;
 
       return (
         severityMatch &&
         systemMatch &&
         studentMatch &&
-        lessonMatch &&
-        sessionMatch
+        lessonMatch
+        //  &&
+        // sessionMatch
       );
     });
-  }, [events, filter, systemFilter, studentFilter, lessonFilter, sessionFilter]);
+  }, [events, filter, systemFilter, studentFilter, lessonFilter]);
+  // , sessionFilter
 
   const studentOptions = useMemo(() => {
-    return ["all", ...new Set(events.map(e => e.studentName))];
+    return ["all", ...new Set(events.map(e => e.studentName || e.StudentName).filter(Boolean))];
   }, [events]);
 
   const lessonOptions = useMemo(() => {
-    return ["all", ...new Set(events.map(e => e.lessonTitle))];
+    return ["all", ...new Set(events.map(e => e.lessonTitle || e.LessonTitle).filter(Boolean))];
   }, [events]);
 
   const sessionOptions = useMemo(() => {
-    return ["all", ...new Set(events.map(e => e.sessionId))];
-  }, [events]);
+    return ["all", ...sessions.map(s => s.id)];
+  }, [sessions]);
 
   const systemOptions = useMemo(() => {
-    return ["all", ...new Set(events.map(e => e.source))];
+    return ["all", ...new Set(events.map(e => e.source || e.Source).filter(Boolean))];
   }, [events]);
 
-  async function handleLessonSubmit(dto) {
-    await api.createLesson(dto);
-    setLessonSuccess(`"${dto.title}" saved.`);
-    setLessonPaneOpen(false);
-  }
+  // async function handleLessonSubmit(dto) {
+  //   await api.createLesson(dto);
+  //   setLessonSuccess(`"${dto.title}" saved.`);
+  //   setLessonPaneOpen(false);
+  // }
 
   return (
     <DashboardLayout title="Admin Dashboard">
@@ -284,7 +315,7 @@ export default function AdminDashboard() {
                 id="severityFilter"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="min-w-[160px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="min-w-[160px] max-w-[160px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
                 <option value="all">All</option>
                 <option value="info">Info</option>
@@ -301,10 +332,10 @@ export default function AdminDashboard() {
               <select
                 value={systemFilter}
                 onChange={(e) => setSystemFilter(e.target.value)}
-                className="min-w-[160px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="min-w-[160px] max-w-[160px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
                 {systemOptions.map((opt) => (
-                  <option key={opt} value={opt}>
+                  <option key={`system-${opt}`} value={opt}>
                     {opt === "all" ? "All" : opt}
                   </option>
                 ))}
@@ -319,10 +350,10 @@ export default function AdminDashboard() {
               <select
                 value={studentFilter}
                 onChange={(e) => setStudentFilter(e.target.value)}
-                 className="min-w-[160px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                 className="min-w-[160px] max-w-[160px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
                 {studentOptions.map((opt) => (
-                  <option key={opt} value={opt}>
+                  <option key={`student-${opt}`} value={opt}>
                     {opt === "all" ? "All" : opt}
                   </option>
                 ))}
@@ -340,7 +371,7 @@ export default function AdminDashboard() {
                 className="min-w-[160px] max-w-[160px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
                 {lessonOptions.map((opt) => (
-                  <option key={opt} value={opt}>
+                  <option key={`lesson-${opt}`} value={opt}>
                     {opt === "all" ? "All" : opt}
                   </option>
                 ))}
@@ -353,12 +384,12 @@ export default function AdminDashboard() {
               </label>
 
               <select
-                value={sessionFilter}
-                onChange={(e) => setSessionFilter(e.target.value)}
-                 className="min-w-[160px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                value={selectedSessionId}
+                onChange={(e) => setSelectedSessionId(e.target.value)}
+                 className="min-w-[160px] max-w-[160px] rounded-md border border-gray-300 bg-gray-400/50 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
                 {sessionOptions.map((opt) => (
-                  <option key={opt} value={opt}>
+                  <option key={`session-${opt}`} value={opt}>
                     {opt === "all" ? "All" : opt}
                   </option>
                 ))}
@@ -369,36 +400,45 @@ export default function AdminDashboard() {
 
         <div className="overflow-hidden rounded-lg border border-gray-200">
           <div className="max-h-[1000px] overflow-y-auto">
-            {filteredEvents.map((event) => (
+            {filteredEvents.length === 0 ? (
+                <p className="p-4 text-sm text-gray-500">No events found.</p>
+              ) : (
+              filteredEvents.map((event, index) => (
               <div
-                key={event.id}
+                key={event.id || event.Id || index}
                 className="border-b border-gray-100 px-4 py-4 last:border-b-0"
               >
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <SeverityTag severity={event.severity} />
-                      <span className="text-sm font-medium text-gray-800">{event.source}</span>
-                      <span className="text-sm text-gray-500">{event.timestamp}</span>
+                      <SeverityTag severity={event.severity || event.Severity} />
+                      <span className="text-sm font-medium text-gray-800">{event.source || event.Source}</span>
+                      <span className="text-sm text-gray-500">
+                        {/* {event.timestamp} */}
+                        {new Date(event.timestamp || event.Timestamp).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
                     </div>
 
-                    <p className="text-sm text-gray-800">{event.message}</p>
+                    <p className="text-sm text-gray-800">{event.message || event.Message}</p>
 
                     <div className="flex flex-wrap gap-2 text-xs text-gray-500">
                       <span className="rounded-full bg-gray-100 px-2 py-1">
-                        Session: {event.sessionId}
+                        Session: {event.sessionId || event.SessionId}
                       </span>
                       <span className="rounded-full bg-gray-100 px-2 py-1">
-                        Lesson: {event.lessonTitle}
+                        Lesson: {event.lessonTitle || event.LessonTitle}
                       </span>
                       <span className="rounded-full bg-gray-100 px-2 py-1">
-                        Student: {event.studentName}
+                        Student: {event.studentName || event.StudentName}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
-            ))}
+            )))}
           </div>
         </div>
       </section>
@@ -432,10 +472,10 @@ export default function AdminDashboard() {
                 &times;
               </button>
             </div>
-            <LessonBuilder
+            {/* <LessonBuilder
               onSubmit={handleLessonSubmit}
               onCancel={() => setLessonPaneOpen(false)}
-            />
+            /> */}
           </div>
         </div>
       )}

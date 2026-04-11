@@ -74,9 +74,29 @@ export default function AdminDashboard() {
   //   setTick((t) => t + 1);
   // }
 
+  useEffect(() => {
+    async function loadSessions() {
+      try {
+        const data = await api.getSessions(); // make sure this exists
+        console.log("sessions:", data);
+
+        setSessions(data);
+
+        // auto select first session
+        if (data.length > 0) {
+          setSelectedSessionId(data[0].id);
+        }
+      } catch (err) {
+        console.error("failed to load sessions:", err);
+      }
+    }
+
+    loadSessions();
+  }, [api]);
+
   // Load events from API on mount
   useEffect(() => {
-    if (!selectedSessionId) return;
+    if (!selectedSessionId || selectedSessionId === "all") return;
 
     let mounted = true;
 
@@ -251,7 +271,6 @@ export default function AdminDashboard() {
     });
   }, [events, filter, systemFilter, studentFilter, lessonFilter]);
   // , sessionFilter
-
   const studentOptions = useMemo(() => {
     return ["all", ...new Set(events.map(e => e.studentName || e.StudentName).filter(Boolean))];
   }, [events]);
@@ -260,9 +279,11 @@ export default function AdminDashboard() {
     return ["all", ...new Set(events.map(e => e.lessonTitle || e.LessonTitle).filter(Boolean))];
   }, [events]);
 
-  const sessionOptions = useMemo(() => {
-    return ["all", ...sessions.map(s => s.id)];
-  }, [sessions]);
+  // const sessionOptions = useMemo(() => {
+  //   return ["all", ...sessions.map(s => s.id)];
+  // }, [sessions]);
+
+  const sessionOptions = sessions.map(s => s.id);
 
   const systemOptions = useMemo(() => {
     return ["all", ...new Set(events.map(e => e.source || e.Source).filter(Boolean))];

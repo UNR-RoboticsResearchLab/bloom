@@ -403,26 +403,30 @@ namespace bloom.Services
 
         public async Task<List<TrackerEventDto>> GetTrackerEventsAsync(Guid sessionId)
         {
+            // Aggregates all events related to a robot session
+            // into a single timeline for monitoring, debugging, and data visualization purposes.
             var events = new List<TrackerEventDto>();
+            
+            // Temporary test event to verify data flow
+            // TODO: Remove this after confirming the dashboard can receive and display events correctly
+            events.Add(new TrackerEventDto
+            {
+                // 
+                Id = Guid.NewGuid(),
+                Timestamp = DateTime.UtcNow,
+                Severity = "info",
+                Source = "System",
+                EventType = "test_event",
+                Message = "Test event working",
+                SessionId = sessionId,
+                LessonTitle = "Test Lesson",
+                StudentName = "Test Student",
+                RobotName = "BLOSSOM 01"
+            });
 
-            // //  TEMP TEST EVENT (add this)
-            // events.Add(new TrackerEventDto
-            // {
-            //     Id = Guid.NewGuid(),
-            //     Timestamp = DateTime.UtcNow,
-            //     Severity = "info",
-            //     Source = "System",
-            //     EventType = "test_event",
-            //     Message = "Test event working",
-            //     SessionId = sessionId,
-            //     LessonTitle = "Test Lesson",
-            //     StudentName = "Test Student",
-            //     RobotName = "BLOSSOM 01"
-            // });
-
-            // Get session
-            // var session = await _robotSessionRepository.GetSessionByIdAsync(sessionId);
+            // Load session data from repository
             var session = await _sessionRepository.GetAsync(sessionId);
+            // If session does not exist, return current events (for debugging)
             if (session == null)
             {
                 return events;

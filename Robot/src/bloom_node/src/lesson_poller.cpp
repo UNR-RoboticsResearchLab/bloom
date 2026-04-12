@@ -238,7 +238,8 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 				step.step_order = step_json.value("stepOrder", 0);
 				step.type = step_json.value("type", "");
 				step.script = step_json.value("script", "");
-				step.timing_seconds = step_json.value("timingSeconds", 0);
+				step.timing_seconds = (step_json.contains("timingSeconds") && !step_json["timingSeconds"].is_null()) 
+    				? step_json["timingSeconds"].get<int>() : 0;
 
 				if (step_json.contains("behaviors") && step_json["behaviors"].is_string()) {
 					std::string behaviors_str = step_json["behaviors"].get<std::string>();

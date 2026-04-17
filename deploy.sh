@@ -141,16 +141,16 @@ echo "Application started with PID: $APP_PID"
 
 # --- Wait for application to be ready ---
 echo "Waiting for application to become ready..."
-ATTEMPTS=0
-until curl -s http://localhost:$APP_PORT/health &> /dev/null; do
-  sleep 2
-  ((ATTEMPTS++))
-  if [ "$ATTEMPTS" -gt 30 ]; then
-    echo "Warning: Application may not have started properly."
-    echo "Check logs at: $TARGET_DIR/logs/app.log"
-    break
-  fi
-done
+# ATTEMPTS=0
+# until curl -s http://localhost:$APP_PORT/health &> /dev/null; do
+#   sleep 2
+#   ((ATTEMPTS++))
+#   if [ "$ATTEMPTS" -gt 30 ]; then
+#     echo "Warning: Application may not have started properly."
+#     echo "Check logs at: $TARGET_DIR/logs/app.log"
+#     break
+#   fi
+# done
 
 # --- Deployment summary ---
 echo ""

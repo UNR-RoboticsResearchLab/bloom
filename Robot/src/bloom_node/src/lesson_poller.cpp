@@ -331,9 +331,11 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 		lesson_coord_->set_completion_callback(
 			[this](const std::string &completed_lesson_id) {
 				RCLCPP_INFO(this->get_logger(), "Lesson completion callback: %s", completed_lesson_id.c_str());
+				stop_step_control_polling();
 				currently_executing_.store(false);
 			});
 
+		start_step_control_polling();
 		lesson_coord_->start_lesson();
 		RCLCPP_INFO(this->get_logger(), "[DONE] start_lesson() completed");
 
@@ -343,6 +345,92 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 	}
 
 	
+}
+
+void LessonPoller::start_step_control_polling() {
+    if (step_control_timer_) return;
+    step_control_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(1500),
+        [this]() { this->on_step_control_tick(); });
+    RCLCPP_INFO(this->get_logger(), "Step control polling started");
+}
+
+void LessonPoller::stop_step_control_polling() {
+    if (step_control_timer_) {
+        step_control_timer_->cancel();
+        step_control_timer_ = nullptr;
+    }
+    RCLCPP_INFO(this->get_logger(), "Step control polling stopped");
+}
+
+void LessonPoller::on_step_control_tick() {
+    if (!currently_executing_.load()) {
+        stop_step_control_polling();
+        return;
+    }
+
+    std::string current_session_id;
+    {
+        std::lock_guard<std::mutex> lock(session_mutex_);
+        current_session_id = session_id_;
+    }
+
+    if (current_session_id.empty()) return;
+
+    std::string endpoint = "/api/lessonsession/" + current_session_id + "/lessons/step-control";
+
+    web_client_->sendGetAsync(
+        endpoint,
+        std::nullopt,
+        std::vector<std::string>{},
+        [this, current_session_id, endpoint](const std::string &body, long http_code) {
+            if (http_code == 204) return; // No command pending
+
+            if (http_code < 200 || http_code >= 300) {
+                RCLCPP_WARN(this->get_logger(), "Step control poll failed (HTTP %ld)", http_code);
+                return;
+            }
+
+            try {
+                auto j = json::parse(body);
+                std::string command = j.value("command", "");
+                RCLCPP_INFO(this->get_logger(), "[STEP_CONTROL] Received command: %s", command.c_str());
+
+                if (command == "skip") {
+                    if (lesson_coord_) lesson_coord_->skip_step();
+                } else if (command == "replay") {
+                    if (lesson_coord_) lesson_coord_->replay_step();
+                } else if (command == "set_step") {
+                    int target = j.value("targetStep", -1);
+                    if (target >= 0 && lesson_coord_) {
+                        lesson_coord_->set_step(target);
+                    } else {
+                        RCLCPP_WARN(this->get_logger(), "[STEP_CONTROL] set_step missing or invalid targetStep");
+                    }
+                } else {
+                    RCLCPP_WARN(this->get_logger(), "[STEP_CONTROL] Unknown command: %s", command.c_str());
+                }
+
+                // Acknowledge
+                std::string ack_endpoint = "/api/lessonsession/" + current_session_id + "/lessons/step-control";
+                web_client_->sendRequestAsync(
+                    "DELETE",
+                    ack_endpoint,
+                    std::nullopt,
+                    std::nullopt,
+                    std::vector<std::string>{},
+                    [this](const std::string &, long ack_code) {
+                        if (ack_code >= 200 && ack_code < 300) {
+                            RCLCPP_INFO(this->get_logger(), "[STEP_CONTROL] Command acknowledged");
+                        } else {
+                            RCLCPP_WARN(this->get_logger(), "[STEP_CONTROL] Failed to acknowledge command (HTTP %ld)", ack_code);
+                        }
+                    });
+
+            } catch (const json::exception &e) {
+                RCLCPP_ERROR(this->get_logger(), "Failed to parse step control response: %s", e.what());
+            }
+        });
 }
 
 void LessonPoller::set_pairing_code(const std::string &pairing_code) {

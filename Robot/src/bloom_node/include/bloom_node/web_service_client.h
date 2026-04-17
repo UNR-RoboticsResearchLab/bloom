@@ -31,7 +31,7 @@ namespace bloom_node
      */
 
     struct LessonProgressUpdate {
-        std::string current_step_id;
+        int current_step_id;
         int completed_steps;
         std::string status;  // "InProgress", "Completed", "Paused", "Failed"
 
@@ -45,7 +45,7 @@ namespace bloom_node
     };
 
     struct StudentInteractionLog {
-        std::string step_id;
+        int step_id;
         std::string interaction_type;  // "Response", "Question", "Timeout", "Fallback"
         std::string student_response;
         bool is_correct;

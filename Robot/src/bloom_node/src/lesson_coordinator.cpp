@@ -253,7 +253,7 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr) {
                                 speak_script(step->interaction.fallback_script);
                             }
 
-                            log_interaction_to_backend(step->id, "timeout", false);
+                            log_interaction_to_backend(step->step_order, "timeout", false);
                             waiting_for_tts_done_ = true;
                         });
                 }
@@ -404,7 +404,7 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
         }
 
         // Log interaction result to backend
-        log_interaction_to_backend(step.id, response, is_correct);
+        log_interaction_to_backend(step.step_order, response, is_correct);
 
         waiting_for_response_ = false;
         waiting_for_interaction_tts_ = false;
@@ -464,7 +464,7 @@ void LessonCoordinator::advance_to_next_step() {
     if (current_step_index_ >= current_lesson_.sequence.size()) {
         RCLCPP_INFO(this->get_logger(), "Lesson completed: %s", current_lesson_.lesson_id.c_str());
         lesson_active_ = false;
-
+        update_progress_with_backend();  
         // Invoke completion callback if set
         if (completion_callback_) {
             completion_callback_(current_lesson_.lesson_id);
@@ -474,6 +474,7 @@ void LessonCoordinator::advance_to_next_step() {
 
     const LessonStep &current_step = current_lesson_.sequence[current_step_index_];
     current_step_index_++;
+    update_progress_with_backend();
     execute_step(current_step);
 }
 
@@ -486,12 +487,12 @@ void LessonCoordinator::update_progress_with_backend() {
 
         // Create progress update
         LessonProgressUpdate progress;
-        progress.current_step_id = current_lesson_.sequence[current_step_index_ > 0 ? current_step_index_ - 1 : 0].id;
+        progress.current_step_id = current_lesson_.sequence[current_step_index_ > 0 ? current_step_index_ - 1 : 0].step_order;
         progress.completed_steps = current_step_index_;
         progress.status = lesson_active_ ? "InProgress" : "Completed";
 
         // Build endpoint URL
-        std::string progress_endpoint = "/api/robotsession/" + session_id_ + "lessons/progress";
+        std::string progress_endpoint = "/api/lessonsession/" + session_id_ + "/lessons/progress";
 
         // Send PUT request to backend
         web_client_->sendRequestAsync(
@@ -517,7 +518,7 @@ void LessonCoordinator::update_progress_with_backend() {
     }
 }
 
-void LessonCoordinator::log_interaction_to_backend(const std::string &step_id, const std::string &response, bool is_correct) {
+void LessonCoordinator::log_interaction_to_backend(int step_order, const std::string &response, bool is_correct) {
     try {
         if (!web_client_ || session_id_.empty()) {
             RCLCPP_DEBUG(this->get_logger(), "Cannot log interaction: web_client or session_id missing");
@@ -526,14 +527,14 @@ void LessonCoordinator::log_interaction_to_backend(const std::string &step_id, c
 
         // Create interaction log
         StudentInteractionLog interaction;
-        interaction.step_id = step_id;
+        interaction.step_id = step_order;
         interaction.interaction_type = "Response";
         interaction.student_response = response;
         interaction.is_correct = is_correct;
         interaction.response_time_ms = 0;  // TODO: Track actual response time
 
         // Build endpoint URL
-        std::string interaction_endpoint = "/api/robotsession/" + session_id_ + "/lessons/interactions";
+        std::string interaction_endpoint = "/api/lessonsession/" + session_id_ + "/lessons/interactions";
 
         // Send POST request to backend
         web_client_->sendRequestAsync(
@@ -542,26 +543,167 @@ void LessonCoordinator::log_interaction_to_backend(const std::string &step_id, c
             interaction.to_json().dump(),
             std::nullopt,
             {"Content-Type: application/json"},
-            [this, step_id](const std::string &body, long http_code) {
+            [this, step_order](const std::string &body, long http_code) {
                 if (http_code >= 200 && http_code < 300) {
-                    RCLCPP_DEBUG(this->get_logger(), "Interaction for step %s logged successfully", step_id.c_str());
+                    RCLCPP_DEBUG(this->get_logger(), "Interaction for step %d logged successfully", step_order);
                 } else {
                     RCLCPP_WARN(this->get_logger(),
-                        "Failed to log interaction for step %s (HTTP %ld): %s",
-                        step_id.c_str(),
+                        "Failed to log interaction for step %d (HTTP %ld): %s",
+                        step_order,
                         http_code,
                         body.c_str());
                 }
             });
 
-        RCLCPP_DEBUG(this->get_logger(), "Interaction logged for step %s: response='%s', correct=%s",
-            step_id.c_str(), response.c_str(), is_correct ? "true" : "false");
+        RCLCPP_DEBUG(this->get_logger(), "Interaction logged for step %d: response='%s', correct=%s",
+            step_order, response.c_str(), is_correct ? "true" : "false");
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Error logging interaction: %s", e.what());
     }
 }
 
+void LessonCoordinator::skip_step() {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    if (!lesson_active_) {
+        RCLCPP_WARN(this->get_logger(), "skip_step called but no lesson active");
+        return;
+    }
+    RCLCPP_INFO(this->get_logger(), "[SKIP] Skipping to next step from index %zu", current_step_index_);
 
+    if (step_timer_) {
+        step_timer_->cancel();
+        step_timer_ = nullptr;
+    }
+
+    waiting_for_tts_done_ = false;
+    waiting_for_interaction_tts_ = false;
+    waiting_for_wrap_up_ = false;
+    waiting_for_single_turn_ = false;
+    waiting_for_llm_tts_done_ = false;
+    waiting_for_response_ = false;
+    current_interaction_step_ = nullptr;
+
+    auto stt_msg = std_msgs::msg::String();
+    stt_msg.data = "false";
+    stt_enable_pub_->publish(stt_msg);
+
+    auto mode_msg = std_msgs::msg::String();
+    mode_msg.data = "lesson_mode";
+    llm_mode_pub_->publish(mode_msg);
+
+    if (state_manager_) state_manager_->set_state("waiting");
+    if (feedback_poller_) feedback_poller_->set_polling_active(false);
+
+    step_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(100),
+        [this]() {
+            step_timer_->cancel();
+            step_timer_ = nullptr;
+            advance_to_next_step();
+        });
+}
+
+void LessonCoordinator::replay_step() {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    if (!lesson_active_) {
+        RCLCPP_WARN(this->get_logger(), "replay_step called but no lesson active");
+        return;
+    }
+    RCLCPP_INFO(this->get_logger(), "[REPLAY] Replaying step at index %zu", current_step_index_ - 1);
+
+    if (step_timer_) {
+        step_timer_->cancel();
+        step_timer_ = nullptr;
+    }
+
+    waiting_for_tts_done_ = false;
+    waiting_for_interaction_tts_ = false;
+    waiting_for_wrap_up_ = false;
+    waiting_for_single_turn_ = false;
+    waiting_for_llm_tts_done_ = false;
+    waiting_for_response_ = false;
+    current_interaction_step_ = nullptr;
+
+    auto stt_msg = std_msgs::msg::String();
+    stt_msg.data = "false";
+    stt_enable_pub_->publish(stt_msg);
+
+    auto mode_msg = std_msgs::msg::String();
+    mode_msg.data = "lesson_mode";
+    llm_mode_pub_->publish(mode_msg);
+
+    if (state_manager_) state_manager_->set_state("waiting");
+    if (feedback_poller_) feedback_poller_->set_polling_active(false);
+
+    if (current_step_index_ > 0) {
+        current_step_index_--;
+    }
+
+    step_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(100),
+        [this]() {
+            step_timer_->cancel();
+            step_timer_ = nullptr;
+            advance_to_next_step();
+        });
+}
+
+void LessonCoordinator::set_step(int target_step_order) {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    if (!lesson_active_) {
+        RCLCPP_WARN(this->get_logger(), "set_step called but no lesson active");
+        return;
+    }
+
+    size_t target_index = current_lesson_.sequence.size();
+    for (size_t i = 0; i < current_lesson_.sequence.size(); i++) {
+        if (current_lesson_.sequence[i].step_order == target_step_order) {
+            target_index = i;
+            break;
+        }
+    }
+
+    if (target_index >= current_lesson_.sequence.size()) {
+        RCLCPP_WARN(this->get_logger(), "[SET_STEP] No step found with step_order=%d", target_step_order);
+        return;
+    }
+
+    RCLCPP_INFO(this->get_logger(), "[SET_STEP] Jumping to step_order=%d (index=%zu)", target_step_order, target_index);
+
+    if (step_timer_) {
+        step_timer_->cancel();
+        step_timer_ = nullptr;
+    }
+
+    waiting_for_tts_done_ = false;
+    waiting_for_interaction_tts_ = false;
+    waiting_for_wrap_up_ = false;
+    waiting_for_single_turn_ = false;
+    waiting_for_llm_tts_done_ = false;
+    waiting_for_response_ = false;
+    current_interaction_step_ = nullptr;
+
+    auto stt_msg = std_msgs::msg::String();
+    stt_msg.data = "false";
+    stt_enable_pub_->publish(stt_msg);
+
+    auto mode_msg = std_msgs::msg::String();
+    mode_msg.data = "lesson_mode";
+    llm_mode_pub_->publish(mode_msg);
+
+    if (state_manager_) state_manager_->set_state("waiting");
+    if (feedback_poller_) feedback_poller_->set_polling_active(false);
+
+    current_step_index_ = target_index;
+
+    step_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(100),
+        [this]() {
+            step_timer_->cancel();
+            step_timer_ = nullptr;
+            advance_to_next_step();
+        });
+}
 
 bool LessonCoordinator::is_lesson_running() const {
     // Use const_cast to allow locking in const method

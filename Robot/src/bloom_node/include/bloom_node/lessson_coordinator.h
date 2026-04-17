@@ -46,6 +46,7 @@ struct LessonStep {
     std::vector<std::string> visual_aid_labels;
     std::vector<std::string> visual_aid_footers;
     std::string motor_sequence;
+    
 };
 
 struct LessonData {
@@ -98,6 +99,9 @@ public:
 
     // Get the current session ID
     std::string get_session_id() const;
+    void skip_step();
+    void replay_step();
+    void set_step(int target_step_order);
 
 private:
 
@@ -112,7 +116,7 @@ private:
     void advance_to_next_step();
 
     void update_progress_with_backend();
-    void log_interaction_to_backend(const std::string &step_id, const std::string &response, bool is_correct);
+    void log_interaction_to_backend(int step_order, const std::string &response, bool is_correct);
 
     void on_tts_done(const std_msgs::msg::String::SharedPtr msg);
     void on_llm_wrap_up(const std_msgs::msg::String::SharedPtr msg);

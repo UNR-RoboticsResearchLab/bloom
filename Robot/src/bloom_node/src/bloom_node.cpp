@@ -293,7 +293,6 @@ int main(int argc, char ** argv)
 		7000  // Poll every 7 seconds
 	);
 
-	lesson_poller->start_polling();  // Start polling immediately to check for pending lessons
 	RCLCPP_INFO(node->get_logger(), "LessonPoller created with session_id: %s", session_id.c_str());
 
 	// Create FeedbackPoller for SLP feedback polling (1 second interval)

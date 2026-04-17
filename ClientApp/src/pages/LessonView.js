@@ -16,38 +16,71 @@ export default function LessonView() {
     const [stepInput, setStepInput] = useState("");
     const [isSendingStepCommand, setIsSendingStepCommand] = useState(false);
 
-    const [step, setStep] = useState([
-        {
-            id: 1,
-            title: "Step 1: Warm-Up & Engagement",
-            text: "Greet the student, establish comfort, and assess baseline responsiveness.",
-        },
-        {
-            id: 2,
-            title: "Step 2: Guided Modeling",
-            text: "Introduce target word with clear articulation and visual emphasis.",
-        },
-        {
-            id: 3,
-            title: "Step 3: Supported Practice",
-            text: "Student attempts pronunciation with prompts and encouragement.",
-        },
-        {
-            id: 4,
-            title: "Step 4: Independent Attempt",
-            text: "Student produces target word with reduced assistance.",
-        },
-        {
-            id: 5,
-            title: "Step 5: Generalization",
-            text: "Use the word in a short phrase or new context.",
-        },
-        {
-            id: 6,
-            title: "Step 6: Review & Reinforcement",
-            text: "Reinforce correct production and summarize progress.",
-        },
-    ]);
+
+
+    const [step, setStep] = useState([]);
+    const [isLoadingSteps, setIsLoadingSteps] = useState(false);
+
+    async function loadLessonSteps() {
+        if (!lessonId) return;
+
+        try {
+            setIsLoadingSteps(true);
+
+            const lessonData = await api.getLesson(lessonId);
+            console.log("Lesson details:", lessonData);
+
+            const mappedSteps = (lessonData?.steps ?? lessonData?.Steps ?? [])
+                .sort((a, b) => (a.stepOrder ?? a.StepOrder ?? 0) - (b.stepOrder ?? b.StepOrder ?? 0))
+                .map((item) => ({
+                    id: item.id ?? item.Id ?? item.stepOrder ?? item.StepOrder,
+                    title: `Step ${item.stepOrder ?? item.StepOrder}: ${item.type ?? item.Type}`,
+                    text: item.script ?? item.Script ?? "No script available.",
+                }));
+
+            setStep(mappedSteps);
+        } catch (error) {
+            console.error("Failed to load lesson steps:", error);
+            setStep([]);
+        } finally {
+            setIsLoadingSteps(false);
+        }
+    }
+
+    // const [step, setStep] = useState([
+    //     {
+    //         id: 1,
+    //         title: "Step 1: Warm-Up & Engagement",
+    //         text: "Greet the student, establish comfort, and assess baseline responsiveness.",
+    //     },
+    //     {
+    //         id: 2,
+    //         title: "Step 2: Guided Modeling",
+    //         text: "Introduce target word with clear articulation and visual emphasis.",
+    //     },
+    //     {
+    //         id: 3,
+    //         title: "Step 3: Supported Practice",
+    //         text: "Student attempts pronunciation with prompts and encouragement.",
+    //     },
+    //     {
+    //         id: 4,
+    //         title: "Step 4: Independent Attempt",
+    //         text: "Student produces target word with reduced assistance.",
+    //     },
+    //     {
+    //         id: 5,
+    //         title: "Step 5: Generalization",
+    //         text: "Use the word in a short phrase or new context.",
+    //     },
+    //     {
+    //         id: 6,
+    //         title: "Step 6: Review & Reinforcement",
+    //         text: "Reinforce correct production and summarize progress.",
+    //     },
+    // ]);
+
+
 
     // Fake data needs to be replaced with real conversation data from the backend
     const [conversation, setConversation] = useState([
@@ -193,6 +226,8 @@ export default function LessonView() {
 
                 const res = await api.startLessonSession(lessonId, sessionId);
                 console.log("Lesson session started:", res);
+                
+                await loadLessonSteps();
             } catch (error) {
                 console.error("Failed to start lesson session:", error);
             }
@@ -393,20 +428,30 @@ export default function LessonView() {
 
                 <div className="mt-2 h-[200px] overflow-x-auto overflow-y-hidden rounded-2xl border bg-white p-3">
                     <div className="flex gap-3 h-full items-stretch">
-                        {step.map((item) => (
-                            <div
-                                key={item.id}
-                                className="min-w-[180px] max-w-[200px] flex-shrink-0 h-full rounded-lg bg-gray-100 border border-gray-300 p-3 shadow-sm flex flex-col justify-start"
-                            >
-                                <p className="text-sm font-semibold text-gray-900 leading-tight">
-                                    {item.title}
-                                </p>
-
-                                <p className="mt-2 text-xs text-gray-600 leading-snug break-words">
-                                    {item.text}
-                                </p>
+                        {isLoadingSteps ? (
+                            <div className="flex h-full min-w-full items-center justify-center">
+                                <p className="text-sm text-gray-500">Loading lesson steps...</p>
                             </div>
-                        ))}
+                        ) : step.length === 0 ? (
+                            <div className="flex h-full min-w-full items-center justify-center">
+                                <p className="text-sm text-gray-500">No lesson steps found.</p>
+                            </div>
+                        ) : (
+                            step.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="min-w-[180px] max-w-[220px] flex-shrink-0 h-full rounded-lg bg-gray-100 border border-gray-300 p-3 shadow-sm flex flex-col justify-start"
+                                >
+                                    <p className="text-sm font-semibold text-gray-900 leading-tight">
+                                        {item.title}
+                                    </p>
+
+                                    <p className="mt-2 text-xs text-gray-600 leading-snug break-words">
+                                        {item.text}
+                                    </p>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
 

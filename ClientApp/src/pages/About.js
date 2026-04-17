@@ -1,5 +1,4 @@
 export default function About() {
-  
   return (
     <div className="min-h-screen bg-white text-gray-900 px-6 py-12 max-w-4xl mx-auto text-center" lang="en">
 

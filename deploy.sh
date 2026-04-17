@@ -78,7 +78,7 @@ if [ "$RESTART_ONLY" = true ]; then
 
   # Start the application
   cd "$TARGET_DIR"
-  nohup dotnet Bloom.dll > "$TARGET_DIR/logs/app.log" 2>&1 &
+  nohup dotnet bloom.dll > "$TARGET_DIR/logs/app.log" 2>&1 &
   NEW_PID=$!
   echo $NEW_PID > "$TARGET_DIR/app.pid"
   echo "Application started (PID: $NEW_PID)"
@@ -123,7 +123,7 @@ cp -r "$PUBLISH_DIR/"* "$TARGET_DIR/"
 if [ "$RUN_MIGRATIONS" = true ]; then
   echo "Running database migrations..."
   cd "$TARGET_DIR"
-  if dotnet Bloom.dll --run-migrations; then
+  if dotnet bloom.dll --run-migrations; then
     echo "Migrations completed successfully."
   else
     echo "Warning: Migrations may have failed. Check logs."

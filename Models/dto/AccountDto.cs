@@ -17,7 +17,13 @@ namespace bloom.Models.dto
         public required string Email { get; set; }
         public required string Password { get; set; }
         public required string SelectedRole { get; set; }
-        public required string UserName { get; set; }
+    }
+
+    public class StudentDto
+    {
+        public required string FullName { get; set; }
+        public required string Email { get; set; }
+        public required string SLPEmail { get; set; }
     }
     
 }

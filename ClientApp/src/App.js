@@ -2,22 +2,35 @@
 import { Routes, Route } from "react-router-dom";
 
 import Layout from "./components/Layout";
-import SignIn from "./components/SignIn";
-import SignUp from "./components/SignUp";
-import { RequireAuth, RequireRole } from "./components/RouteGuards";
-import About from "./pages/About";
 
+import About from "./pages/About";
 import Home from "./pages/Home";
-import FetchData from "./pages/FetchData";
-import Counter from "./pages/Counter";
-import ForgotPassword from "./pages/ForgotPassword";
+
+import SignIn from "./pages/SignIn";
+import SignUp from "./pages/SignUp";
+
+import { RequireAuth, RequireRole } from "./components/RouteGuards";
 
 import AdminDashboard from "./components/dashboard/AdminDashboard";
 import TeacherDashboard from "./components/dashboard/TeacherDashboard";
 import StudentDashboard from "./components/dashboard/StudentDashboard";
 import SlpDashboard from "./components/dashboard/SlpDashboard";
 
-import "./custom.css";
+import Lessons from "./pages/Lessons";
+import Lesson from "./pages/Lesson";
+
+import Students from "./pages/Students";
+import Student from "./pages/Student";
+
+import ForgotPassword from "./pages/ForgotPassword";
+
+import FetchData from "./pages/FetchData";
+import Counter from "./pages/Counter";
+
+// import "./custom.css";
+
+import AddStudentCard from "./pages/AddStudentCard";
+import AddLessonCard from "./pages/AddLessonCard";
 
 export default function App() {
 
@@ -35,12 +48,26 @@ export default function App() {
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/about" element={<About />} />
+        <Route path="/lessons" element={<Lessons />} />
+        <Route path="/students" element={<Students />} />
+        <Route path="/student/:name" element={<Student />} />
+        <Route path="/lesson/:lessonId" element={<Lesson />} />
+
+        <Route path="/add-student" element={<AddStudentCard />} />
+
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/teacher" element={<TeacherDashboard />} />
+        {/* <Route path="/student" element={<StudentDashboard />} /> */}
+        <Route path="/slp" element={<SlpDashboard />} />
+
+
 
         {/* Protected */}
         <Route element={<RequireAuth />}>
           <Route path="/dashboard">
             <Route element={<RequireRole allow={["admin"]} />}>
               <Route path="admin" element={<AdminDashboard />} />
+              <Route path="admin/add-lesson" element={<AddLessonCard />} />
             </Route>
             <Route element={<RequireRole allow={["teacher"]} />}>
               <Route path="teacher" element={<TeacherDashboard />} />

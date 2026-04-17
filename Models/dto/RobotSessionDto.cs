@@ -3,6 +3,8 @@
 // Data transfer objects for RobotSession API operations
 // Created: 11/18/2025
 
+using System.Text.Json.Serialization;
+
 namespace bloom.Models.dto
 {
     /// <summary>
@@ -13,14 +15,17 @@ namespace bloom.Models.dto
         /// <summary>
         /// Whether to create an anonymous session (null UserId)
         /// </summary>
+        [JsonPropertyName("anonymous")]
         public bool Anonymous { get; set; } = false;
         /// <summary>
         /// RobotId to associate with the session
         /// </summary>
+        [JsonPropertyName("robot_id")]
         public Guid RobotId { get; set; }
         /// <summary>
         /// Optional UserId for the session
         /// </summary>
+        [JsonPropertyName("user_id")]
         public string? UserId { get; set; }
     }
 
@@ -31,9 +36,11 @@ namespace bloom.Models.dto
     {
         public Guid Id { get; set; }
         public string? UserId { get; set; }
+        public string? SessionCode { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime LastUpdatedAt { get; set; }
         public int Robots { get; set; }
+        public List<Guid> RobotIds { get; set; } = new();
         public RobotState? LastState { get; set; }
     }
 
@@ -46,15 +53,6 @@ namespace bloom.Models.dto
         public string? CurrentTask { get; set; } = "";
         public int? CurrentBehaviorId { get; set; }
         public string? SpeechLog { get; set; } = "";
-    }
-
-    /// <summary>
-    /// Request DTO for adding a robot to a session
-    /// </summary>
-    public class AddRobotToSessionDto
-    {
-        public required Guid RobotId { get; set; }
-        public required RobotStateDto CurrentState { get; set; }
     }
 
     /// <summary>

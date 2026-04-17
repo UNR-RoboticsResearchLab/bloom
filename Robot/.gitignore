@@ -9,10 +9,9 @@ face_control.json        # Commands sent to face
 current_visemes.json.    # Produced by face test scripts
 config.py
 *.pyo
-.env
 
 
-# ros files
-build/
+#ros workspace files
 install/
+build/
 logs/

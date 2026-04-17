@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <iostream>
 
-namespace bloom_node {
+namespace configuration_manager {
 
 /// ConfigurationManager provides an (untested) thread-safe configuration store for
 /// the robot. It can load simple key=value files and import parameters from a
@@ -72,8 +72,6 @@ private:
 	rclcpp::Node::SharedPtr node_;
 	mutable std::mutex mutex_;
 	std::unordered_map<std::string, std::string> store_;
-
-	std::string config_file_path_;
 
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_;
 };

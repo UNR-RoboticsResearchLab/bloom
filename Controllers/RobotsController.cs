@@ -6,7 +6,7 @@ using bloom.Services;
 
 namespace bloom.Controllers
 {
-    [ApiController] 
+    [ApiController]
     [Route("api/[controller]")]
     public class RobotsController : ControllerBase
     {

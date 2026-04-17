@@ -72,18 +72,7 @@ export default function AdminDashboard() {
         <Stat label="TTS Error Rate" value={readings.ttsError.toFixed(1)} unit="%" percent={readings.ttsError} />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <section className="rounded-lg bg-white p-4 shadow">
-          <h3 className="text-base font-semibold">Lesson Management</h3>
-          <p className="mt-2 text-sm text-gray-600">Create and manage lessons for the system.</p>
-          <button
-            onClick={() => window.location.href = "/dashboard/admin/add-lesson"}
-            className="mt-4 w-full rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500"
-          >
-            Add Lesson
-          </button>
-        </section>
-
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg bg-white p-4 shadow">
           <h3 className="text-base font-semibold">Health Notes</h3>
           <ul className="mt-3 list-disc pl-5 text-sm text-gray-700">

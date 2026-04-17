@@ -20,9 +20,7 @@ namespace bloom.Services
 
         // Register Accounts
         Task<IdentityResult> RegisterAdminAsync(CreateAccountDto user);
-
-        // Delete Account
-        Task<IdentityResult> DeleteUserAsync(string id);
+        Task<IdentityResult> RegisterFacilitatorAsync(CreateAccountDto user);
 
         // this is kind of idiosyncratic since they wont register themselves ? 
         Task<IdentityResult> RegisterStudentAsync(CreateAccountDto user);
@@ -38,6 +36,7 @@ namespace bloom.Services
         Task<bool> AddToRoleAsync(Account user, string role);
         Task<bool> IsInRoleAsync(Account user, string role);
         Task<IList<string>> GetUserRolesByIdAsync(string userId);
+        Task<IdentityResult> RegisterTeacherAsync(CreateAccountDto account);
     }   
     
 }

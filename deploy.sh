@@ -17,7 +17,6 @@ set -euo pipefail
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBLISH_DIR="$(ls -d "/var/www/bloom-build/net9.0/publish" 2>/dev/null | head -n 1)"
-FRONTEND_BUILD_DIR="$SCRIPT_DIR/ClientApp/build"
 TARGET_DIR=""
 RUN_MIGRATIONS=false
 RESTART_ONLY=false
@@ -29,10 +28,6 @@ for arg in "$@"; do
   case $arg in
     --prod)
       TARGET_DIR="/var/www/bloom"
-      ;;
-    --dev)
-      TARGET_DIR="/var/www/bloom-dev"
-      APP_PORT=5001
       ;;
     --migration)
       RUN_MIGRATIONS=true
@@ -58,9 +53,9 @@ if [ -z "$TARGET_DIR" ]; then
   TARGET_DIR="/var/www/bloom-dev"
 fi
 
-echo "=================================="
-echo "   Bloom Application Deployment"
-echo "=================================="
+echo "================================"
+echo "Bloom Application Deployment"
+echo "================================"
 echo "Target directory: $TARGET_DIR"
 echo ""
 
@@ -119,11 +114,6 @@ find "$TARGET_DIR" -mindepth 1 -maxdepth 1 ! -name logs ! -name backups -exec rm
 mkdir -p "$TARGET_DIR"
 mkdir -p "$TARGET_DIR/logs"
 mkdir -p "$TARGET_DIR/backups"
-mkdir -p "$TARGET_DIR/build"
-
-# --- Deploy frontend files ---
-echo "Deploying frontend files..."
-cp -r "$FRONTEND_BUILD_DIR/"* "$TARGET_DIR/build"
 
 # --- Deploy application files ---
 echo "Deploying application files..."
@@ -143,18 +133,16 @@ fi
 # --- Start the application ---
 echo "Starting Bloom application..."
 cd "$TARGET_DIR"
-nohup dotnet Bloom.dll --urls "http://*:$APP_PORT" > "$TARGET_DIR/logs/app.log" 2>&1 &
+nohup dotnet bloom.dll > "$TARGET_DIR/logs/app.log" 2>&1 &
 APP_PID=$!
 echo $APP_PID > "$TARGET_DIR/app.pid"
 
 echo "Application started with PID: $APP_PID"
 
-set +e
-
 # --- Wait for application to be ready ---
 echo "Waiting for application to become ready..."
 ATTEMPTS=0
-until curl -s http://localhost:$APP_PORT/ &> /dev/null; do
+until curl -s http://localhost:$APP_PORT/health &> /dev/null; do
   sleep 2
   ((ATTEMPTS++))
   if [ "$ATTEMPTS" -gt 30 ]; then
@@ -163,8 +151,6 @@ until curl -s http://localhost:$APP_PORT/ &> /dev/null; do
     break
   fi
 done
-
-set -e
 
 # --- Deployment summary ---
 echo ""
@@ -178,5 +164,3 @@ echo ""
 echo "To restart: ./deploy.sh $([ "$TARGET_DIR" = "/var/www/bloom" ] && echo "--prod" || echo "") --restart-only"
 echo "To stop: kill $APP_PID"
 echo "================================"
-
-exit 0

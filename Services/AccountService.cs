@@ -2,11 +2,11 @@
 // AccountService.cs
 // Class for interfacing with the database, providing useful helper functions.
 // Created: 10/22/2025
+using System.ComponentModel.DataAnnotations;
 using bloom.Models;
 using bloom.Models.dto;
 using bloom.Data;
 using Microsoft.AspNetCore.Identity;
-using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
@@ -87,12 +87,12 @@ namespace bloom.Services
             {
                 var result = await _userManager.CreateAsync(new Account
                 {
+                    UserName = user.UserName,
                     Email = user.Email,
                     FullName = user.FullName,
                     EmailConfirmed = false,
                     CreatedDate = DateTime.UtcNow,
-                    Role = "Admin",
-                    UserName = user.Email
+                    Role = "Admin"
                 }, user.Password);
 
                 return result;
@@ -100,6 +100,34 @@ namespace bloom.Services
             catch (Exception ex)
             {
                 throw new Exception("Error creating a new admin user", ex);
+            }
+        }
+
+        public async Task<IdentityResult> RegisterFacilitatorAsync(CreateAccountDto user)
+        {
+            if (user == null)
+            {
+                throw new ArgumentNullException(nameof(user));
+            }
+            // todo : do some additinoal validation
+
+            try
+            {
+                var result = await _userManager.CreateAsync(new Account
+                {
+                    UserName = user.UserName,
+                    Email = user.Email,
+                    FullName = user.FullName,
+                    EmailConfirmed = false,
+                    CreatedDate = DateTime.UtcNow,
+                    Role = "Facilitator"
+                }, user.Password);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error creating a new facilitator user", ex);
             }
         }
 
@@ -115,12 +143,12 @@ namespace bloom.Services
             {
                 var result = await _userManager.CreateAsync(new Account
                 {
+                    UserName = user.UserName,
                     Email = user.Email,
                     FullName = user.FullName,
                     EmailConfirmed = false,
                     CreatedDate = DateTime.UtcNow,
-                    Role = "Student",
-                    UserName = user.Email
+                    Role = "Student"
                 }, user.Password);
 
                 return result;
@@ -131,24 +159,52 @@ namespace bloom.Services
             }
         }
 
+        public async Task<IdentityResult> RegisterTeacherAsync(CreateAccountDto user)
+        {
+            if (user == null)
+            {
+                throw new ArgumentNullException(nameof(user));
+            }
+            // todo : do some additinoal validation
+
+            try
+            {
+                var result = await _userManager.CreateAsync(new Account
+                {
+                    UserName = user.UserName,
+                    Email = user.Email,
+                    FullName = user.FullName,
+                    EmailConfirmed = false,
+                    CreatedDate = DateTime.UtcNow,
+                    Role = "Teacher"
+                }, user.Password);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error creating a new teacher user", ex);
+            }
+        }
+
         public async Task<IdentityResult> RegisterSLPAsync(CreateAccountDto user)
         {
             if (user == null)
             {
                 throw new ArgumentNullException(nameof(user));
             }
-            // todo : do some additional validation
+            // todo : do some additinoal validation
 
             try
             {
                 var result = await _userManager.CreateAsync(new Account
                 {
+                    UserName = user.UserName,
                     Email = user.Email,
                     FullName = user.FullName,
                     EmailConfirmed = false,
                     CreatedDate = DateTime.UtcNow,
-                    Role = "SLP",
-                    UserName = user.Email
+                    Role = "SLP"
                 }, user.Password);
 
                 return result;
@@ -191,59 +247,6 @@ namespace bloom.Services
                 throw new Exception("Error signing in user", ex);
             }
 
-        }
-
-        public async Task<IdentityResult> DeleteUserAsync(string accountId)
-        {
-            try {
-
-                var userRecord = await _dbContext.Accounts.Where(a => a.Id == accountId).ToListAsync();
-
-
-                if (userRecord == null || userRecord.Count == 0)
-                {
-                    return IdentityResult.Failed(
-                        new IdentityError[]{
-                            new IdentityError {
-                                Code = "404",
-                                Description = "User record not found"
-                            }
-                        }
-                    );
-                }
-
-                _dbContext.Accounts.RemoveRange(userRecord);
-
-                var result = await _dbContext.SaveChangesAsync();
-                
-                if (result == 0)
-                {
-                    return IdentityResult.Failed(
-                        new IdentityError[]{
-                            new IdentityError {
-                                Code = "300",
-                                Description = "Internal error deleting user record"
-                            }
-                        }
-                    );
-                }
-
-                return IdentityResult.Success;
-                
             }
-            catch (Exception ex)
-            {
-                return IdentityResult.Failed(new IdentityError[]
-                {
-                    new IdentityError
-                    {
-                        Code = "500",
-                        Description = ex.Message
-                    }
-                });
-            }
-
-            
-        }
     }
 }

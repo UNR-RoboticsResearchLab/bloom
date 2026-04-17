@@ -1,6 +1,6 @@
 #include "bloom_node/configuration_manager.h"
 
-using namespace bloom_node;
+using namespace configuration_manager;
 
 ConfigurationManager::ConfigurationManager(const rclcpp::Node::SharedPtr& node)
   	: rclcpp::Node(node->get_name()),
@@ -35,8 +35,6 @@ bool ConfigurationManager::load_from_file(const std::string & path)
       tmp[key] = value;
     }
   }
-
-  config_file_path_ = path;
 
   {
     std::lock_guard<std::mutex> lk(mutex_);
@@ -166,19 +164,6 @@ void ConfigurationManager::set(const std::string & key, const std::string & valu
 {
   std::lock_guard<std::mutex> lk(mutex_);
   store_[key] = value;
-  if (node_) {
-    RCLCPP_INFO(node_->get_logger(), "Config set: %s=%s", key.c_str(), value.c_str());
-    
-    // save to file immediately on change
-    // (could be optimized with a debounce mechanism if config changes are frequent)
-    if (!config_file_path_.empty()) {
-      save_to_file(config_file_path_);
-    } else {
-      RCLCPP_WARN(node_->get_logger(), "No config file path set, not saving config to file");
-    }
-  } else {
-    std::cout << "Config set: " << key << "=" << value << std::endl;
-  }
 }
 
 std::unordered_map<std::string, std::string> ConfigurationManager::snapshot() const
@@ -207,7 +192,7 @@ bool ConfigurationManager::parse_line(const std::string & line, std::string & ke
 
 void ConfigurationManager::on_config_message(const std_msgs::msg::String::SharedPtr msg)
 {
-  std::string key, value;
+    std::string key, value;
   if (parse_line(msg->data, key, value))
   {
     set(key, value);
@@ -221,3 +206,35 @@ void ConfigurationManager::on_config_message(const std_msgs::msg::String::Shared
   }
 }
 
+
+
+#ifdef CONFIG_MANAGER_MAIN
+int main(int argc, char ** argv)
+{
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("configuration_manager");
+  bloom_node::ConfigurationManager cfg(node);
+
+  node->declare
+
+  if (argc > 1) {
+    const std::string path = argv[1];
+    if (!cfg.load_from_file(path)) {
+      std::cerr << "Failed to load config file: " << path << std::endl;
+    }
+  }
+
+  // Import any ROS params available on the node
+  cfg.import_from_node();
+
+  auto snap = cfg.snapshot();
+  for (const auto &p : snap) {
+    std::cout << p.first << "=" << p.second << std::endl;
+  }
+
+  rclcpp::spin();
+
+  rclcpp::shutdown();
+  return 0;
+}
+#endif

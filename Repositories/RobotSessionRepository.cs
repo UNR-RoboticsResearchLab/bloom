@@ -13,8 +13,6 @@ namespace bloom.Repositories
     {
         private readonly BloomDbContext _dbContext;
 
-        // private readonly 
-
         public RobotSessionRepository(BloomDbContext dbContext)
         {
             _dbContext = dbContext;

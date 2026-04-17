@@ -47,40 +47,6 @@ export default function LessonView() {
         }
     }
 
-    // const [step, setStep] = useState([
-    //     {
-    //         id: 1,
-    //         title: "Step 1: Warm-Up & Engagement",
-    //         text: "Greet the student, establish comfort, and assess baseline responsiveness.",
-    //     },
-    //     {
-    //         id: 2,
-    //         title: "Step 2: Guided Modeling",
-    //         text: "Introduce target word with clear articulation and visual emphasis.",
-    //     },
-    //     {
-    //         id: 3,
-    //         title: "Step 3: Supported Practice",
-    //         text: "Student attempts pronunciation with prompts and encouragement.",
-    //     },
-    //     {
-    //         id: 4,
-    //         title: "Step 4: Independent Attempt",
-    //         text: "Student produces target word with reduced assistance.",
-    //     },
-    //     {
-    //         id: 5,
-    //         title: "Step 5: Generalization",
-    //         text: "Use the word in a short phrase or new context.",
-    //     },
-    //     {
-    //         id: 6,
-    //         title: "Step 6: Review & Reinforcement",
-    //         text: "Reinforce correct production and summarize progress.",
-    //     },
-    // ]);
-
-
 
     // Fake data needs to be replaced with real conversation data from the backend
     const [conversation, setConversation] = useState([
@@ -337,7 +303,6 @@ export default function LessonView() {
                         <p>{item.text}</p>
                     </div>
                     <p className="mt-1 text-[11px] text-gray-500">
-                        {/* {new Date(item.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} */}
                         {item.ts}
                     </p>
                 </div>
@@ -354,7 +319,6 @@ export default function LessonView() {
                         <p>{item.text}</p>
                     </div>
                     <p className="mt-1 text-[11px] text-gray-500">
-                        {/* {new Date(item.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} */}
                         {item.ts}
                     </p>
                 </div>
@@ -370,7 +334,6 @@ export default function LessonView() {
                     <p>{item.text}</p>
                 </div>
                 <p className="mt-1 text-[11px] text-gray-500">
-                    {/* {new Date(item.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} */}
                     {item.ts}
                 </p>
             </div>
@@ -386,40 +349,6 @@ export default function LessonView() {
             <p className="text-sm font-semibold text-gray-900">
                 Lesson In Progress
             </p>
-
-            {/* <div className="mt-4 rounded-lg border p-4 shadow-sm">
-                <h1 className="text-3xl font-semibold text-gray-900">
-                    {lesson?.title ?? lesson?.Title}
-                </h1>
-
-                <p className="mt-2 text-sm text-gray-600">
-                    {lesson?.description ?? lesson?.Description ?? "No description available."}
-                </p>
-
-                <div className="mt-4 grid gap-3 md:grid-cols-3 text-sm">
-                    <div className="rounded-md border p-3">
-                        <p className="font-semibold text-gray-900">Student</p>
-                        <p className="mt-1 text-gray-700">
-                            {student.firstName} {student.lastName}
-                        </p>
-                        <p className="text-gray-600">Level: {student.level}</p>
-                    </div>
-
-                    <div className="rounded-md border p-3">
-                        <p className="font-semibold text-gray-900">Session</p>
-                        <p className="mt-1 break-all text-gray-600">
-                            {sessionId || "No paired session found"}
-                        </p>
-                    </div>
-
-                    <div className="rounded-md border p-3">
-                        <p className="font-semibold text-gray-900">Lesson ID</p>
-                        <p className="mt-1 break-all text-gray-600">
-                            {lessonId}
-                        </p>
-                    </div>
-                </div>
-            </div> */}
 
             <div className="mt-4 rounded-lg border p-4 shadow-sm">
                 <div className="flex items-center justify-between">

@@ -99,6 +99,8 @@ public:
 
     // Get the current session ID
     std::string get_session_id() const;
+
+    // Step control, called by LessonPoller when SLP issues commands
     void skip_step();
     void replay_step();
     void set_step(int target_step_order);
@@ -162,6 +164,8 @@ private:
 
     std::string robot_state_{"idle"};
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_state_sub_;
+
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr tts_interrupt_pub_;
 
 
 };

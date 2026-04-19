@@ -45,10 +45,16 @@ LessonCoordinator::LessonCoordinator(
             robot_state_ = msg->data;
         });
     RCLCPP_INFO(this->get_logger(), "LessonCoordinator initialized with Vosk subscriber");
+
+    tts_interrupt_pub_ = this->create_publisher<std_msgs::msg::String>("/tts/interrupt", 10);
 }
 
 LessonCoordinator::~LessonCoordinator() {
-    stop_lesson();
+    lesson_active_ = false;
+    if (step_timer_) {
+        step_timer_->cancel();
+        step_timer_ = nullptr;
+    }
 }
 
 bool LessonCoordinator::load_lesson(const LessonData &lesson_data) {
@@ -94,8 +100,20 @@ void LessonCoordinator::stop_lesson() {
 void LessonCoordinator::reset_lesson() {
     std::lock_guard<std::mutex> lock(lesson_mutex_);
 
-    stop_lesson();
+    if (step_timer_) {
+        step_timer_->cancel();
+        step_timer_ = nullptr;
+    }
+
+    lesson_active_ = false;
     current_step_index_ = 0;
+    current_interaction_step_ = nullptr;
+    waiting_for_tts_done_ = false;
+    waiting_for_interaction_tts_ = false;
+    waiting_for_wrap_up_ = false;
+    waiting_for_single_turn_ = false;
+    waiting_for_llm_tts_done_ = false;
+    waiting_for_response_ = false;
 
     RCLCPP_INFO(this->get_logger(), "Lesson reset");
 }
@@ -587,6 +605,10 @@ void LessonCoordinator::skip_step() {
     stt_msg.data = "false";
     stt_enable_pub_->publish(stt_msg);
 
+    auto interrupt_msg = std_msgs::msg::String();
+    interrupt_msg.data = "interrupt";
+    tts_interrupt_pub_->publish(interrupt_msg);
+
     auto mode_msg = std_msgs::msg::String();
     mode_msg.data = "lesson_mode";
     llm_mode_pub_->publish(mode_msg);
@@ -602,7 +624,6 @@ void LessonCoordinator::skip_step() {
             advance_to_next_step();
         });
 }
-
 void LessonCoordinator::replay_step() {
     std::lock_guard<std::mutex> lock(lesson_mutex_);
     if (!lesson_active_) {
@@ -627,6 +648,10 @@ void LessonCoordinator::replay_step() {
     auto stt_msg = std_msgs::msg::String();
     stt_msg.data = "false";
     stt_enable_pub_->publish(stt_msg);
+
+    auto interrupt_msg = std_msgs::msg::String();
+    interrupt_msg.data = "interrupt";
+    tts_interrupt_pub_->publish(interrupt_msg);
 
     auto mode_msg = std_msgs::msg::String();
     mode_msg.data = "lesson_mode";
@@ -686,6 +711,10 @@ void LessonCoordinator::set_step(int target_step_order) {
     auto stt_msg = std_msgs::msg::String();
     stt_msg.data = "false";
     stt_enable_pub_->publish(stt_msg);
+
+    auto interrupt_msg = std_msgs::msg::String();
+    interrupt_msg.data = "interrupt";
+    tts_interrupt_pub_->publish(interrupt_msg);
 
     auto mode_msg = std_msgs::msg::String();
     mode_msg.data = "lesson_mode";

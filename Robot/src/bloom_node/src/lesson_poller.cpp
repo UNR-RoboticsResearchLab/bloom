@@ -150,7 +150,7 @@ void LessonPoller::on_polling_tick() {
 
     //Lesson polling
     if (currently_executing_.load()) {
-        RCLCPP_WARN(this->get_logger(), "Skipping lesson poll: lesson currently executing (may be stuck)");
+        RCLCPP_DEBUG(this->get_logger(), "Skipping lesson poll: lesson currently executing");
         return;
     }
 

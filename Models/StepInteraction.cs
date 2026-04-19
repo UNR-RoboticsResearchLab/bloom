@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace bloom.Models
 {
@@ -32,6 +33,7 @@ namespace bloom.Models
         public string? FallbackVisualAidLabels { get; set; }
 
         // Navigation
+        [JsonIgnore]
         public LessonStep LessonStep { get; set; } = null!;
     }
 }

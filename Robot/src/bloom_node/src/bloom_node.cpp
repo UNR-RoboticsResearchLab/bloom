@@ -252,7 +252,7 @@ int main(int argc, char ** argv)
 		session_payload.dump(),
 		std::nullopt,
 		{"Content-Type: application/json"},
-		[web_client, &session_id, &robotId, &pairing_code](const std::string &body, long http_code) {
+		[web_client, &session_id, &robotId, &pairing_code, config_mgr](const std::string &body, long http_code) {
 			if (http_code >= 200 && http_code < 300) {
 				RCLCPP_INFO(web_client->get_logger(), "Session started successfully (HTTP %ld)", http_code);
 				RCLCPP_INFO(web_client->get_logger(), "Response: %s", body.c_str());

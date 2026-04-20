@@ -267,12 +267,14 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr) {
                                 visual_aid_publisher_->publish(va_msg);
                             }
 
+                            log_interaction_to_backend(step->step_order, "timeout", false);
+
                             if (!step->interaction.fallback_script.empty()) {
                                 speak_script(step->interaction.fallback_script);
+                                waiting_for_tts_done_ = true;
+                            } else {
+                                advance_to_next_step();
                             }
-
-                            log_interaction_to_backend(step->step_order, "timeout", false);
-                            waiting_for_tts_done_ = true;
                         });
                 }
             });
@@ -440,8 +442,15 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
             step_timer_ = nullptr;
         }
 
-        // Wait for feedback TTS to finish before advancing
-        waiting_for_tts_done_ = true;
+        // Only wait for TTS if we actually spoke something
+        bool spoke_feedback = (is_correct && !interaction.correct_response_script.empty()) ||
+                            (!is_correct && !interaction.incorrect_response_script.empty());
+
+        if (spoke_feedback) {
+            waiting_for_tts_done_ = true;
+        } else {
+            advance_to_next_step();
+        }
 
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Error processing Vosk result: %s", e.what());

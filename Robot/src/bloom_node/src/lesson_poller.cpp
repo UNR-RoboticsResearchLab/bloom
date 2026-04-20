@@ -300,9 +300,12 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 							step.has_interaction = true;
 							RCLCPP_INFO(this->get_logger(), "[INTERACTION_DEBUG] step %s raw: %s", 
 								step.id.c_str(), interaction_json.dump().c_str());
-							step.interaction.wait_for_response = interaction_json.value("waitForResponse", false);
-							step.interaction.llm_follow_up = interaction_json.value("llmFollowUp", false);
-							step.interaction.single_turn_llm = interaction_json.value("singleTurnLlm", false);
+							step.interaction.wait_for_response = (interaction_json.contains("waitForResponse") && !interaction_json["waitForResponse"].is_null())
+								? interaction_json["waitForResponse"].get<bool>() : false;
+							step.interaction.llm_follow_up = (interaction_json.contains("llmFollowUp") && !interaction_json["llmFollowUp"].is_null())
+								? interaction_json["llmFollowUp"].get<bool>() : false;
+							step.interaction.single_turn_llm = (interaction_json.contains("singleTurnLlm") && !interaction_json["singleTurnLlm"].is_null())
+								? interaction_json["singleTurnLlm"].get<bool>() : false;
 							step.interaction.max_wait_seconds = (interaction_json.contains("maxWaitSeconds") && !interaction_json["maxWaitSeconds"].is_null())
 								? interaction_json["maxWaitSeconds"].get<int>() : 0;
 							step.interaction.correct_answer = (interaction_json.contains("correctAnswer") && !interaction_json["correctAnswer"].is_null())

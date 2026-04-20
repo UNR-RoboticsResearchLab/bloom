@@ -155,7 +155,6 @@ void FeedbackPoller::handle_pending_feedback(const json &feedback_json, const st
 		last_feedback_id_ = feedback_id;
 
 		// Extract session ID and command
-		std::string session_id = feedback_json.value("sessionId", "");
 		std::string command = feedback_json.contains("feedbackCommand") 
 			? feedback_json.value("feedbackCommand", "") 
 			: feedback_json.value("command", "");

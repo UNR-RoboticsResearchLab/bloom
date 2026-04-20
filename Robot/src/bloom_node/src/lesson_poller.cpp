@@ -277,26 +277,53 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 				}
 				step.has_interaction = false;
 				if (step_json.contains("interaction") && !step_json["interaction"].is_null()) {
-					if (step_json["interaction"].is_string()) {
-						std::string interaction_str = step_json["interaction"].get<std::string>();
-						if (!interaction_str.empty()) {
-							try {
-								auto interaction_json = json::parse(interaction_str);
-								step.has_interaction = true;
-								step.interaction.wait_for_response = interaction_json.value("wait_for_response", false);
-								step.interaction.max_wait_seconds = interaction_json.value("max_wait_seconds", 10);
-								step.interaction.correct_answer = interaction_json.value("correct_answer", "");
-								step.interaction.correct_response_script = interaction_json.value("correct_response_script", "");
-								step.interaction.incorrect_response_script = interaction_json.value("incorrect_response_script", "");
-								step.interaction.fallback_script = interaction_json.value("fallback_script", "");
-								step.interaction.llm_follow_up = interaction_json.value("llm_follow_up", false);
-								step.interaction.single_turn_llm = interaction_json.value("single_turn_llm", false);
-								step.interaction.single_turn_llm_prompt = interaction_json.value("single_turn_llm_prompt", "");
-							} catch (...) {
-								RCLCPP_WARN(this->get_logger(), "Failed to parse interaction JSON string for step %s", step.id.c_str());
-								step.has_interaction = false;
-							}
+					try {
+						// Handle interaction as either a direct object or JSON string
+						json interaction_json;
+						if (step_json["interaction"].is_object()) {
+							interaction_json = step_json["interaction"];
+						} else if (step_json["interaction"].is_string()) {
+							std::string interaction_str = step_json["interaction"].get<std::string>();
+							if (interaction_str.empty()) goto skip_interaction;
+							interaction_json = json::parse(interaction_str);
+						} else {
+							goto skip_interaction;
 						}
+
+						step.has_interaction = true;
+						// Check camelCase or snake_case to account for backend changes
+						step.interaction.wait_for_response = interaction_json.contains("waitForResponse")
+							? interaction_json.value("waitForResponse", false)
+							: interaction_json.value("wait_for_response", false);
+						step.interaction.max_wait_seconds = interaction_json.contains("maxWaitSeconds")
+							? interaction_json.value("maxWaitSeconds", 10)
+							: interaction_json.value("max_wait_seconds", 10);
+						step.interaction.correct_answer = interaction_json.contains("correctAnswer")
+							? interaction_json.value("correctAnswer", "")
+							: interaction_json.value("correct_answer", "");
+						step.interaction.correct_response_script = interaction_json.contains("correctResponseScript")
+							? interaction_json.value("correctResponseScript", "")
+							: interaction_json.value("correct_response_script", "");
+						step.interaction.incorrect_response_script = interaction_json.contains("incorrectResponseScript")
+							? interaction_json.value("incorrectResponseScript", "")
+							: interaction_json.value("incorrect_response_script", "");
+						step.interaction.fallback_script = interaction_json.contains("fallbackScript")
+							? interaction_json.value("fallbackScript", "")
+							: interaction_json.value("fallback_script", "");
+						step.interaction.llm_follow_up = interaction_json.contains("llmFollowUp")
+							? interaction_json.value("llmFollowUp", false)
+							: interaction_json.value("llm_follow_up", false);
+						step.interaction.single_turn_llm = interaction_json.contains("singleTurnLlm")
+							? interaction_json.value("singleTurnLlm", false)
+							: interaction_json.value("single_turn_llm", false);
+						step.interaction.single_turn_llm_prompt = interaction_json.contains("singleTurnLlmPrompt")
+							? interaction_json.value("singleTurnLlmPrompt", "")
+							: interaction_json.value("single_turn_llm_prompt", "");
+
+						skip_interaction:;
+					} catch (...) {
+						RCLCPP_WARN(this->get_logger(), "Failed to parse interaction for step %s", step.id.c_str());
+						step.has_interaction = false;
 					}
 				}
 

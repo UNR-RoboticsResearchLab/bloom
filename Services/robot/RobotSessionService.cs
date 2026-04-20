@@ -254,6 +254,10 @@ namespace bloom.Services
             var lessonId = session.ActiveLessonId.Value;
             var studentId = session.UserId;
 
+            var lesson = await _dbContext.Lessons.FindAsync(lessonId);
+            int totalSteps = lesson?.TotalSteps ?? 1;
+            int percentage = totalSteps > 0 ? (dto.CompletedSteps * 100) / totalSteps : 0;
+
             var progress = await _dbContext.LessonProgresses
                 .FirstOrDefaultAsync(p => p.LessonId == lessonId && p.StudentId == studentId);
 
@@ -264,7 +268,7 @@ namespace bloom.Services
                     LessonId = lessonId,
                     StudentId = studentId,
                     LessonStep = dto.CurrentStepId,
-                    // lol ProgressPercentage = dto.TotalSteps > 0 ? (dto.CompletedSteps * 100) / dto.TotalSteps : 0,
+                    ProgressPercentage = percentage,
                     LastUpdated = DateTime.UtcNow
                 };
                 _dbContext.LessonProgresses.Add(progress);
@@ -272,9 +276,20 @@ namespace bloom.Services
             else
             {
                 progress.LessonStep = dto.CurrentStepId;
-                // lol progress.ProgressPercentage = dto.TotalSteps > 0 ? (dto.CompletedSteps * 100) / dto.TotalSteps : 0;
+                progress.ProgressPercentage = percentage;
                 progress.LastUpdated = DateTime.UtcNow;
                 _dbContext.LessonProgresses.Update(progress);
+            }
+
+            if (dto.Status == "Completed")
+            {
+                var assignment = await _dbContext.Assignments
+                    .FirstOrDefaultAsync(a => a.StudentId == studentId && a.LessonId == lessonId);
+                if (assignment != null)
+                {
+                    assignment.IsCompleted = true;
+                    _dbContext.Assignments.Update(assignment);
+                }
             }
 
             await _dbContext.SaveChangesAsync();

@@ -23,10 +23,12 @@ namespace bloom.Controllers
     public class LessonController : ControllerBase
     {
         private readonly ILessonService _lessonService;
+        private readonly ILessonProgressService _progressService;
 
-        public LessonController(ILessonService lessonService)
+        public LessonController(ILessonService lessonService, ILessonProgressService progressService)
         {
             _lessonService = lessonService;
+            _progressService = progressService;
         }
 
         [HttpGet]
@@ -139,6 +141,52 @@ namespace bloom.Controllers
             {
                 return BadRequest(new { message = $"Request error: {ex.Message}" });
             }
+        }
+
+        /// <summary>
+        /// Get the authenticated student's lesson progress records.
+        /// </summary>
+        [Authorize]
+        [HttpGet("progress/my")]
+        public async Task<IActionResult> GetMyProgress()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var records = await _progressService.GetByUserIdWithLessonAsync(userId);
+            var result = records.Select(p => new StudentLessonProgressDto
+            {
+                Id = p.Id,
+                LessonId = p.LessonId,
+                LessonTitle = p.Lesson?.Title ?? string.Empty,
+                LessonStep = p.LessonStep,
+                ProgressPercentage = p.ProgressPercentage,
+                LastUpdated = p.LastUpdated
+            });
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Get a specific student's lesson progress. Intended for SLP/Admin use.
+        /// </summary>
+        [Authorize]
+        [HttpGet("progress/student/{studentId}")]
+        public async Task<IActionResult> GetStudentProgress(string studentId)
+        {
+            var records = await _progressService.GetByUserIdWithLessonAsync(studentId);
+            var result = records.Select(p => new StudentLessonProgressDto
+            {
+                Id = p.Id,
+                LessonId = p.LessonId,
+                LessonTitle = p.Lesson?.Title ?? string.Empty,
+                LessonStep = p.LessonStep,
+                ProgressPercentage = p.ProgressPercentage,
+                LastUpdated = p.LastUpdated
+            });
+
+            return Ok(result);
         }
     }
 }

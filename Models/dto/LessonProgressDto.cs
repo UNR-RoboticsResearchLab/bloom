@@ -104,6 +104,19 @@ namespace bloom.Models.dto
     }
 
     /// <summary>
+    /// Response DTO for a student's lesson progress record.
+    /// </summary>
+    public class StudentLessonProgressDto
+    {
+        public Guid Id { get; set; }
+        public Guid LessonId { get; set; }
+        public string LessonTitle { get; set; } = string.Empty;
+        public int LessonStep { get; set; }
+        public int ProgressPercentage { get; set; }
+        public DateTime LastUpdated { get; set; }
+    }
+
+    /// <summary>
     /// In-memory step control command polled by the robot.
     /// Cleared once the robot acknowledges it.
     /// </summary>

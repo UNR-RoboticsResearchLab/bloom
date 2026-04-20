@@ -75,7 +75,7 @@ private:
 	void on_polling_tick();
 
 	/// Handle retrieved pending feedback data
-	void handle_pending_feedback(const json &feedback_json);
+	void handle_pending_feedback(const json &feedback_json, const std::string &session_id);
 
 	/// Acknowledge feedback to prevent re-execution
 	void acknowledge_feedback(const std::string &session_id, const std::string &feedback_id);

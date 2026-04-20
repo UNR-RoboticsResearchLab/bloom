@@ -300,33 +300,21 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 							step.has_interaction = true;
 							RCLCPP_INFO(this->get_logger(), "[INTERACTION_DEBUG] step %s raw: %s", 
 								step.id.c_str(), interaction_json.dump().c_str());
-							step.interaction.wait_for_response = interaction_json.contains("waitForResponse")
-								? interaction_json.value("waitForResponse", false)
-								: interaction_json.value("wait_for_response", false);
-							step.interaction.max_wait_seconds = interaction_json.contains("maxWaitSeconds")
-								? interaction_json.value("maxWaitSeconds", 10)
-								: interaction_json.value("max_wait_seconds", 10);
-							step.interaction.correct_answer = interaction_json.contains("correctAnswer")
-								? interaction_json.value("correctAnswer", "")
-								: interaction_json.value("correct_answer", "");
-							step.interaction.correct_response_script = interaction_json.contains("correctResponseScript")
-								? interaction_json.value("correctResponseScript", "")
-								: interaction_json.value("correct_response_script", "");
-							step.interaction.incorrect_response_script = interaction_json.contains("incorrectResponseScript")
-								? interaction_json.value("incorrectResponseScript", "")
-								: interaction_json.value("incorrect_response_script", "");
-							step.interaction.fallback_script = interaction_json.contains("fallbackScript")
-								? interaction_json.value("fallbackScript", "")
-								: interaction_json.value("fallback_script", "");
-							step.interaction.llm_follow_up = interaction_json.contains("llmFollowUp")
-								? interaction_json.value("llmFollowUp", false)
-								: interaction_json.value("llm_follow_up", false);
-							step.interaction.single_turn_llm = interaction_json.contains("singleTurnLlm")
-								? interaction_json.value("singleTurnLlm", false)
-								: interaction_json.value("single_turn_llm", false);
-							step.interaction.single_turn_llm_prompt = interaction_json.contains("singleTurnLlmPrompt")
-								? interaction_json.value("singleTurnLlmPrompt", "")
-								: interaction_json.value("single_turn_llm_prompt", "");
+							step.interaction.wait_for_response = interaction_json.value("waitForResponse", false);
+							step.interaction.llm_follow_up = interaction_json.value("llmFollowUp", false);
+							step.interaction.single_turn_llm = interaction_json.value("singleTurnLlm", false);
+							step.interaction.max_wait_seconds = (interaction_json.contains("maxWaitSeconds") && !interaction_json["maxWaitSeconds"].is_null())
+								? interaction_json["maxWaitSeconds"].get<int>() : 0;
+							step.interaction.correct_answer = (interaction_json.contains("correctAnswer") && !interaction_json["correctAnswer"].is_null())
+								? interaction_json["correctAnswer"].get<std::string>() : "";
+							step.interaction.correct_response_script = (interaction_json.contains("correctResponseScript") && !interaction_json["correctResponseScript"].is_null())
+								? interaction_json["correctResponseScript"].get<std::string>() : "";
+							step.interaction.incorrect_response_script = (interaction_json.contains("incorrectResponseScript") && !interaction_json["incorrectResponseScript"].is_null())
+								? interaction_json["incorrectResponseScript"].get<std::string>() : "";
+							step.interaction.fallback_script = (interaction_json.contains("fallbackScript") && !interaction_json["fallbackScript"].is_null())
+								? interaction_json["fallbackScript"].get<std::string>() : "";
+							step.interaction.single_turn_llm_prompt = (interaction_json.contains("singleTurnLlmPrompt") && !interaction_json["singleTurnLlmPrompt"].is_null())
+								? interaction_json["singleTurnLlmPrompt"].get<std::string>() : "";
 						} catch (const std::exception &e) {
 							RCLCPP_WARN(this->get_logger(), "Failed to extract interaction fields for step %s: %s", 
 								step.id.c_str(), e.what());

@@ -298,6 +298,8 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 					if (got_interaction) {
 						try {
 							step.has_interaction = true;
+							RCLCPP_INFO(this->get_logger(), "[INTERACTION_DEBUG] step %s raw: %s", 
+								step.id.c_str(), interaction_json.dump().c_str());
 							step.interaction.wait_for_response = interaction_json.contains("waitForResponse")
 								? interaction_json.value("waitForResponse", false)
 								: interaction_json.value("wait_for_response", false);
@@ -325,8 +327,9 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 							step.interaction.single_turn_llm_prompt = interaction_json.contains("singleTurnLlmPrompt")
 								? interaction_json.value("singleTurnLlmPrompt", "")
 								: interaction_json.value("single_turn_llm_prompt", "");
-						} catch (...) {
-							RCLCPP_WARN(this->get_logger(), "Failed to extract interaction fields for step %s", step.id.c_str());
+						} catch (const std::exception &e) {
+							RCLCPP_WARN(this->get_logger(), "Failed to extract interaction fields for step %s: %s", 
+								step.id.c_str(), e.what());
 							step.has_interaction = false;
 						}
 					}

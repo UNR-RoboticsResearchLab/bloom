@@ -9,6 +9,7 @@ namespace bloom.Services
         /// <summary>
         /// Starts a new robot session
         /// </summary>
+        /// <param name="robotId"> ID of the robot making a session</param> 
         /// <param name="userId">ID of the user creating the session (null for anonymous sessions)</param>
         /// <param name="anon">Whether to create an anonymous session (overrides userId)</param>
         /// <returns>The created RobotSession</returns>
@@ -150,5 +151,12 @@ namespace bloom.Services
         /// <param name="sessionId">ID of the session</param>
         /// <param name="userId">ID of the user joining the session</param>
         Task SetSessionUserIdAsync(Guid sessionId, string userId);
+
+        /// <summary>
+        /// Gets tracker events for a session (for analysis)
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <returns>Collection of tracker events ordered by timestamp descending</returns>
+        Task<List<TrackerEventDto>> GetTrackerEventsAsync(Guid sessionId);
     }
 }

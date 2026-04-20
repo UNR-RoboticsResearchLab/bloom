@@ -157,7 +157,7 @@ export default class ApiClient {
 
   async getSessionIdFromRobotCode(robotCode) {
     const res = await this.request(
-      `/api/robotsessions/join/${encodeURIComponent(robotCode)}`,
+      `/api/robotsession/join/${encodeURIComponent(robotCode)}`,
       {
         method: "GET",
       }
@@ -300,7 +300,7 @@ export default class ApiClient {
   }
 
   async startLessonSession(lessonId, sessionId) {
-    const res = await this.request(`/api/robotsession/${sessionId}/lesson`, {
+    const res = await this.request(`/api/LessonSession/${sessionId}/lesson`, {
       method: "POST",
       body: JSON.stringify({ lessonId }),
     });
@@ -312,5 +312,17 @@ export default class ApiClient {
       method: "POST",
       body: JSON.stringify(lessonDto),
     });
+  }
+
+  async getTrackerEvents(sessionId) {
+    const res = await fetch(`${this.baseUrl}/api/RobotSession/${sessionId}/tracker-events`, {
+      credentials: "include"
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch tracker events");
+    }
+
+    return await res.json();
   }
 }

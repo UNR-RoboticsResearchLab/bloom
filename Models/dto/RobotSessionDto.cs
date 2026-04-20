@@ -68,4 +68,27 @@ namespace bloom.Models.dto
         public string? CurrentTask { get; set; }
         public DateTime Timestamp { get; set; }
     }
+
+
+    /// <summary>
+    /// DTO for tracker events related to robot sessions (for analytics and debugging)
+    /// </summary>
+    public class TrackerEventDto
+    {
+        public Guid Id { get; set; }
+        public DateTime Timestamp { get; set; }
+
+        public string Severity { get; set; } = "info";
+        public string Source { get; set; } = string.Empty;
+        public string EventType { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+
+        public Guid SessionId { get; set; }
+
+        public string? LessonTitle { get; set; }
+        public string? StudentName { get; set; }
+        public string? RobotName { get; set; }
+
+        public int? StepId { get; set; }
+    }
 }

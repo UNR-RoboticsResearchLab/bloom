@@ -96,7 +96,7 @@ void LessonPoller::on_polling_tick() {
     // Session status check (pairing)
     // Always check session status to detect pairing and disconnection
     std::ostringstream status_path;
-    status_path << "/api/robotsessions/" << current_session_id;
+    status_path << "/api/robotsession/" << current_session_id;
 
     web_client_->sendGetAsync(
         status_path.str(),
@@ -155,7 +155,7 @@ void LessonPoller::on_polling_tick() {
     }
 
     std::ostringstream path_builder;
-    path_builder << "/api/robotsessions/" << current_session_id << "/pending-lesson";
+    path_builder << "/api/lessonsession/" << current_session_id << "/pending-lesson";
     std::string endpoint = path_builder.str();
 
     web_client_->sendGetAsync(
@@ -171,6 +171,7 @@ void LessonPoller::on_polling_tick() {
             if (http_code < 200 || http_code >= 300) {
                 RCLCPP_INFO(this->get_logger(), "Failed to poll pending lesson (HTTP %ld): %s",
                     http_code, body.c_str());
+				RCLCPP_INFO(this->get_logger(), "Endpoint was: %s", endpoint.c_str());
                 return;
             }
 

@@ -6,7 +6,7 @@ export function StudentCard({ name, email, active, completed, selected, onClick 
       className={`w-full rounded-lg border p-4 text-left shadow-sm transition
         ${selected
           ? "border-indigo-300 bg-indigo-50"
-          : "border-gray-200 bg-white hover:bg-gray-50"}
+          : "border-gray-200  hover:bg-blue-200"}
       `}
     >
       <div className="flex items-start justify-between gap-6">

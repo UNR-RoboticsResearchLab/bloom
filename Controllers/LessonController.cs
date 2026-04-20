@@ -87,7 +87,21 @@ namespace bloom.Controllers
                         TimingSeconds = s.TimingSeconds,
                         VisualAid = s.VisualAid,
                         Behaviors = s.Behaviors,
-                        Interaction = s.Interaction
+                        Interaction = s.Interaction != null ? new StepInteractionDto
+                        {
+                            Id = s.Interaction.Id,
+                            WaitForResponse = s.Interaction.WaitForResponse,
+                            MaxWaitSeconds = s.Interaction.MaxWaitSeconds,
+                            CorrectAnswer = s.Interaction.CorrectAnswer,
+                            CorrectResponseScript = s.Interaction.CorrectResponseScript,
+                            IncorrectResponseScript = s.Interaction.IncorrectResponseScript,
+                            SingleTurnLlm = s.Interaction.SingleTurnLlm,
+                            SingleTurnLlmPrompt = s.Interaction.SingleTurnLlmPrompt,
+                            LlmFollowUp = s.Interaction.LlmFollowUp,
+                            FallbackScript = s.Interaction.FallbackScript,
+                            FallbackVisualAid = s.Interaction.FallbackVisualAid,
+                            FallbackVisualAidLabels = s.Interaction.FallbackVisualAidLabels,
+                        } : null
                     })]
                 });
             }

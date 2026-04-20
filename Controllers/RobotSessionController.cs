@@ -51,6 +51,51 @@ namespace bloom.Controllers
         #region Session Management Endpoints
 
         /// <summary>
+        /// Create a new robot session for the given robot ID.
+        /// Associates the authenticated user if logged in.
+        /// </summary>
+        /// <param name="dto">Request body containing the robot ID</param>
+        /// <returns>The newly created session</returns>
+        [HttpPost]
+        public async Task<IActionResult> CreateSession([FromBody] StartSessionDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var robot = await _robotService.GetRobotByIdAsync(dto.RobotId);
+                if (robot == null)
+                {
+                    return NotFound(new { Message = $"Robot with ID {dto.RobotId} not found" });
+                }
+
+                var userId = dto.Anonymous ? null : (dto.UserId ?? GetCurrentUserId());
+                var session = await _sessionService.StartSessionAsync(dto.RobotId, userId, dto.Anonymous);
+                var robotIds = (await _sessionService.GetSessionRobotsAsync(session.Id)).ToList();
+
+                return CreatedAtAction(nameof(GetSession), new { sessionId = session.Id }, new RobotSessionResponseDto
+                {
+                    Id = session.Id,
+                    UserId = session.UserId,
+                    SessionCode = session.SessionCode,
+                    CreatedAt = session.CreatedAt,
+                    LastUpdatedAt = session.LastUpdatedAt,
+                    Robots = session.Robots,
+                    RobotIds = robotIds,
+                    ActiveLessonId = session.ActiveLessonId
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating robot session for robot {RobotId}", dto.RobotId);
+                return BadRequest(new { ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Get all robot sessions ordered by creation date (newest first)
         /// </summary>
         /// <returns>Collection of all RobotSessions</returns>
@@ -484,6 +529,14 @@ namespace bloom.Controllers
                 _logger.LogError(ex, "Error retrieving session history for {SessionId}", sessionId);
                 return BadRequest(new { message = $"Error retrieving session history: {ex.Message}" });
             }
+        }
+
+        [HttpGet("{sessionId}/tracker-events")]
+        public async Task<IActionResult> GetTrackerEvents(Guid sessionId)
+        {
+            // var events = await _robotSessionService.GetTrackerEventsAsync(sessionId);
+            var events = await _sessionService.GetTrackerEventsAsync(sessionId);
+            return Ok(events);
         }
 
         #endregion

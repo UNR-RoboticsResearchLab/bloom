@@ -4,6 +4,7 @@
 // Behaviors and Interaction are stored as JSON strings since their schema varies by step type.
 
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace bloom.Models
 {
@@ -13,6 +14,7 @@ namespace bloom.Models
         public Guid Id { get; set; } = Guid.NewGuid();
 
         public Guid LessonId { get; set; }
+        [JsonIgnore]
         public Lesson Lesson { get; set; } = null!;
 
         public int StepOrder { get; set; }
@@ -29,7 +31,8 @@ namespace bloom.Models
         // JSON string: { behavior, facial_expression, gaze, head_movement, posture, ... }
         public string? Behaviors { get; set; }
 
-        // JSON string: schema varies by step type (wait_for_response, correct_answer, repeat_count, etc.)
-        public string? Interaction { get; set; }
+        // Structured interaction definition for this step (optional — not all steps have interactions)
+        public Guid? InteractionId { get; set; }
+        public StepInteraction? Interaction { get; set; }
     }
 }

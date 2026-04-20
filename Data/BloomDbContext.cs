@@ -23,6 +23,7 @@ namespace bloom.Data
         public DbSet<LessonStep> LessonSteps { get; set; }
         public DbSet<LessonProgress> LessonProgresses { get; set; }
         public DbSet<LessonInteraction> LessonInteractions { get; set; }
+        public DbSet<StepInteraction> StepInteractions { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
@@ -61,6 +62,16 @@ namespace bloom.Data
             builder.Entity<LessonStep>(entity =>
             {
                 entity.ToTable("LessonSteps");
+
+                entity.HasOne(s => s.Interaction)
+                    .WithOne(i => i.LessonStep)
+                    .HasForeignKey<LessonStep>(s => s.InteractionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<StepInteraction>(entity =>
+            {
+                entity.ToTable("StepInteractions");
             });
 
             builder.Entity<Assignment>(entity =>

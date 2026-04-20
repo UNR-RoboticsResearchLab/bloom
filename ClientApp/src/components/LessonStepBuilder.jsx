@@ -152,10 +152,10 @@ export default function LessonStepBuilder({ step, stepNumber, onChange, onRemove
     : "Untitled step";
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
       {/* Card header */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
+      <div className="flex items-center gap-3 bg-gray-50/70 px-5 py-4">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
           {stepNumber}
         </span>
 
@@ -206,7 +206,7 @@ export default function LessonStepBuilder({ step, stepNumber, onChange, onRemove
 
       {/* Expanded body */}
       {expanded && (
-        <div className="border-t border-gray-100 px-4 pb-4 pt-4 space-y-4">
+        <div className="border-t border-gray-100 px-5 pb-5 pt-5 space-y-5">
           {/* Type + Timing */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>

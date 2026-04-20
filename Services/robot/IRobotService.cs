@@ -24,8 +24,8 @@ namespace bloom.Services
         /**
          * <summary>
          * GetRobotsByFirmwareVersion() gets all of the robots with a specific firmware version.
-         * <summary>
-         * <returns>List of Robots</return>
+         * </summary>
+         * <returns>List of Robots</returns>
          */
         Task<ICollection<Robot>> GetRobotsByFirmwareVersion(string firmwareVersion);
 

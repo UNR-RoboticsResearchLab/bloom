@@ -14,34 +14,38 @@ export default function LessonView() {
 
     const [noteText, setNoteText] = useState("");
     const [stepInput, setStepInput] = useState("");
+    const [isSendingStepCommand, setIsSendingStepCommand] = useState(false);
 
-    const [step, setStep] = useState([
-        {
-            id: 1,
-            title: "Step 1: Introduction",
-            text: "Hello. We are starting the lesson now.",
-        },
-        {
-            id: 2,
-            title: "Step 2: Practice",
-            text: "Please say the word red.",
-        },
-        {
-            id: 3,
-            title: "Step 3: Review",
-            text: "Let's review what we've learned.",
-        },
-        {
-            id: 4,
-            title: "Step 4: Assessment",
-            text: "Can you identify the color blue?",
-        },
-        {
-            id: 5,
-            title: "Step 5: Conclusion",
-            text: "Great job! Let's wrap up the lesson.",
-        },
-    ]);
+
+
+    const [step, setStep] = useState([]);
+    const [isLoadingSteps, setIsLoadingSteps] = useState(false);
+
+    async function loadLessonSteps() {
+        if (!lessonId) return;
+
+        try {
+            setIsLoadingSteps(true);
+
+            const lessonData = await api.getLesson(lessonId);
+            console.log("Lesson details:", lessonData);
+
+            const mappedSteps = (lessonData?.steps ?? lessonData?.Steps ?? [])
+                .sort((a, b) => (a.stepOrder ?? a.StepOrder ?? 0) - (b.stepOrder ?? b.StepOrder ?? 0))
+                .map((item) => ({
+                    id: item.id ?? item.Id ?? item.stepOrder ?? item.StepOrder,
+                    title: `Step ${item.stepOrder ?? item.StepOrder}: ${item.type ?? item.Type}`,
+                    text: item.script ?? item.Script ?? "No script available.",
+                }));
+
+            setStep(mappedSteps);
+        } catch (error) {
+            console.error("Failed to load lesson steps:", error);
+            setStep([]);
+        } finally {
+            setIsLoadingSteps(false);
+        }
+    }
 
 
     // Fake data needs to be replaced with real conversation data from the backend
@@ -49,78 +53,118 @@ export default function LessonView() {
         {
             id: 1,
             type: "robot",
-            text: "Hello. We are starting the lesson now.",
-            ts: new Date().toLocaleTimeString(),
+            text: "Hi there! I’m really happy to see you today. Are you ready to practice some words together?",
+            ts: "10:00 AM",
         },
         {
             id: 2,
             type: "student",
-            text: "Okay.",
-            ts: new Date().toLocaleTimeString(),
+            text: "Yeah.",
+            ts: "10:01 AM",
         },
         {
             id: 3,
-            type: "robot",
-            text: "Please say the word red.",
-            ts: new Date().toLocaleTimeString(),
+            type: "note",
+            text: "Student appears engaged and responsive. Maintains attention and makes eye contact.",
+            ts: "10:01 AM",
         },
+
         {
             id: 4,
-            type: "student",
-            text: "Red.",
-            ts: new Date().toLocaleTimeString(),
+            type: "robot",
+            text: "Great! Let’s start with a word. Listen carefully: rrrred. Can you try saying red?",
+            ts: "10:02 AM",
         },
         {
             id: 5,
-            type: "note",
-            text: "Student pronounced 'red' correctly but with a slight hesitation.",
-            ts: new Date().toLocaleTimeString(),
+            type: "student",
+            text: "wed.",
+            ts: "10:03 AM",
         },
         {
             id: 6,
-            type: "robot",
-            text: "Let's review what we've learned.",
-            ts: new Date().toLocaleTimeString(),
+            type: "note",
+            text: "Substitution error observed. /r/ sound replaced with /w/.",
+            ts: "10:03 AM",
         },
+
         {
             id: 7,
-            type: "student",
-            text: "Okay, sounds good!",
-            ts: new Date().toLocaleTimeString(),
+            type: "robot",
+            text: "Nice try! Let’s try that again. Watch my mouth: rrrred.",
+            ts: "10:04 AM",
         },
         {
             id: 8,
-            type: "robot",
-            text: "Can you say the word 'blue'?",
-            ts: new Date().toLocaleTimeString(),
+            type: "student",
+            text: "rrrr... red.",
+            ts: "10:05 AM",
         },
         {
             id: 9,
-            type: "student",
-            text: "Blue.",
-            ts: new Date().toLocaleTimeString(),
+            type: "note",
+            text: "Improvement with prompting. Approximate /r/ achieved.",
+            ts: "10:05 AM",
         },
+
         {
             id: 10,
-            type: "note",
-            text: "Student demonstrated good understanding of the word 'blue' and showed improvement in pronunciation. Consider introducing more complex words in the next lesson.",
-            ts: new Date().toLocaleTimeString(),
+            type: "robot",
+            text: "That was really good! Now try saying just the word: red.",
+            ts: "10:06 AM",
         },
         {
             id: 11,
-            type: "robot",
-            text: "Great job! Let's wrap up the lesson.",
-            ts: new Date().toLocaleTimeString(),
+            type: "student",
+            text: "red.",
+            ts: "10:07 AM",
         },
         {
             id: 12,
             type: "note",
-            text: "Lesson completed successfully. Student showed good progress.",
-            ts: new Date().toLocaleTimeString(),
+            text: "Correct production achieved independently.",
+            ts: "10:07 AM",
+        },
+
+        {
+            id: 13,
+            type: "robot",
+            text: "Awesome! Now let’s use it in a sentence.",
+            ts: "10:08 AM",
+        },
+        {
+            id: 14,
+            type: "student",
+            text: "I see a red ball.",
+            ts: "10:09 AM",
+        },
+        {
+            id: 15,
+            type: "note",
+            text: "Generalization successful.",
+            ts: "10:09 AM",
+        },
+
+        {
+            id: 16,
+            type: "robot",
+            text: "That was excellent work today!",
+            ts: "10:10 AM",
+        },
+        {
+            id: 17,
+            type: "student",
+            text: "Yay!",
+            ts: "10:10 AM",
+        },
+        {
+            id: 18,
+            type: "note",
+            text: "Session complete. Student improved with reduced cueing.",
+            ts: "10:11 AM",
         }
     ]);
 
-    // This effect starts the lesson. It checks if the lesson and student data are available, and if not, it redirects back to the lessons list. It also ensures that the lesson session is only started once using a ref.
     useEffect(() => {
         async function startLesson() {
             if (!lesson || !student) {
@@ -148,6 +192,8 @@ export default function LessonView() {
 
                 const res = await api.startLessonSession(lessonId, sessionId);
                 console.log("Lesson session started:", res);
+                
+                await loadLessonSteps();
             } catch (error) {
                 console.error("Failed to start lesson session:", error);
             }
@@ -156,7 +202,6 @@ export default function LessonView() {
         startLesson();
     }, [lesson, student, lessonId, sessionId, navigate, api]);
 
-    // This function handles adding a new note to the conversation. It creates a new note object with a unique ID, the current timestamp, and the text from the input. The new note is then added to the conversation state, and the input field is cleared.
     function addNote(e) {
         e.preventDefault();
 
@@ -174,23 +219,79 @@ export default function LessonView() {
         setNoteText("");
     }
 
-    // Handles going back one step in the lesson.
-    function handleBackStep() {
-        console.log("Back one step");
-    }
-    // Handles skipping forward one step in the lesson.
-    function handleForwardStep() {
-        console.log("Skip forward one step");
-    }
-    // Handles skipping to a specific step in the lesson based on user input.
-    function handleSkipToStep() {
-        const trimmed = stepInput.trim();
-        if (!trimmed) return;
-        console.log("Skip to step:", trimmed);
-        setStepInput("");
+    async function handleBackStep() {
+        if (!sessionId || isSendingStepCommand) return;
+
+        try {
+            setIsSendingStepCommand(true);
+
+            const res = await api.request(
+                `/api/LessonSession/${sessionId}/lessons/replay`,
+                {
+                    method: "POST",
+                }
+            );
+
+            console.log("Replay command queued:", res);
+        } catch (error) {
+            console.error("Failed to queue replay command:", error);
+        } finally {
+            setIsSendingStepCommand(false);
+        }
     }
 
-    // This function renders a single message in the conversation based on its type (robot, student, or note). It applies different styling for each type to visually distinguish them in the UI.
+    async function handleForwardStep() {
+        if (!sessionId || isSendingStepCommand) return;
+
+        try {
+            setIsSendingStepCommand(true);
+
+            const res = await api.request(
+                `/api/LessonSession/${sessionId}/lessons/skip`,
+                {
+                    method: "POST",
+                }
+            );
+
+            console.log("Skip command queued:", res);
+        } catch (error) {
+            console.error("Failed to queue skip command:", error);
+        } finally {
+            setIsSendingStepCommand(false);
+        }
+    }
+
+    async function handleSkipToStep() {
+        const trimmed = stepInput.trim();
+        if (!trimmed || !sessionId || isSendingStepCommand) return;
+
+        const targetStep = Number(trimmed);
+
+        if (!Number.isInteger(targetStep) || targetStep < 1) {
+            console.error("Invalid step number:", trimmed);
+            return;
+        }
+
+        try {
+            setIsSendingStepCommand(true);
+
+            const res = await api.request(
+                `/api/LessonSession/${sessionId}/lessons/set-step`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({ targetStep }),
+                }
+            );
+
+            console.log("Set step command queued:", res);
+            setStepInput("");
+        } catch (error) {
+            console.error("Failed to queue set-step command:", error);
+        } finally {
+            setIsSendingStepCommand(false);
+        }
+    }
+
     function renderMessage(item) {
         if (item.type === "robot") {
             return (
@@ -202,7 +303,7 @@ export default function LessonView() {
                         <p>{item.text}</p>
                     </div>
                     <p className="mt-1 text-[11px] text-gray-500">
-                        {new Date(item.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {item.ts}
                     </p>
                 </div>
             );
@@ -218,7 +319,7 @@ export default function LessonView() {
                         <p>{item.text}</p>
                     </div>
                     <p className="mt-1 text-[11px] text-gray-500">
-                        {new Date(item.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {item.ts}
                     </p>
                 </div>
             );
@@ -233,11 +334,12 @@ export default function LessonView() {
                     <p>{item.text}</p>
                 </div>
                 <p className="mt-1 text-[11px] text-gray-500">
-                    {new Date(item.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {item.ts}
                 </p>
             </div>
         );
     }
+
     if (!lesson || !student) {
         return null;
     }
@@ -249,72 +351,50 @@ export default function LessonView() {
             </p>
 
             <div className="mt-4 rounded-lg border p-4 shadow-sm">
-                <h1 className="text-3xl font-semibold text-gray-900">
-                    {lesson?.title ?? lesson?.Title}
-                </h1>
-
-                <p className="mt-2 text-sm text-gray-600">
-                    {lesson?.description ?? lesson?.Description ?? "No description available."}
-                </p>
-
-                <div className="mt-4 grid gap-3 md:grid-cols-3 text-sm">
-                    <div className="rounded-md border p-3">
-                        <p className="font-semibold text-gray-900">Student</p>
-                        <p className="mt-1 text-gray-700">
-                            {student.firstName} {student.lastName}
-                        </p>
-                        <p className="text-gray-600">Level: {student.level}</p>
-                    </div>
-
-                    <div className="rounded-md border p-3">
-                        <p className="font-semibold text-gray-900">Session</p>
-                        <p className="mt-1 break-all text-gray-600">
-                            {sessionId || "No paired session found"}
-                        </p>
-                    </div>
-
-                    <div className="rounded-md border p-3">
-                        <p className="font-semibold text-gray-900">Lesson ID</p>
-                        <p className="mt-1 break-all text-gray-600">
-                            {lessonId}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-
-
-            <div className="mt-6 rounded-lg border p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-900">Lesson Controls</h2>
                 </div>
 
-                <div className="mt-4 h-[250px] overflow-x-auto overflow-y-hidden rounded-2xl border bg-white p-4">
-                    <div className="flex gap-4 h-full items-stretch">
-                        {step.map((item) => (
-                            <div
-                                key={item.id}
-                                className="min-w-[250px] flex-shrink-0 h-full rounded-xl bg-gray-200 border border-gray-900 p-4 shadow-sm flex flex-col"
-                            >
-                                <h4 className="font-semibold text-black">{item.title}</h4>
-                                <p className="mt-1 text-gray-500">{item.text}</p>
+                <div className="mt-2 h-[200px] overflow-x-auto overflow-y-hidden rounded-2xl border bg-white p-3">
+                    <div className="flex gap-3 h-full items-stretch">
+                        {isLoadingSteps ? (
+                            <div className="flex h-full min-w-full items-center justify-center">
+                                <p className="text-sm text-gray-500">Loading lesson steps...</p>
                             </div>
-                        ))}
+                        ) : step.length === 0 ? (
+                            <div className="flex h-full min-w-full items-center justify-center">
+                                <p className="text-sm text-gray-500">No lesson steps found.</p>
+                            </div>
+                        ) : (
+                            step.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="min-w-[180px] max-w-[220px] flex-shrink-0 h-full rounded-lg bg-gray-100 border border-gray-300 p-3 shadow-sm flex flex-col justify-start"
+                                >
+                                    <p className="text-sm font-semibold text-gray-900 leading-tight">
+                                        {item.title}
+                                    </p>
+
+                                    <p className="mt-2 text-xs text-gray-600 leading-snug break-words">
+                                        {item.text}
+                                    </p>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
 
                 <div className="mt-4 grid gap-4 md:grid-cols-[1fr_2fr_1fr] items-stretch">
-    
-                    {/* Back Button */}
                     <button
                         type="button"
                         onClick={handleBackStep}
-                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 hover:shadow-md"                    >
+                        disabled={isSendingStepCommand}
+                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200  hover:bg-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                    >
                         <span className="text-lg">{"<"}</span>
                         Back
                     </button>
 
-                    {/* Middle Control */}
                     <div className="flex flex-col items-center rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                         <p className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             Jump to Step
@@ -325,41 +405,38 @@ export default function LessonView() {
                             value={stepInput}
                             onChange={(e) => setStepInput(e.target.value)}
                             placeholder="Step #"
-                            className="w-full rounded-xl border border-gray-300 p-3 text-center text-sm font-medium shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                            disabled={isSendingStepCommand}
+                            className="w-full rounded-xl border border-gray-300 p-3 text-center text-sm font-medium shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:opacity-60"
                         />
 
                         <button
                             type="button"
                             onClick={handleSkipToStep}
-                            className="mt-3 w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 hover:shadow-md"
+                            disabled={isSendingStepCommand}
+                            className="mt-3 w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            Go
+                            {isSendingStepCommand ? "Sending..." : "Go"}
                         </button>
                     </div>
 
-                    {/* Forward Button */}
                     <button
                         type="button"
                         onClick={handleForwardStep}
-                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 hover:shadow-md"
+                        disabled={isSendingStepCommand}
+                        className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 hover:bg-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition  hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Forward
                         <span className="text-lg">{">"}</span>
                     </button>
-                    
                 </div>
             </div>
 
-
-
-
-
-            <div className="mt-6 rounded-lg border p-4 shadow-sm">
+            <div className="mt-4 rounded-lg border p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-900">Lesson Transcript</h2>
                 </div>
 
-                <div className="mt-4 h-[500px] overflow-y-auto rounded-2xl border bg-white p-4 space-y-4">
+                <div className="mt-2 h-[750px] overflow-y-auto rounded-2xl border bg-white p-4 space-y-4">
                     {conversation.length === 0 ? (
                         <p className="text-sm text-gray-500">No activity yet.</p>
                     ) : (

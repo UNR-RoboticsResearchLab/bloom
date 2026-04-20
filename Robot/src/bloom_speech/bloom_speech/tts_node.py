@@ -47,6 +47,8 @@ class TTSNode(Node):
         self.state_cmd_pub = self.create_publisher(String, 'robot/state_cmd', 10)
 
         self.get_logger().info('TTS node ready - listening on /tts/speak')
+        self._interrupted = False
+        self.create_subscription(String, '/tts/interrupt', self.on_interrupt, 10)
 
     def set_face_emotion(self, emotion: str):
         msg = String()
@@ -114,6 +116,7 @@ class TTSNode(Node):
                 self.set_face_mode('viseme')
                 time.sleep(0.1)
 
+            was_interrupted = False
             try:
                 pygame.mixer.music.load(result.audio_filepath)
 
@@ -125,7 +128,13 @@ class TTSNode(Node):
                 pygame.mixer.music.play()
 
                 while pygame.mixer.music.get_busy():
+                    if self._interrupted:
+                        pygame.mixer.music.stop()
+                        break
                     time.sleep(0.1)
+                
+                was_interrupted = self._interrupted
+                self._interrupted = False
 
                 self.stop_audio_sync()
                 self.set_face_mode('emotion')
@@ -136,15 +145,23 @@ class TTSNode(Node):
 
             except Exception as e:
                 self.get_logger().error(f'Audio playback error: {e}')
+                was_interrupted = self._interrupted
+                self._interrupted = False
 
             self.is_speaking = False
-            self.set_robot_state('waiting')
-            self.get_logger().info('Done speaking')
+            if not was_interrupted:
+                self.set_robot_state('waiting')
+                self.get_logger().info('Done speaking')
 
             done_msg = String()
             done_msg.data = 'done'
             self.tts_done_pub.publish(done_msg)
+            self._interrupted = False
 
+    def on_interrupt(self, msg: String):
+        self.get_logger().info('TTS interrupted')
+        self._interrupted = True
+        pygame.mixer.music.stop()
 
 def main(args=None):
     env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')

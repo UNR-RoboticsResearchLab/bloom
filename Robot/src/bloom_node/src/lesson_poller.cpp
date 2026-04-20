@@ -177,7 +177,7 @@ void LessonPoller::on_polling_tick() {
 
             try {
                 json response = json::parse(body);
-                RCLCPP_INFO(this->get_logger(), "Pending lesson response: %s", response.dump().c_str());
+                RCLCPP_DEBUG(this->get_logger(), "Pending lesson response: %s", response.dump().c_str());
 
                 if (!response.contains("hasPendingLesson") || !response["hasPendingLesson"].get<bool>()) {
                     RCLCPP_INFO(this->get_logger(), "Response indicates no pending lesson");
@@ -298,8 +298,6 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 					if (got_interaction) {
 						try {
 							step.has_interaction = true;
-							RCLCPP_INFO(this->get_logger(), "[INTERACTION_DEBUG] step %s raw: %s", 
-								step.id.c_str(), interaction_json.dump().c_str());
 							step.interaction.wait_for_response = (interaction_json.contains("waitForResponse") && !interaction_json["waitForResponse"].is_null())
 								? interaction_json["waitForResponse"].get<bool>() : false;
 							step.interaction.llm_follow_up = (interaction_json.contains("llmFollowUp") && !interaction_json["llmFollowUp"].is_null())

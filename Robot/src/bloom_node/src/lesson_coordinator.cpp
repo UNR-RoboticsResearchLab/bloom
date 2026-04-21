@@ -168,7 +168,7 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
 
     if (step.interaction.llm_follow_up) {
         auto ctx_msg = std_msgs::msg::String();
-        ctx_msg.data = "Lesson topic: homophones. Current question: " + step.script;
+        ctx_msg.data = "Lesson topic: " + current_lesson_.title + ". Current question: " + step.script;
         llm_context_pub_->publish(ctx_msg);
     } else if (step.interaction.single_turn_llm) {
         // Publish the prompt template as context
@@ -255,7 +255,7 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr) {
                             waiting_for_wrap_up_ = false;
                             waiting_for_single_turn_ = false;
                             auto mode_msg = std_msgs::msg::String();
-                            mode_msg.data = "lesson_mode";
+                            mode_msg.data = conversation_mode_ ? "conversation_lesson" : "lesson_mode";
                             llm_mode_pub_->publish(mode_msg);
 
                             if (!step->interaction.fallback_visual_aid.empty()) {
@@ -301,7 +301,7 @@ void LessonCoordinator::on_llm_wrap_up(const std_msgs::msg::String::SharedPtr) {
     if (waiting_for_wrap_up_) {
         waiting_for_wrap_up_ = false;
         auto mode_msg = std_msgs::msg::String();
-        mode_msg.data = "lesson_mode";
+        mode_msg.data = conversation_mode_ ? "conversation_lesson" : "lesson_mode";
         llm_mode_pub_->publish(mode_msg);
         waiting_for_tts_done_ = true;
     } else if (waiting_for_single_turn_) {

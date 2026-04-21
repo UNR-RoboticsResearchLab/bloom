@@ -275,6 +275,38 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 						}
 					}
 				}
+				// Parse visual aid labels
+				if (step_json.contains("visualAidLabels") && !step_json["visualAidLabels"].is_null()) {
+					try {
+						auto labels_str = step_json["visualAidLabels"].get<std::string>();
+						auto labels_json = json::parse(labels_str);
+						if (labels_json.is_array()) {
+							for (const auto &label : labels_json) {
+								step.visual_aid_labels.push_back(label.get<std::string>());
+							}
+						}
+					} catch (...) {
+						RCLCPP_WARN(this->get_logger(), "Failed to parse visualAidLabels for step %s", step.id.c_str());
+					}
+				}
+				// Parse visual aid footers
+				if (step_json.contains("visualAidFooters") && !step_json["visualAidFooters"].is_null()) {
+					try {
+						auto footers_str = step_json["visualAidFooters"].get<std::string>();
+						auto footers_json = json::parse(footers_str);
+						if (footers_json.is_array()) {
+							for (const auto &footer : footers_json) {
+								step.visual_aid_footers.push_back(footer.get<std::string>());
+							}
+						}
+					} catch (...) {
+						RCLCPP_WARN(this->get_logger(), "Failed to parse visualAidFooters for step %s", step.id.c_str());
+					}
+				}
+				// Parse motor sequence
+				if (step_json.contains("motorSequence") && !step_json["motorSequence"].is_null()) {
+					step.motor_sequence = step_json["motorSequence"].get<std::string>();
+				}
 				step.has_interaction = false;
 				if (step_json.contains("interaction") && !step_json["interaction"].is_null()) {
 					json interaction_json;

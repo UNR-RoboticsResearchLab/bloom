@@ -113,6 +113,13 @@ namespace bloom.Data
                         };
                     }
 
+                    string? visualAidLabels = stepEl.TryGetProperty("visual_aid_labels", out var valEl)
+                        ? valEl.GetRawText() : null;
+                    string? visualAidFooters = stepEl.TryGetProperty("visual_aid_footers", out var vafEl)
+                        ? vafEl.GetRawText() : null;
+                    string? motorSequence = stepEl.TryGetProperty("motor_sequence", out var msEl)
+                        ? msEl.GetString() : null;
+
                     var step = new LessonStep
                     {
                         StepOrder = stepOrder,
@@ -120,6 +127,9 @@ namespace bloom.Data
                         Script = script,
                         TimingSeconds = timingSeconds,
                         VisualAid = visualAid,
+                        VisualAidLabels = visualAidLabels,
+                        VisualAidFooters = visualAidFooters,
+                        MotorSequence = motorSequence,
                         Behaviors = behaviors,
                     };
 

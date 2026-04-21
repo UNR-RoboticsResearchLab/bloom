@@ -59,7 +59,7 @@ LessonCoordinator::~LessonCoordinator() {
 
 bool LessonCoordinator::load_lesson(const LessonData &lesson_data) {
     std::lock_guard<std::mutex> lock(lesson_mutex_);
-
+    conversation_mode_ = lesson_data.conversation_mode;
     current_lesson_ = lesson_data;
     current_step_index_ = 0;
     lesson_active_ = false;
@@ -205,7 +205,7 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr) {
 
         if (current_interaction_step_ && current_interaction_step_->interaction.llm_follow_up) {
             auto mode_msg = std_msgs::msg::String();
-            mode_msg.data = "lesson_tangent";
+            mode_msg.data = conversation_mode_ ? "conversation_lesson" : "lesson_tangent";
             llm_mode_pub_->publish(mode_msg);
             waiting_for_wrap_up_ = true;
         } else if (current_interaction_step_ && current_interaction_step_->interaction.single_turn_llm) {

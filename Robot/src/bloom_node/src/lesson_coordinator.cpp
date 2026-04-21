@@ -561,7 +561,7 @@ void LessonCoordinator::log_interaction_to_backend(int step_order, const std::st
         interaction.response_time_ms = 0;  // TODO: Track actual response time
 
         // Build endpoint URL
-        std::string interaction_endpoint = "/api/lessonsession/" + session_id_ + "/lessons/interactions";
+        std::string interaction_endpoint = "/api/lessoninteraction/" + session_id_;
 
         // Send POST request to backend
         web_client_->sendRequestAsync(

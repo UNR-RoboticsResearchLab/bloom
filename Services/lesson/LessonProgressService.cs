@@ -68,6 +68,14 @@ namespace bloom.Services
             return lessonProgresses;
         }
 
+        public async Task<IEnumerable<LessonProgress>> GetByUserIdWithLessonAsync(string userId)
+        {
+            return await _context.LessonProgresses
+                .Include(p => p.Lesson)
+                .Where(p => p.StudentId == userId)
+                .ToListAsync();
+        }
+
         public async Task<LessonProgress> GetByIDAsync(string id)
         {
             var guid = Guid.Parse(id);

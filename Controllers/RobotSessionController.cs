@@ -417,7 +417,7 @@ namespace bloom.Controllers
                 }
 
                 var currentUserId = GetCurrentUserId();
-                if (session.UserId != null && session.UserId != currentUserId)
+                if (currentUserId != null && session.UserId != null && session.UserId != currentUserId)
                 {
                     _logger.LogWarning("User {UserId} attempted to update robot state in session owned by {SessionUserId}", currentUserId, session.UserId);
                     return Forbid();

@@ -356,6 +356,7 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 			[this](const std::string &completed_lesson_id) {
 				RCLCPP_INFO(this->get_logger(), "Lesson completion callback: %s", completed_lesson_id.c_str());
 				stop_step_control_polling();
+				last_lesson_id_ = "";
 				currently_executing_.store(false);
 			});
 

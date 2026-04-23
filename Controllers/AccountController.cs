@@ -25,10 +25,12 @@ public class AccountController : ControllerBase
 {
 
     private readonly IAccountService _accountService;
+    private readonly ISLPClientService _slpClientService;
 
-    public AccountController(IAccountService accountService)
+    public AccountController(IAccountService accountService, ISLPClientService slpClientService)
     {
         _accountService = accountService;
+        _slpClientService = slpClientService;
     }
 
     [HttpPost]
@@ -171,6 +173,12 @@ public class AccountController : ControllerBase
             if (newUser == null)
             {
                 return BadRequest(new { Message = "An error occurred during account creation." });
+            }
+
+            var slpId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (slpId != null)
+            {
+                await _slpClientService.CreateAsync(newUser.FullName ?? newUser.Email ?? newUser.Id, slpId, newUser.Id);
             }
 
             return Ok(new

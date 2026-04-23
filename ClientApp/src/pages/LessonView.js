@@ -165,6 +165,46 @@ export default function LessonView() {
         }
     ]);
 
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+    async function loadSessionHistory() {
+        if (!sessionId) return;
+
+        try {
+            setIsLoadingHistory(true);
+
+            const res = await api.getSessionHistory(sessionId);
+
+            console.log("SESSION HISTORY:", res);
+
+            const historyArray = res?.history ?? [];
+
+            const mapped = historyArray.map((item, index) => {
+                let type = "robot";
+
+                if (item.interactionType === "speaker") type = "student";
+                if (item.interactionType === "note") type = "note";
+
+                return {
+                    id: item.id ?? index,
+                    type: type,
+                    text: item.dialogTurn ?? "[no text]",
+                    ts: new Date(item.timestamp).toLocaleTimeString([], {
+                        hour: "numeric",
+                        minute: "2-digit",
+                    }),
+                };
+            });
+
+            setConversation(mapped);
+
+        } catch (error) {
+            console.error("Failed to load session history:", error);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    }
+
     useEffect(() => {
         async function startLesson() {
             if (!lesson || !student) {
@@ -190,10 +230,23 @@ export default function LessonView() {
                     student,
                 });
 
+                const sessions = await api.getSessions();
+                console.log("RAW SESSIONS RESPONSE:", JSON.stringify(sessions, null, 2));
+                console.log("CURRENT pairedSessionId:", sessionId);
+
+                if (sessions && sessions.length > 0) {
+                    const realSessionId = sessions[0].id ?? sessions[0].Id;
+
+                    console.log("USING REAL SESSION ID:", realSessionId);
+
+                    localStorage.setItem("pairedSessionId", realSessionId);
+                }
+
                 const res = await api.startLessonSession(lessonId, sessionId);
                 console.log("Lesson session started:", res);
                 
                 await loadLessonSteps();
+                await loadSessionHistory();
             } catch (error) {
                 console.error("Failed to start lesson session:", error);
             }
@@ -202,21 +255,22 @@ export default function LessonView() {
         startLesson();
     }, [lesson, student, lessonId, sessionId, navigate, api]);
 
-    function addNote(e) {
+    async function addNote(e) {
         e.preventDefault();
 
         const trimmed = noteText.trim();
-        if (!trimmed) return;
+        if (!trimmed || !sessionId) return;
 
-        const newNote = {
-            id: Date.now(),
-            type: "note",
-            text: trimmed,
-            ts: new Date().toLocaleTimeString(),
-        };
+        try {
+            await api.addNoteToSession(sessionId, trimmed);
 
-        setConversation((prev) => [...prev, newNote]);
-        setNoteText("");
+            // reload history so note appears from backend
+            await loadSessionHistory();
+
+            setNoteText("");
+        } catch (error) {
+            console.error("Failed to add note:", error);
+        }
     }
 
     async function handleBackStep() {
@@ -345,10 +399,67 @@ export default function LessonView() {
     }
 
     return (
-        <div className="mt-4 rounded-lg border p-6 shadow-sm">
-            <p className="text-sm font-semibold text-gray-900">
-                Lesson In Progress
-            </p>
+    <div className="mt-4 space-y-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
+                        Lesson In Progress
+                    </p>
+
+                    <h1 className="mt-1 text-2xl font-bold text-gray-900">
+                        {lesson?.title ?? lesson?.Title ?? "Untitled Lesson"}
+                    </h1>
+
+                    <p className="mt-2 text-sm text-gray-600">
+                        Student:{" "}
+                        <span className="font-semibold text-gray-900">
+                            {student?.name ?? student?.fullName ?? student?.Name ?? "Unknown Student"}
+                        </span>
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-sm">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Status
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-green-600">
+                            Active
+                        </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-sm">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Session
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-gray-900">
+                            {sessionId ? "Connected" : "Missing"}
+                        </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-sm">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Steps
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-gray-900">
+                            {step.length}
+                        </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-sm">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Notes
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-gray-900">
+                            {conversation.filter((item) => item.type === "note").length}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div className="rounded-lg border p-6 shadow-sm">
 
             <div className="mt-4 rounded-lg border p-4 shadow-sm">
                 <div className="flex items-center justify-between">
@@ -464,5 +575,6 @@ export default function LessonView() {
                 </form>
             </div>
         </div>
+    </div>
     );
 }

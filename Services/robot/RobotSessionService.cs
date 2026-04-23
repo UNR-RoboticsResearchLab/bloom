@@ -248,6 +248,14 @@ namespace bloom.Services
             if (session.ActiveLessonId == null)
                 throw new InvalidOperationException($"Session {sessionId} has no active lesson");
 
+            if (dto.Status == "Completed")
+            {
+                session.ActiveLessonId = null;
+                _dbContext.RobotSessions.Update(session);
+                await _dbContext.SaveChangesAsync();
+                return;
+            }
+
             if (string.IsNullOrEmpty(session.UserId))
                 throw new InvalidOperationException($"Session {sessionId} has no associated user");
 

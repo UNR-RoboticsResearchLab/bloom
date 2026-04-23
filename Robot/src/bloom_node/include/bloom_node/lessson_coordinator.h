@@ -33,7 +33,8 @@ struct InteractionConfig {
 };
 
 struct LessonStep {
-    int id;
+    std::string id;        
+    int step_order;        
     std::string type;
     std::string script;
     std::map<std::string, std::string> behaviors;  // gesture, facial_expression, gaze, etc.
@@ -45,6 +46,7 @@ struct LessonStep {
     std::vector<std::string> visual_aid_labels;
     std::vector<std::string> visual_aid_footers;
     std::string motor_sequence;
+    
 };
 
 struct LessonData {
@@ -98,6 +100,11 @@ public:
     // Get the current session ID
     std::string get_session_id() const;
 
+    // Step control, called by LessonPoller when SLP issues commands
+    void skip_step();
+    void replay_step();
+    void set_step(int target_step_order);
+
 private:
 
     void execute_step(const LessonStep &step);
@@ -111,7 +118,7 @@ private:
     void advance_to_next_step();
 
     void update_progress_with_backend();
-    void log_interaction_to_backend(int step_id, const std::string &response, bool is_correct);
+    void log_interaction_to_backend(int step_order, const std::string &response, bool is_correct);
 
     void on_tts_done(const std_msgs::msg::String::SharedPtr msg);
     void on_llm_wrap_up(const std_msgs::msg::String::SharedPtr msg);
@@ -157,6 +164,8 @@ private:
 
     std::string robot_state_{"idle"};
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_state_sub_;
+
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr tts_interrupt_pub_;
 
 
 };

@@ -9,6 +9,9 @@ namespace bloom.Models.dto
         public int? TimingSeconds { get; set; }
         public string? VisualAid { get; set; }
 
+        public string? VisualAidLabels { get; set; }
+        public string? VisualAidFooters { get; set; }
+        public string? MotorSequence { get; set; }
         // JSON string — passed through as-is to/from the robot
         public string? Behaviors { get; set; }
 

@@ -105,7 +105,7 @@ void FeedbackPoller::on_polling_tick() {
 
 	// Build endpoint path
 	std::ostringstream path_builder;
-	path_builder << "/api/robotsession/" << current_session_id << "/pending-feedback";
+	path_builder << "/api/lessoninteraction/" << current_session_id << "/pending-feedback";
 	std::string endpoint = path_builder.str();
 
 	// Async HTTP GET request
@@ -129,14 +129,14 @@ void FeedbackPoller::on_polling_tick() {
 			// Parse response JSON
 			try {
 				json response = json::parse(body);
-				handle_pending_feedback(response);
+				handle_pending_feedback(response, current_session_id);
 			} catch (const json::exception &e) {
 				RCLCPP_ERROR(this->get_logger(), "Failed to parse feedback JSON: %s", e.what());
 			}
 		});
 }
 
-void FeedbackPoller::handle_pending_feedback(const json &feedback_json) {
+void FeedbackPoller::handle_pending_feedback(const json &feedback_json, const std::string &session_id) {
 	try {
 		// Extract feedback_id for deduplication
 		if (!feedback_json.contains("feedbackId")) {
@@ -155,8 +155,9 @@ void FeedbackPoller::handle_pending_feedback(const json &feedback_json) {
 		last_feedback_id_ = feedback_id;
 
 		// Extract session ID and command
-		std::string session_id = feedback_json.value("sessionId", "");
-		std::string command = feedback_json.value("command", "");
+		std::string command = feedback_json.contains("feedbackCommand") 
+			? feedback_json.value("feedbackCommand", "") 
+			: feedback_json.value("command", "");
 		int step_id = feedback_json.value("stepId", -1);
 
 		RCLCPP_INFO(this->get_logger(),
@@ -192,7 +193,7 @@ void FeedbackPoller::acknowledge_feedback(const std::string &session_id, const s
 
 	// Build acknowledgment endpoint path
 	std::ostringstream path_builder;
-	path_builder << "/api/robotsession/" << session_id
+	path_builder << "/api/lessoninteraction/" << session_id
 				 << "/pending-feedback/" << feedback_id
 				 << "/acknowledge";
 	std::string endpoint = path_builder.str();

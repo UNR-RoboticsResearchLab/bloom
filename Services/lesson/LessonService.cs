@@ -60,6 +60,9 @@ namespace bloom.Services
                             Script = s.Script,
                             TimingSeconds = s.TimingSeconds,
                             VisualAid = s.VisualAid,
+                            VisualAidLabels = s.VisualAidLabels,
+                            VisualAidFooters = s.VisualAidFooters,
+                            MotorSequence = s.MotorSequence,
                             Behaviors = s.Behaviors,
                         };
 
@@ -314,6 +317,12 @@ namespace bloom.Services
                             ? tp.GetInt32() : null,
                         VisualAid = step.TryGetProperty("visual_aid", out var va)
                             ? va.GetRawText() : null,
+                        VisualAidLabels = step.TryGetProperty("visual_aid_labels", out var valEl)
+                            ? valEl.GetRawText() : null,
+                        VisualAidFooters = step.TryGetProperty("visual_aid_footers", out var vafEl)
+                            ? vafEl.GetRawText() : null,
+                        MotorSequence = step.TryGetProperty("motor_sequence", out var msEl)
+                            ? msEl.GetString() : null,
                         Behaviors = step.TryGetProperty("behaviors", out var beh)
                             ? beh.GetRawText() : null,
                         Interaction = interactionDto

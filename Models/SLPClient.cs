@@ -16,6 +16,8 @@ namespace bloom.Models
         public required string Name { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
+        public string? AccentColor { get; set; }
+        public string? BackgroundImageUrl { get; set; }
 
         
 

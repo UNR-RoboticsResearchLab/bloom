@@ -150,7 +150,7 @@ void LessonPoller::on_polling_tick() {
 
     //Lesson polling
     if (currently_executing_.load()) {
-        RCLCPP_WARN(this->get_logger(), "Skipping lesson poll: lesson currently executing (may be stuck)");
+        RCLCPP_DEBUG(this->get_logger(), "Skipping lesson poll: lesson currently executing");
         return;
     }
 
@@ -177,7 +177,7 @@ void LessonPoller::on_polling_tick() {
 
             try {
                 json response = json::parse(body);
-                RCLCPP_INFO(this->get_logger(), "Pending lesson response: %s", response.dump().c_str());
+                RCLCPP_DEBUG(this->get_logger(), "Pending lesson response: %s", response.dump().c_str());
 
                 if (!response.contains("hasPendingLesson") || !response["hasPendingLesson"].get<bool>()) {
                     RCLCPP_INFO(this->get_logger(), "Response indicates no pending lesson");
@@ -231,70 +231,141 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 		}
 
 		// Parse sequence steps
-		if (lesson_json.contains("sequence") && lesson_json["sequence"].is_array()) {
-			for (const auto &step_json : lesson_json["sequence"]) {
+		if (lesson_json.contains("steps") && lesson_json["steps"].is_array()) {
+			for (const auto &step_json : lesson_json["steps"]) {
 				LessonStep step;
-				step.id = step_json.value("id", 0);
+				step.id = step_json.value("id", "");
+				step.step_order = step_json.value("stepOrder", 0);
 				step.type = step_json.value("type", "");
 				step.script = step_json.value("script", "");
-				step.timing_seconds = step_json.value("timing_seconds", 0);
+				step.timing_seconds = (step_json.contains("timingSeconds") && !step_json["timingSeconds"].is_null()) 
+    				? step_json["timingSeconds"].get<int>() : 0;
 
-				// Parse behaviors map
-				if (step_json.contains("behaviors") && step_json["behaviors"].is_object()) {
-					for (auto &[key, value] : step_json["behaviors"].items()) {
-						step.behaviors[key] = value.get<std::string>();
-					}
-				}
-				step.motor_sequence = step_json.value("motor_sequence", "");
-				// Parse visual aid
-				if (step_json.contains("visual_aid")) {
-					if (step_json["visual_aid"].is_array()) {
-						for (const auto &img : step_json["visual_aid"]) {
-							step.visual_aid_images.push_back(img.get<std::string>());
+				if (step_json.contains("behaviors") && step_json["behaviors"].is_string()) {
+					std::string behaviors_str = step_json["behaviors"].get<std::string>();
+					if (!behaviors_str.empty()) {
+						try {
+							auto behaviors_json = json::parse(behaviors_str);
+							if (behaviors_json.is_object()) {
+								for (auto &[key, value] : behaviors_json.items()) {
+									if (value.is_string()) {
+										step.behaviors[key] = value.get<std::string>();
+									}
+								}
+							}
+						} catch (...) {
+							RCLCPP_WARN(this->get_logger(), "Failed to parse behaviors JSON string for step %s", step.id.c_str());
 						}
-					} else if (step_json["visual_aid"].is_string()) {
-						step.visual_aid_images.push_back(step_json["visual_aid"].get<std::string>());
 					}
 				}
-				if (step_json.contains("visual_aid_labels") && step_json["visual_aid_labels"].is_array()) {
-					for (const auto &lbl : step_json["visual_aid_labels"]) {
-						step.visual_aid_labels.push_back(lbl.get<std::string>());
+				if (step_json.contains("visualAid") && !step_json["visualAid"].is_null()) {
+					if (step_json["visualAid"].is_string()) {
+						std::string va_str = step_json["visualAid"].get<std::string>();
+						if (!va_str.empty()) {
+							try {
+								auto va_json = json::parse(va_str);
+								if (va_json.is_array()) {
+									for (const auto &img : va_json) {
+										step.visual_aid_images.push_back(img.get<std::string>());
+									}
+								}
+							} catch (...) {
+								step.visual_aid_images.push_back(va_str);
+							}
+						}
 					}
 				}
-				if (step_json.contains("visual_aid_footers") && step_json["visual_aid_footers"].is_array()) {
-					for (const auto &ftr : step_json["visual_aid_footers"]) {
-						step.visual_aid_footers.push_back(ftr.get<std::string>());
+				// Parse visual aid labels
+				if (step_json.contains("visualAidLabels") && !step_json["visualAidLabels"].is_null()) {
+					try {
+						auto labels_str = step_json["visualAidLabels"].get<std::string>();
+						auto labels_json = json::parse(labels_str);
+						if (labels_json.is_array()) {
+							for (const auto &label : labels_json) {
+								step.visual_aid_labels.push_back(label.get<std::string>());
+							}
+						}
+					} catch (...) {
+						RCLCPP_WARN(this->get_logger(), "Failed to parse visualAidLabels for step %s", step.id.c_str());
 					}
 				}
-				// Parse interaction config if present
-				// has_interaction is true if an interaction block exists, even without explicit flag
-				step.has_interaction = step_json.contains("interaction") && step_json["interaction"].is_object();
-				if (step.has_interaction) {
-					const auto &interaction_json = step_json["interaction"];
-					step.interaction.wait_for_response = interaction_json.value("wait_for_response", false);
-					step.interaction.max_wait_seconds = interaction_json.value("max_wait_seconds", 10);
-					step.interaction.correct_answer = interaction_json.value("correct_answer", "");
-					step.interaction.correct_response_script = interaction_json.value("correct_response_script", "");
-					step.interaction.incorrect_response_script = interaction_json.value("incorrect_response_script", "");
-					step.interaction.fallback_script = interaction_json.value("fallback_script", "");
-					step.interaction.llm_follow_up = interaction_json.value("llm_follow_up", false);
-					step.interaction.single_turn_llm = interaction_json.value("single_turn_llm", false);
-					step.interaction.single_turn_llm_prompt = interaction_json.value("single_turn_llm_prompt", "");
+				// Parse visual aid footers
+				if (step_json.contains("visualAidFooters") && !step_json["visualAidFooters"].is_null()) {
+					try {
+						auto footers_str = step_json["visualAidFooters"].get<std::string>();
+						auto footers_json = json::parse(footers_str);
+						if (footers_json.is_array()) {
+							for (const auto &footer : footers_json) {
+								step.visual_aid_footers.push_back(footer.get<std::string>());
+							}
+						}
+					} catch (...) {
+						RCLCPP_WARN(this->get_logger(), "Failed to parse visualAidFooters for step %s", step.id.c_str());
+					}
+				}
+				// Parse motor sequence
+				if (step_json.contains("motorSequence") && !step_json["motorSequence"].is_null()) {
+					step.motor_sequence = step_json["motorSequence"].get<std::string>();
+				}
+				step.has_interaction = false;
+				if (step_json.contains("interaction") && !step_json["interaction"].is_null()) {
+					json interaction_json;
+					bool got_interaction = false;
 
-					if (interaction_json.contains("fallback_visual_aid") && interaction_json["fallback_visual_aid"].is_array()) {
-						for (const auto &img : interaction_json["fallback_visual_aid"]) {
-							step.interaction.fallback_visual_aid.push_back(img.get<std::string>());
+					if (step_json["interaction"].is_object()) {
+						interaction_json = step_json["interaction"];
+						got_interaction = true;
+					} else if (step_json["interaction"].is_string()) {
+						std::string interaction_str = step_json["interaction"].get<std::string>();
+						if (!interaction_str.empty()) {
+							try {
+								interaction_json = json::parse(interaction_str);
+								got_interaction = true;
+							} catch (...) {
+								RCLCPP_WARN(this->get_logger(), "Failed to parse interaction string for step %s", step.id.c_str());
+							}
 						}
 					}
-					if (interaction_json.contains("fallback_visual_aid_labels") && interaction_json["fallback_visual_aid_labels"].is_array()) {
-						for (const auto &lbl : interaction_json["fallback_visual_aid_labels"]) {
-							step.interaction.fallback_visual_aid_labels.push_back(lbl.get<std::string>());
+
+					if (got_interaction) {
+						try {
+							step.has_interaction = true;
+							step.interaction.wait_for_response = (interaction_json.contains("waitForResponse") && !interaction_json["waitForResponse"].is_null())
+								? interaction_json["waitForResponse"].get<bool>() : false;
+							step.interaction.llm_follow_up = (interaction_json.contains("llmFollowUp") && !interaction_json["llmFollowUp"].is_null())
+								? interaction_json["llmFollowUp"].get<bool>() : false;
+							step.interaction.single_turn_llm = (interaction_json.contains("singleTurnLlm") && !interaction_json["singleTurnLlm"].is_null())
+								? interaction_json["singleTurnLlm"].get<bool>() : false;
+							step.interaction.max_wait_seconds = (interaction_json.contains("maxWaitSeconds") && !interaction_json["maxWaitSeconds"].is_null())
+								? interaction_json["maxWaitSeconds"].get<int>() : 0;
+							step.interaction.correct_answer = (interaction_json.contains("correctAnswer") && !interaction_json["correctAnswer"].is_null())
+								? interaction_json["correctAnswer"].get<std::string>() : "";
+							step.interaction.correct_response_script = (interaction_json.contains("correctResponseScript") && !interaction_json["correctResponseScript"].is_null())
+								? interaction_json["correctResponseScript"].get<std::string>() : "";
+							step.interaction.incorrect_response_script = (interaction_json.contains("incorrectResponseScript") && !interaction_json["incorrectResponseScript"].is_null())
+								? interaction_json["incorrectResponseScript"].get<std::string>() : "";
+							step.interaction.fallback_script = (interaction_json.contains("fallbackScript") && !interaction_json["fallbackScript"].is_null())
+								? interaction_json["fallbackScript"].get<std::string>() : "";
+							step.interaction.single_turn_llm_prompt = (interaction_json.contains("singleTurnLlmPrompt") && !interaction_json["singleTurnLlmPrompt"].is_null())
+								? interaction_json["singleTurnLlmPrompt"].get<std::string>() : "";
+						} catch (const std::exception &e) {
+							RCLCPP_WARN(this->get_logger(), "Failed to extract interaction fields for step %s: %s", 
+								step.id.c_str(), e.what());
+							step.has_interaction = false;
 						}
 					}
-					
 				}
 
 				lesson_data.sequence.push_back(step);
+				RCLCPP_INFO(this->get_logger(), 
+					"[PARSE] Step %s order=%d type=%s script='%.50s' has_interaction=%s behaviors=%zu visual_aids=%zu",
+					step.id.c_str(),
+					step.step_order,
+					step.type.c_str(),
+					step.script.c_str(),
+					step.has_interaction ? "true" : "false",
+					step.behaviors.size(),
+					step.visual_aid_images.size());
 			}
 		}
 
@@ -316,9 +387,12 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 		lesson_coord_->set_completion_callback(
 			[this](const std::string &completed_lesson_id) {
 				RCLCPP_INFO(this->get_logger(), "Lesson completion callback: %s", completed_lesson_id.c_str());
+				stop_step_control_polling();
+				last_lesson_id_ = "";
 				currently_executing_.store(false);
 			});
 
+		start_step_control_polling();
 		lesson_coord_->start_lesson();
 		RCLCPP_INFO(this->get_logger(), "[DONE] start_lesson() completed");
 
@@ -328,6 +402,92 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 	}
 
 	
+}
+
+void LessonPoller::start_step_control_polling() {
+    if (step_control_timer_) return;
+    step_control_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(1500),
+        [this]() { this->on_step_control_tick(); });
+    RCLCPP_INFO(this->get_logger(), "Step control polling started");
+}
+
+void LessonPoller::stop_step_control_polling() {
+    if (step_control_timer_) {
+        step_control_timer_->cancel();
+        step_control_timer_ = nullptr;
+    }
+    RCLCPP_INFO(this->get_logger(), "Step control polling stopped");
+}
+
+void LessonPoller::on_step_control_tick() {
+    if (!currently_executing_.load()) {
+        stop_step_control_polling();
+        return;
+    }
+
+    std::string current_session_id;
+    {
+        std::lock_guard<std::mutex> lock(session_mutex_);
+        current_session_id = session_id_;
+    }
+
+    if (current_session_id.empty()) return;
+
+    std::string endpoint = "/api/lessonsession/" + current_session_id + "/lessons/step-control";
+
+    web_client_->sendGetAsync(
+        endpoint,
+        std::nullopt,
+        std::vector<std::string>{},
+        [this, current_session_id, endpoint](const std::string &body, long http_code) {
+            if (http_code == 204) return; // No command pending
+
+            if (http_code < 200 || http_code >= 300) {
+                RCLCPP_WARN(this->get_logger(), "Step control poll failed (HTTP %ld)", http_code);
+                return;
+            }
+
+            try {
+                auto j = json::parse(body);
+                std::string command = j.value("command", "");
+                RCLCPP_INFO(this->get_logger(), "[STEP_CONTROL] Received command: %s", command.c_str());
+
+                if (command == "skip") {
+                    if (lesson_coord_) lesson_coord_->skip_step();
+                } else if (command == "replay") {
+                    if (lesson_coord_) lesson_coord_->replay_step();
+                } else if (command == "set_step") {
+                    int target = j.value("targetStep", -1);
+                    if (target >= 0 && lesson_coord_) {
+                        lesson_coord_->set_step(target);
+                    } else {
+                        RCLCPP_WARN(this->get_logger(), "[STEP_CONTROL] set_step missing or invalid targetStep");
+                    }
+                } else {
+                    RCLCPP_WARN(this->get_logger(), "[STEP_CONTROL] Unknown command: %s", command.c_str());
+                }
+
+                // Acknowledge
+                std::string ack_endpoint = "/api/lessonsession/" + current_session_id + "/lessons/step-control";
+                web_client_->sendRequestAsync(
+                    "DELETE",
+                    ack_endpoint,
+                    std::nullopt,
+                    std::nullopt,
+                    std::vector<std::string>{},
+                    [this](const std::string &, long ack_code) {
+                        if (ack_code >= 200 && ack_code < 300) {
+                            RCLCPP_INFO(this->get_logger(), "[STEP_CONTROL] Command acknowledged");
+                        } else {
+                            RCLCPP_WARN(this->get_logger(), "[STEP_CONTROL] Failed to acknowledge command (HTTP %ld)", ack_code);
+                        }
+                    });
+
+            } catch (const json::exception &e) {
+                RCLCPP_ERROR(this->get_logger(), "Failed to parse step control response: %s", e.what());
+            }
+        });
 }
 
 void LessonPoller::set_pairing_code(const std::string &pairing_code) {

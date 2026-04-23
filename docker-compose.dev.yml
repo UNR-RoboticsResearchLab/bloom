@@ -12,7 +12,7 @@ services:
       - ./ClientApp:/app
       - /app/node_modules
     environment:
-      - REACT_APP_API_URL=http://bloom-server-dev:8080/
+      - REACT_APP_API_BASE_URL=http://bloom-server-dev:5000/
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
       - WATCHPACK_POLLING_INTERVAL=1000

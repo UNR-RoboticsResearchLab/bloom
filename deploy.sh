@@ -121,13 +121,13 @@ mkdir -p "$TARGET_DIR/logs"
 mkdir -p "$TARGET_DIR/backups"
 mkdir -p "$TARGET_DIR/build"
 
-# --- Deploy frontend files ---
-echo "Deploying frontend files..."
-cp -r "$FRONTEND_BUILD_DIR/"* "$TARGET_DIR/build"
-
 # --- Deploy application files ---
 echo "Deploying application files..."
 cp -r "$PUBLISH_DIR/"* "$TARGET_DIR/"
+
+# --- Deploy frontend files ---
+echo "Deploying frontend files..."
+cp -r "$FRONTEND_BUILD_DIR/"* "$TARGET_DIR/build"
 
 
 

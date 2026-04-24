@@ -100,7 +100,8 @@ namespace bloom.Repositories
         }
 
         /// <summary>
-        /// Gets the state change count for a robot in a session. Used to determine when to archive to database.
+        /// Gets the state change count for a robot in a session. 
+        ///  - Used to determine when to archive to database.
         /// </summary>
         /// <returns>Change count, or 0 if robot not found</returns>
         public int GetStateChangeCount(string sessionId, Guid robotId)

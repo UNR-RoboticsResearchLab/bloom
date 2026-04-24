@@ -305,4 +305,28 @@ size_t WebServiceClient::getCurlPoolAvailable() const {
     return curl_pool_->available();
 }
 
+void WebServiceClient::publishSessionCode(const std::string &session_code)
+{
+    if (!session_code_pub_) {
+        session_code_pub_ = this->create_publisher<std_msgs::msg::String>("/robot/session_code", 10);
+    }
+    auto msg = std_msgs::msg::String();
+    msg.data = session_code;
+    session_code_pub_->publish(msg);
+    RCLCPP_INFO(this->get_logger(), "Published session code: %s", session_code.c_str());
+
+}
+
+void WebServiceClient::publishSessionCode(const std::string &session_code)
+{
+    if (!session_code_pub_) {
+        session_code_pub_ = this->create_publisher<std_msgs::msg::String>("/robot/session_code", 10);
+    }
+    auto msg = std_msgs::msg::String();
+    msg.data = session_code;
+    session_code_pub_->publish(msg);
+    RCLCPP_INFO(this->get_logger(), "Published session code: %s", session_code.c_str());
+
+}
+
 } // namespace web_service_client

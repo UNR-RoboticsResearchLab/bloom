@@ -17,7 +17,23 @@ import TeacherDashboard from "./components/dashboard/TeacherDashboard";
 import StudentDashboard from "./components/dashboard/StudentDashboard";
 import SlpDashboard from "./components/dashboard/SlpDashboard";
 
-import "./custom.css";
+import Lessons from "./pages/Lessons";
+import Lesson from "./pages/Lesson";
+
+import Students from "./pages/Students";
+import Student from "./pages/Student";
+
+import ForgotPassword from "./pages/ForgotPassword";
+
+import FetchData from "./pages/FetchData";
+import Counter from "./pages/Counter";
+
+// import "./custom.css";
+
+import AddStudentCard from "./pages/AddStudentCard";
+import AddLessonCard from "./pages/AddLessonCard";
+
+import LessonView from "./pages/LessonView";
 
 export default function App() {
 
@@ -35,6 +51,21 @@ export default function App() {
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/about" element={<About />} />
+        <Route path="/lessons" element={<Lessons />} />
+        <Route path="/students" element={<Students />} />
+        <Route path="/student/:name" element={<Student />} />
+        <Route path="/lesson/:lessonId" element={<Lesson />} />
+        <Route path="/lesson-view" element={<LessonView />} />
+        
+
+        <Route path="/add-student" element={<AddStudentCard />} />
+
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/teacher" element={<TeacherDashboard />} />
+        {/* <Route path="/student" element={<StudentDashboard />} /> */}
+        <Route path="/slp" element={<SlpDashboard />} />
+
+
 
         {/* Protected */}
         <Route element={<RequireAuth />}>

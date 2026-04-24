@@ -12,6 +12,7 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(CURL REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 
 
 # Build bloom_node library
@@ -28,7 +29,7 @@ target_include_directories(bloom_node_lib PUBLIC
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
 target_compile_features(bloom_node_lib PUBLIC c_std_99 cxx_std_17)
-ament_target_dependencies(bloom_node_lib rclcpp std_msgs std_srvs)
+ament_target_dependencies(bloom_node_lib rclcpp std_msgs std_srvs ament_index_cpp)
 target_link_libraries(bloom_node_lib CURL::libcurl pthread)
 
 # Build bloom_node executable
@@ -50,6 +51,12 @@ install(TARGETS bloom_node
 
 install(DIRECTORY include/
   DESTINATION include/${PROJECT_NAME})
+
+install(DIRECTORY config/
+  DESTINATION share/${PROJECT_NAME}/config)
+
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch)
 
 ament_export_targets(bloom_nodeTargets HAS_LIBRARY_TARGET)
 ament_export_dependencies(rclcpp std_msgs std_srvs CURL)

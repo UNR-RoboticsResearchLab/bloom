@@ -19,5 +19,11 @@ namespace bloom.Models.dto
         public required string SelectedRole { get; set; }
         public required string UserName { get; set; }
     }
-    
+
+    public class CreateStudentByPrivilegedUserDto
+    {
+        public required string FullName { get; set; }
+        public required string Email { get; set; }
+    }
+
 }

@@ -61,6 +61,8 @@ export default function SlpDashboard() {
   const [selectedLessonId, setSelectedLessonId] = useState("L1");
   const [selectedStudentId, setSelectedStudentId] = useState("S1");
   const { addNote, getNotes } = useNotes();
+  const [showPairRobotCard, setShowPairRobotCard] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   const selectedLesson = useMemo(
     () => mockLessons.find((l) => l.id === selectedLessonId),
@@ -101,70 +103,82 @@ export default function SlpDashboard() {
           <div className="text-sm text-gray-600">Students Assigned</div>
           <div className="mt-1 text-2xl font-semibold">{headerStats.totalStudents}</div>
         </div>
-        <div className="rounded-lg bg-white p-4 shadow">
-          <div className="text-sm text-gray-600">Avg STT Accuracy</div>
-          <div className="mt-1 text-2xl font-semibold">{Math.round(headerStats.avgAcc * 100)}%</div>
+        <div className="rounded-lg hover:bg-blue-200 hover:cursor-pointer p-4 shadow" 
+            onClick={()=>{
+                setShowPairRobotCard(true);
+              }}>
+          <div className="text-sm text-gray-600">Robot Status</div>
+          <div className="mt-1 flex items-center gap-2">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                isConnected ? "bg-green-500" : "bg-red-500"
+              }`}
+              
+            />
+            
+            <span className="text-2xl font-semibold">
+              {isConnected ? "Connected" : "Disconnected"}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <section className="rounded-lg bg-white p-4 shadow">
-          <h3 className="text-base font-semibold">Lessons</h3>
-          <ul className="mt-3 divide-y">
-            {mockLessons.map((lesson) => (
-              <li key={lesson.id} className="py-2">
-                <button
-                  onClick={() => setSelectedLessonId(lesson.id)}
-                  className={`w-full text-left ${selectedLessonId === lesson.id ? "font-semibold text-indigo-700" : "text-gray-800"} `}
-                >
-                  {lesson.title}
-                </button>
-                <div className="text-xs text-gray-500">
-                  Students: {lesson.students.map((sid) => mockStudents[sid].name).join(", ")}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
 
+      <div className="mt-6">
         <section className="rounded-lg bg-white p-4 shadow">
-          <h3 className="text-base font-semibold">Students in Selected Lesson</h3>
-          <ul className="mt-3 divide-y">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold">Lessons</h3>
+
+            <button
+              type="button"
+              onClick={() => navigate("/lessons")}
+              className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
+            >
+              View all
+            </button>
+          </div>
+
+          <div className="mt-3 space-y-3">
+            {lessons.map((lesson) => (
+              <LessonCard
+                key={lesson.id || lesson.Id}
+                title={lesson.title}
+                description={lesson.description ?? ""}
+                onClick={() => {
+                  const lessonId = lesson.id ?? lesson.Id;
+                  navigate(`/lesson/${lessonId}`);
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="mt-6">
+        <section className="rounded-lg bg-white p-4 shadow">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold">Students</h3>
+            <button
+                type="button"
+                onClick={() => navigate("/students")}
+                className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
+              >
+                View all
+            </button>
+          </div>
+          <div className="mt-3 space-y-3 mx-auto w-full">
             {studentsForLesson.map((s) => (
-              <li key={s.id} className="py-2">
-                <button
-                  onClick={() => setSelectedStudentId(s.id)}
-                  className={`w-full text-left ${selectedStudentId === s.id ? "font-semibold text-indigo-700" : "text-gray-800"} `}
-                >
-                  {s.name}
-                </button>
-                <div className="mt-1 grid grid-cols-2 gap-3 text-xs text-gray-600">
-                  <div>Active: {s.active.join(", ") || "None"}</div>
-                  <div>Completed: {s.completed.join(", ") || "None"}</div>
-                </div>
-              </li>
+              <StudentCard
+                key={s.id}
+                name={s.name}
+                email={`${s.name.toLowerCase().replace(" ", ".")}@example.com`}
+                active={s.active}
+                completed={s.completed}
+                selected={selectedStudentId === s.id}
+                onClick={() => setSelectedStudentId(s.id)}
+              />
             ))}
-          </ul>
-        </section>
-
-        <section className="rounded-lg bg-white p-4 shadow">
-          <h3 className="text-base font-semibold">STT Accuracy by Student</h3>
-          <ul className="mt-3 space-y-3">
-            {Object.entries(sttForLesson).map(([sid, m]) => (
-              <li key={sid} className="rounded border p-3">
-                <div className="flex items-center justify-between">
-                  <div className="font-medium">{mockStudents[sid].name}</div>
-                  <div className="text-sm text-gray-600">Success {m.success} • Fail {m.fail}</div>
-                </div>
-                <div className="mt-2">
-                  <AccuracyBar value={m.accuracy} />
-                </div>
-              </li>
-            ))}
-            {!Object.keys(sttForLesson).length && (
-              <li className="text-sm text-gray-600">No accuracy data yet</li>
-            )}
-          </ul>
+          </div>
         </section>
       </div>
 
@@ -233,6 +247,25 @@ export default function SlpDashboard() {
           </ul>
         </section>
       </div>
+      {showPairRobotCard && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center">
+                          <div
+                          className="absolute inset-0 bg-black/40"
+                          onClick={() => setShowPairRobotCard(false)}
+                          />
+      
+                          <div className="relative z-10 w-full max-w-xl px-4">
+                              <PairRobotCard
+                                onCancel={() => setShowPairRobotCard(false)}
+                                onPaired={(sessionId) => {
+                                  console.log("Paired in dashboard:", sessionId);
+                                  setIsConnected(true);
+                                  setShowPairRobotCard(false);
+                                }}
+                              />
+                          </div>
+                      </div>
+                  )}
     </DashboardLayout>
   );
 }

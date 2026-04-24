@@ -43,7 +43,7 @@ export default function DashboardLayout({ title, children, actions = null }) {
               <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
 
               {/* Breadcrumbs (no bullets, inline) */}
-              <nav aria-label="Breadcrumb">
+              {/* <nav aria-label="Breadcrumb">
                 <ol className="m-0 flex list-none items-center gap-2 p-0 text-sm">
                   {crumbs.map((c, i) => (
                     <li key={c.to} className="flex items-center gap-2">
@@ -58,7 +58,7 @@ export default function DashboardLayout({ title, children, actions = null }) {
                     </li>
                   ))}
                 </ol>
-              </nav>
+              </nav> */}
 
             </div>
 
@@ -89,7 +89,7 @@ export default function DashboardLayout({ title, children, actions = null }) {
         </header>
 
         {/* Content card */}
-        <main className="rounded-2xl bg-gray-50 p-6 shadow-sm ring-1 ring-gray-100">
+        <main className="">
           {children}
         </main>
       </div>

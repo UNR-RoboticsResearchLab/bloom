@@ -1,5 +1,7 @@
-__pycache__/
-*.pyc
+# Python
+**/__pycache__/
+**/*.pyc
+**/*.pyo
 venv/
 .venv/
 env/
@@ -12,6 +14,17 @@ config.py
 
 
 #ros workspace files
-install/
+
+# ROS2 build artifacts
 build/
+install/
 logs/
+
+# Audio/temp files
+*.wav
+face_control.json
+current_visemes.json
+
+# Secrets
+.env
+config.py

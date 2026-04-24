@@ -17,7 +17,9 @@ namespace bloom.Models
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
         public string? AccentColor { get; set; }
-        public string? BackgroundImageUrl {get; set; }
+        public string? BackgroundImageUrl { get; set; }
+
+        
 
         // Navigation properties
         public ICollection<Account>? Students { get; set; }

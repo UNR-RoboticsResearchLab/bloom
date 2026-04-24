@@ -114,10 +114,17 @@ find "$TARGET_DIR" -mindepth 1 -maxdepth 1 ! -name logs ! -name backups -exec rm
 mkdir -p "$TARGET_DIR"
 mkdir -p "$TARGET_DIR/logs"
 mkdir -p "$TARGET_DIR/backups"
+mkdir -p "$TARGET_DIR/build"
 
 # --- Deploy application files ---
 echo "Deploying application files..."
 cp -r "$PUBLISH_DIR/"* "$TARGET_DIR/"
+
+# --- Deploy frontend files ---
+echo "Deploying frontend files..."
+cp -r "$FRONTEND_BUILD_DIR/"* "$TARGET_DIR/build"
+
+
 
 # --- Run migrations if requested ---
 if [ "$RUN_MIGRATIONS" = true ]; then
@@ -133,7 +140,7 @@ fi
 # --- Start the application ---
 echo "Starting Bloom application..."
 cd "$TARGET_DIR"
-nohup dotnet bloom.dll > "$TARGET_DIR/logs/app.log" 2>&1 &
+nohup dotnet bloom.dll --urls "http://localhost:$APP_PORT" > "$TARGET_DIR/logs/app.log" 2>&1 &
 APP_PID=$!
 echo $APP_PID > "$TARGET_DIR/app.pid"
 

@@ -235,3 +235,10 @@ _Pvt_Extensions
 **/build/
 **/install/
 **/log/
+
+
+.cache/
+.vscode/
+.cache/
+
+cookies.txt

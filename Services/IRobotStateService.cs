@@ -33,8 +33,8 @@ namespace bloom.Services
         /**
          * <summary>
          * GetRobotStateBySessionId() gets all of the robots states with a specific sessionId
-         * <summary>
-         * <returns>List of RobotStates</return>
+         * </summary>
+         * <returns>List of RobotStates</returns>
          */
         ICollection<RobotState> GetRobotStatesBySessionId(string sessionId);
 

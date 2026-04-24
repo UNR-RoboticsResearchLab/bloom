@@ -20,6 +20,10 @@ namespace bloom.Data
         public DbSet<Robot> Robots { get; set; }
         public DbSet<RobotSession> RobotSessions { get; set; }
         public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
+        public DbSet<LessonStep> LessonSteps { get; set; }
+        public DbSet<LessonProgress> LessonProgresses { get; set; }
+        public DbSet<LessonInteraction> LessonInteractions { get; set; }
+        public DbSet<StepInteraction> StepInteractions { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
@@ -48,6 +52,26 @@ namespace bloom.Data
                     .WithOne(a => a.Lesson)
                     .HasForeignKey(a => a.LessonId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(l => l.Steps)
+                    .WithOne(s => s.Lesson)
+                    .HasForeignKey(s => s.LessonId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<LessonStep>(entity =>
+            {
+                entity.ToTable("LessonSteps");
+
+                entity.HasOne(s => s.Interaction)
+                    .WithOne(i => i.LessonStep)
+                    .HasForeignKey<LessonStep>(s => s.InteractionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<StepInteraction>(entity =>
+            {
+                entity.ToTable("StepInteractions");
             });
 
             builder.Entity<Assignment>(entity =>
@@ -143,6 +167,37 @@ namespace bloom.Data
                     await userMgr.AddToRoleAsync(adminUser, "Admin");
                 }
             }
+        }
+
+        public async Task SeedLessons()
+        {
+                if (!Lessons.Any())
+                {
+                    var sampleLessons = new List<Lesson>
+                    {
+                        new Lesson
+                        {
+                            Title = "Sample Language Lesson",
+                            Description = "A sample language lesson for testing.",
+                            CreatedDate = DateTime.UtcNow,
+                            CreatedById = Accounts.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(),
+                            LessonType = LessonType.Language,
+                            TotalSteps = 5
+                        },
+                        new Lesson
+                        {
+                            Title = "Sample Speech Therapy Lesson",
+                            Description = "A sample speech therapy lesson for testing.",
+                            CreatedDate = DateTime.UtcNow,
+                            CreatedById = Accounts.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(),
+                            LessonType = LessonType.SpeechTherapy,
+                            TotalSteps = 7
+                        }
+                    };
+    
+                    Lessons.AddRange(sampleLessons);
+                    await SaveChangesAsync();
+                }
         }
     }
 }

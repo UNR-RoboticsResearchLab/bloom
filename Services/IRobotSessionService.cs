@@ -8,6 +8,7 @@ namespace bloom.Services
         /// <summary>
         /// Starts a new robot session
         /// </summary>
+        /// <param name="robotId"> ID of the robot making a session</param> 
         /// <param name="userId">ID of the user creating the session (null for anonymous sessions)</param>
         /// <param name="anon">Whether to create an anonymous session (overrides userId)</param>
         /// <returns>The created RobotSession</returns>
@@ -87,5 +88,74 @@ namespace bloom.Services
         /// <param name="code">The 6-digit session code</param>
         /// <returns>The RobotSession or null if not found</returns>
         Task<RobotSession?> GetSessionByCodeAsync(string code);
+
+        /// <summary>
+        /// Logs a student interaction during a lesson in a session
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        /// <param name="dto">Interaction details</param>
+        /// <returns>ID of the created interaction record</returns>
+        Task<Guid> LogLessonInteractionAsync(Guid sessionId, LogLessonInteractionDto dto);
+
+        /// <summary>
+        /// Creates or updates lesson progress for the student in a session
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        /// <param name="dto">Progress update data</param>
+        Task UpdateLessonProgressAsync(Guid sessionId, UpdateLessonProgressDto dto);
+
+        /// <summary>
+        /// Gets a pending lesson for the session if one is assigned
+        /// Returns the full lesson JSON along with metadata for the robot to execute
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        /// <returns>Pending lesson data or null if none exists</returns>
+        Task<dynamic?> GetPendingLessonAsync(Guid sessionId);
+
+        /// <summary>
+        /// Records an SLP feedback command (approve/retry) as a LessonInteraction row
+        /// with InteractionType "SLPFeedback" and IsAcknowledged = false.
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        /// <param name="dto">Feedback command from SLP</param>
+        /// <returns>ID of the created LessonInteraction record</returns>
+        Task<Guid> RecordSLPFeedbackAsync(Guid sessionId, RecordSLPFeedbackDto dto);
+
+        /// <summary>
+        /// Returns the most recent unacknowledged SLP feedback for a session, or null.
+        /// Used by robot polling to discover pending commands.
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        /// <returns>PendingFeedbackResponseDto or null if no pending feedback</returns>
+        Task<PendingFeedbackResponseDto?> GetPendingFeedbackAsync(Guid sessionId);
+
+        /// <summary>
+        /// Marks a SLPFeedback interaction as acknowledged so the robot does not reprocess it.
+        /// </summary>
+        /// <param name="sessionId">Owning session (for validation)</param>
+        /// <param name="feedbackId">ID of the LessonInteraction to acknowledge</param>
+        Task AcknowledgeFeedbackAsync(Guid sessionId, Guid feedbackId);
+
+        /// <summary>
+        /// Starts a new lesson in the specified session
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <param name="dto">Lesson start configuration</param>
+        /// <returns>The created lesson session</returns>
+        Task<RobotSession> StartLessonAsync(Guid sessionId, StartLessonDto dto);
+
+        /// <summary>
+        /// Sets the userId on a session (e.g., when a user joins via pairing code)
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <param name="userId">ID of the user joining the session</param>
+        Task SetSessionUserIdAsync(Guid sessionId, string userId);
+
+        /// <summary>
+        /// Gets tracker events for a session (for analysis)
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <returns>Collection of tracker events ordered by timestamp descending</returns>
+        Task<List<TrackerEventDto>> GetTrackerEventsAsync(Guid sessionId);
     }
 }

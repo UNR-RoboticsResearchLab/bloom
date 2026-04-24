@@ -35,6 +35,7 @@ namespace bloom.Models.dto
         public DateTime LastUpdatedAt { get; set; }
         public int Robots { get; set; }
         public RobotState? LastState { get; set; }
+        public Guid? ActiveLessonId { get; set; }
     }
 
     /// <summary>
@@ -68,5 +69,28 @@ namespace bloom.Models.dto
         public string? Status { get; set; }
         public string? CurrentTask { get; set; }
         public DateTime Timestamp { get; set; }
+    }
+
+
+    /// <summary>
+    /// DTO for tracker events related to robot sessions (for analytics and debugging)
+    /// </summary>
+    public class TrackerEventDto
+    {
+        public Guid Id { get; set; }
+        public DateTime Timestamp { get; set; }
+
+        public string Severity { get; set; } = "info";
+        public string Source { get; set; } = string.Empty;
+        public string EventType { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+
+        public Guid SessionId { get; set; }
+
+        public string? LessonTitle { get; set; }
+        public string? StudentName { get; set; }
+        public string? RobotName { get; set; }
+
+        public int? StepId { get; set; }
     }
 }

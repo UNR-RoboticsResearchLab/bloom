@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using bloom.Models;
 using bloom.Services;
 using bloom.Data;
@@ -10,6 +11,7 @@ using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Options;
 using Pomelo.EntityFrameworkCore.MySql.Internal;
 using Microsoft.AspNetCore.DataProtection;
+using System.Security.Cryptography.X509Certificates;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,12 +30,26 @@ if (build_environmment == "Development")
 {
     builder.Services.AddOpenApi();
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
+    builder.Services.AddSwaggerGen(options =>
+    {
+        var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+        options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+    });
     // builder.WebHost.ConfigureKestrel(options =>
     // {
     //     options.ListenAnyIP(8080);   // HTTP
     //     options.ListenAnyIP(2443, listenOptions => listenOptions.UseHttps()); // HTTPS optional
     // });
+}
+else
+{
+    var cert = X509CertificateLoader.LoadPkcs12FromFile("certs/bloomserver.pfx", "bloomserver");
+
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
+        .SetApplicationName("BloomServer")
+        .SetDefaultKeyLifetime(TimeSpan.FromDays(90))
+        .ProtectKeysWithCertificate(cert);
 }
 
 // Add DB Context
@@ -47,10 +63,7 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
 
     )));
 
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
-    .SetApplicationName("BloomServer")
-    .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
+
 
 
 // Add identity
@@ -66,6 +79,7 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
 // =========== Add Custom Services ===========
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IRobotService, RobotService>();
+builder.Services.AddScoped<ILessonProgressService, LessonProgressService>();
 
 // Add RobotSession Services and Repositories
 builder.Services.AddSingleton<IRobotStateRepository, InMemoryRobotStateRepository>();
@@ -73,6 +87,8 @@ builder.Services.AddScoped<IRobotSessionRepository, RobotSessionRepository>();
 builder.Services.AddScoped<ISessionCodeService, SessionCodeService>();
 builder.Services.AddScoped<IRobotSessionService, RobotSessionService>();
 builder.Services.AddScoped<IRobotStateService, RobotStateService>();
+builder.Services.AddScoped<ISLPClientService, SLPClientService>();
+builder.Services.AddSingleton<IStepControlService, StepControlService>();
 
 // Add MVC model
 builder.Services.AddControllersWithViews();
@@ -86,9 +102,14 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.HttpOnly = true;
 
         //TODO: development comment lul
-        //options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        //options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        // options.Cookie.Name = "bloom_cookie";
+
+
         options.Cookie.Name = "bloom_cookie";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     });
 
 
@@ -150,16 +171,24 @@ using (var scope = app.Services.CreateScope())
     // var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
     // db.Database.Migrate();
 
-    // var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    // await BloomDbContext.SeedRolesAsync(roleManager);
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    await BloomDbContext.SeedDatabaseRoles(roleManager);
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
+    // Check if admin account exists, if not create one
+    await BloomDbContext.SeedDatabaseAdminUser(userManager);
+
+    await LessonSeeder.SeedLessonsFromFilesAsync(db, userManager);
 }
 
-
-// app.MapControllerRoute(
-//     name: "default",
-//     pattern: "{controller}/{action=Index}/{id?}");
 app.MapControllers();
 
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+
+public partial class Program
+{
+    
+}

@@ -36,7 +36,7 @@ async signUp(payload) {
       selectedRole: String(payload.role),
     };
 
-    const res = await this.request("/api/accounts/create", {
+    const res = await this.request("/api/account/create", {
       method: "POST",
       body: JSON.stringify(body),
     });
@@ -44,32 +44,278 @@ async signUp(payload) {
     return res;
 }
 
+  //temp
+  async addStudent(payload) {
+    const body = {
+      userName: payload.email,
+      fullName: payload.fullName,
+      email: payload.email,
+      password: payload.password,
+      selectedRole: "STUDENT",
+    };
+
+      const res = await this.request("/api/account/create", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      return res;
+  }
 
 async signIn(email, password) {
     const payload = { email, password };
 
-    const data = await this.request("/api/accounts/login", {
+    const data = await this.request("/api/account/login", {
       method: "POST",
       body: JSON.stringify(payload),
     });
 
-    return data;
-  }
-    async getSessions() {
+      return data;
+    }
+
+      async getSessions() {
+        const res = await this.request(`/api/robotsession`, { method: "GET" });
         return res || [];
         const res = await this.request(`/api/robotsessions`);
     }
 
-    async getSessionHistory(sessionId) {
-        const res = await this.request(`/api/robotsessions/${sessionId}/history`);
-        return res;
-    }
+      async getSessionHistory(sessionId) {
+          const res = await this.request(`/api/robotsession/${sessionId}/history`);
+          return res;
+      }
 
 
-async getUserProfile(id) {
-    const res = await this.request(`/api/accounts/${id}`, {
+  async getUserProfile(id) {
+    const res = await this.request(`/api/account/${id}`, {
+      method: "GET"
+    });
+    return res;
+  }
+
+  //temp
+  async getStudents(id) {
+    const res = await this.request(`/api/account/${id}`, {
       method: "GET",
     });
     return res;
+  }
+
+  //temp
+  async getStudent(id) {
+    const res = await this.request(`/api/student/${id}`, {
+      method: "GET",
+    });
+    return res;
+  }
+
+ async getLessons() {
+  const res = await this.request(`/api/lesson/all`, {
+    method: "GET",
+  });
+  return res;
+}
+
+  //temp
+  async getLesson(id) {
+    const res = await this.request(`/api/lesson/${id}`, {
+      method: "GET",
+    });
+    return res;
+  }
+
+  //temp
+  async addNoteToSession(sessionId, note) {
+    const res = await this.request(`/api/robotsession/${sessionId}/notes`, {
+      method: "POST",
+      body: JSON.stringify({ note }),
+    });
+    return res;
+  }
+
+  //temp
+  async updateStudentProgress(studentId, progressData) {
+    const res = await this.request(`/api/student/${studentId}/progress`, {
+      method: "POST",
+      body: JSON.stringify(progressData),
+    });
+    return res;
+  }
+
+  async startSession({ anonymous = false } = {}) {
+    const res = await this.request("/api/robotsession", {
+      method: "POST",
+      body: JSON.stringify({ anonymous }),
+    });
+    return res;
+  }
+
+  async getSessionIdFromRobotCode(robotCode) {
+    const res = await this.request(
+      `/api/robotsession/join/${encodeURIComponent(robotCode)}`,
+      {
+        method: "GET",
+      }
+    );
+    return res;
+  }
+
+  async addRobotToSession(sessionId, robotId, currentState = {}) {
+    const body = {
+      robotId,
+      currentState: {
+        status: currentState.status ?? "",
+        currentTask: currentState.currentTask ?? "",
+        currentBehaviorId: currentState.currentBehaviorId ?? null,
+        speechLog: currentState.speechLog ?? ""
+      }
+    };
+
+    const res = await this.request(`/api/robotsession/${sessionId}/robots`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return res;
+  }
+
+  async updateRobotState(sessionId, robotId, state) {
+    const body = {
+      status: state.status ?? "",
+      currentTask: state.currentTask ?? "",
+      currentBehaviorId: state.currentBehaviorId ?? null,
+      speechLog: state.speechLog ?? ""
+    };
+
+    const res = await this.request(`/api/robotsession/${sessionId}/robots/${robotId}/state`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+    return res;
+  }
+
+  async getCurrentStates(sessionId) {
+    const res = await this.request(`/api/robotsession/${sessionId}/states`, {
+      method: "GET",
+    });
+    return res;
+  }
+
+  async removeRobotFromSession(sessionId, robotId) {
+    const res = await this.request(`/api/robotsession/${sessionId}/robots/${robotId}`, {
+      method: "DELETE",
+    });
+    return res;
+  }
+
+  async endSession(sessionId) {
+    const res = await this.request(`/api/robotsession/${sessionId}/end`, {
+      method: "POST",
+    });
+    return res;
+  }
+
+
+  async registerRobot(payload) {
+  const body = {
+    name: payload.name,
+    model: payload.model,
+    serialNumber: payload.serialNumber,
+    manufactureDate: payload.manufactureDate, // ISO string recommended
+    firmwareVersion: payload.firmwareVersion,
+    ipAddress: payload.ipAddress,
+    registeredUserId: payload.registeredUserId ?? null,
+  };
+
+  const res = await this.request("/api/robot/register", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return res;
+}
+
+  async updateRobot(id, payload) {
+    const body = {
+      name: payload.name,
+      model: payload.model,
+      serialNumber: payload.serialNumber,
+      manufactureDate: payload.manufactureDate,
+      firmwareVersion: payload.firmwareVersion,
+      ipAddress: payload.ipAddress,
+      registeredUserId: payload.registeredUserId ?? null,
+    };
+
+    const res = await this.request(`/api/robot/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+    return res;
+  }
+
+  async deleteRobot(id) {
+    const res = await this.request(`/api/robot/${id}`, { method: "DELETE" });
+    return res;
+  }
+
+  async getRobot(id) {
+    const res = await this.request(`/api/robot/${id}`, { method: "GET" });
+    return res;
+  }
+
+  async getAllRobots() {
+    const res = await this.request(`/api/robot`, { method: "GET" });
+    return res;
+  }
+
+  async getRobotsByUserId(userId) {
+    const res = await this.request(`/api/robot/user/${userId}`, { method: "GET" });
+    return res;
+  }
+
+  async getRobotsByFirmwareVersion(firmwareVersion) {
+    const res = await this.request(`/api/robots/firmware/${encodeURIComponent(firmwareVersion)}`, {
+      method: "GET",
+    });
+    return res;
+  }
+
+  async createLesson(payload) {
+    const body = {
+      title: payload.title,
+      description: payload.description ?? "",
+      lessonType: payload.lessonType,
+      lessonDescription: payload.lessonDescription,
+      createdById: payload.createdById,
+    };
+
+    const res = await this.request("/api/lesson/create", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return res;
+  }
+
+  async startLessonSession(lessonId, sessionId) {
+    const res = await this.request(`/api/LessonSession/${sessionId}/lesson`, {
+      method: "POST",
+      body: JSON.stringify({ lessonId }),
+    });
+    return res;
+  }
+
+  async createLesson(lessonDto) {
+    return this.request("/api/lesson/create", {
+      method: "POST",
+      body: JSON.stringify(lessonDto),
+    });
+  }
+
+  async getTrackerEvents(sessionId) {
+    const res = await fetch(`${this.baseUrl}/api/RobotSession/${sessionId}/tracker-events`, {
+      credentials: "include"
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch tracker events");
+    }
+
+    return await res.json();
   }
 }

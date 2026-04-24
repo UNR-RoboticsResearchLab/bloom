@@ -382,6 +382,9 @@ namespace bloom.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("longtext");
 
+                    b.Property<string>("LearningObjectives")
+                        .HasColumnType("longtext");
+
                     b.Property<int>("LessonType")
                         .HasColumnType("int");
 
@@ -399,6 +402,137 @@ namespace bloom.Migrations
                     b.HasIndex("CreatedById");
 
                     b.ToTable("Lessons", (string)null);
+                });
+
+            modelBuilder.Entity("bloom.Models.LessonInteraction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DialogTurn")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("FeedbackCommand")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("InteractionType")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool?>("IsAcknowledged")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool?>("IsCorrect")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid?>("LessonId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("ResponseTimeMs")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("RobotSessionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("StepId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonId");
+
+                    b.HasIndex("RobotSessionId");
+
+                    b.ToTable("LessonInteractions", (string)null);
+                });
+
+            modelBuilder.Entity("bloom.Models.LessonProgress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("LessonStep")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProgressPercentage")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StudentId")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonId");
+
+                    b.HasIndex("StudentId");
+
+                    b.ToTable("LessonProgresses", (string)null);
+                });
+
+            modelBuilder.Entity("bloom.Models.LessonStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Behaviors")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid?>("InteractionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("MotorSequence")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Script")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("StepOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TimingSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("VisualAid")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("VisualAidFooters")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("VisualAidLabels")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InteractionId")
+                        .IsUnique();
+
+                    b.HasIndex("LessonId");
+
+                    b.ToTable("LessonSteps", (string)null);
                 });
 
             modelBuilder.Entity("bloom.Models.Robot", b =>
@@ -487,7 +621,84 @@ namespace bloom.Migrations
                     b.ToTable("RobotStateHistories", (string)null);
                 });
 
-            modelBuilder.Entity("AccountClassroom", b =>
+            modelBuilder.Entity("bloom.Models.SLPClient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AccentColor")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("BackgroundImageUrl")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("StudentId")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StudentId");
+
+                    b.ToTable("SLPClients", (string)null);
+                });
+
+            modelBuilder.Entity("bloom.Models.StepInteraction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("CorrectAnswer")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("CorrectResponseScript")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("FallbackScript")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("FallbackVisualAid")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("FallbackVisualAidLabels")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("IncorrectResponseScript")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("LlmFollowUp")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("MaxWaitSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("SingleTurnLlm")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("SingleTurnLlmPrompt")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("WaitForResponse")
+                        .HasColumnType("tinyint(1)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("StepInteractions", (string)null);
+                });
+
+            modelBuilder.Entity("AccountSLPClient", b =>
                 {
                     b.HasOne("bloom.Models.Classroom", null)
                         .WithMany()
@@ -614,6 +825,61 @@ namespace bloom.Migrations
                     b.Navigation("CreatedBy");
                 });
 
+            modelBuilder.Entity("bloom.Models.LessonInteraction", b =>
+                {
+                    b.HasOne("bloom.Models.Lesson", "Lesson")
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("bloom.Models.RobotSession", "RobotSession")
+                        .WithMany()
+                        .HasForeignKey("RobotSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
+
+                    b.Navigation("RobotSession");
+                });
+
+            modelBuilder.Entity("bloom.Models.LessonProgress", b =>
+                {
+                    b.HasOne("bloom.Models.Lesson", "Lesson")
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("bloom.Models.Account", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
+
+                    b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("bloom.Models.LessonStep", b =>
+                {
+                    b.HasOne("bloom.Models.StepInteraction", "Interaction")
+                        .WithOne("LessonStep")
+                        .HasForeignKey("bloom.Models.LessonStep", "InteractionId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("bloom.Models.Lesson", "Lesson")
+                        .WithMany("Steps")
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Interaction");
+
+                    b.Navigation("Lesson");
+                });
+
             modelBuilder.Entity("bloom.Models.Robot", b =>
                 {
                     b.HasOne("bloom.Models.Account", "RegisteredUser")
@@ -712,11 +978,19 @@ namespace bloom.Migrations
             modelBuilder.Entity("bloom.Models.Lesson", b =>
                 {
                     b.Navigation("Assignments");
+
+                    b.Navigation("Steps");
                 });
 
             modelBuilder.Entity("bloom.Models.RobotSession", b =>
                 {
                     b.Navigation("StateHistory");
+                });
+
+            modelBuilder.Entity("bloom.Models.StepInteraction", b =>
+                {
+                    b.Navigation("LessonStep")
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

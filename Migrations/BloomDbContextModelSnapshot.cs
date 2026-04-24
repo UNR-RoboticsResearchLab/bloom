@@ -24,32 +24,47 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("AccountClassroom", b =>
                 {
-                    b.Property<Guid>("ClassroomId")
+                    b.Property<Guid>("SLPClientId")
                         .HasColumnType("char(36)");
 
                     b.Property<string>("StudentsId")
                         .HasColumnType("varchar(255)");
 
-                    b.HasKey("ClassroomId", "StudentsId");
+                    b.HasKey("SLPClientId", "TeachersId");
 
                     b.HasIndex("StudentsId");
 
-                    b.ToTable("AccountClassroom");
+                    b.ToTable("AccountSLPClient");
                 });
 
-            modelBuilder.Entity("AccountClassroom1", b =>
+            modelBuilder.Entity("AssignmentSLPClient", b =>
                 {
-                    b.Property<Guid>("Classroom1Id")
+                    b.Property<Guid>("AssignmentsId")
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("TeachersId")
-                        .HasColumnType("varchar(255)");
+                    b.Property<Guid>("SLPClientId")
+                        .HasColumnType("char(36)");
 
-                    b.HasKey("Classroom1Id", "TeachersId");
+                    b.HasKey("AssignmentsId", "SLPClientId");
 
-                    b.HasIndex("TeachersId");
+                    b.HasIndex("SLPClientId");
 
-                    b.ToTable("AccountClassroom1");
+                    b.ToTable("AssignmentSLPClient");
+                });
+
+            modelBuilder.Entity("LessonSLPClient", b =>
+                {
+                    b.Property<Guid>("LessonsId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("SLPClientId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("LessonsId", "SLPClientId");
+
+                    b.HasIndex("SLPClientId");
+
+                    b.ToTable("LessonSLPClient");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

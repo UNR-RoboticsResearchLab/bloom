@@ -141,13 +141,7 @@ builder.Services.AddCors(options => {
     });
 });
 
-// authorization policies
-builder.Services.AddAuthorization(options =>
-{
-    // options.AddPolicy(
-    //     //only Admins can create accounts
-    //     "CanCreateAccount", policy => policy.RequireRole("Admin", "Facilitator"));
-});
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 

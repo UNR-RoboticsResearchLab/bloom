@@ -14,6 +14,12 @@ fi
 
 set -euo pipefail
 
+echo "=== Hop 2: deploy.sh env (as www-data) ==="
+echo "user=$(id -un)"
+echo "len=${#ConnectionStrings__ProductionConnection}"
+echo "starts=${ConnectionStrings__ProductionConnection:0:20}"
+echo "DataProtection len=${#DataProtection__CertPassword}"
+
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBLISH_DIR="$(ls -d "/var/www/bloom-build/net9.0/publish" 2>/dev/null | head -n 1)"
@@ -130,6 +136,10 @@ if [ ! -d "$FRONTEND_BUILD_DIR" ]; then
 fi
 cp -r "$FRONTEND_BUILD_DIR/"* "$TARGET_DIR/build"
 
+
+echo "=== Hop 3: about to launch dotnet ==="
+echo "len=${#ConnectionStrings__ProductionConnection}"
+echo "DataProtection len=${#DataProtection__CertPassword}"
 
 
 # --- Run migrations if requested ---

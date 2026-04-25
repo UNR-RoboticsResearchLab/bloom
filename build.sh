@@ -48,14 +48,6 @@ for tool in dotnet node mysql npm; do
   fi
 done
 
-# --- Check database connectivity ---
-echo "Checking database connectivity..."
-if ! mysql -h "$DB_HOST" -P "$DB_PORT" -u root -p"${DB_PASSWORD:-}" -e "SELECT 1" &> /dev/null; then
-  echo "Error: Cannot connect to database at $DB_HOST:$DB_PORT"
-  echo "Please ensure MariaDB/MySQL is running and accessible."
-  exit 1
-fi
-echo "Database is accessible."
 
 # --- Backup database if requested ---
 if [ "$BACKUP_DB" = true ]; then

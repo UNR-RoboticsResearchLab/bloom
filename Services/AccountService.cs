@@ -43,6 +43,11 @@ namespace bloom.Services
             return await _dbContext.Accounts.ToListAsync();
         }
 
+        public async Task<IdentityResult> DeleteAsync(Account user)
+        {
+            return await _userManager.DeleteAsync(user);
+        }
+
 
         public async Task<Account?> GetByEmailAsync(string email)
         {

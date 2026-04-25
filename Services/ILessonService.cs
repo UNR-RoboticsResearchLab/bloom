@@ -3,6 +3,7 @@
 // Interface defining behavior of LessonService.cs
 
 using bloom.Models;
+using bloom.Models.dto;
 
 namespace bloom.Services
 {
@@ -12,6 +13,8 @@ namespace bloom.Services
         Task<Lesson?> GetByIdAsync(string id);
         Task<IEnumerable<Lesson>> GetByUserIdAsync(string id);
         Task<IEnumerable<Lesson>> GetByEmailAsync(string email);
+
+        Task<IEnumerable<Lesson>> GetAllAsync();
 
         // Create
         Task<bool> CreateAsync(LessonDto lesson);

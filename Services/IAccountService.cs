@@ -40,6 +40,9 @@ namespace bloom.Services
         Task<bool> IsInRoleAsync(Account user, string role);
         Task<IList<string>> GetUserRolesByIdAsync(string userId);
         Task<IdentityResult> RegisterTeacherAsync(CreateAccountDto account);
-    }   
+
+        // Delete
+        Task<IdentityResult> DeleteAsync(Account user);
+    }
     
 }

@@ -24,6 +24,7 @@ namespace bloom.Data
         public DbSet<LessonProgress> LessonProgresses { get; set; }
         public DbSet<LessonInteraction> LessonInteractions { get; set; }
         public DbSet<StepInteraction> StepInteractions { get; set; }
+        public DbSet<SLPClient> SLPClients { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
@@ -190,7 +191,7 @@ namespace bloom.Data
                             Description = "A sample speech therapy lesson for testing.",
                             CreatedDate = DateTime.UtcNow,
                             CreatedById = Accounts.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(),
-                            LessonType = LessonType.SpeechTherapy,
+                            LessonType = LessonType.Speech,
                             TotalSteps = 7
                         }
                     };

@@ -168,8 +168,8 @@ app.UseAuthorization();
 
 using (var scope = app.Services.CreateScope())
 {
-    // var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
-    // db.Database.Migrate();
+    var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
+    db.Database.Migrate();
 
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     await BloomDbContext.SeedDatabaseRoles(roleManager);

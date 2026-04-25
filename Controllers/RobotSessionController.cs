@@ -102,9 +102,6 @@ namespace bloom.Controllers
             try
             {
                 var sessions = await _sessionService.GetAllSessionsAsync();
-<<<<<<< HEAD:Controllers/RobotSessionsController.cs
-                return Ok(sessions);
-=======
                 var sessionDtos = new List<RobotSessionResponseDto>();
 
                 foreach (var session in sessions)
@@ -124,7 +121,6 @@ namespace bloom.Controllers
                 }
 
                 return Ok(sessionDtos);
->>>>>>> development:Controllers/RobotSessionController.cs
             }
             catch (Exception ex)
             {
@@ -134,56 +130,6 @@ namespace bloom.Controllers
         }
 
         /// <summary>
-<<<<<<< HEAD:Controllers/RobotSessionsController.cs
-        /// Start a new robot session
-        /// </summary>
-        /// <param name="dto">Session configuration</param>
-        /// <returns>The created RobotSession</returns>
-        [HttpPost]
-        public async Task<IActionResult> StartSession([FromBody] StartSessionDto dto)
-        {
-            try
-            {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
-
-                var userId = GetCurrentUserId();
-
-                // For anonymous sessions, userId can be null
-                // For authenticated sessions, verify user exists
-                if (!dto.Anonymous && userId != null)
-                {
-                    var user = await _accountService.GetByIdAsync(userId);
-                    if (user == null)
-                    {
-                        _logger.LogWarning("Attempted to start session with non-existent user {UserId}", userId);
-                        return Unauthorized();
-                    }
-                }
-
-                var session = await _sessionService.StartSessionAsync(userId, dto.Anonymous);
-
-                return CreatedAtAction(nameof(GetSession), new { sessionId = session.Id }, new RobotSessionResponseDto
-                {
-                    Id = session.Id,
-                    UserId = session.UserId,
-                    CreatedAt = session.CreatedAt,
-                    LastUpdatedAt = session.LastUpdatedAt,
-                    Robots = session.Robots
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error starting robot session");
-                return StatusCode(500, "Internal server error");
-            }
-        }
-
-        /// <summary>
-=======
->>>>>>> development:Controllers/RobotSessionController.cs
         /// Get session details
         /// </summary>
         /// <param name="sessionId">ID of the session</param>
@@ -200,27 +146,22 @@ namespace bloom.Controllers
                     return NotFound(new { Message = $"Session with ID {sessionId} not found" });
                 }
 
+                var robotIds = (await _sessionService.GetSessionRobotsAsync(session.Id)).ToList();
+
                 return Ok(new RobotSessionResponseDto
                 {
                     Id = session.Id,
                     UserId = session.UserId,
                     CreatedAt = session.CreatedAt,
                     LastUpdatedAt = session.LastUpdatedAt,
-<<<<<<< HEAD:Controllers/RobotSessionsController.cs
-                    Robots = session.Robots
-=======
                     Robots = session.Robots,
                     RobotIds = robotIds,
                     ActiveLessonId = session.ActiveLessonId
->>>>>>> development:Controllers/RobotSessionController.cs
                 });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robot session {SessionId}", sessionId);
-<<<<<<< HEAD:Controllers/RobotSessionsController.cs
-                return StatusCode(500, "Internal server error");
-=======
                 return BadRequest("It sure is bad if you get this!");
             }
         }
@@ -268,7 +209,6 @@ namespace bloom.Controllers
             {
                 _logger.LogError(ex, "Error joining session with code {Code}", code);
                 return BadRequest("It sure is bad if you get this!");
->>>>>>> development:Controllers/RobotSessionController.cs
             }
         }
 
@@ -448,19 +388,12 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robots for session {SessionId}", sessionId);
-<<<<<<< HEAD:Controllers/RobotSessionsController.cs
-                return StatusCode(500, "Internal server error");
-            }
-        }
-=======
                 return BadRequest("It sure is bad if you get this!");
             }
         }
 
-        #endregion
 
         #region Robot State Endpoints
->>>>>>> development:Controllers/RobotSessionController.cs
 
         /// <summary>
         /// Update a robot's state in a session
@@ -523,11 +456,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating robot state in session {SessionId}", sessionId);
-<<<<<<< HEAD:Controllers/RobotSessionsController.cs
-                return StatusCode(500, "Internal server error");
-=======
                 return BadRequest(new { message = $"Error updating robot state: {ex.Message}" });
->>>>>>> development:Controllers/RobotSessionController.cs
             }
         }
 
@@ -560,11 +489,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving robot states for session {SessionId}", sessionId);
-<<<<<<< HEAD:Controllers/RobotSessionsController.cs
-                return StatusCode(500, "Internal server error");
-=======
                 return BadRequest(new { message = $"Error retrieving robot states: {ex.Message}" });
->>>>>>> development:Controllers/RobotSessionController.cs
             }
         }
 
@@ -607,11 +532,6 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving session history for {SessionId}", sessionId);
-<<<<<<< HEAD:Controllers/RobotSessionsController.cs
-                return StatusCode(500, "Internal server error");
-            }
-        }
-=======
                 return BadRequest(new { message = $"Error retrieving session history: {ex.Message}" });
             }
         }
@@ -625,6 +545,5 @@ namespace bloom.Controllers
         }
 
         #endregion
->>>>>>> development:Controllers/RobotSessionController.cs
     }
 }

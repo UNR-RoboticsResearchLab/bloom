@@ -1,5 +1,6 @@
 
 using bloom.Models;
+using bloom.Models.dto;
 
 namespace bloom.Services
 {
@@ -8,11 +9,11 @@ namespace bloom.Services
         /// <summary>
         /// Starts a new robot session
         /// </summary>
-        /// <param name="robotId"> ID of the robot making a session</param> 
+        /// <param name="robotId"> ID of the robot making a session</param>
         /// <param name="userId">ID of the user creating the session (null for anonymous sessions)</param>
         /// <param name="anon">Whether to create an anonymous session (overrides userId)</param>
         /// <returns>The created RobotSession</returns>
-        Task<RobotSession> StartSessionAsync(string? userId = null, bool anon = false);
+        Task<RobotSession> StartSessionAsync(Guid robotId, string? userId = null, bool anon = false);
 
         /// <summary>
         /// Ends a robot session and archives remaining states

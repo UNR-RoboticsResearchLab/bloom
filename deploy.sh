@@ -14,12 +14,6 @@ fi
 
 set -euo pipefail
 
-echo "=== Hop 2: deploy.sh env (as www-data) ==="
-echo "user=$(id -un)"
-echo "len=${#ConnectionStrings__ProductionConnection}"
-echo "starts=${ConnectionStrings__ProductionConnection:0:20}"
-echo "DataProtection len=${#DataProtection__CertPassword}"
-
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBLISH_DIR="$(ls -d "/var/www/bloom-build/net9.0/publish" 2>/dev/null | head -n 1)"
@@ -27,7 +21,6 @@ FRONTEND_BUILD_DIR="${FRONTEND_BUILD_DIR:-$SCRIPT_DIR/ClientApp/build}"
 TARGET_DIR=""
 RUN_MIGRATIONS=false
 RESTART_ONLY=false
-APP_PORT=5000
 
 
 # --- Parse arguments ---
@@ -68,27 +61,12 @@ echo ""
 
 # --- Check if restart-only mode ---
 if [ "$RESTART_ONLY" = true ]; then
-  echo "Restarting application in $TARGET_DIR..."
-
-  if [ ! -f "$TARGET_DIR/app.pid" ]; then
-    echo "No running application found (app.pid not found)"
+  echo "Restarting bloom.service..."
+  sudo systemctl restart bloom.service
+  sudo systemctl is-active --quiet bloom.service && echo "bloom.service is active" || {
+    echo "Error: bloom.service failed to start. Check: sudo journalctl -u bloom.service -n 50"
     exit 1
-  fi
-
-  OLD_PID=$(cat "$TARGET_DIR/app.pid")
-  if kill -0 "$OLD_PID" 2>/dev/null; then
-    echo "Stopping previous application (PID: $OLD_PID)..."
-    kill "$OLD_PID" || true
-    sleep 2
-  fi
-  rm -f "$TARGET_DIR/app.pid"
-
-  # Start the application
-  cd "$TARGET_DIR"
-  nohup dotnet bloom.dll > "$TARGET_DIR/logs/app.log" 2>&1 &
-  NEW_PID=$!
-  echo $NEW_PID > "$TARGET_DIR/app.pid"
-  echo "Application started (PID: $NEW_PID)"
+  }
   exit 0
 fi
 
@@ -105,14 +83,8 @@ echo "Using publish directory: $PUBLISH_DIR"
 echo "Preparing deployment..."
 
 # --- Stop existing application ---
-if [ -f "$TARGET_DIR/app.pid" ]; then
-  OLD_PID=$(cat "$TARGET_DIR/app.pid")
-  if kill -0 "$OLD_PID" 2>/dev/null; then
-    echo "Stopping previous application (PID: $OLD_PID)..."
-    kill "$OLD_PID" || true
-    sleep 2
-  fi
-fi
+echo "Stopping bloom.service..."
+sudo systemctl stop bloom.service || true
 
 # --- Create target directory structure ---
 echo "Setting up target directory: $TARGET_DIR"
@@ -137,11 +109,6 @@ fi
 cp -r "$FRONTEND_BUILD_DIR/"* "$TARGET_DIR/build"
 
 
-echo "=== Hop 3: about to launch dotnet ==="
-echo "len=${#ConnectionStrings__ProductionConnection}"
-echo "DataProtection len=${#DataProtection__CertPassword}"
-
-
 # --- Run migrations if requested ---
 if [ "$RUN_MIGRATIONS" = true ]; then
   echo "Running database migrations..."
@@ -153,14 +120,14 @@ if [ "$RUN_MIGRATIONS" = true ]; then
   fi
 fi
 
-# --- Start the application ---
-echo "Starting Bloom application..."
-cd "$TARGET_DIR"
-nohup dotnet bloom.dll --urls "http://localhost:$APP_PORT" > "$TARGET_DIR/logs/app.log" 2>&1 &
-APP_PID=$!
-echo $APP_PID > "$TARGET_DIR/app.pid"
-
-echo "Application started with PID: $APP_PID"
+# --- Start the application via systemd ---
+echo "Starting bloom.service..."
+sudo systemctl start bloom.service
+sleep 2
+sudo systemctl is-active --quiet bloom.service && echo "bloom.service is active" || {
+  echo "Error: bloom.service failed to start. Check: sudo journalctl -u bloom.service -n 50"
+  exit 1
+}
 
 # --- Wait for application to be ready ---
 echo "Waiting for application to become ready..."
@@ -181,9 +148,10 @@ echo "================================"
 echo "Deployment Complete"
 echo "================================"
 echo "Target directory: $TARGET_DIR"
-echo "Application PID: $APP_PID"
-echo "Logs: $TARGET_DIR/logs/app.log"
+echo "Service: bloom.service"
+echo "Logs: sudo journalctl -u bloom.service -f"
 echo ""
-echo "To restart: ./deploy.sh $([ "$TARGET_DIR" = "/var/www/bloom" ] && echo "--prod" || echo "") --restart-only"
-echo "To stop: kill $APP_PID"
+echo "To restart: sudo systemctl restart bloom.service"
+echo "To stop:    sudo systemctl stop bloom.service"
+echo "Status:     sudo systemctl status bloom.service"
 echo "================================"

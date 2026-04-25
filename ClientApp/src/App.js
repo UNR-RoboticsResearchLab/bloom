@@ -23,11 +23,6 @@ import Lesson from "./pages/Lesson";
 import Students from "./pages/Students";
 import Student from "./pages/Student";
 
-import ForgotPassword from "./pages/ForgotPassword";
-
-import FetchData from "./pages/FetchData";
-import Counter from "./pages/Counter";
-
 // import "./custom.css";
 
 import AddStudentCard from "./pages/AddStudentCard";

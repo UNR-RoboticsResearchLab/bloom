@@ -75,7 +75,6 @@ async signIn(email, password) {
       async getSessions() {
         const res = await this.request(`/api/robotsession`, { method: "GET" });
         return res || [];
-        const res = await this.request(`/api/robotsessions`);
     }
 
       async getSessionHistory(sessionId) {

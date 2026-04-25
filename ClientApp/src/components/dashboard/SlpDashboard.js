@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "./DashboardLayout";
+import { LessonCard } from "../../pages/LessonCard";
+import { StudentCard } from "../../pages/StudentCard";
+import { PairRobotCard } from "../../pages/PairRobotCard";
+import { useApiClient } from "../../context/ApiClientContext";
 
 // Same mock data as Teacher dashboard
 const mockLessons = [
@@ -58,11 +63,27 @@ function AccuracyBar({ value }) {
 }
 
 export default function SlpDashboard() {
+  const navigate = useNavigate();
+  const apiClient = useApiClient();
   const [selectedLessonId, setSelectedLessonId] = useState("L1");
   const [selectedStudentId, setSelectedStudentId] = useState("S1");
   const { addNote, getNotes } = useNotes();
   const [showPairRobotCard, setShowPairRobotCard] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [lessons, setLessons] = useState([]);
+
+  useEffect(() => {
+    async function loadLessons() {
+      try {
+        const data = await apiClient.getLessons();
+        setLessons(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to load lessons:", error);
+        setLessons([]);
+      }
+    }
+    loadLessons();
+  }, [apiClient]);
 
   const selectedLesson = useMemo(
     () => mockLessons.find((l) => l.id === selectedLessonId),

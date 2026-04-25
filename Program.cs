@@ -21,7 +21,9 @@ var ConnectionString = build_environmment == "Production"
         ? builder.Configuration.GetConnectionString("ProductionConnection") 
         : builder.Configuration.GetConnectionString("DefaultConnection");
 
-Console.WriteLine($"ConnectionString: {ConnectionString}");
+var redactedConnectionString = System.Text.RegularExpressions.Regex.Replace(
+    ConnectionString ?? "", @"(?i)(password|pwd)=[^;]*", "$1=***");
+Console.WriteLine($"ConnectionString: {redactedConnectionString}");
 
 //  ============ Add services to the container. ============
 
@@ -43,10 +45,18 @@ if (build_environmment == "Development")
 }
 else
 {
-    var cert = X509CertificateLoader.LoadPkcs12FromFile("certs/bloomserver.pfx", "bloomserver");
+    var certPath = builder.Configuration["DataProtection:CertPath"]
+        ?? "/etc/bloom/certs/bloomserver.pfx";
+    var certPassword = builder.Configuration["DataProtection:CertPassword"]
+        ?? throw new InvalidOperationException(
+            "DataProtection:CertPassword is not configured. Set the DataProtection__CertPassword environment variable.");
+    var keyringPath = builder.Configuration["DataProtection:KeyringPath"]
+        ?? "/var/dpkeys";
+
+    var cert = X509CertificateLoader.LoadPkcs12FromFile(certPath, certPassword);
 
     builder.Services.AddDataProtection()
-        .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
+        .PersistKeysToFileSystem(new DirectoryInfo(keyringPath))
         .SetApplicationName("BloomServer")
         .SetDefaultKeyLifetime(TimeSpan.FromDays(90))
         .ProtectKeysWithCertificate(cert);

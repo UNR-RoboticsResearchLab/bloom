@@ -17,6 +17,7 @@ set -euo pipefail
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBLISH_DIR="$(ls -d "/var/www/bloom-build/net9.0/publish" 2>/dev/null | head -n 1)"
+FRONTEND_BUILD_DIR="${FRONTEND_BUILD_DIR:-$SCRIPT_DIR/ClientApp/build}"
 TARGET_DIR=""
 RUN_MIGRATIONS=false
 RESTART_ONLY=false
@@ -122,6 +123,11 @@ cp -r "$PUBLISH_DIR/"* "$TARGET_DIR/"
 
 # --- Deploy frontend files ---
 echo "Deploying frontend files..."
+if [ ! -d "$FRONTEND_BUILD_DIR" ]; then
+  echo "Error: Frontend build directory not found at $FRONTEND_BUILD_DIR"
+  echo "Please run ./build.sh first to build the React frontend."
+  exit 1
+fi
 cp -r "$FRONTEND_BUILD_DIR/"* "$TARGET_DIR/build"
 
 

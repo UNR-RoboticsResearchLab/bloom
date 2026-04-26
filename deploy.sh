@@ -62,11 +62,15 @@ echo ""
 # --- Check if restart-only mode ---
 if [ "$RESTART_ONLY" = true ]; then
   echo "Restarting bloom.service..."
-  sudo systemctl restart bloom.service
-  sudo systemctl is-active --quiet bloom.service && echo "bloom.service is active" || {
-    echo "Error: bloom.service failed to start. Check: sudo journalctl -u bloom.service -n 50"
+  sudo -n systemctl restart bloom.service
+  STATUS="$(sudo -n systemctl is-active bloom.service || true)"
+  if [ "$STATUS" = "active" ]; then
+    echo "bloom.service is active"
+  else
+    echo "Error: bloom.service failed to start (status: $STATUS)"
+    echo "Check: sudo journalctl -u bloom.service -n 50"
     exit 1
-  }
+  fi
   exit 0
 fi
 
@@ -84,7 +88,7 @@ echo "Preparing deployment..."
 
 # --- Stop existing application ---
 echo "Stopping bloom.service..."
-sudo systemctl stop bloom.service || true
+sudo -n systemctl stop bloom.service || true
 
 # --- Create target directory structure ---
 echo "Setting up target directory: $TARGET_DIR"
@@ -122,12 +126,16 @@ fi
 
 # --- Start the application via systemd ---
 echo "Starting bloom.service..."
-sudo systemctl start bloom.service
+sudo -n systemctl start bloom.service
 sleep 2
-sudo systemctl is-active --quiet bloom.service && echo "bloom.service is active" || {
-  echo "Error: bloom.service failed to start. Check: sudo journalctl -u bloom.service -n 50"
+STATUS="$(sudo -n systemctl is-active bloom.service || true)"
+if [ "$STATUS" = "active" ]; then
+  echo "bloom.service is active"
+else
+  echo "Error: bloom.service failed to start (status: $STATUS)"
+  echo "Check: sudo journalctl -u bloom.service -n 50"
   exit 1
-}
+fi
 
 # --- Wait for application to be ready ---
 echo "Waiting for application to become ready..."

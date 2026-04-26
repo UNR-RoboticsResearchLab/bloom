@@ -32,7 +32,7 @@ import LessonView from "./pages/LessonView";
 
 export default function App() {
 
-  const apiBase = process.env.REACT_APP_API_BASE_URL ?? "http://localhost:5000";
+  // const apiBase = process.env.REACT_APP_API_BASE_URL ?? "http://localhost:5000";
 
 
   return (

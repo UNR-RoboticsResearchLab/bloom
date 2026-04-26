@@ -31,6 +31,14 @@ export default function Students() {
         loadStudents();
     }, [api]);
 
+    function normalizeStudent(client) {
+        return {
+            id: client.studentId,
+            fullName: client.studentName,
+            email: client.email ?? "N/A"
+        };
+    }
+
     return (
         <div className="w-full rounded-lg border p-6 shadow-sm">
             <div className="mb-6 flex items-start justify-between gap-4">
@@ -58,17 +66,13 @@ export default function Students() {
                 )}
 
                 {students.map((client) => {
-                    const student = {
-                        id: client.studentId,
-                        fullName: client.studentName,
-                        email: "N/A"
-                        };
+                    const student = normalizeStudent(client);
 
                     return (
                         <StudentCard
-                            key={student.id ?? student.Id}
-                            name={student.fullName ?? student.FullName ?? student.name ?? "No Name"}
-                            email={student.email ?? student.Email ?? "No Email"}
+                            key={student.id}
+                            name={student.fullName}
+                            email={student.email}
                             onClick={() => goToStudent(student)}
                         />
                     );

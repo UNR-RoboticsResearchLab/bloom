@@ -99,9 +99,13 @@ async signIn(email, password) {
 
   // get student by ID
   async getStudent(id) {
-    return this.request(`/api/student/${id}`, {
-      method: "GET",
-    });
+    const clients = await this.getStudents();
+
+    const match = clients.find(c => 
+      c.studentId === id || c.studentId === String(id)
+    );
+
+    return match || null;
   }
 
  async getLessons() {

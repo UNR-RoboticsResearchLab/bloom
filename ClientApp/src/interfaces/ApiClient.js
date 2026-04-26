@@ -12,7 +12,11 @@ export default class ApiClient {
       ...(options.headers || {}),
     };
 
-    const response = await fetch(url, { ...options, headers });
+    const response = await fetch(url, {
+      credentials: "include",
+      ...options,
+      headers,
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -44,21 +48,17 @@ async signUp(payload) {
     return res;
 }
 
-  //temp
   async addStudent(payload) {
     const body = {
-      userName: payload.email,
       fullName: payload.fullName,
       email: payload.email,
-      password: payload.password,
-      selectedRole: "STUDENT",
     };
 
-      const res = await this.request("/api/account/create", {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      return res;
+    const res = await this.request("/api/account/create/student", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return res;
   }
 
 async signIn(email, password) {
@@ -124,10 +124,16 @@ async signIn(email, password) {
   }
 
   //temp
-  async addNoteToSession(sessionId, note) {
-    const res = await this.request(`/api/robotsession/${sessionId}/notes`, {
+  async addNoteToSession(sessionId, note, stepId = 0) {
+    const res = await this.request(`/api/lessoninteraction/${sessionId}`, {
       method: "POST",
-      body: JSON.stringify({ note }),
+      body: JSON.stringify({
+        stepId,
+        interactionType: "Note",
+        studentResponse: note,
+        isCorrect: null,
+        responseTimeMs: 0,
+      }),
     });
     return res;
   }

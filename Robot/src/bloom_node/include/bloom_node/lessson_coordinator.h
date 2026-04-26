@@ -15,6 +15,7 @@
 #include <mutex>
 #include <chrono>
 #include <algorithm>
+#include <optional>
 #include <std_msgs/msg/string.hpp>
 
 namespace bloom_node {
@@ -54,6 +55,8 @@ struct LessonData {
     std::string title;
     std::vector<std::string> learning_objectives;
     std::vector<LessonStep> sequence;
+    bool conversation_mode{false};
+
 };
 
 /**
@@ -119,6 +122,7 @@ private:
 
     void update_progress_with_backend();
     void log_interaction_to_backend(int step_order, const std::string &response, bool is_correct);
+    void log_interaction_to_backend(int step_order, const std::string &interaction_type, const std::string &content, std::optional<bool> is_correct);
 
     void on_tts_done(const std_msgs::msg::String::SharedPtr msg);
     void on_llm_wrap_up(const std_msgs::msg::String::SharedPtr msg);
@@ -161,6 +165,7 @@ private:
     bool waiting_for_interaction_tts_{false};
     bool waiting_for_single_turn_{false};
     bool waiting_for_llm_tts_done_{false};
+    bool conversation_mode_{false};
 
     std::string robot_state_{"idle"};
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_state_sub_;

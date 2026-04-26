@@ -49,7 +49,7 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/lessons" element={<Lessons />} />
         <Route path="/students" element={<Students />} />
-        <Route path="/student/:name" element={<Student />} />
+        <Route path="/student/:studentId" element={<Student />} />
         <Route path="/lesson/:lessonId" element={<Lesson />} />
         <Route path="/lesson-view" element={<LessonView />} />
         

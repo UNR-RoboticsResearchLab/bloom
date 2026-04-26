@@ -86,6 +86,37 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
 .AddEntityFrameworkStores<BloomDbContext>()
 .AddDefaultTokenProviders();
 
+// Identity's application cookie: return 401/403 for API calls instead of redirecting to a login page.
+// Also relax cookie security so LAN dev (cross-origin, plain HTTP) can carry the cookie.
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.Name = "bloom_cookie";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+
+    options.Events.OnRedirectToLogin = ctx =>
+    {
+        if (ctx.Request.Path.StartsWithSegments("/api"))
+        {
+            ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+        ctx.Response.Redirect(ctx.RedirectUri);
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = ctx =>
+    {
+        if (ctx.Request.Path.StartsWithSegments("/api"))
+        {
+            ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+        ctx.Response.Redirect(ctx.RedirectUri);
+        return Task.CompletedTask;
+    };
+});
+
 // =========== Add Custom Services ===========
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IRobotService, RobotService>();
@@ -103,26 +134,6 @@ builder.Services.AddSingleton<IStepControlService, StepControlService>();
 
 // Add MVC model
 builder.Services.AddControllersWithViews();
-
-// Add Cookie Auth
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        options.LoginPath = builder.Configuration.GetValue<string>("LoginPath");
-        options.LogoutPath = builder.Configuration.GetValue<string>("LogoutPath");
-        options.Cookie.HttpOnly = true;
-
-        //TODO: development comment lul
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        options.Cookie.SameSite = SameSiteMode.Strict;
-        // options.Cookie.Name = "bloom_cookie";
-
-
-        options.Cookie.Name = "bloom_cookie";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    });
-
 
 builder.Services.AddSession(options =>
 {

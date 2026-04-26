@@ -325,4 +325,10 @@ export default class ApiClient {
 
     return await res.json();
   }
+
+  async getLessonInteractions(sessionId) {
+    return this.request(`/api/LessonInteraction/${sessionId}`, {
+      method: "GET",
+    });
+  }
 }

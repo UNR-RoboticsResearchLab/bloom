@@ -171,5 +171,13 @@ namespace bloom.Controllers
                 return BadRequest(new { message = "An error occurred while acknowledging feedback.", details = ex.Message });
             }
         }
+
+        [HttpGet("{sessionId}")]
+        public async Task<IActionResult> GetInteractions(Guid sessionId)
+        {
+            var interactions = await _sessionService.GetLessonInteractionsAsync(sessionId);
+
+            return Ok(interactions);
+        }
     }
 }

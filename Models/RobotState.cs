@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace bloom.Models
 {
-    
+
     [Owned]
     public class RobotState
     {

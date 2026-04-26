@@ -4,6 +4,7 @@ namespace bloom.Models.dto
     {
         public required string Name { get; set; }
         public required string Model { get; set; }
+        public required string SerialNumber { get; set; }
         public DateTime ManufactureDate { get; set; }
         public required string FirmwareVersion { get; set; }
         public required string IPAddress { get; set; }

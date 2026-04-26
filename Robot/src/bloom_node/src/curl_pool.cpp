@@ -1,7 +1,6 @@
 #include "bloom_node/curl_pool.h"
 
-using namespace bloom_node;
-
+namespace bloom_node {
 
 CurlPool::CurlPool(size_t pool_size) : max_pool_size_(pool_size) {
   // Pre-allocate handles
@@ -61,3 +60,5 @@ void CurlPool::destroy_handle(CURL* handle) {
     curl_easy_cleanup(handle);
   }
 }
+
+} // namespace bloom_node

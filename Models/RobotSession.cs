@@ -28,14 +28,12 @@ namespace bloom.Models
         // number of robots in the current session
         public int Robots { get; set; }
 
-        // Active lesson being delivered in this session
+        // Active lesson currently being executed in this session (null if none)
         public Guid? ActiveLessonId { get; set; }
         public Lesson? ActiveLesson { get; set; }
 
         // Navigation property for historical state snapshots (for analysis features)
         public ICollection<RobotStateHistory>? StateHistory { get; set; }
-
-        
 
     }
 

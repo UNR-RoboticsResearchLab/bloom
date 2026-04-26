@@ -12,15 +12,7 @@ export default class ApiClient {
       ...(options.headers || {}),
     };
 
-    // const response = await fetch(url, { ...options, headers });
-
-    const response = await fetch(url, {
-      credentials: "include",
-      ...options,
-      headers
-    });
-
-    
+    const response = await fetch(url, { ...options, headers });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -35,9 +27,9 @@ export default class ApiClient {
   }
 
 
-  async signUp(payload) {
+async signUp(payload) {
     const body = {
-      userName: payload.email,
+      username: payload.email,
       fullName: payload.fullName,
       email: payload.email,
       password: payload.password,
@@ -50,7 +42,7 @@ export default class ApiClient {
     });
 
     return res;
-  }
+}
 
   //temp
   async addStudent(payload) {
@@ -69,8 +61,8 @@ export default class ApiClient {
       return res;
   }
 
-  async signIn(email, password) {
-      const payload = { email, password };
+async signIn(email, password) {
+    const payload = { email, password };
 
     const data = await this.request("/api/account/login", {
       method: "POST",
@@ -83,7 +75,7 @@ export default class ApiClient {
       async getSessions() {
         const res = await this.request(`/api/robotsession`, { method: "GET" });
         return res || [];
-      }
+    }
 
       async getSessionHistory(sessionId) {
           const res = await this.request(`/api/robotsession/${sessionId}/history`);

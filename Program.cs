@@ -21,7 +21,9 @@ var ConnectionString = build_environmment == "Production"
         ? builder.Configuration.GetConnectionString("ProductionConnection") 
         : builder.Configuration.GetConnectionString("DefaultConnection");
 
-Console.WriteLine($"ConnectionString: {ConnectionString}");
+var redactedConnectionString = System.Text.RegularExpressions.Regex.Replace(
+    ConnectionString ?? "", @"(?i)(password|pwd)=[^;]*", "$1=***");
+Console.WriteLine($"ConnectionString: {redactedConnectionString}");
 
 //  ============ Add services to the container. ============
 
@@ -43,10 +45,18 @@ if (build_environmment == "Development")
 }
 else
 {
-    var cert = X509CertificateLoader.LoadPkcs12FromFile("certs/bloomserver.pfx", "bloomserver");
+    var certPath = builder.Configuration["DataProtection:CertPath"]
+        ?? "/etc/bloom/certs/bloomserver.pfx";
+    var certPassword = builder.Configuration["DataProtection:CertPassword"]
+        ?? throw new InvalidOperationException(
+            "DataProtection:CertPassword is not configured. Set the DataProtection__CertPassword environment variable.");
+    var keyringPath = builder.Configuration["DataProtection:KeyringPath"]
+        ?? "/var/dpkeys";
+
+    var cert = X509CertificateLoader.LoadPkcs12FromFile(certPath, certPassword);
 
     builder.Services.AddDataProtection()
-        .PersistKeysToFileSystem(new DirectoryInfo("/var/dpkeys"))
+        .PersistKeysToFileSystem(new DirectoryInfo(keyringPath))
         .SetApplicationName("BloomServer")
         .SetDefaultKeyLifetime(TimeSpan.FromDays(90))
         .ProtectKeysWithCertificate(cert);
@@ -77,15 +87,12 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 
 // =========== Add Custom Services ===========
-
-
 builder.Services.AddScoped<IAccountService, AccountService>();
-builder.Services.AddScoped<AccountService>();
+builder.Services.AddScoped<IRobotService, RobotService>();
 builder.Services.AddScoped<ILessonService, LessonService>();
 builder.Services.AddScoped<ILessonProgressService, LessonProgressService>();
 
 // Add RobotSession Services and Repositories
-builder.Services.AddScoped<IRobotService, RobotService>();
 builder.Services.AddSingleton<IRobotStateRepository, InMemoryRobotStateRepository>();
 builder.Services.AddScoped<IRobotSessionRepository, RobotSessionRepository>();
 builder.Services.AddScoped<ISessionCodeService, SessionCodeService>();
@@ -101,9 +108,9 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        // options.LoginPath = builder.Configuration.GetValue<string>("LoginPath");
-        // options.LogoutPath = builder.Configuration.GetValue<string>("LogoutPath");
-        // options.Cookie.HttpOnly = true;
+        options.LoginPath = builder.Configuration.GetValue<string>("LoginPath");
+        options.LogoutPath = builder.Configuration.GetValue<string>("LogoutPath");
+        options.Cookie.HttpOnly = true;
 
         //TODO: development comment lul
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
@@ -126,33 +133,20 @@ builder.Services.AddSession(options =>
 
 // Enable CORS for development
 // TODO: add production check
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins(
-                "http://localhost:5173",
-                "http://localhost:3000"
-            )
+builder.Services.AddCors(options => {
+    options.AddDefaultPolicy(policy => {
+        policy
+            .AllowAnyOrigin()
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowAnyMethod();
     });
 });
 
-// authorization policies
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy(
-        //only Admins can create accounts
-        "CanCreateAccount", policy => policy.RequireRole("Admin", "SLP"));
-});
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
 // ============ Configure the HTTP request pipeline. ============
-
-
 if (app.Environment.IsDevelopment())
 {
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
@@ -166,14 +160,11 @@ else
 }
 
 // app.UseHttpsRedirection();
-app.UseCors("AllowFrontend");
+app.UseCors();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
-
-//
-app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();

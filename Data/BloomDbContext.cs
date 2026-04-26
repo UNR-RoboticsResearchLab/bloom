@@ -16,7 +16,7 @@ namespace bloom.Data
         public DbSet<Account> Accounts { get; set; }
         public DbSet<Lesson> Lessons { get; set; }
         public DbSet<Assignment> Assignments { get; set; }
-        public DbSet<SLPClient> SLPClients { get; set; }
+        public DbSet<Classroom> Classrooms { get; set; }
         public DbSet<Robot> Robots { get; set; }
         public DbSet<RobotSession> RobotSessions { get; set; }
         public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
@@ -24,6 +24,7 @@ namespace bloom.Data
         public DbSet<LessonProgress> LessonProgresses { get; set; }
         public DbSet<LessonInteraction> LessonInteractions { get; set; }
         public DbSet<StepInteraction> StepInteractions { get; set; }
+        public DbSet<SLPClient> SLPClients { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
@@ -89,26 +90,16 @@ namespace bloom.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
-            builder.Entity<SLPClient>(entity =>
+            builder.Entity<Classroom>(entity =>
             {
-                entity.ToTable("SLPClients");
+                entity.ToTable("Classrooms");
 
-                // One-to-Many: SLPClient - Student (Account)
-                entity.HasOne(c => c.Student)
-                    .WithMany()
-                    .HasForeignKey(c => c.StudentId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                // Many-to-Many: Classroom - Students (Accounts)
+                entity.HasMany(c => c.Students)
+                    .WithMany();
 
-                // Many-to-Many: SLPClient - Teachers (Accounts)
+                // Many-to-Many: Classroom - Teachers (Accounts)
                 entity.HasMany(c => c.Teachers)
-                    .WithMany();
-
-                // Many-to-Many: SLPClient - Lessons
-                entity.HasMany(c => c.Lessons)
-                    .WithMany();
-
-                // Many-to-Many: SLPClient - Assignments
-                entity.HasMany(c => c.Assignments)
                     .WithMany();
             });
 
@@ -135,37 +126,7 @@ namespace bloom.Data
                 entity.OwnsOne(r => r.RobotState);
             });
 
-            builder.Entity<LessonProgress>(entity =>
-            {
-                entity.ToTable("LessonProgresses");
-
-                entity.HasOne(lp => lp.Student)
-                    .WithMany()
-                    .HasForeignKey(lp => lp.StudentId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(lp => lp.Lesson)
-                    .WithMany()
-                    .HasForeignKey(lp => lp.LessonId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            builder.Entity<LessonInteraction>(entity =>
-            {
-                entity.ToTable("LessonInteractions");
-
-                entity.HasOne(li => li.RobotSession)
-                    .WithMany()
-                    .HasForeignKey(li => li.RobotSessionId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(li => li.Lesson)
-                    .WithMany()
-                    .HasForeignKey(li => li.LessonId)
-                    .OnDelete(DeleteBehavior.SetNull);
-            });
-
-            builder.Entity<Robot>(entity => {
+            builder.Entity<Robot>(entity => { 
                 entity.HasOne(r => r.RegisteredUser)
                     .WithMany(a => a.RegisteredRobots)
                     .HasForeignKey(r => r.RegisteredUserId)
@@ -176,7 +137,7 @@ namespace bloom.Data
 
         public static async Task SeedDatabaseRoles(RoleManager<IdentityRole> roleMgr)
         {
-            string[] roleNames = { "Admin", "SLP", "Student" };
+            string[] roleNames = { "Admin", "SLP", "Student", "Teacher", "Facilitator" };
 
             foreach (var roleName in roleNames)
             {
@@ -230,7 +191,7 @@ namespace bloom.Data
                             Description = "A sample speech therapy lesson for testing.",
                             CreatedDate = DateTime.UtcNow,
                             CreatedById = Accounts.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(),
-                            LessonType = LessonType.SpeechTherapy,
+                            LessonType = LessonType.Speech,
                             TotalSteps = 7
                         }
                     };

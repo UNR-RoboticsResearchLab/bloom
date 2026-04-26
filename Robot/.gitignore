@@ -5,11 +5,19 @@
 venv/
 .venv/
 env/
+temp_speech.wav          # Audio files created during speech
+*.wav
+face_control.json        # Commands sent to face
+current_visemes.json.    # Produced by face test scripts
+config.py
+*.pyo
+
+
+#ros workspace files
 
 # ROS2 build artifacts
 build/
 install/
-log/
 logs/
 
 # Audio/temp files

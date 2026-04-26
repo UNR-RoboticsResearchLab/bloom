@@ -60,18 +60,6 @@ public class AccountController : ControllerBase
             return BadRequest(new { Message = "User not found. " });
         }
 
-        // todo: move to helper function 
-
-        var claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
-        };
-
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        var principal = new ClaimsPrincipal(identity);
-
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
-
         return Ok(new
         {
             Message = "Login successful",

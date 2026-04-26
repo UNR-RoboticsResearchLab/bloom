@@ -57,7 +57,6 @@ namespace bloom.Services
             {
                 Name = robot.Name,
                 Model = robot.Model,
-                SerialNumber = robot.SerialNumber,
                 ManufactureDate = robot.ManufactureDate,
                 FirmwareVersion = robot.FirmwareVersion,
                 IPAddress = robot.IPAddress,
@@ -88,7 +87,6 @@ namespace bloom.Services
 
             existingRobot.Name = robot.Name;
             existingRobot.Model = robot.Model;
-            existingRobot.SerialNumber = robot.SerialNumber;
             existingRobot.ManufactureDate = robot.ManufactureDate;
             existingRobot.FirmwareVersion = robot.FirmwareVersion;
             existingRobot.IPAddress = robot.IPAddress;

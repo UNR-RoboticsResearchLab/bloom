@@ -18,7 +18,7 @@ export default function Home() {
     <div className="min-h-screen bg-white text-gray-900">
       <div className="mx-auto max-w-6xl px-6 py-10 lg:px-8 mt-[100px]">
         {/* Hero */}
-        <section className="rounded-2xl bg-gray-50 p-8 shadow-sm ring-1 ring-gray-100">
+        <section className="bg-gray-50 p-8 ring-1 ring-gray-100 rounded-lg border border-gray-200 shadow-sm">
           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Bloom</h1>
@@ -46,7 +46,7 @@ export default function Home() {
         </section>
 
         {/* Quick role cards */}
-        <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
           <RoleCard
             title="Admin"
             desc="See system health such as memory and audio latency, network quality, and error rates for STT and TTS."
@@ -57,7 +57,7 @@ export default function Home() {
             desc="Browse lessons, review assigned students, add notes, and check recognition accuracy and outcomes."
             to="/dashboard/slp"
           />
-          <RoleCard
+          {/* <RoleCard
             title="Teacher"
             desc="Manage class lessons, track student completion, and leave session notes that sync with your workflow."
             to="/dashboard/teacher"
@@ -66,7 +66,7 @@ export default function Home() {
             title="Student"
             desc="Open active lessons, see what is completed, and review guidance from your therapist or teacher."
             to="/dashboard/student"
-          />
+          /> */}
         </section>
 
         {/* Features */}
@@ -123,14 +123,14 @@ export default function Home() {
 
         {/* Footer links */}
         <section className="mt-12 flex flex-wrap items-center gap-3">
-          <Link to="/fetch-data" className="rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200 shadow-xs hover:bg-indigo-50">
+          {/* <Link to="/fetch-data" className="no-underline rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200 shadow-xs hover:bg-indigo-50">
             Sample data
           </Link>
-          <Link to="/counter" className="rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200 shadow-xs hover:bg-indigo-50">
+          <Link to="/counter" className="no-underline rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200 shadow-xs hover:bg-indigo-50">
             Counter demo
-          </Link>
+          </Link> */}
           {session?.role ? (
-            <Link to={dashboardPathForRole(session.role)} className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500">
+            <Link to={dashboardPathForRole(session.role)} className="no-underline rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500">
               Return to my dashboard
             </Link>
           ) : null}
@@ -144,12 +144,12 @@ export default function Home() {
 
 function RoleCard({ title, desc, to }) {
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+    <div className="bg-white p-5 ring-1 ring-gray-100 rounded-lg border border-gray-200 shadow-sm">
       <div className="text-sm font-semibold text-indigo-700">{title}</div>
       <p className="mt-2 text-sm text-gray-700">{desc}</p>
       <Link
         to={to}
-        className="mt-4 inline-flex rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500"
+        className="mt-4 inline-flex rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 no-underline"
       >
         Open
       </Link>
@@ -159,7 +159,7 @@ function RoleCard({ title, desc, to }) {
 
 function Feature({ title, text }) {
   return (
-    <div className="rounded-xl bg-gray-50 p-5 shadow-sm ring-1 ring-gray-100">
+    <div className=" bg-gray-50 p-5 ring-1 ring-gray-100 rounded-lg border border-gray-200 shadow-sm">
       <div className="text-base font-semibold">{title}</div>
       <p className="mt-2 text-sm text-gray-700">{text}</p>
     </div>
@@ -168,7 +168,7 @@ function Feature({ title, text }) {
 
 function Step({ number, title, text, cta }) {
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
+    <div className="bg-white p-6 ring-1 ring-gray-100 rounded-lg border border-gray-200 shadow-sm">
       <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">
         {number}
       </div>
@@ -177,7 +177,7 @@ function Step({ number, title, text, cta }) {
       {cta ? (
         <Link
           to={cta.to}
-          className="mt-4 inline-flex rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500"
+          className="mt-4 inline-flex rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 no-underline"
         >
           {cta.label}
         </Link>

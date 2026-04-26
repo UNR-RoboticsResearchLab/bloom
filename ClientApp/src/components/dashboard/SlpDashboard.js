@@ -131,7 +131,7 @@ export default function SlpDashboard() {
 
   const sttForLesson = mockSTT[selectedLessonId] || {};
   const headerStats = useMemo(() => {
-    const totalLessons = mockLessons.length;
+    const totalLessons = lessons.length;
     const totalStudents = students.length;
     const accVals = Object.values(mockSTT).flatMap((obj) =>
       Object.values(obj).map((v) => v.accuracy)
@@ -141,7 +141,7 @@ export default function SlpDashboard() {
       : 0;
 
     return { totalLessons, totalStudents, avgAcc };
-  }, [students]);
+  }, [lessons, students]);
 
   function handleAddNote(e) {
     e.preventDefault();

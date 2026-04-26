@@ -15,6 +15,7 @@
 #include <mutex>
 #include <chrono>
 #include <algorithm>
+#include <optional>
 #include <std_msgs/msg/string.hpp>
 
 namespace bloom_node {
@@ -119,6 +120,7 @@ private:
 
     void update_progress_with_backend();
     void log_interaction_to_backend(int step_order, const std::string &response, bool is_correct);
+    void log_interaction_to_backend(int step_order, const std::string &interaction_type, const std::string &content, std::optional<bool> is_correct);
 
     void on_tts_done(const std_msgs::msg::String::SharedPtr msg);
     void on_llm_wrap_up(const std_msgs::msg::String::SharedPtr msg);

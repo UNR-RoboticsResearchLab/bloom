@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useApiClient } from "../context/ApiClientContext";
 
 function getInitials(name) {
     return name
@@ -9,9 +11,40 @@ function getInitials(name) {
 }
 
 export default function Student() {
-    const { name } = useParams();
-    
+    const { studentId } = useParams();
+    const api = useApiClient();
+
+    const [student, setStudent] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        async function loadStudent() {
+            try {
+                const data = await api.getStudent(studentId);
+                console.log("Student from backend:", data);
+                setStudent(data);
+            } catch (err) {
+                console.error("Failed to load student:", err);
+                setStudent(null);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+
+        loadStudent();
+    }, [api, studentId]);
+
+    if (isLoading) {
+        return <div className="rounded-lg border p-6 shadow-sm">Loading student...</div>;
+    }
+
+    if (!student) {
+        return <div className="rounded-lg border p-6 shadow-sm">Student not found</div>;
+    }
+
+    const name = student.fullName ?? student.studentName ?? student.name ?? "No Name";
     const initials = getInitials(name);
+    
     return (
         <div className= "rounded-lg border p-6 shadow-sm">
             <p className=" text-sm font-semibold text-gray-900">

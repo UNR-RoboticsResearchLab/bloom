@@ -65,12 +65,14 @@ function AccuracyBar({ value }) {
 export default function SlpDashboard() {
   const navigate = useNavigate();
   const apiClient = useApiClient();
-  const [selectedLessonId, setSelectedLessonId] = useState("L1");
-  const [selectedStudentId, setSelectedStudentId] = useState("S1");
+  const [selectedLessonId, setSelectedLessonId] = useState("");
+  const [selectedStudentId, setSelectedStudentId] = useState("");
   const { addNote, getNotes } = useNotes();
   const [showPairRobotCard, setShowPairRobotCard] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [lessons, setLessons] = useState([]);
+
+  const [students, setStudents] = useState([]);
 
   useEffect(() => {
     async function loadLessons() {
@@ -85,24 +87,61 @@ export default function SlpDashboard() {
     loadLessons();
   }, [apiClient]);
 
+  useEffect(() => {
+    async function loadStudents() {
+      try {
+        const data = await apiClient.getStudents();
+
+        const normalizedStudents = Array.isArray(data)
+          ? data.map((client) => ({
+              id: client.studentId,
+              fullName: client.studentName,
+              email: client.email ?? "N/A",
+            }))
+          : [];
+
+        setStudents(normalizedStudents);
+      } catch (error) {
+        console.error("Failed to load students:", error);
+        setStudents([]);
+      }
+    }
+
+    loadStudents();
+  }, [apiClient]);
+
+  useEffect(() => {
+    if (lessons.length > 0 && !selectedLessonId) {
+      setSelectedLessonId(lessons[0].id ?? lessons[0].Id);
+    }
+  }, [lessons, selectedLessonId]);
+
+  useEffect(() => {
+    if (students.length > 0 && !selectedStudentId) {
+      setSelectedStudentId(students[0].id);
+    }
+  }, [students, selectedStudentId]);
+
   const selectedLesson = useMemo(
     () => mockLessons.find((l) => l.id === selectedLessonId),
     [selectedLessonId]
   );
 
-  const studentsForLesson = useMemo(
-    () => (selectedLesson ? selectedLesson.students.map((sid) => ({ id: sid, ...mockStudents[sid] })) : []),
-    [selectedLesson]
-  );
+  const studentsForLesson = students;
 
   const sttForLesson = mockSTT[selectedLessonId] || {};
   const headerStats = useMemo(() => {
     const totalLessons = mockLessons.length;
-    const totalStudents = new Set(mockLessons.flatMap((l) => l.students)).size;
-    const accVals = Object.values(mockSTT).flatMap((obj) => Object.values(obj).map((v) => v.accuracy));
-    const avgAcc = accVals.length ? accVals.reduce((a, b) => a + b, 0) / accVals.length : 0;
+    const totalStudents = students.length;
+    const accVals = Object.values(mockSTT).flatMap((obj) =>
+      Object.values(obj).map((v) => v.accuracy)
+    );
+    const avgAcc = accVals.length
+      ? accVals.reduce((a, b) => a + b, 0) / accVals.length
+      : 0;
+
     return { totalLessons, totalStudents, avgAcc };
-  }, []);
+  }, [students]);
 
   function handleAddNote(e) {
     e.preventDefault();
@@ -191,10 +230,10 @@ export default function SlpDashboard() {
             {studentsForLesson.map((s) => (
               <StudentCard
                 key={s.id}
-                name={s.name}
-                email={`${s.name.toLowerCase().replace(" ", ".")}@example.com`}
-                active={s.active}
-                completed={s.completed}
+                name={s.fullName}
+                email={s.email}
+                active={[]}
+                completed={[]}
                 selected={selectedStudentId === s.id}
                 onClick={() => setSelectedStudentId(s.id)}
               />
@@ -214,7 +253,7 @@ export default function SlpDashboard() {
               <div>
                 <label className="text-xs text-gray-600">Lesson</label>
                 <select
-                  value={selectedLessonId}
+                  value={selectedLessonId ?? ""}
                   onChange={(e) => setSelectedLessonId(e.target.value)}
                   className="mt-1 block w-full rounded-md border-gray-300 text-sm"
                 >
@@ -226,12 +265,12 @@ export default function SlpDashboard() {
               <div>
                 <label className="text-xs text-gray-600">Student</label>
                 <select
-                  value={selectedStudentId}
+                  value={selectedStudentId ?? ""}
                   onChange={(e) => setSelectedStudentId(e.target.value)}
                   className="mt-1 block w-full rounded-md border-gray-300 text-sm"
                 >
-                  {Object.entries(mockStudents).map(([sid, s]) => (
-                    <option key={sid} value={sid}>{s.name}</option>
+                  {students.map((s) => (
+                    <option key={s.id} value={s.id}>{s.fullName}</option>
                   ))}
                 </select>
               </div>

@@ -1,16 +1,12 @@
 // src/App.js
 import { Routes, Route } from "react-router-dom";
 
-import Layout from "./components/Layout";
-import SignIn from "./components/SignIn";
-import SignUp from "./components/SignUp";
+import Layout  from "./components/Layout";
+import SignIn from "./pages/SignIn";
+import SignUp from "./pages/SignUp";
 import { RequireAuth, RequireRole } from "./components/RouteGuards";
 import About from "./pages/About";
-
 import Home from "./pages/Home";
-import FetchData from "./pages/FetchData";
-import Counter from "./pages/Counter";
-import ForgotPassword from "./pages/ForgotPassword";
 
 import AdminDashboard from "./components/dashboard/AdminDashboard";
 import TeacherDashboard from "./components/dashboard/TeacherDashboard";
@@ -22,6 +18,11 @@ import Lesson from "./pages/Lesson";
 
 import Students from "./pages/Students";
 import Student from "./pages/Student";
+
+import ForgotPassword from "./pages/ForgotPassword";
+
+import FetchData from "./pages/FetchData";
+import Counter from "./pages/Counter";
 
 // import "./custom.css";
 
@@ -42,13 +43,13 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/counter" element={<Counter />} />
         <Route path="/fetch-data" element={<FetchData />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+        {/* <Route path="/forgot-password" element={<ForgotPassword />} /> */}
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/about" element={<About />} />
         <Route path="/lessons" element={<Lessons />} />
         <Route path="/students" element={<Students />} />
-        <Route path="/student/:studentId" element={<Student />} />
+        <Route path="/student/:name" element={<Student />} />
         <Route path="/lesson/:lessonId" element={<Lesson />} />
         <Route path="/lesson-view" element={<LessonView />} />
         
@@ -57,7 +58,7 @@ export default function App() {
 
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/teacher" element={<TeacherDashboard />} />
-        {/* <Route path="/student" element={<StudentDashboard />} /> */}
+        <Route path="/student" element={<StudentDashboard />} />
         <Route path="/slp" element={<SlpDashboard />} />
 
 
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="/dashboard">
             <Route element={<RequireRole allow={["admin"]} />}>
               <Route path="admin" element={<AdminDashboard />} />
+              <Route path="admin/add-lesson" element={<AddLessonCard />} />
             </Route>
             <Route element={<RequireRole allow={["teacher"]} />}>
               <Route path="teacher" element={<TeacherDashboard />} />

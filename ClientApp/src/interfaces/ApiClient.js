@@ -12,7 +12,11 @@ export default class ApiClient {
       ...(options.headers || {}),
     };
 
-    const response = await fetch(url, { ...options, headers });
+    const response = await fetch(url, {
+      credentials: "include",
+      ...options,
+      headers,
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -44,21 +48,17 @@ async signUp(payload) {
     return res;
 }
 
-  //temp
   async addStudent(payload) {
     const body = {
-      userName: payload.email,
       fullName: payload.fullName,
       email: payload.email,
-      password: payload.password,
-      selectedRole: "STUDENT",
     };
 
-      const res = await this.request("/api/account/create", {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      return res;
+    const res = await this.request("/api/account/create/student", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return res;
   }
 
 async signIn(email, password) {

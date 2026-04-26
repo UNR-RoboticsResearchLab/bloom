@@ -1,6 +1,6 @@
 #include "bloom_node/web_service_client.h"
 
-namespace web_service_client {
+using namespace bloom_node;
 
 WebServiceClient::WebServiceClient(
     const std::string &node_name,
@@ -173,8 +173,8 @@ std::pair<std::string, long> WebServiceClient::performRequest(
                 break;
             } else {
                 RCLCPP_WARN(this->get_logger(),
-                    "curl_easy_perform() failed: %s (attempt %d/%d)",
-                    curl_easy_strerror(response), attempt + 1, retries + 1);
+                    "curl_easy_perform() to %s failed: %s (attempt %d/%d)",
+                    url.c_str(), curl_easy_strerror(response), attempt + 1, retries + 1);
                 if (attempt < retries && running_.load()) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(200 * (attempt + 1)));
                 }
@@ -194,18 +194,16 @@ std::pair<std::string, long> WebServiceClient::performRequest(
             response_pub_->publish(msg);
         }
 
+        curl_pool_->release(curl);
         return {response_data, http_code};
 
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Exception in performRequest: %s", e.what());
         if (hdrs) curl_slist_free_all(hdrs);
+        // Return handle to pool
         curl_pool_->release(curl);
         return {"", 0};
     }
-
-    // Return handle to pool
-    curl_pool_->release(curl);
-    return {"", 0};
 }
 
 
@@ -314,19 +312,4 @@ void WebServiceClient::publishSessionCode(const std::string &session_code)
     msg.data = session_code;
     session_code_pub_->publish(msg);
     RCLCPP_INFO(this->get_logger(), "Published session code: %s", session_code.c_str());
-
 }
-
-void WebServiceClient::publishSessionCode(const std::string &session_code)
-{
-    if (!session_code_pub_) {
-        session_code_pub_ = this->create_publisher<std_msgs::msg::String>("/robot/session_code", 10);
-    }
-    auto msg = std_msgs::msg::String();
-    msg.data = session_code;
-    session_code_pub_->publish(msg);
-    RCLCPP_INFO(this->get_logger(), "Published session code: %s", session_code.c_str());
-
-}
-
-} // namespace web_service_client

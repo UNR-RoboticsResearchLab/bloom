@@ -1,4 +1,6 @@
-// launcher for bloom_node: composes StateManager, WebServiceClient, and ConfigManager
+// launcher for bloom_node: composes StateManager, WebServiceClient, 
+// BehaviorCoordinator, LessonCoordinator, LessonPoller, and FeedbackPoller
+// into a single executable
 
 #include <memory>
 #include <vector>
@@ -13,6 +15,10 @@
 #include "bloom_node/state_manager.h"
 #include "bloom_node/web_service_client.h"
 #include "bloom_node/configuration_manager.h"
+#include "bloom_node/behavior_coordinator.h"
+#include "bloom_node/lessson_coordinator.h"
+#include "bloom_node/lesson_poller.h"
+#include "bloom_node/feedback_poller.h"
 #include "bloom_node/json.hpp"
 
 namespace fs = std::filesystem;
@@ -29,7 +35,26 @@ int main(int argc, char ** argv)
 	// ====== Create nodes ======
 	//config requires some config
 	// todo: move to helper
-	auto config_mgr = std::make_shared<configuration_manager::ConfigurationManager>(node);
+	auto config_mgr = std::make_shared<bloom_node::ConfigurationManager>(node);
+
+	// ====== Create BehaviorCoordinator ======
+	auto behavior_coord = std::make_shared<bloom_node::BehaviorCoordinator>();
+
+	// Configure exclusive behavior groups
+	behavior_coord->set_exclusive_group("head_movement", {
+		"look_left", "look_right", "look_up", "look_down", "nod", "shake"
+	});
+
+	behavior_coord->set_exclusive_group("emotions", {
+		"happy", "sad", "excited", "calm", "neutral", "surprised"
+	});
+
+	behavior_coord->set_exclusive_group("speak", {
+		"speaking", "listening"
+	});
+
+
+	RCLCPP_INFO(node->get_logger(), "BehaviorCoordinator initialized with exclusive groups");
 
 	fs::path dir = ament_index_cpp::get_package_share_directory("bloom_node") + "/config";
 
@@ -40,9 +65,8 @@ int main(int argc, char ** argv)
 	}
 
 	if (!fs::exists(dir) || !fs::is_directory(dir)) {
-        RCLCPP_ERROR(node->get_logger(), "The provided path is not a directory or does not exist.\n");
-        RCLCPP_ERROR(node->get_logger(), dir.c_str());
-        return 1;
+        RCLCPP_WARN(node->get_logger(), "Config directory not found at %s, continuing without config", dir.c_str());
+        RCLCPP_INFO(node->get_logger(), "Using default configuration");
     }
 
     // Vector to store file paths
@@ -73,22 +97,10 @@ int main(int argc, char ** argv)
 		RCLCPP_WARN(node->get_logger(), "HOME not set, persistent config unavailable");
 	}
 
-	// Load from (and save to) a persistent user config that survives colcon builds.
-	// Values here override the install-dir config (e.g. robot_id persists across builds).
-	fs::path persistent_config;
-	if (const char* home = std::getenv("HOME")) {
-		persistent_config = fs::path(home) / ".bloom" / "robot.cfg";
-		fs::create_directories(persistent_config.parent_path());
-		config_mgr->load_from_file(persistent_config.string());
-	} else {
-		RCLCPP_WARN(node->get_logger(), "HOME not set, persistent config unavailable");
-	}
-
-	
-	auto state_mgr = std::make_shared<state_manager::StateManager>(rclcpp::NodeOptions());
+	auto state_mgr = std::make_shared<bloom_node::StateManager>(rclcpp::NodeOptions());
 
 	// WebServiceClient constructor expects (node_name, base_url, default_timeout_ms, max_retries)
-	auto web_client = std::make_shared<web_service_client::WebServiceClient>(
+	auto web_client = std::make_shared<bloom_node::WebServiceClient>(
 		std::string("web_service_client"),
 	  	std::string(config_mgr->get_string("base_url").value_or("")),
 	  	5000,
@@ -220,12 +232,20 @@ int main(int argc, char ** argv)
 
 
 	// Example: Start a session with a POST request to /api/robot/sessions
+	RCLCPP_INFO(node->get_logger(), "Robot ID before session creation: %s (empty=%s)",
+		robotId.c_str(), robotId.empty() ? "true" : "false");
+
 	nlohmann::json session_payload = {
-		{"anonymous", false}
+		{"anonymous", false},
+		{"robot_id", robotId}
 	};
 
-	web_client->enableResponsePublisher("/status_response");
+	RCLCPP_INFO(node->get_logger(), "Session payload: %s", session_payload.dump().c_str());
 
+
+	// Extract session ID from POST response
+	std::string session_id;
+	std::string pairing_code;
 	auto session_future = web_client->sendRequestAsync(
 		"POST",
 		"/api/robotsession/",
@@ -364,16 +384,20 @@ int main(int argc, char ** argv)
 
 	// Multi-threaded executor to run nodes concurrently
 	rclcpp::executors::MultiThreadedExecutor executor;
+	executor.add_node(node);  // Add main node for behavior_request subscription and timer
 	executor.add_node(state_mgr);
 	executor.add_node(web_client);
 	executor.add_node(config_mgr);
+	executor.add_node(lesson_coord);
+	executor.add_node(lesson_poller);
+	executor.add_node(feedback_poller);
 
 	// Start the lesson and feedback polling loops
 	lesson_poller->start_polling();
 	lesson_poller->set_pairing_code(pairing_code);
 	feedback_poller->start_polling();  // Starts in inactive state, activated by LessonCoordinator during interactions
 
-	// RCLCPP_INFO(state_mgr->get_logger(), "bloom_node composed: state_manager + web_service_client starting");
+	RCLCPP_INFO(node->get_logger(), "bloom_node started - state_manager + web_service_client + lesson_coordinator + lesson_poller + feedback_poller running");
 	executor.spin();
 
 	rclcpp::shutdown();

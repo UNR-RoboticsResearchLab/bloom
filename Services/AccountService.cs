@@ -293,28 +293,13 @@ namespace bloom.Services
 
             Account? user;
 
-            try
+            user = await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
             {
-                user = await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Email == email);
-                if (user == null)
-                {
-                    throw new KeyNotFoundException("User not found");
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new KeyNotFoundException("Error retrieving user by email", ex);
+                return Microsoft.AspNetCore.Identity.SignInResult.Failed;
             }
 
-            try
-            {
-                var result = await _signInManager.PasswordSignInAsync(user.UserName ?? "", password, isPersistent: false, lockoutOnFailure: false);
-                return result;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error signing in user", ex);
-            }
+            return await _signInManager.PasswordSignInAsync(user.UserName ?? "", password, isPersistent: false, lockoutOnFailure: false);
 
             }
     }

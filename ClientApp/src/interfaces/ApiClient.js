@@ -104,14 +104,6 @@ async signIn(email, password) {
     });
   }
 
-  //temp
-  async getStudent(id) {
-    const res = await this.request(`/api/student/${id}`, {
-      method: "GET",
-    });
-    return res;
-  }
-
  async getLessons() {
   const res = await this.request(`/api/lesson/all`, {
     method: "GET",

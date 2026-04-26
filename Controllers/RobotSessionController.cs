@@ -7,6 +7,7 @@ using bloom.Models;
 using bloom.Models.dto;
 using bloom.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Update.Internal;
 
 namespace bloom.Controllers
 {
@@ -46,6 +47,8 @@ namespace bloom.Controllers
         {
             return User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         }
+
+        #region Session Management Endpoints
 
         /// <summary>
         /// Create a new robot session for the given robot ID.
@@ -125,7 +128,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving all robot sessions");
-                return StatusCode(500, "Internal server error");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
@@ -146,7 +149,7 @@ namespace bloom.Controllers
                     return NotFound(new { Message = $"Session with ID {sessionId} not found" });
                 }
 
-                var robotIds = (await _sessionService.GetSessionRobotsAsync(session.Id)).ToList();
+                var robotIds = (await _sessionService.GetSessionRobotsAsync(sessionId)).ToList();
 
                 return Ok(new RobotSessionResponseDto
                 {
@@ -249,9 +252,11 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error ending robot session {SessionId}", sessionId);
-                return StatusCode(500, "Internal server error");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
+
+        
 
         /// <summary>
         /// Add a robot to an active session
@@ -260,7 +265,7 @@ namespace bloom.Controllers
         /// <param name="dto">Robot state to add</param>
         /// <returns>Success message</returns>
         [HttpPost("{sessionId}/robots")]
-        public async Task<IActionResult> AddRobot(Guid sessionId, [FromBody] AddRobotToSessionDto dto)
+        public async Task<IActionResult> AddRobot(Guid sessionId, [FromBody] StartSessionDto dto)
         {
             try
             {
@@ -284,19 +289,8 @@ namespace bloom.Controllers
                     return Forbid();
                 }
 
-                // Create robot state from DTO
-                var robotState = new RobotState
-                {
-                    Id = Guid.NewGuid(),
-                    RobotId = dto.RobotId,
-                    Status = dto.CurrentState.Status ?? "",
-                    CurrentTask = dto.CurrentState.CurrentTask ?? "",
-                    CurrentBehaviorId = dto.CurrentState.CurrentBehaviorId,
-                    LastStatusChange = DateTime.UtcNow,
-                    SpeechLog = dto.CurrentState.SpeechLog ?? ""
-                };
 
-                await _sessionService.AddRobotToSessionAsync(sessionId, robotState);
+                await _sessionService.AddRobotToSessionAsync(sessionId, dto.RobotId);
 
                 return Ok(new { Message = "Robot added to session successfully", SessionId = sessionId, RobotId = dto.RobotId });
             }
@@ -313,7 +307,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding robot to session {SessionId}", sessionId);
-                return StatusCode(500, "Internal server error");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
@@ -355,7 +349,7 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error removing robot from session {SessionId}", sessionId);
-                return StatusCode(500, "Internal server error");
+                return BadRequest("It sure is bad if you get this!");
             }
         }
 
@@ -392,6 +386,7 @@ namespace bloom.Controllers
             }
         }
 
+        #endregion
 
         #region Robot State Endpoints
 

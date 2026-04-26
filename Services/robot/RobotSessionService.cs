@@ -44,17 +44,12 @@ namespace bloom.Services
 
             await _sessionRepository.AddAsync(session);
 
-            await AddRobotToSessionAsync(session.Id, new RobotState
-            {
-                RobotId = robotId,
-                CurrentTask = "pairing",
-                Status = "pairing"
-            });
+            await AddRobotToSessionAsync(session.Id, robotId);
 
             var newSession = await _sessionRepository.GetAsync(session.Id);
             if (newSession == null)
                 throw new InvalidOperationException($"Failed to retrieve newly created session with ID {session.Id}");
-
+            
             return newSession;
         }
 
@@ -80,21 +75,23 @@ namespace bloom.Services
             await _dbContext.SaveChangesAsync();
         }
 
-        public async Task AddRobotToSessionAsync(Guid sessionId, RobotState robotState)
+        public async Task AddRobotToSessionAsync(Guid sessionId, Guid robotId)
         {
-            if (robotState == null)
-                throw new ArgumentNullException(nameof(robotState));
-
             var session = await _sessionRepository.GetAsync(sessionId);
             if (session == null)
                 throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
 
             // Validate robot ID is not empty
-            if (robotState.RobotId == Guid.Empty)
-                throw new ArgumentException("RobotId cannot be empty (Guid.Empty)", nameof(robotState));
+            if (robotId == Guid.Empty)
+                throw new ArgumentException("RobotId cannot be empty (Guid.Empty)", nameof(robotId));
 
             // Add to in-memory storage
-            _stateRepository.Add(sessionId.ToString(), robotState);
+            _stateRepository.Add(sessionId.ToString(), new RobotState
+            {
+                RobotId = robotId,
+                CurrentTask = "pairing",
+                Status = "pairing"
+            });
 
             // Increment robot count
             session.Robots += 1;

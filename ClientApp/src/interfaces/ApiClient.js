@@ -124,10 +124,16 @@ async signIn(email, password) {
   }
 
   //temp
-  async addNoteToSession(sessionId, note) {
-    const res = await this.request(`/api/robotsession/${sessionId}/notes`, {
+  async addNoteToSession(sessionId, note, stepId = 0) {
+    const res = await this.request(`/api/lessoninteraction/${sessionId}`, {
       method: "POST",
-      body: JSON.stringify({ note }),
+      body: JSON.stringify({
+        stepId,
+        interactionType: "Note",
+        studentResponse: note,
+        isCorrect: null,
+        responseTimeMs: 0,
+      }),
     });
     return res;
   }

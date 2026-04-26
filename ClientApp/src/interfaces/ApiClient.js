@@ -90,20 +90,18 @@ async signIn(email, password) {
     return res;
   }
 
-  //temp
-  async getStudents(id) {
-    const res = await this.request(`/api/account/${id}`, {
+  // Get all students (for teacher dashboard)
+  async getStudents() {
+    return this.request("/api/SLPClient", {
       method: "GET",
     });
-    return res;
   }
 
-  //temp
+  // get student by ID
   async getStudent(id) {
-    const res = await this.request(`/api/student/${id}`, {
+    return this.request(`/api/student/${id}`, {
       method: "GET",
     });
-    return res;
   }
 
  async getLessons() {
@@ -316,5 +314,11 @@ async signIn(email, password) {
     }
 
     return await res.json();
+  }
+
+  async getLessonInteractions(sessionId) {
+    return this.request(`/api/LessonInteraction/${sessionId}`, {
+      method: "GET",
+    });
   }
 }

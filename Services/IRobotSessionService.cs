@@ -158,5 +158,7 @@ namespace bloom.Services
         /// <param name="sessionId">ID of the session</param>
         /// <returns>Collection of tracker events ordered by timestamp descending</returns>
         Task<List<TrackerEventDto>> GetTrackerEventsAsync(Guid sessionId);
+
+        Task<List<LessonInteractionResponseDto>> GetLessonInteractionsAsync(Guid sessionId);
     }
 }

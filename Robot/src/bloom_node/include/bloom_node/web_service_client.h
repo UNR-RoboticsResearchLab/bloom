@@ -20,16 +20,52 @@
 #include <optional>
 #include <memory>
 
-namespace web_service_client
+namespace bloom_node
 {
 
     using json = nlohmann::json;
     using namespace std::chrono_literals;
 
+    /**
+     * Data Transfer Objects for Lesson API communication
+     */
+
+    struct LessonProgressUpdate {
+        int current_step_id;
+        int completed_steps;
+        std::string status;  // "InProgress", "Completed", "Paused", "Failed"
+
+        json to_json() const {
+            json j;
+            j["currentStepId"] = current_step_id;
+            j["completedSteps"] = completed_steps;
+            j["status"] = status;
+            return j;
+        }
+    };
+
+    struct StudentInteractionLog {
+        int step_id;
+        std::string interaction_type;  // "Response", "Question", "Timeout", "Fallback"
+        std::string student_response;
+        bool is_correct;
+        int response_time_ms;
+
+        json to_json() const {
+            json j;
+            j["stepId"] = step_id;
+            j["interactionType"] = interaction_type;
+            j["studentResponse"] = student_response;
+            j["isCorrect"] = is_correct;
+            j["responseTimeMs"] = response_time_ms;
+            return j;
+        }
+    };
+
 /**
  * Thread-safe HTTP client with connection pooling and bounded thread pool.
  * Provides async HTTP operations (GET, POST, PUT, DELETE, PATCH) with configurable
- * timeouts, retries, and SSL verification.
+ * timeouts, retries, and SSL verification. Still requires JWT token management to be implemented.
  */
 class WebServiceClient : public rclcpp::Node {
 

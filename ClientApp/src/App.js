@@ -32,7 +32,7 @@ import LessonView from "./pages/LessonView";
 
 export default function App() {
 
-  const apiBase = process.env.REACT_APP_API_BASE_URL || "http://bloom-server-dev:5000/";
+  const apiBase = process.env.REACT_APP_API_BASE_URL ?? "http://localhost:5000";
 
 
   return (
@@ -48,7 +48,7 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/lessons" element={<Lessons />} />
         <Route path="/students" element={<Students />} />
-        <Route path="/student/:name" element={<Student />} />
+        <Route path="/student/:studentId" element={<Student />} />
         <Route path="/lesson/:lessonId" element={<Lesson />} />
         <Route path="/lesson-view" element={<LessonView />} />
         

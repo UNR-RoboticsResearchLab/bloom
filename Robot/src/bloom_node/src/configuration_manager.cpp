@@ -1,6 +1,6 @@
 #include "bloom_node/configuration_manager.h"
 
-using namespace configuration_manager;
+using namespace bloom_node;
 
 ConfigurationManager::ConfigurationManager(const rclcpp::Node::SharedPtr& node)
   	: rclcpp::Node(node->get_name()),
@@ -211,7 +211,7 @@ bool ConfigurationManager::parse_line(const std::string & line, std::string & ke
 
 void ConfigurationManager::on_config_message(const std_msgs::msg::String::SharedPtr msg)
 {
-    std::string key, value;
+  std::string key, value;
   if (parse_line(msg->data, key, value))
   {
     set(key, value);
@@ -225,35 +225,3 @@ void ConfigurationManager::on_config_message(const std_msgs::msg::String::Shared
   }
 }
 
-
-
-#ifdef CONFIG_MANAGER_MAIN
-int main(int argc, char ** argv)
-{
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<rclcpp::Node>("configuration_manager");
-  bloom_node::ConfigurationManager cfg(node);
-
-  node->declare
-
-  if (argc > 1) {
-    const std::string path = argv[1];
-    if (!cfg.load_from_file(path)) {
-      std::cerr << "Failed to load config file: " << path << std::endl;
-    }
-  }
-
-  // Import any ROS params available on the node
-  cfg.import_from_node();
-
-  auto snap = cfg.snapshot();
-  for (const auto &p : snap) {
-    std::cout << p.first << "=" << p.second << std::endl;
-  }
-
-  rclcpp::spin();
-
-  rclcpp::shutdown();
-  return 0;
-}
-#endif

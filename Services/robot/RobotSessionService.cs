@@ -231,7 +231,7 @@ namespace bloom.Services
                 LessonId = session.ActiveLessonId,
                 StepId = dto.StepId,
                 InteractionType = dto.InteractionType,
-                // StudentResponse = dto.StudentResponse,
+                DialogTurn = dto.StudentResponse,
                 IsCorrect = dto.IsCorrect,
                 ResponseTimeMs = dto.ResponseTimeMs,
                 Timestamp = DateTime.UtcNow
@@ -602,6 +602,24 @@ namespace bloom.Services
             return events
                 .OrderByDescending(e => e.Timestamp)
                 .ToList();
+        }
+
+        public async Task<List<LessonInteractionResponseDto>> GetLessonInteractionsAsync(Guid sessionId)
+        {
+            return await _dbContext.LessonInteractions
+                .Where(x => x.RobotSessionId == sessionId)
+                .OrderBy(x => x.Timestamp)
+                .Select(x => new LessonInteractionResponseDto
+                {
+                    Id = x.Id,
+                    StepId = x.StepId,
+                    InteractionType = x.InteractionType,
+                    StudentResponse = x.DialogTurn,
+                    IsCorrect = x.IsCorrect,
+                    Timestamp = x.Timestamp,
+                    ResponseTimeMs = x.ResponseTimeMs
+                })
+                .ToListAsync();
         }
     }
 }

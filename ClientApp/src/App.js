@@ -1,7 +1,7 @@
 // src/App.js
 import { Routes, Route } from "react-router-dom";
 
-import Layout from "./components/Layout";
+import  Layout  from "./components/Layout";
 import SignIn from "./components/SignIn";
 import SignUp from "./components/SignUp";
 import { RequireAuth, RequireRole } from "./components/RouteGuards";
@@ -32,7 +32,7 @@ import LessonView from "./pages/LessonView";
 
 export default function App() {
 
-  // const apiBase = process.env.REACT_APP_API_BASE_URL ?? "http://localhost:5000";
+  const apiBase = process.env.REACT_APP_API_BASE_URL ?? "http://localhost:5000";
 
 
   return (
@@ -42,18 +42,18 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/counter" element={<Counter />} />
         <Route path="/fetch-data" element={<FetchData />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+        {/* <Route path="/forgot-password" element={<ForgotPassword />} /> */}
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/about" element={<About />} />
         <Route path="/lessons" element={<Lessons />} />
-        <Route path="/students" element={<Students />} />
+        {/* <Route path="/students" element={<Students />} />
         <Route path="/student/:studentId" element={<Student />} />
         <Route path="/lesson/:lessonId" element={<Lesson />} />
         <Route path="/lesson-view" element={<LessonView />} />
         
 
-        <Route path="/add-student" element={<AddStudentCard />} />
+        <Route path="/add-student" element={<AddStudentCard />} /> */}
 
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/teacher" element={<TeacherDashboard />} />

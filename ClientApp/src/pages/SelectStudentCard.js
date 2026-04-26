@@ -23,10 +23,10 @@ export default function SelectStudentCard({ students = [], onSelect, onCancel })
               className="w-full rounded-md border border-gray-300 px-4 py-3 text-left hover:bg-blue-200 transition"
             >
               <p className="font-medium text-gray-900">
-                {student.firstName} {student.lastName}
+                {student.fullName}
               </p>
               <p className="text-sm text-gray-500">
-                Level: {student.level}
+                {student.email ?? "N/A"}
               </p>
             </button>
           ))}

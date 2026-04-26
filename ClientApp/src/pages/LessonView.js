@@ -27,11 +27,9 @@ export default function LessonView() {
 
     const lessonTitle = lesson?.title ?? lesson?.Title ?? "Untitled Lesson";
     const studentName =
-        student?.name ??
         student?.fullName ??
-        student?.firstName ??
-        student?.FirstName ??
-        student?.Name ??
+        student?.studentName ??
+        student?.name ??
         "Unknown Student";
 
     const formatTime = (value) => {
@@ -146,7 +144,9 @@ export default function LessonView() {
             console.log("RAW SESSIONS RESPONSE:", JSON.stringify(sessions, null, 2));
 
             if (!Array.isArray(sessions) || sessions.length === 0) {
-                return activeSessionId;
+                localStorage.removeItem("pairedSessionId");
+                setActiveSessionId(null);
+                return null;
             }
 
             const savedSessionId = localStorage.getItem("pairedSessionId");
@@ -156,21 +156,24 @@ export default function LessonView() {
                 return id === savedSessionId;
             });
 
-            const sessionToUse = matchingSession ?? sessions[0];
-            const realSessionId = sessionToUse.id ?? sessionToUse.Id;
-
-            if (realSessionId) {
-                localStorage.setItem("pairedSessionId", realSessionId);
-                setActiveSessionId(realSessionId);
-                return realSessionId;
+            if (!matchingSession) {
+                localStorage.removeItem("pairedSessionId");
+                setActiveSessionId(null);
+                return null;
             }
 
-            return activeSessionId;
+            const realSessionId = matchingSession.id ?? matchingSession.Id;
+
+            localStorage.setItem("pairedSessionId", realSessionId);
+            setActiveSessionId(realSessionId);
+            return realSessionId;
         } catch (error) {
             console.error("Failed to verify session:", error);
-            return activeSessionId;
+            localStorage.removeItem("pairedSessionId");
+            setActiveSessionId(null);
+            return null;
         }
-    }, [api, activeSessionId]);
+    }, [api]);
 
     useEffect(() => {
         async function startLesson() {
@@ -211,6 +214,8 @@ export default function LessonView() {
                 await loadSessionHistory(sessionIdToUse);
             } catch (error) {
                 console.error("Failed to start lesson session:", error);
+                localStorage.removeItem("pairedSessionId");
+                setActiveSessionId(null);
             }
         }
 

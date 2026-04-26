@@ -8,11 +8,6 @@ import { RequireAuth, RequireRole } from "./components/RouteGuards";
 import About from "./pages/About";
 import Home from "./pages/Home";
 
-import SignIn from "./pages/SignIn";
-import SignUp from "./pages/SignUp";
-
-import { RequireAuth, RequireRole } from "./components/RouteGuards";
-
 import AdminDashboard from "./components/dashboard/AdminDashboard";
 import TeacherDashboard from "./components/dashboard/TeacherDashboard";
 import StudentDashboard from "./components/dashboard/StudentDashboard";

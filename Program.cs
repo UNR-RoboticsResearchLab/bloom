@@ -129,6 +129,7 @@ builder.Services.AddSession(options =>
     options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;  // or None+Secure if you really need cross-site
 });
 
 // Enable CORS for development
@@ -136,11 +137,21 @@ builder.Services.AddSession(options =>
 builder.Services.AddCors(options => {
     options.AddDefaultPolicy(policy => {
         policy
-            .AllowAnyOrigin()
+            .SetIsOriginAllowed(origin => {
+                var uri = new Uri(origin);
+                // allow localhost + RFC1918 LAN ranges in dev
+                return uri.Host == "localhost"
+                    || uri.Host.StartsWith("127.")
+                    || uri.Host.StartsWith("192.168.")
+                    || uri.Host.StartsWith("10.")
+                    || (uri.Host.StartsWith("172.") && int.TryParse(uri.Host.Split('.')[1], out var o) && o >= 16 && o <= 31);
+            })
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
+
 
 builder.Services.AddAuthorization();
 

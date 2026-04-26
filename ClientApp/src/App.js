@@ -47,17 +47,17 @@ export default function App() {
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/about" element={<About />} />
         <Route path="/lessons" element={<Lessons />} />
-        {/* <Route path="/students" element={<Students />} />
+        <Route path="/students" element={<Students />} />
         <Route path="/student/:studentId" element={<Student />} />
         <Route path="/lesson/:lessonId" element={<Lesson />} />
         <Route path="/lesson-view" element={<LessonView />} />
         
 
-        <Route path="/add-student" element={<AddStudentCard />} /> */}
+        <Route path="/add-student" element={<AddStudentCard />} />
 
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/teacher" element={<TeacherDashboard />} />
-        {/* <Route path="/student" element={<StudentDashboard />} /> */}
+        <Route path="/student" element={<StudentDashboard />} />
         <Route path="/slp" element={<SlpDashboard />} />
 
 

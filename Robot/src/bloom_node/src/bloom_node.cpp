@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <iostream>
 #include <algorithm>
+#include <unistd.h>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
@@ -174,12 +175,22 @@ int main(int argc, char ** argv)
 	web_client->enableResponsePublisher("/status_response");
 
 	// Register and save credentials / login to get robot id to feed to sessionId
-	nlohmann::json robotInfo = {
+	std::string serial_number = config_mgr->get_string("robot_serial_number").value_or("");
+	if (serial_number.empty()) {
+		char hostname[256];
+		if (gethostname(hostname, sizeof(hostname)) == 0) {
+			serial_number = hostname;
+		} else {
+			serial_number = "unknown";
+		}
+	}
 
+	nlohmann::json robotInfo = {
 		{"name", config_mgr->get_string("robot_name").value_or("Unnamed Robot")},
 		{"model", config_mgr->get_string("robot_model").value_or("Unknown Model")},
-		{"firmwareversion", config_mgr->get_string("robot_firmware_version").value_or("N/A")},
-		{"ipaddress", config_mgr->get_string("robot_ip_address").value_or("N/A")}
+		{"serialNumber", serial_number},
+		{"firmwareVersion", config_mgr->get_string("robot_firmware_version").value_or("N/A")},
+		{"ipAddress", config_mgr->get_string("robot_ip_address").value_or("N/A")}
 	};
 
 	std::string robotId;

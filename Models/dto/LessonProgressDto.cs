@@ -44,7 +44,7 @@ namespace bloom.Models.dto
     public class LogLessonInteractionDto
     {
         public int StepId { get; set; }
-        public string InteractionType { get; set; } = "Response";  // "Response", "RobotDialogue", "Note", "Question", "Timeout", "Fallback", "Feedback"
+        public string InteractionType { get; set; } = "Response";  // "Response", "RobotDialogue", "Question", "Timeout", "Fallback", "Feedback"
         public string? StudentResponse { get; set; }
         public bool? IsCorrect { get; set; }
         public int ResponseTimeMs { get; set; }

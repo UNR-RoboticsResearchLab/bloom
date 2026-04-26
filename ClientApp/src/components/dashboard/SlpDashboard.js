@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "./DashboardLayout";
 import { LessonCard } from "../../pages/LessonCard";
-import {StudentCard} from "../../pages/StudentCard";
-import { useNavigate } from "react-router-dom";
+import { StudentCard } from "../../pages/StudentCard";
 import { PairRobotCard } from "../../pages/PairRobotCard";
 import { useApiClient } from "../../context/ApiClientContext";
-
-
 
 // Same mock data as Teacher dashboard
 const mockLessons = [
@@ -66,15 +64,26 @@ function AccuracyBar({ value }) {
 
 export default function SlpDashboard() {
   const navigate = useNavigate();
-
   const apiClient = useApiClient();
-  const [lessons, setLessons] = useState([]);
-
   const [selectedLessonId, setSelectedLessonId] = useState("L1");
   const [selectedStudentId, setSelectedStudentId] = useState("S1");
   const { addNote, getNotes } = useNotes();
   const [showPairRobotCard, setShowPairRobotCard] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [lessons, setLessons] = useState([]);
+
+  useEffect(() => {
+    async function loadLessons() {
+      try {
+        const data = await apiClient.getLessons();
+        setLessons(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to load lessons:", error);
+        setLessons([]);
+      }
+    }
+    loadLessons();
+  }, [apiClient]);
 
   const selectedLesson = useMemo(
     () => mockLessons.find((l) => l.id === selectedLessonId),
@@ -103,21 +112,6 @@ export default function SlpDashboard() {
     addNote(selectedStudentId, selectedLessonId, text);
     form.reset();
   }
-
-  useEffect(() => {
-    async function loadLessons() {
-      try {
-        const data = await apiClient.getLessons();
-        console.log("Lessons from backend:", data);
-        setLessons(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error("Failed to load lessons:", error);
-        setLessons([]);
-      }
-    }
-
-    loadLessons();
-  }, [apiClient]);
 
   return (
     <DashboardLayout title="SLP Dashboard">
@@ -259,7 +253,7 @@ export default function SlpDashboard() {
 
         <section className="rounded-lg bg-white p-4 shadow">
           <h3 className="text-base font-semibold">Notes for Selection</h3>
-          <ul className="mt-3 space-y-2 text-sm list-none pl-0">
+          <ul className="mt-3 space-y-2 text-sm">
             {getNotes(selectedStudentId, selectedLessonId).length === 0 && (
               <li className="text-gray-600">No notes yet</li>
             )}
@@ -294,6 +288,5 @@ export default function SlpDashboard() {
                       </div>
                   )}
     </DashboardLayout>
-    
   );
 }

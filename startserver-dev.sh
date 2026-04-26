@@ -39,9 +39,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-echo "Stopping any existing development containers..."
-docker compose -f $COMPOSE_FILE down
-
 echo "Starting Bloom development environment..."
 
 # --- Start database first ---
@@ -49,8 +46,8 @@ echo "Starting database service: $DB_SERVICE..."
 docker compose -f $COMPOSE_FILE up -d $DB_SERVICE
 
 echo "Waiting for database ($DB_SERVICE:3306) to be ready..."
-until docker-compose -f docker-compose.dev.yml logs $DB_SERVICE 2>&1 | grep -qi "ready for connections." || [ $SECONDS -gt 10 ]; do
-  sleep 1
+until docker-compose -f docker-compose.dev.yml logs $DB_SERVICE 2>&1 | grep -qi "ready for connections"; do
+    sleep 2
 done
 echo "Database is ready."
 

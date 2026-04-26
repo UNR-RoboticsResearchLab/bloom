@@ -1,8 +1,6 @@
 // bloom
-// Class.cs
-// Class model representing a class of StudentUsers and 'elevated users' in the system.
-// Created: 10/21/2025
-
+// SLPClient.cs
+// Associates a student with one or more SLP teacher accounts.
 
 using System.ComponentModel.DataAnnotations;
 
@@ -12,20 +10,17 @@ namespace bloom.Models
     {
         [Key]
         public Guid Id { get; set; } = Guid.NewGuid();
+
         [Required]
         public required string Name { get; set; }
-        public DateTime CreatedDate { get; set; }
-        public DateTime? UpdatedDate { get; set; }
-        public string? AccentColor { get; set; }
-        public string? BackgroundImageUrl { get; set; }
 
-        
-
-        // Navigation properties
+        [Required]
         public required string StudentId { get; set; }
         public Account? Student { get; set; }
+
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+
         public ICollection<Account>? Teachers { get; set; }
         public ICollection<Assignment>? Assignments { get; set; }
-        public ICollection<Lesson>? Lessons { get; set; }
     }
 }

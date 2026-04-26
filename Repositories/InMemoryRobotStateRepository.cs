@@ -18,18 +18,14 @@ namespace bloom.Repositories
         // Structure: sessionId -> (robotId -> change count)
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, int>> _stateChangeCounters;
 
-        private readonly ILogger<InMemoryRobotStateRepository> _logger;
-
-        public InMemoryRobotStateRepository(ILogger<InMemoryRobotStateRepository> logger)
+        public InMemoryRobotStateRepository()
         {
-            _logger = logger;
             _robotStates = new ConcurrentDictionary<string, ConcurrentDictionary<Guid, RobotState>>();
             _stateChangeCounters = new ConcurrentDictionary<string, ConcurrentDictionary<Guid, int>>();
         }
 
         public void Add(string sessionId, RobotState state)
         {
-            _logger.LogInformation("Adding/updating robot state in memory for session {SessionId}, robot {RobotId}", sessionId, state.Id);
             if (string.IsNullOrEmpty(sessionId) || state == null)
                 throw new ArgumentException("Session ID and state cannot be null or empty");
 
@@ -134,13 +130,6 @@ namespace bloom.Repositories
             {
                 counters.AddOrUpdate(robotId, 0, (_, _) => 0);
             }
-        }
-
-
-        //TODO implement
-        public void AggregateSpeechLogs(string sessionId, Guid robotId, string SpeechLog)
-        {
-
         }
     }
 }

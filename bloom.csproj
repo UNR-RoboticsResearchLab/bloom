@@ -7,7 +7,7 @@
     <TypeScriptToolsVersion>Latest</TypeScriptToolsVersion>
     <IsPackable>false</IsPackable>
     <SpaRoot>ClientApp\</SpaRoot>
-    <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)node_modules\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)node_modules\**;bloom.Tests\**</DefaultItemExcludes>
     <SpaProxyServerUrl>https://localhost:44498</SpaProxyServerUrl>
     <!-- <SpaProxyLaunchCommand>npm start</SpaProxyLaunchCommand> -->
     <ImplicitUsings>enable</ImplicitUsings>
@@ -49,11 +49,6 @@
     <Message Importance="high" Text="Restoring dependencies using 'npm'. This may take several minutes..." />
     <Exec WorkingDirectory="$(SpaRoot)" Command="npm install" />
   </Target> -->
-
-  <!-- Dont include testing code in project build -->
-  <ItemGroup>
-    <Compile Remove="bloom.Tests/**/*.cs" />
-  </ItemGroup>
 
   <Target Name="PublishRunWebpack" AfterTargets="ComputeFilesToPublish">
     <!-- As part of publishing, ensure the JS resources are freshly built in production mode -->

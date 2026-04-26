@@ -54,7 +54,7 @@ export default function SignUp() {
     <div className="min-h-screen bg-white text-gray-900 flex flex-col px-6 py-12 lg:px-8 mt-[100px]">
       <div className="sm:mx-auto sm:w-full sm:max-w-sm">
         <h2 className="mt-10 text-center text-2xl font-bold tracking-tight">
-          Sign Up for a Bloom account
+          Sign Up for an account
         </h2>
         {err && (
           <p className="mt-4 text-center text-sm text-red-600" role="alert">

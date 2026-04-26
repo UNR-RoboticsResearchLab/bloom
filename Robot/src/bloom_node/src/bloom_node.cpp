@@ -248,7 +248,7 @@ int main(int argc, char ** argv)
 
 	nlohmann::json session_payload = {
 		{"anonymous", false},
-		{"robot_id", robotId}
+		{"robotId", robotId}
 	};
 
 	RCLCPP_INFO(node->get_logger(), "Session payload: %s", session_payload.dump().c_str());
@@ -329,7 +329,7 @@ int main(int argc, char ** argv)
 		if (!robotId.empty()) {
 			nlohmann::json retry_payload = {
 				{"anonymous", false},
-				{"robot_id", robotId}
+				{"robotId", robotId}
 			};
 			auto retry_future = web_client->sendRequestAsync(
 				"POST",

@@ -54,6 +54,8 @@ struct LessonData {
     std::string title;
     std::vector<std::string> learning_objectives;
     std::vector<LessonStep> sequence;
+    bool conversation_mode{false};
+
 };
 
 /**
@@ -161,6 +163,7 @@ private:
     bool waiting_for_interaction_tts_{false};
     bool waiting_for_single_turn_{false};
     bool waiting_for_llm_tts_done_{false};
+    bool conversation_mode_{false};
 
     std::string robot_state_{"idle"};
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_state_sub_;

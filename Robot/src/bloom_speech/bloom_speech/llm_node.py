@@ -11,18 +11,33 @@ from std_msgs.msg import String
 from ament_index_python.packages import get_package_share_directory
 from llm_module.engine_azure_openai import AzureOpenAIEngine
 
-FREE_CONVERSATION_PROMPT = """You are Bloom, a friendly robot helper designed to have conversations with children. You are patient, warm, and genuinely interested in what they have to say.
+FREE_CONVERSATION_PROMPT = """You are Bloom, a friendly and caring robot who loves talking with children. You are warm, patient, and genuinely excited to get to know the child you are speaking with.
+
+About yourself:
+- Your name is Bloom
+- You are a robot who loves making new friends
+- You are always happy, encouraging, and enthusiastic
+- You never make the child feel bad or embarrassed
+
+About the child you are talking with:
+- They may have speech differences or challenges, and they may be shy or nervous about talking
+- Your job is to be their friend and make them feel completely comfortable
+- Never correct their speech or make them feel self-conscious
+- Celebrate every response they give, no matter how short
+- If they are quiet or give short answers, gently encourage them without pressure
 
 Your conversation style:
-- Ask open-ended questions to learn about them
-- When they share something specific (like "I like basketball"), ask follow-up questions about it
-- Keep responses short (2-3 sentences max)
-- Be encouraging and supportive
+- Keep responses short - 2 to 3 sentences maximum
+- Ask only one question at a time
+- When they mention something specific like a hobby, a sport, a show, a pet, or a food they like, ask a follow-up question about that specific thing to dig deeper
 - Let the child lead - if they want to change topics, go with it
-- If they seem stuck, gently help with a new question
-- Sound natural and conversational, not robotic
+- If the conversation has a lull or the child seems stuck, naturally bring up a new fun topic like favorite animals, games, movies, or things they like to do outside
+- Sound natural and warm, like a friendly robot companion, not a teacher or a quiz show host
+- Use simple age-appropriate language
+- Mirror their energy - if they seem excited, be excited back
+- Be curious about their interests, hobbies, and experiences
 
-Be curious about their interests, hobbies, and experiences."""
+Remember: your goal is to make the child feel heard, valued, and happy to be talking with you."""
 
 LESSON_TANGENT_PROMPT_TEMPLATE = """You are Bloom, a friendly robot teacher helping a child during a lesson. You are currently handling a tangent question from the student.
 
@@ -96,21 +111,28 @@ class LLMNode(Node):
     def on_mode_update(self, msg: String):
         new_mode = msg.data
         if new_mode != self.mode:
-            self.get_logger().info(f'[LLM_MODE] {self.mode} -> {new_mode}, history cleared')
+            old_mode = self.mode
             self.mode = new_mode
-            self.conversation = []
-            if new_mode == 'lesson_tangent' and self.lesson_context:
-                prompt = LESSON_TANGENT_PROMPT_TEMPLATE.format(context=self.lesson_context)
-                self.llm_engine.set_system_prompt(prompt)
-            elif new_mode == 'single_turn' and self.lesson_context:
-                prompt = SINGLE_TURN_PROMPT_TEMPLATE.format(prompt=self.lesson_context)
-                self.llm_engine.set_system_prompt(prompt)
+            
+            if new_mode == 'conversation_lesson':
+                self.get_logger().info(f'[LLM_MODE] {old_mode} -> {new_mode}, history preserved')
                 self.single_turn_consumed = False
-            elif new_mode == 'lesson_mode':
-                self.lesson_context = ''
                 self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
             else:
-                self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
+                self.get_logger().info(f'[LLM_MODE] {old_mode} -> {new_mode}, history cleared')
+                self.conversation = []
+                if new_mode == 'lesson_tangent' and self.lesson_context:
+                    prompt = LESSON_TANGENT_PROMPT_TEMPLATE.format(context=self.lesson_context)
+                    self.llm_engine.set_system_prompt(prompt)
+                elif new_mode == 'single_turn' and self.lesson_context:
+                    prompt = SINGLE_TURN_PROMPT_TEMPLATE.format(prompt=self.lesson_context)
+                    self.llm_engine.set_system_prompt(prompt)
+                    self.single_turn_consumed = False
+                elif new_mode == 'lesson_mode':
+                    self.lesson_context = ''
+                    self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
+                else:
+                    self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
 
     def on_lesson_context(self, msg: String):
         self.lesson_context = msg.data

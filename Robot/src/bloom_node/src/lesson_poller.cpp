@@ -225,6 +225,7 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 		if (lesson_json.contains("title")) {
 			lesson_data.title = lesson_json["title"].get<std::string>();
 		}
+		lesson_data.conversation_mode = (lesson_data.title == "Conversation Mode");
 
 		if (lesson_json.contains("learning_objectives")) {
 			lesson_data.learning_objectives = lesson_json["learning_objectives"].get<std::vector<std::string>>();

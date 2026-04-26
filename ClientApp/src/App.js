@@ -1,8 +1,10 @@
 // src/App.js
 import { Routes, Route } from "react-router-dom";
 
-import Layout from "./components/Layout";
-
+import Layout  from "./components/Layout";
+import SignIn from "./pages/SignIn";
+import SignUp from "./pages/SignUp";
+import { RequireAuth, RequireRole } from "./components/RouteGuards";
 import About from "./pages/About";
 import Home from "./pages/Home";
 
@@ -46,7 +48,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/counter" element={<Counter />} />
         <Route path="/fetch-data" element={<FetchData />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+        {/* <Route path="/forgot-password" element={<ForgotPassword />} /> */}
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/about" element={<About />} />
@@ -61,7 +63,7 @@ export default function App() {
 
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/teacher" element={<TeacherDashboard />} />
-        {/* <Route path="/student" element={<StudentDashboard />} /> */}
+        <Route path="/student" element={<StudentDashboard />} />
         <Route path="/slp" element={<SlpDashboard />} />
 
 

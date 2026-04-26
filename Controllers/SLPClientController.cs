@@ -87,16 +87,20 @@ namespace bloom.Controllers
             var clients = await _context.SLPClients
                 .Include(c => c.Student)
                 .Include(c => c.Teachers)
-                .Where(c => c.Teachers != null && c.Teachers.Any(t => t.Id == slpId))
                 .ToListAsync();
 
-            return Ok(clients.Select(c => new SLPClientResponseDto
-            {
-                Id = c.Id,
-                Name = c.Name,
-                StudentId = c.StudentId,
-                StudentName = c.Student?.FullName
-            }));
+            var filtered = clients
+                .Where(c => c.Teachers != null && c.Teachers.Any(t => t.Id == slpId))
+                .Select(c => new SLPClientResponseDto
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    StudentId = c.StudentId,
+                    StudentName = c.Student?.FullName
+                })
+                .ToList();
+
+            return Ok(filtered);
         }
 
         /// <summary>

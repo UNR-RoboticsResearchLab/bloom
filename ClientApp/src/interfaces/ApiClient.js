@@ -98,12 +98,18 @@ export default class ApiClient {
     return res;
   }
 
-  //temp
-  async getStudents(id) {
-    const res = await this.request(`/api/account/${id}`, {
+  // Get all students (for teacher dashboard)
+  async getStudents() {
+    return this.request("/api/SLPClient", {
       method: "GET",
     });
-    return res;
+  }
+
+  // get student by ID
+  async getStudent(id) {
+    return this.request(`/api/student/${id}`, {
+      method: "GET",
+    });
   }
 
   //temp

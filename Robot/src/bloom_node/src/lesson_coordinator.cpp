@@ -333,6 +333,14 @@ void LessonCoordinator::speak_script(const std::string &script) {
     tts_publisher_->publish(message);
 
     RCLCPP_INFO(this->get_logger(), "Speaking: %s", script.c_str());
+
+    int step_order = 0;
+    if (current_interaction_step_) {
+        step_order = current_interaction_step_->step_order;
+    } else if (current_step_index_ > 0 && current_step_index_ <= current_lesson_.sequence.size()) {
+        step_order = current_lesson_.sequence[current_step_index_ - 1].step_order;
+    }
+    log_interaction_to_backend(step_order, "RobotDialogue", script, std::nullopt);
 }
 
 void LessonCoordinator::handle_interaction(const LessonStep &step) {
@@ -546,44 +554,51 @@ void LessonCoordinator::update_progress_with_backend() {
 }
 
 void LessonCoordinator::log_interaction_to_backend(int step_order, const std::string &response, bool is_correct) {
+    const std::string type = (response == "timeout") ? "Timeout" : "Response";
+    log_interaction_to_backend(step_order, type, response, std::optional<bool>(is_correct));
+}
+
+void LessonCoordinator::log_interaction_to_backend(int step_order, const std::string &interaction_type, const std::string &content, std::optional<bool> is_correct) {
     try {
         if (!web_client_ || session_id_.empty()) {
             RCLCPP_DEBUG(this->get_logger(), "Cannot log interaction: web_client or session_id missing");
             return;
         }
 
-        // Create interaction log
-        StudentInteractionLog interaction;
-        interaction.step_id = step_order;
-        interaction.interaction_type = "Response";
-        interaction.student_response = response;
-        interaction.is_correct = is_correct;
-        interaction.response_time_ms = 0;  // TODO: Track actual response time
+        json payload;
+        payload["stepId"] = step_order;
+        payload["interactionType"] = interaction_type;
+        payload["studentResponse"] = content;
+        if (is_correct.has_value()) {
+            payload["isCorrect"] = is_correct.value();
+        } else {
+            payload["isCorrect"] = nullptr;
+        }
+        payload["responseTimeMs"] = 0;
 
-        // Build endpoint URL
         std::string interaction_endpoint = "/api/lessoninteraction/" + session_id_;
 
-        // Send POST request to backend
         web_client_->sendRequestAsync(
             "POST",
             interaction_endpoint,
-            interaction.to_json().dump(),
+            payload.dump(),
             std::nullopt,
             {"Content-Type: application/json"},
-            [this, step_order](const std::string &body, long http_code) {
+            [this, step_order, interaction_type](const std::string &body, long http_code) {
                 if (http_code >= 200 && http_code < 300) {
-                    RCLCPP_DEBUG(this->get_logger(), "Interaction for step %d logged successfully", step_order);
+                    RCLCPP_DEBUG(this->get_logger(), "%s for step %d logged successfully", interaction_type.c_str(), step_order);
                 } else {
                     RCLCPP_WARN(this->get_logger(),
-                        "Failed to log interaction for step %d (HTTP %ld): %s",
+                        "Failed to log %s for step %d (HTTP %ld): %s",
+                        interaction_type.c_str(),
                         step_order,
                         http_code,
                         body.c_str());
                 }
             });
 
-        RCLCPP_DEBUG(this->get_logger(), "Interaction logged for step %d: response='%s', correct=%s",
-            step_order, response.c_str(), is_correct ? "true" : "false");
+        RCLCPP_DEBUG(this->get_logger(), "%s logged for step %d: '%s'",
+            interaction_type.c_str(), step_order, content.c_str());
     } catch (const std::exception &e) {
         RCLCPP_ERROR(this->get_logger(), "Error logging interaction: %s", e.what());
     }

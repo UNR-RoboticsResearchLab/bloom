@@ -2,8 +2,8 @@
 import { Routes, Route } from "react-router-dom";
 
 import  Layout  from "./components/Layout";
-import SignIn from "./components/SignIn";
-import SignUp from "./components/SignUp";
+import SignIn from "./pages/SignIn";
+import SignUp from "./pages/SignUp";
 import { RequireAuth, RequireRole } from "./components/RouteGuards";
 import About from "./pages/About";
 

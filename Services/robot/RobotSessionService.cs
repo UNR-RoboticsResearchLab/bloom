@@ -344,6 +344,7 @@ namespace bloom.Services
             return new
             {
                 hasPendingLesson = true,
+                activeLessonRunId = session.ActiveLessonRunId,
                 lesson = session.ActiveLesson
             };
         }

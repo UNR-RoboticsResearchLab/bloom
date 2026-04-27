@@ -52,6 +52,7 @@ struct LessonStep {
 
 struct LessonData {
     std::string lesson_id;
+    std::string lesson_run_id;
     std::string title;
     std::vector<std::string> learning_objectives;
     std::vector<LessonStep> sequence;
@@ -132,6 +133,7 @@ private:
     bool lesson_active_;
     std::string lesson_progress_id_;
     std::string session_id_;
+    std::string lesson_run_id_;
 
     // For interaction handling
     LessonStep* current_interaction_step_;

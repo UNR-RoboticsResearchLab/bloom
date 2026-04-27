@@ -61,6 +61,7 @@ bool LessonCoordinator::load_lesson(const LessonData &lesson_data) {
     std::lock_guard<std::mutex> lock(lesson_mutex_);
     conversation_mode_ = lesson_data.conversation_mode;
     current_lesson_ = lesson_data;
+    lesson_run_id_ = lesson_data.lesson_run_id;
     current_step_index_ = 0;
     lesson_active_ = false;
 
@@ -605,6 +606,9 @@ void LessonCoordinator::log_interaction_to_backend(int step_order, const std::st
             payload["isCorrect"] = nullptr;
         }
         payload["responseTimeMs"] = 0;
+        if (!lesson_run_id_.empty()) {
+            payload["lessonRunId"] = lesson_run_id_;
+        }
 
         std::string interaction_endpoint = "/api/lessoninteraction/" + session_id_;
 

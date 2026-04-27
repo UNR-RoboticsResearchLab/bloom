@@ -190,14 +190,19 @@ void LessonPoller::on_polling_tick() {
                 }
 
                 RCLCPP_INFO(this->get_logger(), "Pending lesson received, calling handle_pending_lesson");
-                handle_pending_lesson(response["lesson"]);
+				std::string lesson_run_id = "";
+				if (response.contains("activeLessonRunId") && !response["activeLessonRunId"].is_null()) {
+					lesson_run_id = response["activeLessonRunId"].get<std::string>();
+					RCLCPP_INFO(this->get_logger(), "Lesson run ID: %s", lesson_run_id.c_str());
+				}
+                handle_pending_lesson(response["lesson"], lesson_run_id);
             } catch (const json::exception &e) {
                 RCLCPP_ERROR(this->get_logger(), "Failed to parse lesson JSON: %s", e.what());
             }
         });
 }
 
-void LessonPoller::handle_pending_lesson(const json &lesson_json) {
+void LessonPoller::handle_pending_lesson(const json &lesson_json, const std::string &lesson_run_id) {
 	try {
 
 
@@ -221,6 +226,7 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 		// Parse lesson JSON to LessonData struct
 		LessonData lesson_data;
 		lesson_data.lesson_id = lesson_id;
+		lesson_data.lesson_run_id = lesson_run_id;
 
 		if (lesson_json.contains("title")) {
 			lesson_data.title = lesson_json["title"].get<std::string>();

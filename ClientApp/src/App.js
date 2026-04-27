@@ -15,6 +15,7 @@ import SlpDashboard from "./components/dashboard/SlpDashboard";
 
 import Lessons from "./pages/Lessons";
 import Lesson from "./pages/Lesson";
+import LessonHistory from "./pages/LessonHistory";
 
 import Students from "./pages/Students";
 import Student from "./pages/Student";
@@ -52,16 +53,14 @@ export default function App() {
         <Route path="/student/:studentId" element={<Student />} />
         <Route path="/lesson/:lessonId" element={<Lesson />} />
         <Route path="/lesson-view" element={<LessonView />} />
+        <Route path="/lesson-history/:sessionId" element={<LessonHistory />} />
         
-
         <Route path="/add-student" element={<AddStudentCard />} />
 
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/teacher" element={<TeacherDashboard />} />
         <Route path="/student" element={<StudentDashboard />} />
         <Route path="/slp" element={<SlpDashboard />} />
-
-
 
         {/* Protected */}
         <Route element={<RequireAuth />}>

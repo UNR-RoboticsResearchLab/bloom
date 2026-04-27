@@ -331,4 +331,12 @@ async signIn(email, password) {
       method: "GET",
     });
   }
+
+  async getStudentLessonHistory(studentId) {
+  const res = await this.request(`/api/LessonSession/student/${studentId}/history`, {
+    method: "GET",
+  });
+
+  return res || [];
+}
 }

@@ -91,10 +91,40 @@ void LessonCoordinator::stop_lesson() {
 
     if (step_timer_) {
         step_timer_->cancel();
+        step_timer_ = nullptr;
     }
 
+    waiting_for_tts_done_ = false;
+    waiting_for_interaction_tts_ = false;
+    waiting_for_wrap_up_ = false;
+    waiting_for_single_turn_ = false;
+    waiting_for_llm_tts_done_ = false;
+    waiting_for_response_ = false;
+    current_interaction_step_ = nullptr;
+    conversation_mode_ = false;
+
+    auto stt_msg = std_msgs::msg::String();
+    stt_msg.data = "false";
+    stt_enable_pub_->publish(stt_msg);
+
+    auto interrupt_msg = std_msgs::msg::String();
+    interrupt_msg.data = "interrupt";
+    tts_interrupt_pub_->publish(interrupt_msg);
+
+    auto mode_msg = std_msgs::msg::String();
+    mode_msg.data = "lesson_mode";
+    llm_mode_pub_->publish(mode_msg);
+
+    if (state_manager_) state_manager_->set_state("idle");
+    if (feedback_poller_) feedback_poller_->set_polling_active(false);
+
     lesson_active_ = false;
-    RCLCPP_INFO(this->get_logger(), "Lesson stopped");
+
+    if (completion_callback_) {
+        completion_callback_(current_lesson_.lesson_id);
+    }
+
+    RCLCPP_INFO(this->get_logger(), "[STOP] Lesson stopped by SLP command");
 }
 
 void LessonCoordinator::reset_lesson() {

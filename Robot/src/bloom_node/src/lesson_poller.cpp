@@ -465,6 +465,12 @@ void LessonPoller::on_step_control_tick() {
                     } else {
                         RCLCPP_WARN(this->get_logger(), "[STEP_CONTROL] set_step missing or invalid targetStep");
                     }
+				} else if (command == "stop") {
+					RCLCPP_INFO(this->get_logger(), "[STEP_CONTROL] Stop command received - stopping lesson");
+					if (lesson_coord_) lesson_coord_->stop_lesson();
+					last_lesson_id_ = "";
+					currently_executing_.store(false);
+					stop_step_control_polling();
                 } else {
                     RCLCPP_WARN(this->get_logger(), "[STEP_CONTROL] Unknown command: %s", command.c_str());
                 }

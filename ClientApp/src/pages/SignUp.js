@@ -2,7 +2,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApiClient } from "../context/ApiClientContext";
-import { signInSession, dashboardPathForRole } from "../utils/auth";
 
 export default function SignUp() {
   const [username, setUsername] = useState("");
@@ -29,19 +28,9 @@ export default function SignUp() {
 
     try {
       const payload = {  username, email, password, fullName, role: selectedRole };
-      const result = await api.signUp(payload);
+      await api.signUp(payload);
 
-      const userRole = result?.role || result?.selectedRole || selectedRole;
-      const userName = result?.fullName || fullName;
-      const userEmail = result?.email || email;
-
-      signInSession({
-        email: userEmail,
-        role: userRole,
-        fullName: userName,
-      });
-
-      navigate(dashboardPathForRole(userRole), { replace: true });
+      navigate("/sign-in", { replace: true });
     } catch (error) {
       console.error("Sign up error:", error);
       setErr(error.message || "Sign up failed");

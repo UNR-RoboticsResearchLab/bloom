@@ -27,8 +27,8 @@ namespace bloom.Services
             {
                 Name = name,
                 StudentId = studentId,
-                CreatedDate = DateTime.UtcNow,
-                Teachers = new List<Account> { slp }
+                SlpId = slpId,
+                CreatedDate = DateTime.UtcNow
             };
 
             _context.SLPClients.Add(client);
@@ -49,8 +49,8 @@ namespace bloom.Services
             {
                 Name = name,
                 StudentId = studentId,
-                CreatedDate = DateTime.UtcNow,
-                Teachers = new List<Account> { slp }
+                SlpId = slpId,
+                CreatedDate = DateTime.UtcNow
             };
 
             _context.SLPClients.Add(client);
@@ -68,7 +68,7 @@ namespace bloom.Services
         public async Task<List<SLPClientResponseDto>> GetClientsForSlpAsync(string slpId)
         {
             return await _context.SLPClients
-                .Where(c => c.Teachers!.Any(t => t.Id == slpId))
+                .Where(c => c.SlpId == slpId)
                 .Select(c => new SLPClientResponseDto
                 {
                     Id = c.Id,
@@ -126,40 +126,17 @@ namespace bloom.Services
         public async Task<DeleteClientResult> DeleteClientAsync(Guid clientId, string slpId)
         {
             var client = await _context.SLPClients
-                .Include(c => c.Teachers)
                 .FirstOrDefaultAsync(c => c.Id == clientId);
 
             if (client == null) return DeleteClientResult.NotFound;
 
-            if (client.Teachers == null || !client.Teachers.Any(t => t.Id == slpId))
+            if (client.SlpId != slpId)
                 return DeleteClientResult.Forbidden;
 
             _context.SLPClients.Remove(client);
             await _context.SaveChangesAsync();
 
             return DeleteClientResult.Deleted;
-        }
-
-        public async Task<AddTeacherResult> AddTeacherAsync(Guid clientId, string teacherId)
-        {
-            var client = await _context.SLPClients
-                .Include(c => c.Teachers)
-                .FirstOrDefaultAsync(c => c.Id == clientId);
-
-            if (client == null) return AddTeacherResult.ClientNotFound;
-
-            var teacher = await _context.Accounts.FindAsync(teacherId);
-            if (teacher == null) return AddTeacherResult.TeacherNotFound;
-
-            client.Teachers ??= new List<Account>();
-
-            if (client.Teachers.Any(t => t.Id == teacherId))
-                return AddTeacherResult.AlreadyAssociated;
-
-            client.Teachers.Add(teacher);
-            await _context.SaveChangesAsync();
-
-            return AddTeacherResult.Added;
         }
     }
 }

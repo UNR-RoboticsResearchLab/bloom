@@ -149,7 +149,7 @@ public class AccountController : ControllerBase
         return BadRequest();
     }
 
-    // [Authorize(Policy = "CanCreateAccount")]
+    [Authorize]
     [HttpPost]
     [Route("create/student")]
     public async Task<IActionResult> CreateStudentAccount([FromBody] CreateStudentByPrivilegedUserDto dto)

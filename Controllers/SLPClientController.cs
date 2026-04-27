@@ -52,7 +52,7 @@ namespace bloom.Controllers
         }
 
         /// <summary>
-        /// List all SLPClients for the authenticated slp
+        /// List all SLPClients owned by the authenticated SLP.
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetMyClients()
@@ -98,21 +98,5 @@ namespace bloom.Controllers
             };
         }
 
-        /// <summary>
-        /// Add another SLP as a teacher on an existing client.
-        /// </summary>
-        [HttpPost("{id}/teachers/{teacherId}")]
-        public async Task<IActionResult> AddTeacher(Guid id, string teacherId)
-        {
-            var result = await _slpClientService.AddTeacherAsync(id, teacherId);
-            return result switch
-            {
-                AddTeacherResult.Added => Ok(new { message = "Teacher added.", ClientId = id, TeacherId = teacherId }),
-                AddTeacherResult.ClientNotFound => NotFound(new { message = $"SLPClient {id} not found." }),
-                AddTeacherResult.TeacherNotFound => NotFound(new { message = $"Account {teacherId} not found." }),
-                AddTeacherResult.AlreadyAssociated => Conflict(new { message = "Teacher already associated with this client." }),
-                _ => StatusCode(500)
-            };
-        }
     }
 }

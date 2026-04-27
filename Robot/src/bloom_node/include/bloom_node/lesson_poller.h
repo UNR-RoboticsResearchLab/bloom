@@ -64,7 +64,7 @@ private:
 	void on_polling_tick();
 
 	/// Handle retrieved pending lesson data
-	void handle_pending_lesson(const json &lesson_json);
+	void handle_pending_lesson(const json &lesson_json, const std::string &lesson_run_id = "");
 
 	// Dependencies
 	std::shared_ptr<WebServiceClient> web_client_;

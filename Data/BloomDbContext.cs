@@ -91,6 +91,21 @@ namespace bloom.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
+            builder.Entity<SLPClient>(entity =>
+            {
+                entity.ToTable("SLPClients");
+
+                entity.HasOne(c => c.Student)
+                    .WithMany()
+                    .HasForeignKey(c => c.StudentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(c => c.Slp)
+                    .WithMany()
+                    .HasForeignKey(c => c.SlpId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
             builder.Entity<Classroom>(entity =>
             {
                 entity.ToTable("Classrooms");

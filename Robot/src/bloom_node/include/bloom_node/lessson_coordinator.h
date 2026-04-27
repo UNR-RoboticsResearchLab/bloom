@@ -173,7 +173,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_state_sub_;
 
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr tts_interrupt_pub_;
-
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr chime_pub_;
 
 };
 }

@@ -250,7 +250,7 @@ export default function SlpDashboard() {
         </section>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      {/* <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg bg-white p-4 shadow">
           <h3 className="text-base font-semibold">Add Note</h3>
           <p className="mt-1 text-sm text-gray-600">
@@ -314,7 +314,7 @@ export default function SlpDashboard() {
             ))}
           </ul>
         </section>
-      </div>
+      </div> */}
       {showPairRobotCard && (
                       <div className="fixed inset-0 z-50 flex items-center justify-center">
                           <div

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useApiClient } from "../context/ApiClientContext";
 
 function getInitials(name) {
@@ -13,9 +13,12 @@ function getInitials(name) {
 export default function Student() {
     const { studentId } = useParams();
     const api = useApiClient();
+    const navigate = useNavigate();
 
     const [student, setStudent] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [lessonHistory, setLessonHistory] = useState([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
     useEffect(() => {
         async function loadStudent() {
@@ -32,6 +35,23 @@ export default function Student() {
         }
 
         loadStudent();
+    }, [api, studentId]);
+
+    useEffect(() => {
+        async function loadLessonHistory() {
+            try {
+                const data = await api.getStudentLessonHistory(studentId);
+                console.log("Lesson history from backend:", data);
+                setLessonHistory(Array.isArray(data) ? data : []);
+            } catch (err) {
+                console.error("Failed to load lesson history:", err);
+                setLessonHistory([]);
+            } finally {
+                setIsLoadingHistory(false);
+            }
+        }
+
+        loadLessonHistory();
     }, [api, studentId]);
 
     if (isLoading) {
@@ -95,34 +115,41 @@ export default function Student() {
                 </div>
             </div>
 
-            <div className="mt-6 rounded-lg border shadow-sm">
-                
-                <div className="border-b px-6 py-4">
-                    <p className="text-base font-semibold text-gray-900">Lesson History</p>
-                    <p className="mt-1 text-sm text-gray-500">Past sessions</p>
-                </div>
+            <div className="mt-6 rounded-lg border shadow-sm">  
+                <div className="divide-y">
+                    {isLoadingHistory ? (
+                        <div className="px-6 py-4">
+                            <p className="text-sm text-gray-500">Loading lesson history...</p>
+                        </div>
+                    ) : lessonHistory.length === 0 ? (
+                        <div className="px-6 py-4">
+                            <p className="text-sm text-gray-500">No past sessions found.</p>
+                        </div>
+                    ) : (
+                        lessonHistory.map((item, index) => {
+                            const sessionId = item.sessionId ?? item.SessionId ?? item.id ?? item.Id;
+                            const lessonTitle = item.lessonTitle ?? item.LessonTitle ?? item.title ?? "Untitled Lesson";
+                            const date = item.startedAt ?? item.StartedAt ?? item.createdAt ?? item.CreatedAt;
 
-                
-                <div className="border-b px-6 py-4">
-                    <p className="text-sm font-medium text-gray-900">
-                    Articulation Practice: /r/ sounds
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                    February 17, 2026 | 30 minutes
-                    </p>
-                </div>
-
-                
-                <div className="px-6 py-4">
-                    <p className="text-sm font-medium text-gray-900">
-                    Articulation Practice: /s/ sounds
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                    February 15, 2026 | 30 minutes
-                    </p>
+                            return (
+                                <button
+                                    key={sessionId ?? index}
+                                    type="button"
+                                    onClick={() => navigate(`/lesson-history/${sessionId}`)}
+                                    className="block w-full px-6 py-4 text-left hover:bg-gray-50"
+                                >
+                                    <p className="text-sm font-medium text-gray-900">
+                                        {lessonTitle}
+                                    </p>
+                                    <p className="mt-1 text-sm text-gray-500">
+                                        {date ? new Date(date).toLocaleDateString() : "No date"}
+                                    </p>
+                                </button>
+                            );
+                        })
+                    )}
                 </div>
             </div>
         </div>
     );
 }
-

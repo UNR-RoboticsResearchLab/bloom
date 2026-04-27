@@ -7,14 +7,6 @@ using bloom.Models.dto;
 
 namespace bloom.Services
 {
-    public enum AddTeacherResult
-    {
-        Added,
-        ClientNotFound,
-        TeacherNotFound,
-        AlreadyAssociated
-    }
-
     public enum DeleteClientResult
     {
         Deleted,
@@ -35,7 +27,7 @@ namespace bloom.Services
         Task<SLPClientResponseDto?> CreateClientAsync(string name, string slpId, string studentId);
 
         /// <summary>
-        /// List all SLPClients where the given SLP is one of the teachers.
+        /// List all SLPClients owned by the given SLP.
         /// </summary>
         Task<List<SLPClientResponseDto>> GetClientsForSlpAsync(string slpId);
 
@@ -45,12 +37,7 @@ namespace bloom.Services
         Task<SLPClientResponseDto?> GetClientAsync(Guid id);
 
         /// <summary>
-        /// Add another SLP as a teacher on an existing client.
-        /// </summary>
-        Task<AddTeacherResult> AddTeacherAsync(Guid clientId, string teacherId);
-
-        /// <summary>
-        /// Delete an SLPClient. The requesting SLP must be one of the client's teachers.
+        /// Delete an SLPClient. The requesting SLP must own the client.
         /// </summary>
         Task<DeleteClientResult> DeleteClientAsync(Guid clientId, string slpId);
     }

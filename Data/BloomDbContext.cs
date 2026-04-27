@@ -23,6 +23,7 @@ namespace bloom.Data
         public DbSet<LessonStep> LessonSteps { get; set; }
         public DbSet<LessonProgress> LessonProgresses { get; set; }
         public DbSet<LessonInteraction> LessonInteractions { get; set; }
+        public DbSet<LessonRun> LessonRuns { get; set; }
         public DbSet<StepInteraction> StepInteractions { get; set; }
         public DbSet<SLPClient> SLPClients { get; set; }
 
@@ -111,6 +112,38 @@ namespace bloom.Data
                     .WithMany()
                     .HasForeignKey(rs => rs.UserId)
                     .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(rs => rs.ActiveLessonRun)
+                    .WithMany()
+                    .HasForeignKey(rs => rs.ActiveLessonRunId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            builder.Entity<LessonRun>(entity =>
+            {
+                entity.ToTable("LessonRuns");
+
+                entity.HasOne(r => r.RobotSession)
+                    .WithMany()
+                    .HasForeignKey(r => r.RobotSessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(r => r.Lesson)
+                    .WithMany()
+                    .HasForeignKey(r => r.LessonId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasMany(r => r.Interactions)
+                    .WithOne(i => i.LessonRun)
+                    .HasForeignKey(i => i.LessonRunId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(r => new { r.RobotSessionId, r.LessonId, r.StartedAt });
+            });
+
+            builder.Entity<LessonInteraction>(entity =>
+            {
+                entity.HasIndex(li => new { li.LessonRunId, li.InteractionType, li.IsAcknowledged });
             });
 
             builder.Entity<RobotStateHistory>(entity =>

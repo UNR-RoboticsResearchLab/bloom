@@ -160,5 +160,13 @@ namespace bloom.Services
         Task<List<TrackerEventDto>> GetTrackerEventsAsync(Guid sessionId);
 
         Task<List<LessonInteractionResponseDto>> GetLessonInteractionsAsync(Guid sessionId);
+
+        /// <summary>
+        /// Returns the lesson run history for a given student, newest first.
+        /// A run represents a single execution of a lesson within a robot session;
+        /// repeating the same lesson produces multiple history entries.
+        /// </summary>
+        /// <param name="studentId">Account ID of the student</param>
+        Task<List<StudentLessonHistoryDto>> GetStudentLessonHistoryAsync(string studentId);
     }
 }

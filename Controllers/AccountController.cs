@@ -216,6 +216,50 @@ public class AccountController : ControllerBase
             return BadRequest(new { Message = "Failed to delete user." });
         }
     }
+
+    [Authorize]
+    [HttpPut]
+    [Route("{id}")]
+    public async Task<IActionResult> UpdateUserProfile(string id, [FromBody] UpdateAccountDto UpdateAccount)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var user = await _accountService.GetByIdAsync(id);
+        if (user == null)
+        {
+            return BadRequest(new { Message = "User not found." });
+        }
+
+        user.FullName = UpdateAccount.FullName ?? user.FullName;
+        user.UserName = UpdateAccount.UserName ?? user.UserName;
+        user.Email = UpdateAccount.Email ?? user.Email;
+
+        var result = await _accountService.UpdateAsync(user);
+        if (result.Succeeded)
+        {
+            return Ok(new
+            {
+                Message = "User updated successfully.",
+                User = new
+                {
+                    Id = user.Id,
+                    FullName = user.FullName,
+                    UserName = user.UserName,
+                    Email = user.Email,
+                    Role = user.Role
+                }
+            });
+        }
+        else
+        {
+            return BadRequest(new { Message = "Failed to update user." });
+        }
+    }
+    
+
     [HttpGet]
     [Route("{id}")]
     public async Task<IActionResult> GetUserProfile(string id)

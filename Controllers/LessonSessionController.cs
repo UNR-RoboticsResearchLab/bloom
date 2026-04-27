@@ -180,6 +180,21 @@ namespace bloom.Controllers
         }
 
         /// <summary>
+        /// Stop the current lesson in a session. The robot will exit the lesson and return to idle state.
+        /// </summary>
+        [HttpPost("{sessionId}/lessons/stop")]
+        public async Task<IActionResult> StopLesson(Guid sessionId)
+        {
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            _stepControlService.SetPendingControl(sessionId, "stop");
+            _logger.LogInformation("Stop command issued for session {SessionId}", sessionId);
+            return Ok(new { Message = "Stop command queued", SessionId = sessionId });
+        }
+
+        /// <summary>
         /// Skip the current lesson step. The robot will advance to the next step on its next poll.
         /// </summary>
         [HttpPost("{sessionId}/lessons/skip")]
@@ -259,6 +274,21 @@ namespace bloom.Controllers
             _stepControlService.ClearControl(sessionId);
             _logger.LogInformation("Step control acknowledged and cleared for session {SessionId}", sessionId);
             return Ok(new { Message = "Step control cleared", SessionId = sessionId });
+        }
+
+        /// <summary>
+        /// Get the lesson run history for a given student. Each entry is a single lesson run
+        /// of a lesson within a robot session; repeating the same lesson yields multiple entries.
+        /// </summary>
+        /// <param name="studentId">Account ID of the student</param>
+        [HttpGet("student/{studentId}/history")]
+        public async Task<IActionResult> GetStudentLessonHistory(string studentId)
+        {
+            if (string.IsNullOrWhiteSpace(studentId))
+                return BadRequest(new { Message = "studentId is required" });
+
+            var history = await _sessionService.GetStudentLessonHistoryAsync(studentId);
+            return Ok(history);
         }
 
         private string? GetCurrentUserId()

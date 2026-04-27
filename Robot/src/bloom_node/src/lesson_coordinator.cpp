@@ -340,7 +340,7 @@ void LessonCoordinator::speak_script(const std::string &script) {
     } else if (current_step_index_ > 0 && current_step_index_ <= current_lesson_.sequence.size()) {
         step_order = current_lesson_.sequence[current_step_index_ - 1].step_order;
     }
-    log_interaction_to_backend(step_order, "RobotDialogue", script, std::nullopt);
+    log_interaction_to_backend(step_order, "robot", script, std::nullopt);
 }
 
 void LessonCoordinator::handle_interaction(const LessonStep &step) {
@@ -554,7 +554,7 @@ void LessonCoordinator::update_progress_with_backend() {
 }
 
 void LessonCoordinator::log_interaction_to_backend(int step_order, const std::string &response, bool is_correct) {
-    const std::string type = (response == "timeout") ? "Timeout" : "Response";
+    const std::string type = (response == "timeout") ? "Timeout" : "student";
     log_interaction_to_backend(step_order, type, response, std::optional<bool>(is_correct));
 }
 

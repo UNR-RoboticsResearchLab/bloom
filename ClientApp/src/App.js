@@ -31,6 +31,7 @@ import AddStudentCard from "./pages/AddStudentCard";
 import AddLessonCard from "./pages/AddLessonCard";
 
 import LessonView from "./pages/LessonView";
+import EditAccount from "./pages/EditAccount";
 
 export default function App() {
 
@@ -64,6 +65,7 @@ export default function App() {
 
         {/* Protected */}
         <Route element={<RequireAuth />}>
+          <Route path="/account" element={<EditAccount />} />
           <Route path="/dashboard">
             <Route element={<RequireRole allow={["admin"]} />}>
               <Route path="admin" element={<AdminDashboard />} />

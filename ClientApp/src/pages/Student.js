@@ -42,7 +42,25 @@ export default function Student() {
             try {
                 const data = await api.getStudentLessonHistory(studentId);
                 console.log("Lesson history from backend:", data);
-                setLessonHistory(Array.isArray(data) ? data : []);
+
+
+
+                const backendHistory = Array.isArray(data) ? data : [];
+
+                const testHistory = [
+                    {
+                        sessionId: "a566333f-e0a8-4f31-8426-a4b47ded5c3c",
+                        lessonTitle: "Homophones",
+                        startedAt: new Date().toISOString(),
+                    },
+                    {
+                        sessionId: "test-session-2",
+                        lessonTitle: "Conversation Mode",
+                        startedAt: new Date(Date.now() - 86400000).toISOString(),
+                    },
+                ];
+
+                setLessonHistory(backendHistory);
             } catch (err) {
                 console.error("Failed to load lesson history:", err);
                 setLessonHistory([]);
@@ -115,7 +133,8 @@ export default function Student() {
                 </div>
             </div>
 
-            <div className="mt-6 rounded-lg border shadow-sm">  
+            <div className="mt-6 rounded-lg border border-gray-200 p-6 shadow-sm">  
+                <p className="text-base font-semibold text-gray-900">Lesson History</p>
                 <div className="divide-y">
                     {isLoadingHistory ? (
                         <div className="px-6 py-4">
@@ -136,7 +155,7 @@ export default function Student() {
                                     key={sessionId ?? index}
                                     type="button"
                                     onClick={() => navigate(`/lesson-history/${sessionId}`)}
-                                    className="block w-full px-6 py-4 text-left hover:bg-gray-50"
+                                    className="block w-full px-6 py-4 text-left hover:bg-gray-50 mb-4 rounded-lg border border-black"
                                 >
                                     <p className="text-sm font-medium text-gray-900">
                                         {lessonTitle}

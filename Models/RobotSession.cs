@@ -32,6 +32,11 @@ namespace bloom.Models
         public Guid? ActiveLessonId { get; set; }
         public Lesson? ActiveLesson { get; set; }
 
+        // The current run of ActiveLessonId. Mints a fresh value each time a lesson starts,
+        // so repeating the same lesson in one session produces distinct interaction histories.
+        public Guid? ActiveLessonRunId { get; set; }
+        public LessonRun? ActiveLessonRun { get; set; }
+
         // Navigation property for historical state snapshots (for analysis features)
         public ICollection<RobotStateHistory>? StateHistory { get; set; }
 

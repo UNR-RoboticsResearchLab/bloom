@@ -261,6 +261,21 @@ namespace bloom.Controllers
             return Ok(new { Message = "Step control cleared", SessionId = sessionId });
         }
 
+        /// <summary>
+        /// Get the lesson run history for a given student. Each entry is a single lesson run
+        /// of a lesson within a robot session; repeating the same lesson yields multiple entries.
+        /// </summary>
+        /// <param name="studentId">Account ID of the student</param>
+        [HttpGet("student/{studentId}/history")]
+        public async Task<IActionResult> GetStudentLessonHistory(string studentId)
+        {
+            if (string.IsNullOrWhiteSpace(studentId))
+                return BadRequest(new { Message = "studentId is required" });
+
+            var history = await _sessionService.GetStudentLessonHistoryAsync(studentId);
+            return Ok(history);
+        }
+
         private string? GetCurrentUserId()
         {
             return User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

@@ -62,6 +62,8 @@ namespace bloom.Models.dto
         public bool? IsCorrect { get; set; }
         public DateTime Timestamp { get; set; }
         public int ResponseTimeMs { get; set; }
+        public Guid? LessonId { get; set; }
+        public Guid? LessonRunId { get; set; }
     }
 
     /// <summary>
@@ -124,5 +126,21 @@ namespace bloom.Models.dto
     {
         public string Command { get; set; } = string.Empty;  // "skip" | "replay" | "set_step"
         public int? TargetStep { get; set; }                 // Only set for "set_step"
+    }
+
+    /// <summary>
+    /// Response DTO for a single lesson run in a student's history.
+    /// Each entry represents one execution of a lesson (a LessonRun).
+    /// </summary>
+    public class StudentLessonHistoryDto
+    {
+        public Guid LessonRunId { get; set; }
+        public Guid LessonId { get; set; }
+        public string LessonTitle { get; set; } = string.Empty;
+        public Guid RobotSessionId { get; set; }
+        public DateTime StartedAt { get; set; }
+        public DateTime? EndedAt { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public int InteractionCount { get; set; }
     }
 }

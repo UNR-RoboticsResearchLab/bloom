@@ -79,6 +79,26 @@ namespace bloom.Controllers
         }
 
         /// <summary>
+        /// Remove an SLPClient association. Only the SLP who created the client can delete it.
+        /// </summary>
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteClient(Guid id)
+        {
+            var slpId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(slpId))
+                return Unauthorized();
+
+            var result = await _slpClientService.DeleteClientAsync(id, slpId);
+            return result switch
+            {
+                DeleteClientResult.Deleted => Ok(new { message = "SLPClient deleted.", ClientId = id }),
+                DeleteClientResult.NotFound => NotFound(new { message = $"SLPClient {id} not found." }),
+                DeleteClientResult.Forbidden => Forbid(),
+                _ => BadRequest(new { message = "Failed to delete SLPClient." })
+            };
+        }
+
+        /// <summary>
         /// Add another SLP as a teacher on an existing client.
         /// </summary>
         [HttpPost("{id}/teachers/{teacherId}")]

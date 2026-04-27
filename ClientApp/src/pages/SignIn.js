@@ -48,6 +48,7 @@ export default function SignIn() {
         id: userId,
         email: userEmail,
         fullName: fullName ?? "",
+        userName: loginUser.userName ?? "",
         role: role,
       };
 

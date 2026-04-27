@@ -26,11 +26,21 @@ export function signInSession(user) {
   localStorage.setItem(
     "authUser",
     JSON.stringify({
+      id: user.id,
       email: user.email,
       role: user.role,
       name: user.fullName || "",
+      fullName: user.fullName || "",
+      userName: user.userName || "",
     })
   );
+}
+
+export function updateSession(partial) {
+  const current = getSession() || {};
+  const next = { ...current, ...partial };
+  localStorage.setItem("authUser", JSON.stringify(next));
+  return next;
 }
 
 export function getSession() {

@@ -122,6 +122,14 @@ export default function SlpDashboard() {
     }
   }, [students, selectedStudentId]);
 
+  useEffect(() => {
+    const savedSessionId = localStorage.getItem("pairedSessionId");
+
+    if (savedSessionId) {
+      setIsConnected(true);
+    }
+  }, []);
+
   const selectedLesson = useMemo(
     () => mockLessons.find((l) => l.id === selectedLessonId),
     [selectedLessonId]
@@ -318,10 +326,13 @@ export default function SlpDashboard() {
                               <PairRobotCard
                                 onCancel={() => setShowPairRobotCard(false)}
                                 onPaired={(sessionId) => {
-                                  console.log("Paired in dashboard:", sessionId);
-                                  setIsConnected(true);
-                                  setShowPairRobotCard(false);
-                                }}
+                                console.log("Paired in dashboard:", sessionId);
+
+                                localStorage.setItem("pairedSessionId", sessionId);
+
+                                setIsConnected(true);
+                                setShowPairRobotCard(false);
+                              }}
                               />
                           </div>
                       </div>

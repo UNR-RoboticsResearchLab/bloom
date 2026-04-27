@@ -90,6 +90,27 @@ async signIn(email, password) {
     return res;
   }
 
+  async updateUserProfile(id, payload) {
+    const body = {
+      fullName: payload.fullName ?? null,
+      userName: payload.userName ?? null,
+      email: payload.email ?? null,
+    };
+
+    const res = await this.request(`/api/account/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+    return res;
+  }
+
+  async deleteUserProfile(id) {
+    const res = await this.request(`/api/account/${id}`, {
+      method: "DELETE",
+    });
+    return res;
+  }
+
   // Get all students (for teacher dashboard)
   async getStudents() {
     return this.request("/api/SLPClient", {
@@ -333,10 +354,16 @@ async signIn(email, password) {
   }
 
   async getStudentLessonHistory(studentId) {
-  const res = await this.request(`/api/LessonSession/student/${studentId}/history`, {
-    method: "GET",
-  });
+    const res = await this.request(`/api/LessonSession/student/${studentId}/history`, {
+      method: "GET",
+    });
 
-  return res || [];
-}
+    return res || [];
+  }
+
+  async deleteSLPClient(slpClientId) {
+    return this.request(`/api/SLPClient/${slpClientId}`, {
+      method: "DELETE",
+    });
+  }
 }

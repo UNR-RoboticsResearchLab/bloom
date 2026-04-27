@@ -67,6 +67,16 @@ namespace bloom.Services
 
         public async Task<IdentityResult> DeleteAsync(Account user)
         {
+            var dependents = await _dbContext.SLPClients
+                .Where(c => c.SlpId == user.Id || c.StudentId == user.Id)
+                .ToListAsync();
+
+            if (dependents.Count > 0)
+            {
+                _dbContext.SLPClients.RemoveRange(dependents);
+                await _dbContext.SaveChangesAsync();
+            }
+
             return await _userManager.DeleteAsync(user);
         }
 

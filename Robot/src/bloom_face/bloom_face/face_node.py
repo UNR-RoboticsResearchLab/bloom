@@ -158,6 +158,10 @@ class BlossomFace:
         self.visual_aid_labels = []
         self.loaded_surfaces = []
         self.visual_aid_footers = []
+        
+        
+        self.mic_active = False
+        self.pulse_time = 0.0
 
         
         pygame.font.init()
@@ -322,6 +326,9 @@ class BlossomFace:
         self.right_eye.draw(surface, self.emotion)
         self.draw_mouth(surface)
 
+        if self.mic_active:
+            self.draw_recording_indicator(surface)
+
     def draw_mouth(self, surface):
         if self.mouth_mode == 'viseme':
             self.draw_viseme_mouth(surface)
@@ -467,6 +474,16 @@ class BlossomFace:
         new_h = max(1, int(orig_h * scale))
         return pygame.transform.smoothscale(surf, (new_w, new_h))
 
+    def draw_recording_indicator(self, surface):
+        self.pulse_time += 0.05
+        alpha = int(180 + 75 * math.sin(self.pulse_time * 3))
+        alpha = max(0, min(255, alpha))
+        radius = 12
+        x = self.width - radius - 15
+        y = radius + 15
+        indicator = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+        pygame.draw.circle(indicator, (220, 30, 30, alpha), (radius, radius), radius)
+        surface.blit(indicator, (x - radius, y - radius))
 
 class FaceNode(Node):
     def __init__(self):
@@ -517,7 +534,7 @@ class FaceNode(Node):
         self.create_subscription(String, '/face/visual_aid', self.on_visual_aid, 10)
         self.pairing_code = None
         self.create_subscription(String, '/robot/session_code', self.on_session_code, 10)
-
+        self.create_subscription(String, '/stt/enable', self.on_stt_enable, 10)
         
         self.create_timer(1.0 / 30.0, self.render)
 
@@ -627,6 +644,11 @@ class FaceNode(Node):
         pygame.quit()
         super().destroy_node()
 
+    def on_stt_enable(self, msg: String):
+        with self.lock:
+            self.face.mic_active = msg.data.lower() == 'true'
+            if self.face.mic_active:
+                self.face.pulse_time = 0.0
 
 def main(args=None):
     env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),

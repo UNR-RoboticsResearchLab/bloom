@@ -15,6 +15,13 @@ namespace bloom.Services
         AlreadyAssociated
     }
 
+    public enum DeleteClientResult
+    {
+        Deleted,
+        NotFound,
+        Forbidden
+    }
+
     public interface ISLPClientService
     {
         /// <summary>
@@ -41,5 +48,10 @@ namespace bloom.Services
         /// Add another SLP as a teacher on an existing client.
         /// </summary>
         Task<AddTeacherResult> AddTeacherAsync(Guid clientId, string teacherId);
+
+        /// <summary>
+        /// Delete an SLPClient. The requesting SLP must be one of the client's teachers.
+        /// </summary>
+        Task<DeleteClientResult> DeleteClientAsync(Guid clientId, string slpId);
     }
 }

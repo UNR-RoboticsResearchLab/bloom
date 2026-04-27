@@ -123,6 +123,23 @@ namespace bloom.Services
             };
         }
 
+        public async Task<DeleteClientResult> DeleteClientAsync(Guid clientId, string slpId)
+        {
+            var client = await _context.SLPClients
+                .Include(c => c.Teachers)
+                .FirstOrDefaultAsync(c => c.Id == clientId);
+
+            if (client == null) return DeleteClientResult.NotFound;
+
+            if (client.Teachers == null || !client.Teachers.Any(t => t.Id == slpId))
+                return DeleteClientResult.Forbidden;
+
+            _context.SLPClients.Remove(client);
+            await _context.SaveChangesAsync();
+
+            return DeleteClientResult.Deleted;
+        }
+
         public async Task<AddTeacherResult> AddTeacherAsync(Guid clientId, string teacherId)
         {
             var client = await _context.SLPClients

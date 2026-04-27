@@ -144,7 +144,7 @@ export default function Student() {
                 </div>
             </div>
 
-            <div className="mt-4 rounded-lg border p-6 shadow-sm">
+            {/* <div className="mt-4 rounded-lg border p-6 shadow-sm">
                 <p className="text-base font-semibold text-gray-900">Notes</p>
                 <p className="mt-1 text-sm text-gray-500">
                     Record observations and recommendations for this student.
@@ -164,7 +164,7 @@ export default function Student() {
                         </button>
                     </div>
                 </div>
-            </div>
+            </div> */}
 
             <div className="mt-6 rounded-lg border border-gray-200 p-6 shadow-sm">  
                 <p className="text-base font-semibold text-gray-900">Lesson History</p>

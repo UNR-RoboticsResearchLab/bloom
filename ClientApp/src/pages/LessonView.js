@@ -334,6 +334,28 @@ export default function LessonView() {
         }
     }
 
+    async function handleRestart() {
+        if (!activeSessionId || isSendingStepCommand) return;
+
+        try {
+            setIsSendingStepCommand(true);
+
+            await api.request(
+                `/api/LessonSession/${activeSessionId}/lessons/set-step`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({ targetStep: 0 }),
+                }
+            );
+
+            console.log("Restarted lesson to step 0");
+        } catch (error) {
+            console.error("Failed to restart lesson:", error);
+        } finally {
+            setIsSendingStepCommand(false);
+        }
+    }
+
     async function handleEndSession() {
         if (!activeSessionId || isEndingSession) return;
 
@@ -467,9 +489,19 @@ export default function LessonView() {
 
                         <button
                             type="button"
+                            onClick={handleRestart}
+                            disabled={isSendingStepCommand}
+                            className="flex items-center justify-center gap-2 rounded-xl bg-yellow-100 px-4 py-2 text-sm font-semibold text-yellow-800 shadow-sm transition hover:bg-yellow-200 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <span className="text-lg">&#10226;</span>
+                            {isSendingStepCommand ? "Restarting..." : "Restart"}
+                        </button>
+
+                        <button
+                            type="button"
                             onClick={handleEndSession}
                             disabled={isEndingSession}
-                            className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {isEndingSession ? "Ending..." : "End Session"}
                         </button>

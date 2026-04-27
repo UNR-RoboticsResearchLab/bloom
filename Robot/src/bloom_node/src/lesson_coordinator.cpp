@@ -47,6 +47,7 @@ LessonCoordinator::LessonCoordinator(
     RCLCPP_INFO(this->get_logger(), "LessonCoordinator initialized with Vosk subscriber");
 
     tts_interrupt_pub_ = this->create_publisher<std_msgs::msg::String>("/tts/interrupt", 10);
+    chime_pub_ = this->create_publisher<std_msgs::msg::String>("/audio/chime", 10);
 }
 
 LessonCoordinator::~LessonCoordinator() {
@@ -254,6 +255,9 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr) {
                 step_timer_ = nullptr;
                 auto stt_msg = std_msgs::msg::String();
                 stt_msg.data = "true";
+                auto chime_msg = std_msgs::msg::String();
+                chime_msg.data = "play";
+                chime_pub_->publish(chime_msg);
                 stt_enable_pub_->publish(stt_msg);
                 waiting_for_response_ = true;
                 RCLCPP_INFO(this->get_logger(), "Now listening for student response");

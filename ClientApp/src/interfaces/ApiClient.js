@@ -333,10 +333,16 @@ async signIn(email, password) {
   }
 
   async getStudentLessonHistory(studentId) {
-  const res = await this.request(`/api/LessonSession/student/${studentId}/history`, {
-    method: "GET",
-  });
+    const res = await this.request(`/api/LessonSession/student/${studentId}/history`, {
+      method: "GET",
+    });
 
-  return res || [];
-}
+    return res || [];
+  }
+
+  async deleteSLPClient(slpClientId) {
+    return this.request(`/api/SLPClient/${slpClientId}`, {
+      method: "DELETE",
+    });
+  }
 }

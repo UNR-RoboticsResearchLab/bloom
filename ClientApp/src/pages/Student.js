@@ -19,6 +19,7 @@ export default function Student() {
     const [isLoading, setIsLoading] = useState(true);
     const [lessonHistory, setLessonHistory] = useState([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         async function loadStudent() {
@@ -42,7 +43,25 @@ export default function Student() {
             try {
                 const data = await api.getStudentLessonHistory(studentId);
                 console.log("Lesson history from backend:", data);
-                setLessonHistory(Array.isArray(data) ? data : []);
+
+
+
+                const backendHistory = Array.isArray(data) ? data : [];
+
+                const testHistory = [
+                    {
+                        sessionId: "a566333f-e0a8-4f31-8426-a4b47ded5c3c",
+                        lessonTitle: "Homophones",
+                        startedAt: new Date().toISOString(),
+                    },
+                    {
+                        sessionId: "test-session-2",
+                        lessonTitle: "Conversation Mode",
+                        startedAt: new Date(Date.now() - 86400000).toISOString(),
+                    },
+                ];
+
+                setLessonHistory(backendHistory);
             } catch (err) {
                 console.error("Failed to load lesson history:", err);
                 setLessonHistory([]);
@@ -53,6 +72,25 @@ export default function Student() {
 
         loadLessonHistory();
     }, [api, studentId]);
+
+    async function handleDeleteStudent() {
+        const confirmDelete = window.confirm(
+            `Are you sure you want to delete ${name}? This cannot be undone.`
+        );
+
+        if (!confirmDelete) return;
+
+        try {
+            setIsDeleting(true);
+            await api.deleteSLPClient(student.id ?? student.Id);
+            navigate("/students");
+        } catch (err) {
+            console.error("Failed to delete student:", err);
+            alert("Failed to delete student.");
+        } finally {
+            setIsDeleting(false);
+        }
+    }
 
     if (isLoading) {
         return <div className="rounded-lg border p-6 shadow-sm">Loading student...</div>;
@@ -79,16 +117,29 @@ export default function Student() {
                         </span>
                     </div>
 
+                    <div className="flex w-full items-center justify-between">
+  
                     <div className="leading-tight">
                         <p className="text-sm font-semibold text-gray-900">
-                            {name}
+                        {name}
                         </p>
                         <p className="text-xs text-gray-900">
-                            level 2
+                        level 2
                         </p>
                         <p className="text-xs text-gray-900">
-                            Active
+                        Active
                         </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleDeleteStudent}
+                        disabled={isDeleting}
+                        className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-500 disabled:cursor-not-allowed disabled:bg-red-300"
+                    >
+                        {isDeleting ? "Deleting..." : "Delete Account"}
+                    </button>
+
                     </div>
                 </div>
             </div>
@@ -115,7 +166,8 @@ export default function Student() {
                 </div>
             </div>
 
-            <div className="mt-6 rounded-lg border shadow-sm">  
+            <div className="mt-6 rounded-lg border border-gray-200 p-6 shadow-sm">  
+                <p className="text-base font-semibold text-gray-900">Lesson History</p>
                 <div className="divide-y">
                     {isLoadingHistory ? (
                         <div className="px-6 py-4">
@@ -136,7 +188,7 @@ export default function Student() {
                                     key={sessionId ?? index}
                                     type="button"
                                     onClick={() => navigate(`/lesson-history/${sessionId}`)}
-                                    className="block w-full px-6 py-4 text-left hover:bg-gray-50"
+                                    className="block w-full px-6 py-4 text-left hover:bg-gray-50 mb-4 rounded-lg border border-black"
                                 >
                                     <p className="text-sm font-medium text-gray-900">
                                         {lessonTitle}

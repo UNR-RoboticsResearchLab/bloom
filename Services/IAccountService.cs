@@ -43,6 +43,9 @@ namespace bloom.Services
 
         // Delete
         Task<IdentityResult> DeleteAsync(Account user);
+
+        // Update
+        Task<IdentityResult> UpdateAsync(Account user);
     }
     
 }

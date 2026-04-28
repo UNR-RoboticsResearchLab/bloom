@@ -134,6 +134,16 @@ void LessonPoller::on_polling_tick() {
                         msg.data = current_pairing_code;
                         session_code_pub_->publish(msg);
                     }
+					if (currently_executing_.load() && paired_.load()) {
+						bool has_active_lesson = j.contains("activeLessonId") && !j["activeLessonId"].is_null();
+						if (!has_active_lesson) {
+							RCLCPP_WARN(this->get_logger(), "[SAFETY] Lesson running but backend reports no active lesson — stopping");
+							if (lesson_coord_) lesson_coord_->stop_lesson();
+							last_lesson_id_ = "";
+							currently_executing_.store(false);
+							stop_step_control_polling();
+						}
+					}
                 } catch (...) {
                     RCLCPP_WARN(this->get_logger(), "Failed to parse session status response");
                 }

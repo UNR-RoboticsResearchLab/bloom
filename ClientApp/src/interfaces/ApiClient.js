@@ -240,6 +240,12 @@ async signIn(email, password) {
     return res;
   }
 
+  async stopLesson(sessionId) {
+    const res = await this.request(`/api/lessonsession/${sessionId}/lessons/stop`, {
+      method: "POST",
+    });
+    return res;
+  }
 
   async registerRobot(payload) {
   const body = {

@@ -119,7 +119,7 @@ export default function LessonView() {
                     return {
                         id: item.id ?? `interaction-${index}`,
                         type:
-                            interactionType === "speaker"
+                            interactionType === "student"
                                 ? "student"
                                 : interactionType === "note"
                                 ? "note"
@@ -361,6 +361,12 @@ export default function LessonView() {
 
         try {
             setIsEndingSession(true);
+
+            try {
+                await api.stopLesson(activeSessionId);
+            } catch (e) {
+                console.warn("Failed to stop lesson (may not be active):", e);
+            }
 
             await api.endSession(activeSessionId);
 

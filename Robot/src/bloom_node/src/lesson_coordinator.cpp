@@ -424,6 +424,29 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
         const LessonStep& step = *current_interaction_step_;
         const InteractionConfig& interaction = step.interaction;
 
+        if (interaction.single_turn_llm) {
+            RCLCPP_INFO(this->get_logger(), "[VOSK] single_turn_llm step — passing to LLM");
+            
+            log_interaction_to_backend(step.step_order, "student", response, std::nullopt);
+            
+            waiting_for_response_ = false;
+            
+            auto stt_msg = std_msgs::msg::String();
+            stt_msg.data = "false";
+            stt_enable_pub_->publish(stt_msg);
+            
+            if (feedback_poller_) feedback_poller_->set_polling_active(false);
+            
+            if (step_timer_) {
+                step_timer_->cancel();
+                step_timer_ = nullptr;
+            }
+            
+            waiting_for_single_turn_ = true;
+            waiting_for_llm_tts_done_ = false;
+            return;
+        }
+
         RCLCPP_DEBUG(this->get_logger(), "Received speech input: %s", response.c_str());
 
         // Check if response matches correct answer

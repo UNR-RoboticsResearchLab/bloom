@@ -179,9 +179,7 @@ namespace bloom.Controllers
             }
         }
 
-        /// <summary>
-        /// Stop the current lesson in a session. The robot will exit the lesson and return to idle state.
-        /// </summary>
+       
         [HttpPost("{sessionId}/lessons/stop")]
         public async Task<IActionResult> StopLesson(Guid sessionId)
         {
@@ -291,6 +289,10 @@ namespace bloom.Controllers
             return Ok(history);
         }
 
+
+        /// <summary>
+        /// Stop the current lesson in a session. The robot will exit the lesson and return to idle state.
+        /// </summary>
         [HttpPost("{sessionId}/lessons/stop")]
         public async Task<IActionResult> StopLesson(Guid sessionId)
         {

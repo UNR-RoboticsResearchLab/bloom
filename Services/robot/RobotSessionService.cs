@@ -705,5 +705,26 @@ namespace bloom.Services
 
             return await query.ToListAsync();
         }
+        public async Task StopLessonAsync(Guid sessionId)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            if (session.ActiveLessonRunId is Guid runId)
+            {
+                var run = await _dbContext.LessonRuns.FindAsync(runId);
+                if (run != null && run.EndedAt == null)
+                {
+                    run.EndedAt = DateTime.UtcNow;
+                    run.Status = "abandoned";
+                    _dbContext.LessonRuns.Update(run);
+                }
+            }
+
+            session.ActiveLessonId = null;
+            session.ActiveLessonRunId = null;
+            _dbContext.RobotSessions.Update(session);
+            await _dbContext.SaveChangesAsync();
+        }
     }
 }

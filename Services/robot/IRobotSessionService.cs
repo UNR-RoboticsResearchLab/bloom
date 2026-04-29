@@ -105,6 +105,8 @@ namespace bloom.Services
         /// <param name="dto">Progress update data</param>
         Task UpdateLessonProgressAsync(Guid sessionId, UpdateLessonProgressDto dto);
 
+        Task StopLessonAsync(Guid sessionId);
+        
         /// <summary>
         /// Gets a pending lesson for the session if one is assigned
         /// Returns the full lesson JSON along with metadata for the robot to execute

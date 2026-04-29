@@ -291,6 +291,19 @@ namespace bloom.Controllers
             return Ok(history);
         }
 
+        [HttpPost("{sessionId}/lessons/stop")]
+        public async Task<IActionResult> StopLesson(Guid sessionId)
+        {
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            _stepControlService.SetPendingControl(sessionId, "stop");
+            await _sessionService.StopLessonAsync(sessionId);
+            _logger.LogInformation("Stop command issued for session {SessionId}", sessionId);
+            return Ok(new { Message = "Stop command queued", SessionId = sessionId });
+        }
+
         private string? GetCurrentUserId()
         {
             return User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

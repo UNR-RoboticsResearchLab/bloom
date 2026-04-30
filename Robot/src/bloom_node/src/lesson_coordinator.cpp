@@ -113,6 +113,10 @@ void LessonCoordinator::stop_lesson() {
     interrupt_msg.data = "interrupt";
     tts_interrupt_pub_->publish(interrupt_msg);
 
+    auto va_msg = std_msgs::msg::String();
+    va_msg.data = "{\"command\": \"hide\"}";
+    visual_aid_publisher_->publish(va_msg);
+
     auto mode_msg = std_msgs::msg::String();
     mode_msg.data = "lesson_mode";
     llm_mode_pub_->publish(mode_msg);

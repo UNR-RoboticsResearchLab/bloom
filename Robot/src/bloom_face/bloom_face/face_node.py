@@ -317,6 +317,8 @@ class BlossomFace:
     def draw(self, surface):
         if self.visual_aid_active:
             self.draw_visual_aid(surface)
+            if self.mic_active:
+                self.draw_recording_indicator(surface)
         else:
             self.draw_face(surface)
 

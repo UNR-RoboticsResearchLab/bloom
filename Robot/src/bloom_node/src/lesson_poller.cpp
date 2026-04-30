@@ -230,15 +230,14 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json, const std::str
 		}
 
 		std::string lesson_id = lesson_json["id"].get<std::string>();
-		// Deduplicate: skip if this is the same lesson we just ran
-		if (lesson_id == last_lesson_id_) {
+		if (!lesson_run_id.empty() && lesson_run_id == last_lesson_id_) {
 			RCLCPP_DEBUG(this->get_logger(), "Skipping duplicate lesson: %s", lesson_id.c_str());
 			return;
 		}
 
 		// Mark as executing before loading to prevent race conditions
 		currently_executing_.store(true);
-		last_lesson_id_ = lesson_id;
+		last_lesson_id_ = lesson_run_id.empty() ? lesson_id : lesson_run_id;
 
 		// Parse lesson JSON to LessonData struct
 		LessonData lesson_data;

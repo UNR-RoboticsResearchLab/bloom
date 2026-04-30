@@ -23,7 +23,8 @@ function getInitials(name) {
 export default function NavMenu() {
   const user = getSession();
   const isLoggedIn = !!user;
-  const initials = getInitials(user?.name);
+  const displayName = user?.fullName || user?.name || user?.userName || user?.email;
+  const initials = getInitials(displayName);
 
   return (
     <header>

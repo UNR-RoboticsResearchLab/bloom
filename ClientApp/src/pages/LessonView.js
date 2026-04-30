@@ -344,11 +344,11 @@ export default function LessonView() {
                 `/api/LessonSession/${activeSessionId}/lessons/set-step`,
                 {
                     method: "POST",
-                    body: JSON.stringify({ targetStep: 0 }),
+                    body: JSON.stringify({ targetStep: 1 }),
                 }
             );
 
-            console.log("Restarted lesson to step 0");
+            console.log("Restarted lesson to step 1");
         } catch (error) {
             console.error("Failed to restart lesson:", error);
         } finally {

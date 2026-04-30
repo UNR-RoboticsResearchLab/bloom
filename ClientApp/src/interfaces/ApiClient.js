@@ -241,7 +241,7 @@ async signIn(email, password) {
   }
 
   async stopLesson(sessionId) {
-    const res = await this.request(`/api/lessonsession/${sessionId}/lessons/stop`, {
+    const res = await this.request(`/api/LessonSession/${sessionId}/lessons/stop`, {
       method: "POST",
     });
     return res;

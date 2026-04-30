@@ -372,4 +372,11 @@ async signIn(email, password) {
       method: "DELETE",
     });
   }
+
+  async unpairRobot(sessionId) {
+    const res = await this.request(`/api/robotsession/${sessionId}/user`, {
+      method: "DELETE",
+    });
+    return res;
+  }
 }

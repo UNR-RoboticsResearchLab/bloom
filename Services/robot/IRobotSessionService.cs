@@ -170,5 +170,6 @@ namespace bloom.Services
         /// </summary>
         /// <param name="studentId">Account ID of the student</param>
         Task<List<StudentLessonHistoryDto>> GetStudentLessonHistoryAsync(string studentId);
+        Task ClearSessionUserAsync(Guid sessionId);
     }
 }

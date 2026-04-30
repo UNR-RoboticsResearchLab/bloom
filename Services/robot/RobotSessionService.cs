@@ -726,5 +726,16 @@ namespace bloom.Services
             _dbContext.RobotSessions.Update(session);
             await _dbContext.SaveChangesAsync();
         }
+
+        public async Task ClearSessionUserAsync(Guid sessionId)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            session.UserId = null;
+            session.LastUpdatedAt = DateTime.UtcNow;
+            _dbContext.RobotSessions.Update(session);
+            await _dbContext.SaveChangesAsync();
+        }
     }
 }

@@ -318,15 +318,17 @@ export default function SlpDashboard() {
       
                           <div className="relative z-10 w-full max-w-xl px-4">
                               <PairRobotCard
+                                isConnected={isConnected}
                                 onCancel={() => setShowPairRobotCard(false)}
                                 onPaired={(sessionId) => {
-                                console.log("Paired in dashboard:", sessionId);
-
-                                localStorage.setItem("pairedSessionId", sessionId);
-
-                                setIsConnected(true);
-                                setShowPairRobotCard(false);
-                              }}
+                                  localStorage.setItem("pairedSessionId", sessionId);
+                                  setIsConnected(true);
+                                  setShowPairRobotCard(false);
+                                }}
+                                onUnpaired={() => {
+                                  setIsConnected(false);
+                                  setShowPairRobotCard(false);
+                                }}
                               />
                           </div>
                       </div>

@@ -142,6 +142,9 @@ void LessonPoller::on_polling_tick() {
 							last_lesson_id_ = "";
 							currently_executing_.store(false);
 							stop_step_control_polling();
+							std::string ack_endpoint = "/api/lessonsession/" + current_session_id + "/lessons/step-control";
+							web_client_->sendRequestAsync("DELETE", ack_endpoint, std::nullopt, std::nullopt, {}, 
+								[this](const std::string&, long){});
 						}
 					}
 					if (!currently_executing_.load() && !last_lesson_id_.empty() && paired_.load()) {

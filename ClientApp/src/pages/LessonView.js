@@ -21,7 +21,7 @@ export default function LessonView() {
     const [step, setStep] = useState([]);
     const [isLoadingSteps, setIsLoadingSteps] = useState(false);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-    const [isEndingSession, setIsEndingSession] = useState(false);
+    const [isEndingLesson, setIsEndingLesson] = useState(false);
 
     const [conversation, setConversation] = useState([]);
 
@@ -356,26 +356,17 @@ export default function LessonView() {
         }
     }
 
-    async function handleEndSession() {
-        if (!activeSessionId || isEndingSession) return;
+    async function handleEndLesson() {
+        if (!activeSessionId || isEndingLesson) return;
 
         try {
-            setIsEndingSession(true);
-
-            try {
-                await api.stopLesson(activeSessionId);
-            } catch (e) {
-                console.warn("Failed to stop lesson (may not be active):", e);
-            }
-
-            await api.endSession(activeSessionId);
-
-            localStorage.removeItem("pairedSessionId");
+            setIsEndingLesson(true);
+            await api.stopLesson(activeSessionId);
             navigate("/lessons");
         } catch (error) {
-            console.error("Failed to end session:", error);
+            console.error("Failed to end lesson:", error);
         } finally {
-            setIsEndingSession(false);
+            setIsEndingLesson(false);
         }
     }
 
@@ -505,11 +496,11 @@ export default function LessonView() {
 
                         <button
                             type="button"
-                            onClick={handleEndSession}
-                            disabled={isEndingSession}
+                            onClick={handleEndLesson}
+                            disabled={isEndingLesson}
                             className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {isEndingSession ? "Ending..." : "End Session"}
+                            {isEndingLesson ? "Ending..." : "End Lesson"}
                         </button>
                     </div>
 

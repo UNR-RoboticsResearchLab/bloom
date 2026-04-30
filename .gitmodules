@@ -1,3 +1,5 @@
 [submodule "Robot/src/blsm_unr"]
 	path = Robot/src/blsm_unr
 	url = https://github.com/jrkre/blsm_unr.git
+[submodule "Robot/src/blsm_unr/openhmi_blossom"]
+	url = https://github.com/mjknaefler/blsm_unr.git

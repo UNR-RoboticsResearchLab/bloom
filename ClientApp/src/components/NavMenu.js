@@ -7,7 +7,7 @@ import {
   Container,
 } from "reactstrap";
 import { Link } from "react-router-dom";
-import { getSession } from "../utils/auth";
+import { getSession, dashboardPathForRole } from "../utils/auth";
 import "./NavMenu.css";
 
 function getInitials(name) {
@@ -25,6 +25,9 @@ export default function NavMenu() {
   const isLoggedIn = !!user;
   const displayName = user?.fullName || user?.name || user?.userName || user?.email;
   const initials = getInitials(displayName);
+  const homePath = isLoggedIn
+    ? dashboardPathForRole(user.role?.toLowerCase())
+    : "/";
 
   return (
     <header>
@@ -36,7 +39,7 @@ export default function NavMenu() {
 
           <Nav className="d-flex flex-row gap-3 align-items-center">
             <NavItem>
-              <NavLink tag={Link} to="/" className="text-dark">
+              <NavLink tag={Link} to={homePath} className="text-dark">
                 Home
               </NavLink>
             </NavItem>

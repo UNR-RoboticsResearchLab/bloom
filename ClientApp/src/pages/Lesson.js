@@ -100,6 +100,9 @@ export default function Lesson() {
                         <p className="mt-1 text-sm text-gray-500">
                             {lesson?.description ?? lesson?.Description ?? "No description available."}
                         </p>
+                        <p className="mt-1 text-sm text-gray-500">
+                            {lesson?.learningObjectives ?? "No description available."}
+                        </p>
                     </div>
 
                     <div className="rounded-lg border p-4 shadow-sm">

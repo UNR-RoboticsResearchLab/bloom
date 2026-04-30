@@ -3,7 +3,9 @@ import { useApiClient } from "../context/ApiClientContext";
 
 export function PairRobotCard({ onCancel, onPaired }) {
   const [robotCode, setRobotCode] = useState("");
-  const [sessionId, setSessionId] = useState("");
+  const [sessionId, setSessionId] = useState(() => {
+    return localStorage.getItem("pairedSessionId") || "";
+  });
   const [error, setError] = useState("");
 
   const api = useApiClient();

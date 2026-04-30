@@ -69,7 +69,9 @@ export default function SlpDashboard() {
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const { addNote, getNotes } = useNotes();
   const [showPairRobotCard, setShowPairRobotCard] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(() => {
+    return !!localStorage.getItem("pairedSessionId");
+  });
   const [lessons, setLessons] = useState([]);
 
   const [students, setStudents] = useState([]);
@@ -121,14 +123,6 @@ export default function SlpDashboard() {
       setSelectedStudentId(students[0].id);
     }
   }, [students, selectedStudentId]);
-
-  useEffect(() => {
-    const savedSessionId = localStorage.getItem("pairedSessionId");
-
-    if (savedSessionId) {
-      setIsConnected(true);
-    }
-  }, []);
 
   const selectedLesson = useMemo(
     () => mockLessons.find((l) => l.id === selectedLessonId),

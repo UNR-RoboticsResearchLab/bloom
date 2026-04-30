@@ -179,18 +179,6 @@ namespace bloom.Controllers
             }
         }
 
-       
-        [HttpPost("{sessionId}/lessons/stop")]
-        public async Task<IActionResult> StopLesson(Guid sessionId)
-        {
-            var session = await _sessionService.GetSessionAsync(sessionId);
-            if (session == null)
-                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
-
-            _stepControlService.SetPendingControl(sessionId, "stop");
-            _logger.LogInformation("Stop command issued for session {SessionId}", sessionId);
-            return Ok(new { Message = "Stop command queued", SessionId = sessionId });
-        }
 
         /// <summary>
         /// Skip the current lesson step. The robot will advance to the next step on its next poll.

@@ -58,6 +58,7 @@ def generate_launch_description():
             'port': LaunchConfiguration('port'),
             'baudrate': LaunchConfiguration('baudrate'),
             'enable_idle': LaunchConfiguration('enable_idle'),
+            'motor_config': LaunchConfiguration('motor_config'),
         }.items()
     )
 
@@ -95,12 +96,23 @@ def generate_launch_description():
         additional_env={'DISPLAY': os.environ.get('DISPLAY', ':0')},
     )
 
+    motor_config_arg = DeclareLaunchArgument(
+        'motor_config',
+        default_value=PathJoinSubstitution([
+            FindPackageShare('openhmi_blossom'),
+            'config',
+            'motor_config.yaml'
+        ]),
+        description='Motor configuration file path'
+    )
+
     return LaunchDescription([
         port_arg,
         baudrate_arg,
         enable_idle_arg,
         config_file_arg,
         base_url_arg,
+        motor_config_arg,
         blossom_launch,
         bloom_launch,
         speech_launch,

@@ -144,6 +144,13 @@ void LessonPoller::on_polling_tick() {
 							stop_step_control_polling();
 						}
 					}
+					if (!currently_executing_.load() && !last_lesson_id_.empty() && paired_.load()) {
+						bool has_active_lesson = j.contains("activeLessonId") && !j["activeLessonId"].is_null();
+						if (!has_active_lesson) {
+							RCLCPP_INFO(this->get_logger(), "[POLLER] Backend cleared active lesson — ready for new lesson");
+							last_lesson_id_ = "";
+						}
+					}
                 } catch (...) {
                     RCLCPP_WARN(this->get_logger(), "Failed to parse session status response");
                 }
@@ -405,7 +412,6 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json, const std::str
 			[this](const std::string &completed_lesson_id) {
 				RCLCPP_INFO(this->get_logger(), "Lesson completion callback: %s", completed_lesson_id.c_str());
 				stop_step_control_polling();
-				last_lesson_id_ = "";
 				currently_executing_.store(false);
 			});
 
@@ -484,7 +490,6 @@ void LessonPoller::on_step_control_tick() {
 				} else if (command == "stop") {
 					RCLCPP_INFO(this->get_logger(), "[STEP_CONTROL] Stop command received - stopping lesson");
 					if (lesson_coord_) lesson_coord_->stop_lesson();
-					last_lesson_id_ = "";
 					currently_executing_.store(false);
 					stop_step_control_polling();
                 } else {

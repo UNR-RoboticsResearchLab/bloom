@@ -334,6 +334,28 @@ export default function LessonView() {
         }
     }
 
+    async function handleStepClick(stepNumber) {
+        if (!activeSessionId || isSendingStepCommand) return;
+
+        try {
+            setIsSendingStepCommand(true);
+
+            await api.request(
+                `/api/LessonSession/${activeSessionId}/lessons/set-step`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({ targetStep: stepNumber }),
+                }
+            );
+
+            console.log("Jumped to step:", stepNumber);
+        } catch (error) {
+            console.error("Failed to jump to step:", error);
+        } finally {
+            setIsSendingStepCommand(false);
+        }
+    }
+
     async function handleRestart() {
         if (!activeSessionId || isSendingStepCommand) return;
 
@@ -522,7 +544,8 @@ export default function LessonView() {
                                 step.map((item) => (
                                     <div
                                         key={item.id}
-                                        className="min-w-[180px] max-w-[220px] flex-shrink-0 h-full rounded-lg bg-gray-100 border border-gray-300 p-3 shadow-sm flex flex-col justify-start"
+                                        onClick={() => !isSendingStepCommand && handleStepClick(item.order)}
+                                        className= {`min-w-[180px] max-w-[220px] flex-shrink-0 h-full rounded-lg bg-gray-100 border border-gray-300 p-3 shadow-sm flex flex-col justify-start ${isSendingStepCommand ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-blue-100"}`}
                                     >
                                         <p className="text-sm font-semibold text-gray-900 leading-tight">
                                             {item.title}

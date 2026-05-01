@@ -320,6 +320,25 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr) {
         return;
     }
 
+    // LLM spoke a tangent response without [RETURN_TO_LESSON] — re-open mic for next exchange
+    if (waiting_for_wrap_up_ && !waiting_for_tts_done_ && !waiting_for_interaction_tts_ && !waiting_for_llm_tts_done_) {
+        RCLCPP_INFO(this->get_logger(), "[TTS_DONE] LLM tangent response done — re-opening mic");
+        step_timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(50),
+            [this]() {
+                step_timer_->cancel();
+                step_timer_ = nullptr;
+                auto stt_msg = std_msgs::msg::String();
+                stt_msg.data = "true";
+                auto chime_msg = std_msgs::msg::String();
+                chime_msg.data = "play";
+                chime_pub_->publish(chime_msg);
+                stt_enable_pub_->publish(stt_msg);
+                waiting_for_response_ = true;
+                RCLCPP_INFO(this->get_logger(), "Now listening for student response (tangent continue)");
+            });
+        return;
+    }
     if (waiting_for_tts_done_) {
         if (waiting_for_wrap_up_) {
             RCLCPP_WARN(this->get_logger(), "[TTS_DONE] waiting_for_wrap_up_ still true, not advancing");

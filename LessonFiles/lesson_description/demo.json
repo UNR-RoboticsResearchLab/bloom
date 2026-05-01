@@ -1,0 +1,114 @@
+{
+  "lesson": {
+    "title": "Demo",
+    "grade": "All",
+    "objectives": ["showcase Bloom's capabilities"]
+  },
+  "sequence": [
+    {
+      "id": 1,
+      "type": "introduction",
+      "script": "Hi there! My name is Bloom! I am a friendly robot designed to work alongside speech language pathologists during therapy sessions.",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "excited"
+    },
+    {
+      "id": 2,
+      "type": "presentation",
+      "script": "Speech therapy is so important for children who need support with communication. But sometimes therapy sessions can feel a little stressful or intimidating for kids.",
+      "behaviors": {"behavior": "calm"},
+      "motor_sequence": "look_left"
+    },
+    {
+      "id": 3,
+      "type": "presentation",
+      "script": "That is where I come in! I work right alongside the speech language pathologist during sessions. My job is to make therapy more engaging and less scary for children. I am friendly, patient, and I never get tired of practicing!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy"
+    },
+    {
+      "id": 4,
+      "type": "presentation",
+      "script": "Because I am a robot, some kids find it easier and less intimidating to practice speaking with me than with an adult. The SLP is always right there guiding the session, and I help keep things fun and interactive.",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_right"
+    },
+    {
+      "id": 5,
+      "type": "presentation",
+      "script": "I can run all kinds of lessons! Today you can see me teach homophones, practice rhyming words, sort things into categories, and use describing words. Each lesson is designed with real speech therapy goals in mind.",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "look_up"
+    },
+    {
+      "id": 6,
+      "type": "presentation",
+      "script": "I also have a conversation mode where I can just chat with a child to help build their confidence and comfort with speaking out loud. Every child is different, and I can adapt to what they need!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "bounce_smooth"
+    },
+    {
+      "id": 7,
+      "type": "presentation",
+      "script": "I was built by a team of engineers right here at the University of Nevada Reno as a senior capstone project. The team worked with speech language pathology experts to design lessons that target real communication goals.",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "excited"
+    },
+    {
+      "id": 8,
+      "type": "presentation",
+      "script": "Want to see me in action? Talk to one of the engineers at this table and they can start a lesson with me! I would love to meet you.",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_left"
+    },
+    {
+      "id": 9,
+      "type": "presentation",
+      "script": "While you think about it, let me show you some of my expressions!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_right"
+    },
+    {
+      "id": 10,
+      "type": "presentation",
+      "script": "This is what I look like when I am excited!",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "excited"
+    },
+    {
+      "id": 11,
+      "type": "presentation",
+      "script": "And this is what I look like when I am thinking really hard about something.",
+      "behaviors": {"behavior": "thinking"},
+      "motor_sequence": "look_up"
+    },
+    {
+      "id": 12,
+      "type": "presentation",
+      "script": "And this is my happy face! This is the face I make when a child does a great job during a lesson.",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy"
+    },
+    {
+      "id": 13,
+      "type": "presentation",
+      "script": "I am always learning and growing too. The team is working on adding more lessons, more expressions, and more ways for me to support children in therapy. The future of speech therapy is bright!",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "bounce_smooth"
+    },
+    {
+      "id": 14,
+      "type": "presentation",
+      "script": "Thank you so much for stopping by to learn about me! I hope I get to run a lesson with you today. Come find one of the engineers at this table to get started!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_up"
+    },
+    {
+      "id": 15,
+      "type": "loop",
+      "script": "",
+      "behaviors": {"behavior": "idle"},
+      "motor_sequence": ""
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "lesson": {
+    "title": "Rhyming Words",
+    "grade": "Elementary",
+    "objectives": ["identify rhyming words", "produce rhyming words on demand"]
+  },
+  "sequence": [
+    {
+      "id": 1,
+      "type": "introduction",
+      "script": "Hi there! Today we are going to play with words that rhyme! Rhyming words are words that end with the same sound. Like cat and hat, or dog and log. They sound so similar at the end!",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "excited"
+    },
+    {
+      "id": 2,
+      "type": "definition",
+      "script": "When two words rhyme, their endings sound the same. Cat and hat both end with the sound at. Ball and tall both end with the sound all. The beginning of the word can be totally different, but if the ending sounds match, they rhyme!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy"
+    },
+    {
+      "id": 3,
+      "type": "example",
+      "script": "Let me give you some examples. Sun and fun rhyme because they both end with the un sound. Blue and true rhyme because they both end with the oo sound. Night and light rhyme because they both end with the ite sound. Do you hear how the endings match?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_up"
+    },
+    {
+      "id": 4,
+      "type": "interactive_question",
+      "script": "Okay let us try one together! I will say a word and you tell me a word that rhymes with it. Here we go. Can you think of a word that rhymes with cat?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked to say a word that rhymes with cat. A rhyming word ends with the same sound - so words like hat, bat, mat, rat, sat, flat, that all work. Evaluate their response. If they said a real rhyming word, praise them enthusiastically. If they said something that does not rhyme, gently say that was a good try and explain that words like hat or bat rhyme with cat because they all end with the at sound. If they said nothing, say that is okay and give the example hat as a rhyme for cat.",
+        "fallback_script": "That is okay! A word that rhymes with cat is hat. Cat and hat both end with the at sound!"
+      }
+    },
+    {
+      "id": 5,
+      "type": "interactive_question",
+      "script": "You are doing great! Here is the next one. Can you think of a word that rhymes with dog?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_right",
+      "interaction": {
+        "wait_for_response": true,
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked to say a word that rhymes with dog. Words like log, fog, frog, bog, hog all rhyme with dog. Evaluate their response. If they said a real rhyming word, praise them enthusiastically. If they said something that does not rhyme, gently say that was a good try and explain that log rhymes with dog because they both end with the og sound. If they said nothing, say that is okay and give the example log as a rhyme for dog.",
+        "fallback_script": "That is okay! A word that rhymes with dog is log. Dog and log both end with the og sound!"
+      }
+    },
+    {
+      "id": 6,
+      "type": "interactive_question",
+      "script": "Fantastic! One more. Can you think of a word that rhymes with moon?",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked to say a word that rhymes with moon. Words like spoon, soon, tune, June, balloon, cartoon all rhyme with moon. Evaluate their response. If they said a real rhyming word, praise them enthusiastically. If they said something that does not rhyme, gently say that was a good try and explain that spoon rhymes with moon because they both end with the oon sound. If they said nothing, say that is okay and give the example spoon as a rhyme for moon.",
+        "fallback_script": "That is okay! A word that rhymes with moon is spoon. Moon and spoon both end with the oon sound!"
+      }
+    },
+    {
+      "id": 7,
+      "type": "interactive_question",
+      "script": "Last one! You are so good at this. Can you think of a word that rhymes with rain?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_left",
+      "interaction": {
+        "wait_for_response": true,
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked to say a word that rhymes with rain. Words like train, brain, plain, lane, cane, game, pain, main all rhyme with rain. Evaluate their response. If they said a real rhyming word, praise them enthusiastically. If they said something that does not rhyme, gently say that was a good try and explain that train rhymes with rain because they both end with the ain sound. If they said nothing, say that is okay and give the example train as a rhyme for rain.",
+        "fallback_script": "That is okay! A word that rhymes with rain is train. Rain and train both end with the ain sound!"
+      }
+    },
+    {
+      "id": 8,
+      "type": "summary",
+      "script": "You did an amazing job today! We learned that rhyming words are words that end with the same sound. Cat and hat, dog and log, moon and spoon, rain and train. The next time you hear a song or read a book, listen for the rhymes!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy"
+    },
+    {
+      "id": 9,
+      "type": "closing",
+      "script": "I had so much fun rhyming with you today! You are a rhyming superstar. Keep listening for rhymes everywhere you go. See you next time!",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "bounce_smooth"
+    }
+  ]
+}

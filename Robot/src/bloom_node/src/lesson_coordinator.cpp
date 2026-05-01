@@ -609,6 +609,14 @@ void LessonCoordinator::advance_to_next_step() {
 
     const LessonStep &current_step = current_lesson_.sequence[current_step_index_];
     current_step_index_++;
+    if (current_step.type == "loop") {
+        RCLCPP_INFO(this->get_logger(), "[LOOP] Restarting demo lesson");
+        current_step_index_ = 0;
+        update_progress_with_backend();
+        execute_step(current_lesson_.sequence[0]);
+        return;
+    }
+
     update_progress_with_backend();
     execute_step(current_step);
 }

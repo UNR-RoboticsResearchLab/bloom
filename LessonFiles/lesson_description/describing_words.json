@@ -1,0 +1,100 @@
+{
+  "lesson": {
+    "title": "Describing Words",
+    "grade": "Elementary",
+    "objectives": ["use adjectives to describe objects", "expand descriptive vocabulary"]
+  },
+  "sequence": [
+    {
+      "id": 1,
+      "type": "introduction",
+      "script": "Hi there! Today we are going to learn about describing words! Describing words are called adjectives and they help us tell more about people, places, and things. They make our talking and writing so much more interesting!",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "excited"
+    },
+    {
+      "id": 2,
+      "type": "definition",
+      "script": "An adjective is a word that describes something. It tells us what something looks like, feels like, sounds like, tastes like, or smells like. Big, small, soft, loud, sweet, and cold are all adjectives. They paint a picture with words!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy"
+    },
+    {
+      "id": 3,
+      "type": "example",
+      "script": "Let me show you. Instead of just saying I have a dog, I could say I have a fluffy, playful, brown dog. The words fluffy, playful, and brown are all adjectives that describe the dog. They help us picture exactly what the dog looks and acts like!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_up"
+    },
+    {
+      "id": 4,
+      "type": "interactive_question",
+      "script": "Okay your turn! I want you to tell me as many describing words as you can think of for a pizza. What words describe a pizza?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked to say describing words or adjectives for a pizza. Good answers include words like hot, cheesy, delicious, round, crispy, saucy, yummy, warm, colorful, tasty, big, or any other reasonable adjective. Evaluate their response. If they gave good describing words, praise them enthusiastically and maybe add one more example. If their answer was not quite right or not an adjective, gently guide them by saying something like those are interesting words and then suggest that words like hot or cheesy describe what pizza is like. If they said nothing, encourage them and suggest words like hot and cheesy as examples.",
+        "fallback_script": "That is okay! Some great describing words for pizza are hot, cheesy, and delicious!"
+      }
+    },
+    {
+      "id": 5,
+      "type": "interactive_question",
+      "script": "Amazing! Now tell me some describing words for a puppy. What words describe a puppy?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_right",
+      "interaction": {
+        "wait_for_response": true,
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked to say describing words or adjectives for a puppy. Good answers include words like fluffy, soft, small, playful, cute, wiggly, energetic, loud, warm, furry, or any other reasonable adjective. Evaluate their response. If they gave good describing words, praise them enthusiastically and maybe add one more example. If their answer was not quite right, gently guide them toward adjectives. If they said nothing, encourage them and suggest words like fluffy and playful as examples.",
+        "fallback_script": "That is okay! Some great describing words for a puppy are fluffy, soft, and playful!"
+      }
+    },
+    {
+      "id": 6,
+      "type": "interactive_question",
+      "script": "You are so creative! This one might be a little tricky. Tell me some describing words for the ocean. What words describe the ocean?",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked to say describing words or adjectives for the ocean. Good answers include words like big, deep, blue, cold, salty, wavy, huge, beautiful, dark, scary, calm, or any other reasonable adjective. Evaluate their response. If they gave good describing words, praise them enthusiastically and maybe add one more example. If their answer was not quite right, gently guide them toward adjectives. If they said nothing, encourage them and suggest words like big and blue as examples.",
+        "fallback_script": "That is okay! Some great describing words for the ocean are big, blue, and deep!"
+      }
+    },
+    {
+      "id": 7,
+      "type": "interactive_question",
+      "script": "Last one! You are incredible at this. Tell me some describing words for your bedroom. What words describe your bedroom?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_left",
+      "interaction": {
+        "wait_for_response": true,
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked to say describing words or adjectives for their bedroom. Any reasonable adjectives work here since it is personal to them. Good answers could include words like cozy, messy, clean, small, big, colorful, quiet, comfortable, dark, bright, or any other adjective. Evaluate their response. If they gave good describing words, praise them enthusiastically. If their answer was not quite right, gently guide them toward adjectives. If they said nothing, suggest words like cozy or colorful as examples.",
+        "fallback_script": "That is okay! Some great describing words for a bedroom are cozy, comfortable, and colorful!"
+      }
+    },
+    {
+      "id": 8,
+      "type": "summary",
+      "script": "You did such a fantastic job today! We learned that describing words called adjectives tell us more about people, places, and things. Using adjectives makes our talking and writing so much more interesting and helps others picture exactly what we mean!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy"
+    },
+    {
+      "id": 9,
+      "type": "closing",
+      "script": "I am so proud of all the amazing describing words you used today! You have a wonderful vocabulary. Try using more adjectives when you talk and write this week. See you next time!",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "bounce_smooth"
+    }
+  ]
+}

@@ -121,7 +121,7 @@ class Eye:
 
 
 class BlossomFace:
-    def __init__(self, width, height):
+    def __init__(self, width, height, play_sequence_fn=None):
         self.width = width
         self.height = height
         self.emotion = 'neutral'
@@ -161,6 +161,22 @@ class BlossomFace:
         
         
         self.mic_active = False
+        # Idle animation state
+        self.idle_time = 0.0
+        self.next_glance = random.uniform(3.0, 8.0)
+        self.glance_duration = 0.0
+        self.is_glancing = False
+        
+        # Talking eye drift
+        self.talk_drift_timer = 0.0
+        self.next_talk_drift = random.uniform(0.5, 2.0)
+        
+        # Sleepy idle state
+        self.sleepy_idle_timer = 0.0
+        self.sleepy_idle_threshold = random.uniform(20.0, 35.0)
+        self.sleepy_state = 'none'  # 'none', 'dozing', 'waking'
+        self.sleepy_timer = 0.0
+        self.z_particles = []  # list of {x, y, alpha, size, vel_y}
         self.pulse_time = 0.0
 
         
@@ -281,6 +297,7 @@ class BlossomFace:
         self.left_eye.update(dt)
         self.right_eye.update(dt)
 
+        # Blinking
         self.blink_cooldown -= dt
         if self.left_eye.blink_timer > 0:
             self.left_eye.blink_timer -= dt
@@ -313,6 +330,111 @@ class BlossomFace:
             breath = math.sin(self.time * 2) * 2
             self.left_eye.y = self.height * 0.4 + breath
             self.right_eye.y = self.height * 0.4 + breath
+            self._update_idle(dt)
+        elif self.emotion in ('happy', 'excited'):
+            self._update_talking_drift(dt)
+        else:
+            # Reset idle timer if not idle
+            self.idle_time = 0.0
+            self.sleepy_state = 'none'
+            self.z_particles = []
+
+        # Update Z particles
+        for z in self.z_particles[:]:
+            z['y'] -= z['vel_y'] * dt
+            z['alpha'] -= 80 * dt
+            if z['alpha'] <= 0:
+                self.z_particles.remove(z)
+
+    def _update_idle(self, dt):
+        self.idle_time += dt
+
+        # Random eye glances with head turn
+        if not self.is_glancing:
+            self.next_glance -= dt
+            if self.next_glance <= 0:
+                directions = [
+                    (self.width * 0.2, self.height * 0.3, 'look_left'),
+                    (self.width * 0.8, self.height * 0.3, 'look_right'),
+                    (self.width * 0.1, self.height * 0.5, 'look_left'),
+                    (self.width * 0.9, self.height * 0.5, 'look_right'),
+                    (self.width * 0.5, self.height * 0.25, 'look_up'),
+                ]
+                target = random.choice(directions)
+                self.left_eye.look_at(target[0], target[1])
+                self.right_eye.look_at(target[0], target[1])
+                # Publish head sequence to match eye direction
+                if self.play_sequence_fn:
+                    self.play_sequence_fn(target[2])
+                self.is_glancing = True
+                self.glance_duration = random.uniform(0.8, 2.0)
+        else:
+            self.glance_duration -= dt
+            if self.glance_duration <= 0:
+                self.left_eye.target_pupil_x = 0
+                self.left_eye.target_pupil_y = 0
+                self.right_eye.target_pupil_x = 0
+                self.right_eye.target_pupil_y = 0
+                self.is_glancing = False
+                self.next_glance = random.uniform(3.0, 8.0)
+
+        # Sleepy idle
+        if self.idle_time > self.sleepy_idle_threshold and self.sleepy_state == 'none':
+            self.sleepy_state = 'dozing'
+            self.sleepy_timer = 0.0
+            # Tilt head to one side when falling asleep
+            if self.play_sequence_fn:
+                self.play_sequence_fn(random.choice(['look_left', 'look_right']))
+
+        if self.sleepy_state == 'dozing':
+            self.sleepy_timer += dt
+            doze_factor = min(1.0, self.sleepy_timer / 3.0)
+            self.left_eye.target_size = self.left_eye.base_size * (1.0 - doze_factor * 0.7)
+            self.right_eye.target_size = self.right_eye.base_size * (1.0 - doze_factor * 0.7)
+            if self.sleepy_timer > 1.5 and random.random() < 0.03:
+                self.z_particles.append({
+                    'x': self.width * 0.6 + random.uniform(-20, 20),
+                    'y': self.height * 0.35,
+                    'alpha': 220,
+                    'size': random.randint(14, 22),
+                    'vel_y': random.uniform(25, 45),
+                })
+            if self.sleepy_timer > 5.0:
+                self.sleepy_state = 'waking'
+                self.sleepy_timer = 0.0
+                self.z_particles = []
+
+        elif self.sleepy_state == 'waking':
+            self.sleepy_timer += dt
+            self.left_eye.target_size = self.left_eye.base_size * 1.3
+            self.right_eye.target_size = self.right_eye.base_size * 1.3
+            shake = math.sin(self.sleepy_timer * 25) * 15
+            self.left_eye.target_pupil_x = shake
+            self.right_eye.target_pupil_x = shake
+            if self.sleepy_timer > 1.5:
+                self.left_eye.target_size = self.left_eye.base_size
+                self.right_eye.target_size = self.right_eye.base_size
+                self.left_eye.target_pupil_x = 0
+                self.right_eye.target_pupil_x = 0
+                self.sleepy_state = 'none'
+                self.idle_time = 0.0
+                self.sleepy_idle_threshold = random.uniform(20.0, 35.0)
+                # Return head to center
+                if self.play_sequence_fn:
+                    self.play_sequence_fn('idle')
+
+    def _update_talking_drift(self, dt):
+        """Subtle eye drift while talking to avoid uncanny stillness."""
+        self.talk_drift_timer += dt
+        if self.talk_drift_timer > self.next_talk_drift:
+            offset_x = random.uniform(-8, 8)
+            offset_y = random.uniform(-5, 5)
+            self.left_eye.target_pupil_x = offset_x
+            self.left_eye.target_pupil_y = offset_y
+            self.right_eye.target_pupil_x = offset_x
+            self.right_eye.target_pupil_y = offset_y
+            self.talk_drift_timer = 0.0
+            self.next_talk_drift = random.uniform(0.5, 2.0)
 
     def draw(self, surface):
         if self.visual_aid_active:
@@ -327,9 +449,19 @@ class BlossomFace:
         self.left_eye.draw(surface, self.emotion)
         self.right_eye.draw(surface, self.emotion)
         self.draw_mouth(surface)
-
+        self._draw_z_particles(surface)
         if self.mic_active:
             self.draw_recording_indicator(surface)
+
+    def _draw_z_particles(self, surface):
+        if not self.z_particles:
+            return
+        font = pygame.font.SysFont('Arial', 28, bold=True)
+        for z in self.z_particles:
+            alpha = max(0, min(255, int(z['alpha'])))
+            z_surf = font.render('z', True, (100, 100, 140))
+            z_surf.set_alpha(alpha)
+            surface.blit(z_surf, (int(z['x']), int(z['y'])))
 
     def draw_mouth(self, surface):
         if self.mouth_mode == 'viseme':
@@ -521,7 +653,8 @@ class FaceNode(Node):
         pygame.display.set_caption('Bloom')
 
         self.clock = pygame.time.Clock()
-        self.face = BlossomFace(self.width, self.height)
+        self.sequence_pub = self.create_publisher(String, 'play_sequence', 10)
+        self.face = BlossomFace(self.width, self.height, play_sequence_fn=self._publish_sequence)
         self.face.set_emotion('happy')
 
         
@@ -541,6 +674,8 @@ class FaceNode(Node):
         self.create_timer(1.0 / 30.0, self.render)
 
         self.get_logger().info('Face node ready')
+        self.sequence_pub = self.create_publisher(String, 'play_sequence', 10)
+
 
     def on_emotion(self, msg: String):
         with self.lock:
@@ -651,6 +786,11 @@ class FaceNode(Node):
             self.face.mic_active = msg.data.lower() == 'true'
             if self.face.mic_active:
                 self.face.pulse_time = 0.0
+
+    def _publish_sequence(self, seq_name):
+        msg = String()
+        msg.data = seq_name
+        self.sequence_pub.publish(msg)
 
 def main(args=None):
     env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),

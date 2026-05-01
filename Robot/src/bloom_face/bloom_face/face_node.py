@@ -400,8 +400,8 @@ class BlossomFace:
             self.sleepy_factor = min(1.0, self.sleepy_timer / 3.0)
             if self.sleepy_timer > 1.5 and random.random() < 0.03:
                 self.z_particles.append({
-                    'x': self.left_eye.x - 20 + random.uniform(-10, 10),
-                    'y': self.left_eye.y - 60 + random.uniform(-10, 10),
+                    'x': self.left_eye.x - 15 + random.uniform(-5, 5),
+                    'y': self.left_eye.y - 30 + random.uniform(-5, 5),
                     'alpha': 220,
                     'size': random.randint(14, 22),
                     'vel_y': random.uniform(25, 45),

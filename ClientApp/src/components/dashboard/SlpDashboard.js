@@ -154,6 +154,11 @@ export default function SlpDashboard() {
     form.reset();
   }
 
+  function goToStudent(student) {
+      const id = student.id ?? student.Id;
+      navigate(`/student/${id}`);
+  }
+
   return (
     <DashboardLayout title="SLP Dashboard">
       <div className="grid gap-4 sm:grid-cols-3">
@@ -237,7 +242,8 @@ export default function SlpDashboard() {
                 active={[]}
                 completed={[]}
                 selected={selectedStudentId === s.id}
-                onClick={() => setSelectedStudentId(s.id)}
+                // onClick={() => setSelectedStudentId(s.id)}
+                onClick={() => goToStudent(s)}
               />
             ))}
           </div>

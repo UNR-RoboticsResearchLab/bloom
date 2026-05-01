@@ -326,10 +326,11 @@ async signIn(email, password) {
     return res;
   }
 
-  async startLessonSession(lessonId, sessionId) {
+  async startLessonSession(lessonId, sessionId, student) {
+    const studentId = student?.id ?? student?.studentId;
     const res = await this.request(`/api/LessonSession/${sessionId}/lesson`, {
       method: "POST",
-      body: JSON.stringify({ lessonId }),
+      body: JSON.stringify({ lessonId, studentId }),
     });
     return res;
   }

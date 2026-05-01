@@ -207,7 +207,7 @@ export default function LessonView() {
                     student,
                 });
 
-                const res = await api.startLessonSession(lessonId, sessionIdToUse);
+                const res = await api.startLessonSession(lessonId, sessionIdToUse, student);
                 console.log("Lesson session started:", res);
 
                 await loadLessonSteps();

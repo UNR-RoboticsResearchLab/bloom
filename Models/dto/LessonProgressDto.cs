@@ -11,6 +11,12 @@ namespace bloom.Models.dto
     public class StartLessonDto
     {
         public required Guid LessonId { get; set; }
+
+        /// <summary>
+        /// Account ID of the student this lesson is being run for.
+        /// Required so the run can be retrieved by student history queries.
+        /// </summary>
+        public required string StudentId { get; set; }
     }
 
     /// <summary>

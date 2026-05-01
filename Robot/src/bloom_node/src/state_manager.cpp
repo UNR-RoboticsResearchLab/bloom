@@ -250,12 +250,25 @@ void StateManager::on_behavior_loop_tick()
 
 void StateManager::on_sequence_status(const std_msgs::msg::String::SharedPtr msg)
 {
-	if (!msg) return;
+    if (!msg) return;
 
-	// Parse the message: format is "completed:sequence_name" or "playing:sequence_name"
-	const std::string & data = msg->data;
-	if (data.find("completed:") == 0) {
-		// A sequence has completed, publish the next behavior in the loop
-		on_behavior_loop_tick();
-	}
+    const std::string & data = msg->data;
+    if (data.find("completed:") == 0) {
+        std::string completed_seq = data.substr(10); 
+        
+        if (completed_seq == "idle") {
+            on_behavior_loop_tick();
+        } else {
+            if (behavior_loop_timer_) {
+                behavior_loop_timer_->cancel();
+            }
+            behavior_loop_timer_ = this->create_wall_timer(
+                std::chrono::seconds(3),
+                [this]() {
+                    behavior_loop_timer_->cancel();
+                    behavior_loop_timer_ = nullptr;
+                    on_behavior_loop_tick();
+                });
+        }
+    }
 }

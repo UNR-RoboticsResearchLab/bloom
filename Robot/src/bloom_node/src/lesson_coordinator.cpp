@@ -342,7 +342,7 @@ void LessonCoordinator::on_llm_wrap_up(const std_msgs::msg::String::SharedPtr) {
         auto mode_msg = std_msgs::msg::String();
         mode_msg.data = conversation_mode_ ? "conversation_lesson" : "lesson_mode";
         llm_mode_pub_->publish(mode_msg);
-        waiting_for_tts_done_ = true;
+        waiting_for_llm_tts_done_ = true;
     } else if (waiting_for_single_turn_) {
         waiting_for_single_turn_ = false;
         waiting_for_llm_tts_done_ = true;

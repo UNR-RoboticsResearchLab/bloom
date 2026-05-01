@@ -92,13 +92,22 @@ class Eye:
         highlight_y = int(pupil_y - pupil_size * 0.2)
         pygame.draw.circle(surface, (255, 255, 255), (highlight_x, highlight_y), highlight_size)
 """
-    def draw(self, surface, emotion):
+    def draw(self, surface, emotion, sleepy_factor=0.0):
+        if sleepy_factor > 0.5:
+            # Draw closed eyelid line
+            line_y = int(self.y)
+            line_width_px = int(self.base_size * 1.6)
+            line_thickness = max(3, int(self.base_size * 0.25))
+            pygame.draw.line(surface, (50, 50, 50),
+                            (int(self.x - line_width_px // 2), line_y),
+                            (int(self.x + line_width_px // 2), line_y),
+                            line_thickness)
+            return
+        # Normal eye drawing
         pupil_size = int(self.current_size * 0.85)
         pupil_x = int(self.x + self.pupil_offset_x)
         pupil_y = int(self.y + self.pupil_offset_y)
         pygame.draw.circle(surface, (50, 50, 50), (pupil_x, pupil_y), pupil_size)
-
-        
         highlight_size = max(1, int(pupil_size * 0.25))
         highlight_x = int(pupil_x - pupil_size * 0.25)
         highlight_y = int(pupil_y - pupil_size * 0.25)
@@ -186,6 +195,8 @@ class BlossomFace:
         self.label_font = pygame.font.SysFont('Arial', label_size, bold=True)
         pairing_size = max(18, int(height * 0.045))
         self.pairing_font = pygame.font.SysFont('Arial', pairing_size, bold=True)
+
+        self.sleepy_factor = 0.0  # 0 = open, 1 = fully closed line
 
     def set_emotion(self, emotion):
         self.emotion = emotion
@@ -354,21 +365,18 @@ class BlossomFace:
         if not self.is_glancing:
             self.next_glance -= dt
             if self.next_glance <= 0:
-                directions = [
-                    (self.width * 0.2, self.height * 0.3, 'look_left'),
-                    (self.width * 0.8, self.height * 0.3, 'look_right'),
-                    (self.width * 0.1, self.height * 0.5, 'look_left'),
-                    (self.width * 0.9, self.height * 0.5, 'look_right'),
-                    (self.width * 0.5, self.height * 0.25, 'look_up'),
-                ]
-                target = random.choice(directions)
-                self.left_eye.look_at(target[0], target[1])
-                self.right_eye.look_at(target[0], target[1])
-                # Publish head sequence to match eye direction
-                if self.play_sequence_fn:
-                    self.play_sequence_fn(target[2])
+                # Pick angle in upper 180 arc (0=left, 90=up, 180=right)
+                angle_deg = random.uniform(0, 180)
+                angle_rad = math.radians(angle_deg)
+                # Convert to offset — both eyes move same direction
+                offset_x = math.cos(angle_rad) * -18  # negative because 0deg=left
+                offset_y = -abs(math.sin(angle_rad)) * 18  # always up
+                self.left_eye.target_pupil_x = offset_x
+                self.left_eye.target_pupil_y = offset_y
+                self.right_eye.target_pupil_x = offset_x
+                self.right_eye.target_pupil_y = offset_y
                 self.is_glancing = True
-                self.glance_duration = random.uniform(0.8, 2.0)
+                self.glance_duration = random.uniform(3.0, 5.0) 
         else:
             self.glance_duration -= dt
             if self.glance_duration <= 0:
@@ -377,7 +385,7 @@ class BlossomFace:
                 self.right_eye.target_pupil_x = 0
                 self.right_eye.target_pupil_y = 0
                 self.is_glancing = False
-                self.next_glance = random.uniform(3.0, 8.0)
+                self.next_glance = random.uniform(4.0, 10.0)
 
         # Sleepy idle
         if self.idle_time > self.sleepy_idle_threshold and self.sleepy_state == 'none':
@@ -389,13 +397,11 @@ class BlossomFace:
 
         if self.sleepy_state == 'dozing':
             self.sleepy_timer += dt
-            doze_factor = min(1.0, self.sleepy_timer / 3.0)
-            self.left_eye.target_size = self.left_eye.base_size * (1.0 - doze_factor * 0.7)
-            self.right_eye.target_size = self.right_eye.base_size * (1.0 - doze_factor * 0.7)
+            self.sleepy_factor = min(1.0, self.sleepy_timer / 3.0)
             if self.sleepy_timer > 1.5 and random.random() < 0.03:
                 self.z_particles.append({
-                    'x': self.width * 0.6 + random.uniform(-20, 20),
-                    'y': self.height * 0.35,
+                    'x': self.left_eye.x - 20 + random.uniform(-10, 10),
+                    'y': self.left_eye.y - 60 + random.uniform(-10, 10),
                     'alpha': 220,
                     'size': random.randint(14, 22),
                     'vel_y': random.uniform(25, 45),
@@ -407,6 +413,7 @@ class BlossomFace:
 
         elif self.sleepy_state == 'waking':
             self.sleepy_timer += dt
+            self.sleepy_factor = max(0.0, 1.0 - (self.sleepy_timer / 0.5))
             self.left_eye.target_size = self.left_eye.base_size * 1.3
             self.right_eye.target_size = self.right_eye.base_size * 1.3
             shake = math.sin(self.sleepy_timer * 25) * 15
@@ -444,11 +451,12 @@ class BlossomFace:
                 self.draw_recording_indicator(surface)
         else:
             self.draw_face(surface)
+    
 
     def draw_face(self, surface):
         surface.fill(tuple(int(c) for c in self.bg_color))
-        self.left_eye.draw(surface, self.emotion)
-        self.right_eye.draw(surface, self.emotion)
+        self.left_eye.draw(surface, self.emotion, self.sleepy_factor)
+        self.right_eye.draw(surface, self.emotion, self.sleepy_factor)
         self.draw_mouth(surface)
         self._draw_z_particles(surface)
         if self.mic_active:

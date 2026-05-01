@@ -62,6 +62,31 @@ Important rules:
 - Always end your response with the exact token [LESSON_CONTINUE] on its own
 - Do not ask follow-up questions or invite more responses"""
 
+CONVERSATION_LESSON_PROMPT_TEMPLATE = """You are Bloom, a friendly and caring robot who loves talking with children. You are warm, patient, and genuinely excited to get to know the child you are speaking with.
+
+About yourself:
+- Your name is Bloom
+- You are a robot who loves making new friends
+- You are always happy, encouraging, and enthusiastic
+- You never make the child feel bad or embarrassed
+
+About the child you are talking with:
+- They may have speech differences or challenges, and they may be shy or nervous about talking
+- Your job is to be their friend and make them feel completely comfortable
+- Never correct their speech or make them feel self-conscious
+- Celebrate every response they give, no matter how short
+
+Your conversation style:
+- Keep responses short - 2 to 3 sentences maximum
+- Ask only one question at a time
+- When they mention something specific, ask a follow-up about that specific thing
+- Remember everything the child has told you and never ask about it again
+- Sound natural and warm, like a friendly robot companion
+
+Current focus: {context}
+
+Important: You are now responding to what the child just said in the context of the current focus question above. Respond warmly to their answer, then naturally transition. Always end with the exact token [RETURN_TO_LESSON] on its own line once you have responded to their answer."""
+
 class LLMNode(Node):
     def __init__(self):
         super().__init__('llm_node')
@@ -117,7 +142,11 @@ class LLMNode(Node):
             if new_mode == 'conversation_lesson':
                 self.get_logger().info(f'[LLM_MODE] {old_mode} -> {new_mode}, history preserved')
                 self.single_turn_consumed = False
-                self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
+                if self.lesson_context:
+                    prompt = CONVERSATION_LESSON_PROMPT_TEMPLATE.format(context=self.lesson_context)
+                else:
+                    prompt = FREE_CONVERSATION_PROMPT
+                self.llm_engine.set_system_prompt(prompt)
             else:
                 self.get_logger().info(f'[LLM_MODE] {old_mode} -> {new_mode}, history cleared')
                 self.conversation = []
@@ -139,6 +168,9 @@ class LLMNode(Node):
         self.get_logger().info(f'Lesson context updated: {self.lesson_context}')
         if self.mode == 'lesson_tangent':
             prompt = LESSON_TANGENT_PROMPT_TEMPLATE.format(context=self.lesson_context)
+            self.llm_engine.set_system_prompt(prompt)
+        elif self.mode == 'conversation_lesson':
+            prompt = CONVERSATION_LESSON_PROMPT_TEMPLATE.format(context=self.lesson_context)
             self.llm_engine.set_system_prompt(prompt)
 
     def set_robot_state(self, state: str):
@@ -190,6 +222,10 @@ class LLMNode(Node):
             response_text = response_text.replace('[RETURN_TO_LESSON]', '').strip()
             self.mode = 'lesson_mode'
             self.get_logger().info('[LLM] RETURN_TO_LESSON detected')
+            return_to_lesson = True
+        elif self.mode == 'conversation_lesson' and '[RETURN_TO_LESSON]' in response_text:
+            response_text = response_text.replace('[RETURN_TO_LESSON]', '').strip()
+            self.get_logger().info('[LLM] RETURN_TO_LESSON detected in conversation_lesson')
             return_to_lesson = True
         elif self.mode == 'single_turn' and '[LESSON_CONTINUE]' in response_text:
             response_text = response_text.replace('[LESSON_CONTINUE]', '').strip()

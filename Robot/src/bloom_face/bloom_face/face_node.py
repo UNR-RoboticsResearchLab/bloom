@@ -122,6 +122,7 @@ class Eye:
 
 class BlossomFace:
     def __init__(self, width, height, play_sequence_fn=None):
+        self.play_sequence_fn = play_sequence_fn
         self.width = width
         self.height = height
         self.emotion = 'neutral'
@@ -674,7 +675,7 @@ class FaceNode(Node):
         self.create_timer(1.0 / 30.0, self.render)
 
         self.get_logger().info('Face node ready')
-        self.sequence_pub = self.create_publisher(String, 'play_sequence', 10)
+        
 
 
     def on_emotion(self, msg: String):

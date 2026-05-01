@@ -119,9 +119,9 @@ export default function LessonView() {
                     return {
                         id: item.id ?? `interaction-${index}`,
                         type:
-                            interactionType === "student"
+                            interactionType === "response"
                                 ? "student"
-                                : interactionType === "note"
+                                : interactionType === "note" || interactionType === "slpfeedback"
                                 ? "note"
                                 : "robot",
                         text: item.studentResponse || item.dialogTurn || "",

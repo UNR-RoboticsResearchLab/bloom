@@ -207,7 +207,7 @@ export default function LessonView() {
                     student,
                 });
 
-                const res = await api.startLessonSession(lessonId, sessionIdToUse);
+                const res = await api.startLessonSession(sessionIdToUse, lessonId, student?.id ?? student?.studentId ?? sessionIdToUse);
                 console.log("Lesson session started:", res);
 
                 await loadLessonSteps();
@@ -267,16 +267,9 @@ export default function LessonView() {
 
     async function handleBackStep() {
         if (!activeSessionId || isSendingStepCommand) return;
-
         try {
             setIsSendingStepCommand(true);
-
-            const res = await api.request(
-                `/api/LessonSession/${activeSessionId}/lessons/replay`,
-                { method: "POST" }
-            );
-
-            console.log("Replay command queued:", res);
+            await api.replayStep(activeSessionId);
         } catch (error) {
             console.error("Failed to queue replay command:", error);
         } finally {
@@ -286,16 +279,9 @@ export default function LessonView() {
 
     async function handleForwardStep() {
         if (!activeSessionId || isSendingStepCommand) return;
-
         try {
             setIsSendingStepCommand(true);
-
-            const res = await api.request(
-                `/api/LessonSession/${activeSessionId}/lessons/skip`,
-                { method: "POST" }
-            );
-
-            console.log("Skip command queued:", res);
+            await api.skipStep(activeSessionId);
         } catch (error) {
             console.error("Failed to queue skip command:", error);
         } finally {
@@ -308,7 +294,6 @@ export default function LessonView() {
         if (!trimmed || !activeSessionId || isSendingStepCommand) return;
 
         const targetStep = Number(trimmed);
-
         if (!Number.isInteger(targetStep) || targetStep < 1) {
             console.error("Invalid step number:", trimmed);
             return;
@@ -316,16 +301,7 @@ export default function LessonView() {
 
         try {
             setIsSendingStepCommand(true);
-
-            const res = await api.request(
-                `/api/LessonSession/${activeSessionId}/lessons/set-step`,
-                {
-                    method: "POST",
-                    body: JSON.stringify({ targetStep }),
-                }
-            );
-
-            console.log("Set step command queued:", res);
+            await api.setStep(activeSessionId, targetStep);
             setStepInput("");
         } catch (error) {
             console.error("Failed to queue set step command:", error);
@@ -334,21 +310,23 @@ export default function LessonView() {
         }
     }
 
-    async function handleRestart() {
+    async function handleStepClick(stepNumber) {
         if (!activeSessionId || isSendingStepCommand) return;
-
         try {
             setIsSendingStepCommand(true);
+            await api.setStep(activeSessionId, stepNumber);
+        } catch (error) {
+            console.error("Failed to jump to step:", error);
+        } finally {
+            setIsSendingStepCommand(false);
+        }
+    }
 
-            await api.request(
-                `/api/LessonSession/${activeSessionId}/lessons/set-step`,
-                {
-                    method: "POST",
-                    body: JSON.stringify({ targetStep: 1 }),
-                }
-            );
-
-            console.log("Restarted lesson to step 1");
+    async function handleRestart() {
+        if (!activeSessionId || isSendingStepCommand) return;
+        try {
+            setIsSendingStepCommand(true);
+            await api.setStep(activeSessionId, 1);
         } catch (error) {
             console.error("Failed to restart lesson:", error);
         } finally {

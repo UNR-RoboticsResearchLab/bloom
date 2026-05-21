@@ -137,8 +137,12 @@ namespace bloom.Services
 
         public async Task<string?> LoginRobotAsync(RobotDto robotDto)
         {
+            bool ipKnown = !string.IsNullOrWhiteSpace(robotDto.IPAddress)
+                           && robotDto.IPAddress != "N/A";
+
             var robot = await _dbContext.Robots.FirstOrDefaultAsync(r =>
-                r.Name == robotDto.Name && r.IPAddress == robotDto.IPAddress);
+                r.Name == robotDto.Name &&
+                (!ipKnown || r.IPAddress == robotDto.IPAddress));
 
             if (robot == null)
                 return null;

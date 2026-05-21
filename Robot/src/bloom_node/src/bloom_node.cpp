@@ -8,6 +8,9 @@
 #include <iostream>
 #include <algorithm>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
@@ -96,6 +99,38 @@ int main(int argc, char ** argv)
 		config_mgr->load_from_file(persistent_config.string());
 	} else {
 		RCLCPP_WARN(node->get_logger(), "HOME not set, persistent config unavailable");
+	}
+
+	// Detect the outbound LAN IP on every boot and write it to the persistent config.
+	// A UDP socket is opened but never sends data — connect() only sets the routing entry.
+	{
+		std::string detected_ip;
+		int sock = ::socket(AF_INET, SOCK_DGRAM, 0);
+		if (sock >= 0) {
+			sockaddr_in dest{};
+			dest.sin_family = AF_INET;
+			dest.sin_port   = htons(80);
+			::inet_pton(AF_INET, "8.8.8.8", &dest.sin_addr);
+			if (::connect(sock, reinterpret_cast<sockaddr *>(&dest), sizeof(dest)) == 0) {
+				sockaddr_in local{};
+				socklen_t len = sizeof(local);
+				if (::getsockname(sock, reinterpret_cast<sockaddr *>(&local), &len) == 0) {
+					char buf[INET_ADDRSTRLEN];
+					::inet_ntop(AF_INET, &local.sin_addr, buf, sizeof(buf));
+					detected_ip = buf;
+				}
+			}
+			::close(sock);
+		}
+
+		if (!detected_ip.empty()) {
+			config_mgr->set("robot_ip_address", detected_ip);
+			if (!persistent_config.empty())
+				config_mgr->save_to_file(persistent_config.string());
+			RCLCPP_INFO(node->get_logger(), "Local IP detected and saved: %s", detected_ip.c_str());
+		} else {
+			RCLCPP_WARN(node->get_logger(), "Could not detect local IP - using value from config");
+		}
 	}
 
 	auto state_mgr = std::make_shared<bloom_node::StateManager>(rclcpp::NodeOptions());
@@ -254,7 +289,7 @@ int main(int argc, char ** argv)
 						if (response.contains("token")) {
 							jwt_token = response["token"].get<std::string>();
 							web_client->setAuthHeader("Bearer " + jwt_token);
-							RCLCPP_INFO(web_client->get_logger(), "Robot authenticated — JWT acquired");
+							RCLCPP_INFO(web_client->get_logger(), "Robot authenticated - JWT acquired");
 						} else {
 							RCLCPP_WARN(web_client->get_logger(), "Login response missing 'token' field");
 						}

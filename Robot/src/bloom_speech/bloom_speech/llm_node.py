@@ -1,8 +1,17 @@
 import os
 import sys
-_robot_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              '..', '..', '..', '..', '..', 'bloom', 'Robot'))
-if _robot_dir not in sys.path:
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+_robot_dir = None
+# Source layout:    Robot/src/bloom_speech/bloom_speech/ (3 up)
+# Installed layout: Robot/install/bloom_speech/lib/python3.12/site-packages/bloom_speech/ (6 up)
+for _levels in (3, 6):
+    _candidate = _this_dir
+    for _ in range(_levels):
+        _candidate = os.path.dirname(_candidate)
+    if os.path.isdir(os.path.join(_candidate, 'llm_module')):
+        _robot_dir = _candidate
+        break
+if _robot_dir and _robot_dir not in sys.path:
     sys.path.insert(0, _robot_dir)
 import threading
 import rclpy

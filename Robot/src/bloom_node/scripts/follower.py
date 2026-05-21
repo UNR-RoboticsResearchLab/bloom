@@ -47,6 +47,8 @@ class CameraFollower(Node):
         if face is None:
             return
 
+        print(f'Detected face at {face}')
+
         fx, fy, fw, fh = face
         cx = fx + fw / 2
         cy = fy + fh / 2

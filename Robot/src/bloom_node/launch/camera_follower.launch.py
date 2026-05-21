@@ -51,6 +51,12 @@ def generate_launch_description():
         description='Camera device path'
     )
 
+    camera_resolution_arg = DeclareLaunchArgument(
+        'camera_resolution',
+        default_value='640x480',
+        description='Camera resolution'
+    )
+
     # Include OpenHMI Blossom launch file with arguments
     blossom_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(

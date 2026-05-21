@@ -310,7 +310,7 @@ export default function LessonView() {
     async function handleEndLesson() {
         if (!activeSessionId || isEndingLesson) return;
 
-        setIsEndingSession(true);
+        setIsEndingLesson(true);
         try {
             await api.stopLesson(activeSessionId);
         } catch (e) {
@@ -324,7 +324,7 @@ export default function LessonView() {
             console.warn("Failed to end session server-side:", e);
         }
         localStorage.removeItem("pairedSessionId");
-        setIsEndingSession(false);
+        setIsEndingLesson(false);
         navigate("/lessons");
     }
 

@@ -20,14 +20,14 @@ def _haarcascades_dir() -> str:
 FACE_CASCADE = cv2.CascadeClassifier(_haarcascades_dir() + 'haarcascade_frontalface_default.xml')
 
 # Proportional gain: fraction of frame offset to target angle (radians)
-KP_YAW = 1.5
-KP_PITCH = -0.9
+KP_YAW = 2
+KP_PITCH = -0.5
 
 # Dead zone: ignore offsets smaller than this fraction of half-frame
 DEAD_ZONE = 0.05
 
 # Neutral head height sent with every pose command
-NEUTRAL_HEIGHT = 0.8
+NEUTRAL_HEIGHT = 1
 
 
 class CameraFollower(Node):
@@ -67,6 +67,7 @@ class CameraFollower(Node):
         yaw = KP_YAW * x_err if abs(x_err) > DEAD_ZONE else 0.0
         pitch = KP_PITCH * y_err if abs(y_err) > DEAD_ZONE else 0.0
 
+        print(f'Offset x={x_err:.2f} y={y_err:.2f} → yaw={yaw:.2f} pitch={pitch:.2f}')
         pose = Pose()
         pose.position.z = NEUTRAL_HEIGHT
         pose.orientation = self._euler_to_quaternion(pitch, yaw)

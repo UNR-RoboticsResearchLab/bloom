@@ -155,6 +155,12 @@ namespace bloom.Services
         Task SetSessionUserIdAsync(Guid sessionId, string userId);
 
         /// <summary>
+        /// Clears the userId from a session, making it unclaimed again.
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        Task ClearSessionUserAsync(Guid sessionId);
+
+        /// <summary>
         /// Gets tracker events for a session (for analysis)
         /// </summary>
         /// <param name="sessionId">ID of the session</param>

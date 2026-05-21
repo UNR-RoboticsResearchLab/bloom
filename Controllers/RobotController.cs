@@ -5,6 +5,7 @@
 using bloom.Models;
 using bloom.Models.dto;
 using bloom.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace bloom.Controllers
@@ -50,9 +51,31 @@ namespace bloom.Controllers
             }
         }
 
+        ///<summary>
+        /// Logs in a registered robot device by validating its credentials and returning jwt token.
+        /// </summary>
+        [HttpPost("login")]
+        public async Task<ActionResult<string>> LoginRobot([FromBody] RobotDto loginDto)
+        {
+            try
+            {
+                var token = await _robotService.LoginRobotAsync(loginDto);
+                if (token != null)
+                    return Ok(new { Message = "Login successful", Token = token });
+
+                return Unauthorized(new { Message = "Invalid credentials" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error logging in robot");
+                return BadRequest(new { ex.Message });
+            }
+        }
+
         /// <summary>
         /// Updates the configuration or metadata of an existing robot.
         /// </summary>
+        [Authorize(Policy = "JwtOrCookie")]
         [HttpPut("{id}")]
         public async Task<ActionResult<string>> UpdateRobot(Guid id, [FromBody] RobotDto robot)
         {
@@ -74,6 +97,7 @@ namespace bloom.Controllers
         /// <summary>
         /// Permanently removes a robot from the registry.
         /// </summary>
+        [Authorize(Policy = "JwtOrCookie")]
         [HttpDelete("{id}")]
         public async Task<ActionResult<string>> DeleteRobot(Guid id)
         {
@@ -95,6 +119,7 @@ namespace bloom.Controllers
         /// <summary>
         /// Returns a single robot by ID.
         /// </summary>
+        [Authorize(Policy = "JwtOrCookie")]
         [HttpGet("{id}")]
         public async Task<ActionResult<Robot>> GetRobot(Guid id)
         {
@@ -116,6 +141,7 @@ namespace bloom.Controllers
         /// <summary>
         /// Returns all registered robots. Intended for admin use.
         /// </summary>
+        [Authorize(Policy = "JwtOrCookie")]
         [HttpGet]
         public async Task<ActionResult<ICollection<Robot>>> GetAllRobots()
         {
@@ -134,6 +160,7 @@ namespace bloom.Controllers
         /// <summary>
         /// Returns all robots registered to the specified user.
         /// </summary>
+        [Authorize(Policy = "JwtOrCookie")]
         [HttpGet("user/{userId}")]
         public async Task<ActionResult<ICollection<Robot>>> GetRobotsByUserId(string userId)
         {
@@ -152,6 +179,7 @@ namespace bloom.Controllers
         /// <summary>
         /// Returns all robots running the specified firmware version. Useful for fleet management.
         /// </summary>
+        [Authorize(Policy = "JwtOrCookie")]
         [HttpGet("firmware/{firmwareVersion}")]
         public async Task<ActionResult<ICollection<Robot>>> GetRobotsByFirmwareVersion(string firmwareVersion)
         {

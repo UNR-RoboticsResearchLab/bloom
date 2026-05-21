@@ -9,6 +9,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -47,8 +48,8 @@ def generate_launch_description():
 
     camera_device_arg = DeclareLaunchArgument(
         'camera_device',
-        default_value='/dev/video0',
-        description='Camera device path'
+        default_value='',
+        description='Camera device path (empty = auto-select)'
     )
 
     camera_width_arg = DeclareLaunchArgument(
@@ -121,8 +122,9 @@ def generate_launch_description():
         parameters=[{
             'camera_name': 'camera',
             'camera_info_url': '',
-            'width': LaunchConfiguration('camera_width'),
-            'height': LaunchConfiguration('camera_height'),
+            'width': ParameterValue(LaunchConfiguration('camera_width'), value_type=int),
+            'height': ParameterValue(LaunchConfiguration('camera_height'), value_type=int),
+            'format': 'MJPEG',
             'device': LaunchConfiguration('camera_device'),
         }],
         output='screen',

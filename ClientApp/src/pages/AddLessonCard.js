@@ -14,14 +14,12 @@ const MOTOR_SEQUENCES = [
   "look_left", "look_right", "look_up", "bounce_smooth",
 ];
 
-const BEHAVIOR_OPTIONS = ["excited", "happy", "calm", "idle", "thinking"];
-
 const BEHAVIOR_FIELDS = [
-  { key: "behavior",          label: "Behavior",          options: BEHAVIOR_OPTIONS },
-  { key: "facial_expression", label: "Facial Expression", options: null },
-  { key: "gaze",              label: "Gaze",              options: null },
+  { key: "behavior",          label: "Behavior",          options: ["excited", "happy", "calm", "idle", "thinking", "neutral", "invite_response"] },
+  { key: "facial_expression", label: "Facial Expression", options: ["smile", "warm_smile", "playful", "engaged", "thoughtful", "neutral"] },
+  { key: "gaze",              label: "Gaze",              options: ["center", "scan_room", "audience_member"] },
   { key: "head_movement",     label: "Head Movement",     options: null },
-  { key: "posture",           label: "Posture",           options: null },
+  { key: "posture",           label: "Posture",           options: ["lean_forward"] },
 ];
 
 function newStep() {

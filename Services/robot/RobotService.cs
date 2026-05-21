@@ -137,15 +137,19 @@ namespace bloom.Services
 
         public async Task<string?> LoginRobotAsync(RobotDto robotDto)
         {
-            bool ipKnown = !string.IsNullOrWhiteSpace(robotDto.IPAddress)
-                           && robotDto.IPAddress != "N/A";
-
-            var robot = await _dbContext.Robots.FirstOrDefaultAsync(r =>
-                r.Name == robotDto.Name &&
-                (!ipKnown || r.IPAddress == robotDto.IPAddress));
+            var robot = await _dbContext.Robots.FirstOrDefaultAsync(r => r.Name == robotDto.Name);
 
             if (robot == null)
                 return null;
+
+            // Keep the stored IP current — robots can change address across reboots.
+            bool hasRealIp = !string.IsNullOrWhiteSpace(robotDto.IPAddress)
+                             && robotDto.IPAddress != "N/A";
+            if (hasRealIp && robot.IPAddress != robotDto.IPAddress)
+            {
+                robot.IPAddress = robotDto.IPAddress;
+                await _dbContext.SaveChangesAsync();
+            }
 
             return GenerateRobotJwt(robot);
         }

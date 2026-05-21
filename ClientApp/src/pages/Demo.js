@@ -36,7 +36,8 @@ export default function Demo() {
     setIsLoading(true);
     try {
       const res = await api.getSessionIdFromRobotCode(robotCode.trim());
-      const id = res?.id ?? res?.Id;
+      console.log("API response for session ID:", res);
+      const id = res?.sessionId ?? res?.id;
       if (!id) throw new Error("No session ID returned.");
       localStorage.setItem("pairedSessionId", id);
       localStorage.setItem("pairedRobotCode", robotCode.trim());

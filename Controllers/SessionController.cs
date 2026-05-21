@@ -146,6 +146,20 @@ namespace bloom.Controllers
         }
 
         /// <summary>
+        /// Resolves a 6-digit pairing code to a session ID. No authentication required; does not modify the session.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("code")]
+        public async Task<IActionResult> GetSessionByCode([FromQuery] string code)
+        {
+            var session = await _sessionService.GetSessionByCodeAsync(code);
+            if (session == null)
+                return NotFound(new { Message = $"No session found for code {code}" });
+
+            return Ok(new { SessionId = session.Id, SessionCode = code });
+        }
+
+        /// <summary>
         /// Looks up a session by its 6-digit code and claims it for the authenticated user if unclaimed.
         /// </summary>
         [HttpGet("join/{code}")]

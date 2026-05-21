@@ -288,7 +288,7 @@ int main(int argc, char ** argv)
 						auto response = nlohmann::json::parse(body);
 						if (response.contains("token")) {
 							jwt_token = response["token"].get<std::string>();
-							web_client->setAuthHeader("Bearer " + jwt_token);
+							web_client->setAuthHeader("Authorization: Bearer " + jwt_token);
 							RCLCPP_INFO(web_client->get_logger(), "Robot authenticated - JWT acquired");
 						} else {
 							RCLCPP_WARN(web_client->get_logger(), "Login response missing 'token' field");

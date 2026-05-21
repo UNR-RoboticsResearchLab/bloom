@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import math
+import os
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -8,13 +9,19 @@ from cv_bridge import CvBridge
 import cv2
 
 
-FACE_CASCADE = cv2.CascadeClassifier(
-    cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-)
+def _haarcascades_dir() -> str:
+    if hasattr(cv2, 'data'):
+        return cv2.data.haarcascades
+    for path in ('/usr/share/opencv4/haarcascades/', '/usr/share/opencv/haarcascades/'):
+        if os.path.isdir(path):
+            return path
+    raise RuntimeError('Cannot find OpenCV haarcascades directory')
+
+FACE_CASCADE = cv2.CascadeClassifier(_haarcascades_dir() + 'haarcascade_frontalface_default.xml')
 
 # Proportional gain: fraction of frame offset to target angle (radians)
 KP_YAW = 1.2
-KP_PITCH = 0.8
+KP_PITCH = -0.8
 
 # Dead zone: ignore offsets smaller than this fraction of half-frame
 DEAD_ZONE = 0.05

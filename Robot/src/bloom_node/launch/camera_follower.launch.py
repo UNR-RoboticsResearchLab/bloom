@@ -51,10 +51,16 @@ def generate_launch_description():
         description='Camera device path'
     )
 
-    camera_resolution_arg = DeclareLaunchArgument(
-        'camera_resolution',
-        default_value='640x480',
-        description='Camera resolution'
+    camera_width_arg = DeclareLaunchArgument(
+        'camera_width',
+        default_value='640',
+        description='Camera frame width in pixels'
+    )
+
+    camera_height_arg = DeclareLaunchArgument(
+        'camera_height',
+        default_value='480',
+        description='Camera frame height in pixels'
     )
 
     # Include OpenHMI Blossom launch file with arguments
@@ -115,6 +121,8 @@ def generate_launch_description():
         parameters=[{
             'camera_name': 'camera',
             'camera_info_url': '',
+            'width': LaunchConfiguration('camera_width'),
+            'height': LaunchConfiguration('camera_height'),
             'device': LaunchConfiguration('camera_device'),
         }],
         output='screen',
@@ -139,6 +147,8 @@ def generate_launch_description():
         config_file_arg,
         base_url_arg,
         camera_device_arg,
+        camera_width_arg,
+        camera_height_arg,
         blossom_launch,
         bloom_launch,
         speech_launch,

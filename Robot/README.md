@@ -6,6 +6,7 @@ Speech therapy robot that has natural conversations with children using Azure AI
 
 Bloom listens, thinks of responses using GPT, and talks back with animated facial expressions and lip-sync.
 
+
 ## Project Structure
 ```
 /Robot/
@@ -27,9 +28,14 @@ Each module has its own README with details.
 pip install -r requirements.txt
 ```
 
+
 Installs everything: pygame, Azure Speech SDK, Azure OpenAI, audio libraries.
 
 For individual modules, each has its own `requirements.txt`.
+
+```bash
+git submodule update --init --recursive
+```
 
 ### 2. Configure API Keys
 

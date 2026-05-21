@@ -1,9 +1,16 @@
 import os
 import sys
 import time
-_robot_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              '..', '..', '..', '..', '..', 'bloom', 'Robot'))
-if _robot_dir not in sys.path:
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+_robot_dir = None
+for _levels in (3, 6):
+    _candidate = _this_dir
+    for _ in range(_levels):
+        _candidate = os.path.dirname(_candidate)
+    if os.path.isdir(os.path.join(_candidate, 'tts_module')):
+        _robot_dir = _candidate
+        break
+if _robot_dir and _robot_dir not in sys.path:
     sys.path.insert(0, _robot_dir)
 import json
 import threading

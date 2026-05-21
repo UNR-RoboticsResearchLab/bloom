@@ -6,6 +6,7 @@ using System.Security.Claims;
 using bloom.Models.dto;
 using bloom.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace bloom.Controllers
 {
@@ -14,6 +15,7 @@ namespace bloom.Controllers
     /// Handles starting a lesson, polling for a pending lesson assignment,
     /// and updating lesson progress as the robot advances through steps.
     /// </summary>
+    [Authorize(Policy = "JwtOrCookie")]
     [ApiController]
     [Route("api/[controller]")]
     public class LessonSessionController : ControllerBase
@@ -178,7 +180,6 @@ namespace bloom.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
-
 
         /// <summary>
         /// Skip the current lesson step. The robot will advance to the next step on its next poll.

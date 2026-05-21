@@ -138,42 +138,15 @@ export default function LessonView() {
         }
     }, [activeSessionId, api]);
 
-    const getValidSessionId = useCallback(async () => {
-        try {
-            const sessions = await api.getSessions();
-            console.log("RAW SESSIONS RESPONSE:", JSON.stringify(sessions, null, 2));
-
-            if (!Array.isArray(sessions) || sessions.length === 0) {
-                localStorage.removeItem("pairedSessionId");
-                setActiveSessionId(null);
-                return null;
-            }
-
-            const savedSessionId = localStorage.getItem("pairedSessionId");
-
-            const matchingSession = sessions.find((session) => {
-                const id = session.id ?? session.Id;
-                return id === savedSessionId;
-            });
-
-            if (!matchingSession) {
-                localStorage.removeItem("pairedSessionId");
-                setActiveSessionId(null);
-                return null;
-            }
-
-            const realSessionId = matchingSession.id ?? matchingSession.Id;
-
-            localStorage.setItem("pairedSessionId", realSessionId);
-            setActiveSessionId(realSessionId);
-            return realSessionId;
-        } catch (error) {
-            console.error("Failed to verify session:", error);
-            localStorage.removeItem("pairedSessionId");
+    const getValidSessionId = useCallback(() => {
+        const savedSessionId = localStorage.getItem("pairedSessionId");
+        if (!savedSessionId) {
             setActiveSessionId(null);
             return null;
         }
-    }, [api]);
+        setActiveSessionId(savedSessionId);
+        return savedSessionId;
+    }, []);
 
     useEffect(() => {
         async function startLesson() {
@@ -194,7 +167,7 @@ export default function LessonView() {
             hasStartedRef.current = true;
 
             try {
-                const sessionIdToUse = await getValidSessionId();
+                const sessionIdToUse = getValidSessionId();
 
                 if (!sessionIdToUse) {
                     console.error("Missing sessionId");
@@ -207,7 +180,7 @@ export default function LessonView() {
                     student,
                 });
 
-                const res = await api.startLessonSession(lessonId, sessionIdToUse, student);
+                const res = await api.startLessonSession(sessionIdToUse, lessonId, student?.id ?? student?.studentId ?? sessionIdToUse);
                 console.log("Lesson session started:", res);
 
                 await loadLessonSteps();
@@ -267,16 +240,9 @@ export default function LessonView() {
 
     async function handleBackStep() {
         if (!activeSessionId || isSendingStepCommand) return;
-
         try {
             setIsSendingStepCommand(true);
-
-            const res = await api.request(
-                `/api/LessonSession/${activeSessionId}/lessons/replay`,
-                { method: "POST" }
-            );
-
-            console.log("Replay command queued:", res);
+            await api.replayStep(activeSessionId);
         } catch (error) {
             console.error("Failed to queue replay command:", error);
         } finally {
@@ -286,16 +252,9 @@ export default function LessonView() {
 
     async function handleForwardStep() {
         if (!activeSessionId || isSendingStepCommand) return;
-
         try {
             setIsSendingStepCommand(true);
-
-            const res = await api.request(
-                `/api/LessonSession/${activeSessionId}/lessons/skip`,
-                { method: "POST" }
-            );
-
-            console.log("Skip command queued:", res);
+            await api.skipStep(activeSessionId);
         } catch (error) {
             console.error("Failed to queue skip command:", error);
         } finally {
@@ -308,7 +267,6 @@ export default function LessonView() {
         if (!trimmed || !activeSessionId || isSendingStepCommand) return;
 
         const targetStep = Number(trimmed);
-
         if (!Number.isInteger(targetStep) || targetStep < 1) {
             console.error("Invalid step number:", trimmed);
             return;
@@ -316,16 +274,7 @@ export default function LessonView() {
 
         try {
             setIsSendingStepCommand(true);
-
-            const res = await api.request(
-                `/api/LessonSession/${activeSessionId}/lessons/set-step`,
-                {
-                    method: "POST",
-                    body: JSON.stringify({ targetStep }),
-                }
-            );
-
-            console.log("Set step command queued:", res);
+            await api.setStep(activeSessionId, targetStep);
             setStepInput("");
         } catch (error) {
             console.error("Failed to queue set step command:", error);
@@ -336,19 +285,9 @@ export default function LessonView() {
 
     async function handleStepClick(stepNumber) {
         if (!activeSessionId || isSendingStepCommand) return;
-
         try {
             setIsSendingStepCommand(true);
-
-            await api.request(
-                `/api/LessonSession/${activeSessionId}/lessons/set-step`,
-                {
-                    method: "POST",
-                    body: JSON.stringify({ targetStep: stepNumber }),
-                }
-            );
-
-            console.log("Jumped to step:", stepNumber);
+            await api.setStep(activeSessionId, stepNumber);
         } catch (error) {
             console.error("Failed to jump to step:", error);
         } finally {
@@ -358,19 +297,9 @@ export default function LessonView() {
 
     async function handleRestart() {
         if (!activeSessionId || isSendingStepCommand) return;
-
         try {
             setIsSendingStepCommand(true);
-
-            await api.request(
-                `/api/LessonSession/${activeSessionId}/lessons/set-step`,
-                {
-                    method: "POST",
-                    body: JSON.stringify({ targetStep: 1 }),
-                }
-            );
-
-            console.log("Restarted lesson to step 1");
+            await api.setStep(activeSessionId, 1);
         } catch (error) {
             console.error("Failed to restart lesson:", error);
         } finally {
@@ -381,15 +310,22 @@ export default function LessonView() {
     async function handleEndLesson() {
         if (!activeSessionId || isEndingLesson) return;
 
+        setIsEndingSession(true);
         try {
-            setIsEndingLesson(true);
             await api.stopLesson(activeSessionId);
-            navigate("/lessons");
-        } catch (error) {
-            console.error("Failed to end lesson:", error);
-        } finally {
-            setIsEndingLesson(false);
+        } catch (e) {
+            console.warn("Failed to stop lesson (may not be active):", e);
         }
+        try {
+            await api.endSession(activeSessionId);
+        } catch (e) {
+            // Demo mode has no cookie auth — server session will be cleaned up by the
+            // robot's inactivity timer. Don't block navigation on a 401 here.
+            console.warn("Failed to end session server-side:", e);
+        }
+        localStorage.removeItem("pairedSessionId");
+        setIsEndingSession(false);
+        navigate("/lessons");
     }
 
     function renderMessage(item) {

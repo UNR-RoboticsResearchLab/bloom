@@ -32,6 +32,7 @@ import AddLessonCard from "./pages/AddLessonCard";
 
 import LessonView from "./pages/LessonView";
 import EditAccount from "./pages/EditAccount";
+import Demo from "./pages/Demo";
 
 export default function App() {
 
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/lesson/:lessonId" element={<Lesson />} />
         <Route path="/lesson-view" element={<LessonView />} />
         <Route path="/lesson-history/:sessionId" element={<LessonHistory />} />
+        <Route path="/demo" element={<Demo />} />
         
         <Route path="/add-student" element={<AddStudentCard />} />
 

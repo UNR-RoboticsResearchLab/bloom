@@ -97,14 +97,6 @@ if [ "$SKIP_BUILD" = false ]; then
   fi
 fi
 
-# --- Stop existing server process ---
-echo "Stopping existing server process..."
-if pkill -f "dotnet.*bloom" || true; then
-  sleep 2
-  echo "Previous server process stopped."
-fi
-
-
 
 # --- Show deployment summary ---
 echo ""

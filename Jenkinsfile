@@ -31,7 +31,7 @@ pipeline {
             }
             steps {
                 sh 'echo "Deploying main..."'
-                sh './deploy.sh --prod'
+                sh 'sudo -u www-data ./deploy.sh --prod'
             }
         }
         stage('Deploy Dev') {
@@ -39,7 +39,7 @@ pipeline {
                 branch 'development'
             }
             steps {
-                sh './deploy.sh'
+                sh 'sudo -u www-data ./deploy.sh'
             }
         }
     }

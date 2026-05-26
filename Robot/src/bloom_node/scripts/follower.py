@@ -27,7 +27,7 @@ KP_PITCH = -0.5
 DEAD_ZONE = 0.05
 
 # Neutral head height sent with every pose command
-NEUTRAL_HEIGHT = 1
+NEUTRAL_HEIGHT = 1.0
 
 
 class CameraFollower(Node):

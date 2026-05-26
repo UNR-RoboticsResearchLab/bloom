@@ -20,7 +20,7 @@ def _haarcascades_dir() -> str:
 FACE_CASCADE = cv2.CascadeClassifier(_haarcascades_dir() + 'haarcascade_frontalface_default.xml')
 
 # Proportional gain: fraction of frame offset to target angle (radians)
-KP_YAW = 2
+KP_YAW = 2.5
 KP_PITCH = -0.5
 
 # Dead zone: ignore offsets smaller than this fraction of half-frame

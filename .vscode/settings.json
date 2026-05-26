@@ -2,5 +2,5 @@
     "files.associations": {
         "optional": "cpp"
     },
-    "cmake.sourceDirectory": "/home/jrkre/development/bloom-main/Robot/src/bloom_node"
+    "cmake.sourceDirectory": "/home/jrkre/development/bloom/Robot/src/bloom_interface"
 }

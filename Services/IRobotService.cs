@@ -68,5 +68,13 @@ namespace bloom.Services
          * <returns>Robot or null</returns>
          */
         Task<Robot?> GetRobotByIdAsync(Guid robotId);
+
+        /**
+         * <summary>
+         * LoginRobotAsync() authenticates a robot by Name and IPAddress and returns a signed JWT.
+         * </summary>
+         * <returns>JWT string, or null if no matching robot is found</returns>
+         */
+        Task<string?> LoginRobotAsync(RobotDto robot);
     }
 }

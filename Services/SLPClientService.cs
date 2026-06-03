@@ -1,405 +1,142 @@
 // bloom
 // SLPClientService.cs
-// SLP Client service business logic layer
-// Created: 02/21/2026
+// Service managing SLPClient records (student-SLP associations).
 
 using bloom.Data;
 using bloom.Models;
+using bloom.Models.dto;
 using Microsoft.EntityFrameworkCore;
 
 namespace bloom.Services
 {
     public class SLPClientService : ISLPClientService
     {
-        private readonly BloomDbContext _dbContext;
-        private readonly IAccountService _accountService;
+        private readonly BloomDbContext _context;
 
-        public SLPClientService(BloomDbContext context, IAccountService accountService)
+        public SLPClientService(BloomDbContext context)
         {
-            _dbContext = context;
-            _accountService = accountService;
+            _context = context;
         }
 
-        public async Task<bool> CreateAsync(string name, string teacherId, string studentId)
+        public async Task<SLPClient> CreateAsync(string name, string slpId, string studentId)
         {
-            try
+            var slp = await _context.Accounts.FindAsync(slpId)
+                ?? throw new KeyNotFoundException($"SLP account {slpId} not found");
+
+            var client = new SLPClient
             {
-                if (string.IsNullOrWhiteSpace(name) || name.Length < 3)
-                {
-                    throw new ArgumentException("SLP Client name must be at least 3 characters long");
-                }
+                Name = name,
+                StudentId = studentId,
+                SlpId = slpId,
+                CreatedDate = DateTime.UtcNow
+            };
 
-                var teacher = await _accountService.GetByIdAsync(teacherId);
-                if (teacher == null)
-                {
-                    throw new KeyNotFoundException($"Teacher with id {teacherId} not found");
-                }
+            _context.SLPClients.Add(client);
+            await _context.SaveChangesAsync();
 
-                var student = await _dbContext.Accounts.FindAsync(studentId);
-                if (student == null)
-                {
-                    throw new KeyNotFoundException($"Student with id {studentId} not found");
-                }
-
-                var slpClient = new SLPClient
-                {
-                    Name = name,
-                    StudentId = studentId,
-                    CreatedDate = DateTime.UtcNow
-                };
-
-                if (slpClient.Teachers == null)
-                {
-                    slpClient.Teachers = new List<Account>();
-                }
-                slpClient.Teachers.Add(teacher);
-
-                await _dbContext.SLPClients.AddAsync(slpClient);
-                await _dbContext.SaveChangesAsync();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error creating SLP Client: {ex.Message}");
-                return false;
-            }
+            return client;
         }
 
-        public async Task DeleteByIdAsync(Guid id)
+        public async Task<SLPClientResponseDto?> CreateClientAsync(string name, string slpId, string studentId)
         {
-            try
+            var student = await _context.Accounts.FindAsync(studentId);
+            if (student == null) return null;
+
+            var slp = await _context.Accounts.FindAsync(slpId);
+            if (slp == null) return null;
+
+            var client = new SLPClient
             {
-                var slpClient = await _dbContext.SLPClients.FindAsync(id);
-                if (slpClient != null)
-                {
-                    _dbContext.SLPClients.Remove(slpClient);
-                    await _dbContext.SaveChangesAsync();
-                }
-            }
-            catch (Exception ex)
+                Name = name,
+                StudentId = studentId,
+                SlpId = slpId,
+                CreatedDate = DateTime.UtcNow
+            };
+
+            _context.SLPClients.Add(client);
+            await _context.SaveChangesAsync();
+
+            return new SLPClientResponseDto
             {
-                Console.WriteLine($"Error deleting SLP Client: {ex.Message}");
-            }
+                Id = client.Id,
+                Name = client.Name,
+                StudentId = client.StudentId,
+                StudentName = student.FullName
+            };
         }
 
-        public async Task<SLPClient?> GetByIdAsync(Guid id)
+        public async Task<List<SLPClientResponseDto>> GetClientsForSlpAsync(string slpId)
         {
-            try
-            {
-                return await _dbContext.SLPClients
-                    .Include(c => c.Student)
-                    .Include(c => c.Teachers)
-                    .Include(c => c.Assignments)
-                    .Include(c => c.Lessons)
-                    .FirstOrDefaultAsync(c => c.Id == id);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error getting SLP Client by id: {ex.Message}");
-                return null;
-            }
+            return await _context.SLPClients
+                .Where(c => c.SlpId == slpId)
+                .Select(c => new SLPClientResponseDto
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    StudentId = c.StudentId,
+                    StudentName = c.Student!.FullName
+                })
+                .ToListAsync();
         }
 
-        public async Task<IEnumerable<SLPClient>> GetAllAsync()
+        public async Task<SLPClientResponseDto?> GetClientAsync(Guid id)
         {
-            try
+            var client = await _context.SLPClients
+                .Include(c => c.Student)
+                .Include(c => c.Assignments!)
+                    .ThenInclude(a => a.Lesson)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (client == null) return null;
+
+            var progress = await _context.LessonProgresses
+                .Include(p => p.Lesson)
+                .Where(p => p.StudentId == client.StudentId)
+                .ToListAsync();
+
+            return new SLPClientResponseDto
             {
-                return await _dbContext.SLPClients
-                    .Include(c => c.Student)
-                    .Include(c => c.Teachers)
-                    .ToListAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error getting all SLP Clients: {ex.Message}");
-                return [];
-            }
+                Id = client.Id,
+                Name = client.Name,
+                StudentId = client.StudentId,
+                StudentName = client.Student?.FullName,
+                Assignments = (client.Assignments ?? []).Select(a => new AssignmentResponseDto
+                {
+                    Id = a.Id,
+                    StudentId = a.StudentId,
+                    LessonId = a.LessonId,
+                    LessonTitle = a.Lesson?.Title ?? string.Empty,
+                    AssignedById = a.AssignedById,
+                    AssignedDate = a.AssignedDate,
+                    DueDate = a.DueDate,
+                    IsCompleted = a.IsCompleted
+                }).ToList(),
+                Progress = progress.Select(p => new StudentLessonProgressDto
+                {
+                    Id = p.Id,
+                    LessonId = p.LessonId,
+                    LessonTitle = p.Lesson?.Title ?? string.Empty,
+                    LessonStep = p.LessonStep,
+                    ProgressPercentage = p.ProgressPercentage,
+                    LastUpdated = p.LastUpdated
+                }).ToList()
+            };
         }
 
-        public async Task<IEnumerable<SLPClient>> GetByTeacherIdAsync(string teacherId)
+        public async Task<DeleteClientResult> DeleteClientAsync(Guid clientId, string slpId)
         {
-            try
-            {
-                if (string.IsNullOrEmpty(teacherId))
-                {
-                    throw new ArgumentNullException(nameof(teacherId));
-                }
+            var client = await _context.SLPClients
+                .FirstOrDefaultAsync(c => c.Id == clientId);
 
-                return await _dbContext.SLPClients
-                    .Where(c => c.Teachers!.Any(t => t.Id == teacherId))
-                    .Include(c => c.Student)
-                    .Include(c => c.Teachers)
-                    .ToListAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error getting SLP Clients by teacher id: {ex.Message}");
-                return [];
-            }
-        }
+            if (client == null) return DeleteClientResult.NotFound;
 
-        public async Task<IEnumerable<SLPClient>> GetByStudentIdAsync(string studentId)
-        {
-            try
-            {
-                return await _dbContext.SLPClients
-                    .Where(c => c.StudentId == studentId)
-                    .Include(c => c.Student)
-                    .Include(c => c.Teachers)
-                    .ToListAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error getting SLP Clients by student id: {ex.Message}");
-                return [];
-            }
-        }
+            if (client.SlpId != slpId)
+                return DeleteClientResult.Forbidden;
 
-        public async Task<bool> ModifyAsync(SLPClient slpClient)
-        {
-            try
-            {
-                ArgumentNullException.ThrowIfNull(slpClient);
+            _context.SLPClients.Remove(client);
+            await _context.SaveChangesAsync();
 
-                var existingSLPClient = await _dbContext.SLPClients.FindAsync(slpClient.Id);
-                if (existingSLPClient == null)
-                {
-                    throw new KeyNotFoundException($"SLP Client with id {slpClient.Id} not found");
-                }
-
-                existingSLPClient.Name = slpClient.Name;
-                existingSLPClient.AccentColor = slpClient.AccentColor;
-                existingSLPClient.BackgroundImageUrl = slpClient.BackgroundImageUrl;
-                existingSLPClient.UpdatedDate = DateTime.UtcNow;
-
-                _dbContext.SLPClients.Update(existingSLPClient);
-                await _dbContext.SaveChangesAsync();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error modifying SLP Client: {ex.Message}");
-                return false;
-            }
-        }
-
-        public async Task<bool> AddTeacherAsync(Guid slpClientId, string teacherId)
-        {
-            try
-            {
-                var slpClient = await _dbContext.SLPClients
-                    .Include(c => c.Teachers)
-                    .FirstOrDefaultAsync(c => c.Id == slpClientId);
-
-                if (slpClient == null)
-                {
-                    throw new KeyNotFoundException($"SLP Client with id {slpClientId} not found");
-                }
-
-                var teacher = await _accountService.GetByIdAsync(teacherId);
-                if (teacher == null)
-                {
-                    throw new KeyNotFoundException($"Teacher with id {teacherId} not found");
-                }
-
-                if (slpClient.Teachers == null)
-                {
-                    slpClient.Teachers = new List<Account>();
-                }
-
-                if (!slpClient.Teachers.Any(t => t.Id == teacherId))
-                {
-                    slpClient.Teachers.Add(teacher);
-                    _dbContext.SLPClients.Update(slpClient);
-                    await _dbContext.SaveChangesAsync();
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error adding teacher to SLP Client: {ex.Message}");
-                return false;
-            }
-        }
-
-        public async Task<bool> RemoveTeacherAsync(Guid slpClientId, string teacherId)
-        {
-            try
-            {
-                var slpClient = await _dbContext.SLPClients
-                    .Include(c => c.Teachers)
-                    .FirstOrDefaultAsync(c => c.Id == slpClientId);
-
-                if (slpClient == null)
-                {
-                    throw new KeyNotFoundException($"SLP Client with id {slpClientId} not found");
-                }
-
-                if (slpClient.Teachers != null)
-                {
-                    var teacher = slpClient.Teachers.FirstOrDefault(t => t.Id == teacherId);
-                    if (teacher != null)
-                    {
-                        slpClient.Teachers.Remove(teacher);
-                        _dbContext.SLPClients.Update(slpClient);
-                        await _dbContext.SaveChangesAsync();
-                    }
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error removing teacher from SLP Client: {ex.Message}");
-                return false;
-            }
-        }
-
-        public async Task<bool> AddLessonAsync(Guid slpClientId, Guid lessonId)
-        {
-            try
-            {
-                var slpClient = await _dbContext.SLPClients
-                    .Include(c => c.Lessons)
-                    .FirstOrDefaultAsync(c => c.Id == slpClientId);
-
-                if (slpClient == null)
-                {
-                    throw new KeyNotFoundException($"SLP Client with id {slpClientId} not found");
-                }
-
-                var lesson = await _dbContext.Lessons.FindAsync(lessonId);
-                if (lesson == null)
-                {
-                    throw new KeyNotFoundException($"Lesson with id {lessonId} not found");
-                }
-
-                if (slpClient.Lessons == null)
-                {
-                    slpClient.Lessons = new List<Lesson>();
-                }
-
-                if (!slpClient.Lessons.Any(l => l.Id == lessonId))
-                {
-                    slpClient.Lessons.Add(lesson);
-                    _dbContext.SLPClients.Update(slpClient);
-                    await _dbContext.SaveChangesAsync();
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error adding lesson to SLP Client: {ex.Message}");
-                return false;
-            }
-        }
-
-        public async Task<bool> RemoveLessonAsync(Guid slpClientId, Guid lessonId)
-        {
-            try
-            {
-                var slpClient = await _dbContext.SLPClients
-                    .Include(c => c.Lessons)
-                    .FirstOrDefaultAsync(c => c.Id == slpClientId);
-
-                if (slpClient == null)
-                {
-                    throw new KeyNotFoundException($"SLP Client with id {slpClientId} not found");
-                }
-
-                if (slpClient.Lessons != null)
-                {
-                    var lesson = slpClient.Lessons.FirstOrDefault(l => l.Id == lessonId);
-                    if (lesson != null)
-                    {
-                        slpClient.Lessons.Remove(lesson);
-                        _dbContext.SLPClients.Update(slpClient);
-                        await _dbContext.SaveChangesAsync();
-                    }
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error removing lesson from SLP Client: {ex.Message}");
-                return false;
-            }
-        }
-
-        public async Task<bool> AddAssignmentAsync(Guid slpClientId, Guid assignmentId)
-        {
-            try
-            {
-                var slpClient = await _dbContext.SLPClients
-                    .Include(c => c.Assignments)
-                    .FirstOrDefaultAsync(c => c.Id == slpClientId);
-
-                if (slpClient == null)
-                {
-                    throw new KeyNotFoundException($"SLP Client with id {slpClientId} not found");
-                }
-
-                var assignment = await _dbContext.Assignments.FindAsync(assignmentId);
-                if (assignment == null)
-                {
-                    throw new KeyNotFoundException($"Assignment with id {assignmentId} not found");
-                }
-
-                if (slpClient.Assignments == null)
-                {
-                    slpClient.Assignments = new List<Assignment>();
-                }
-
-                if (!slpClient.Assignments.Any(a => a.Id == assignmentId))
-                {
-                    slpClient.Assignments.Add(assignment);
-                    _dbContext.SLPClients.Update(slpClient);
-                    await _dbContext.SaveChangesAsync();
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error adding assignment to SLP Client: {ex.Message}");
-                return false;
-            }
-        }
-
-        public async Task<bool> RemoveAssignmentAsync(Guid slpClientId, Guid assignmentId)
-        {
-            try
-            {
-                var slpClient = await _dbContext.SLPClients
-                    .Include(c => c.Assignments)
-                    .FirstOrDefaultAsync(c => c.Id == slpClientId);
-
-                if (slpClient == null)
-                {
-                    throw new KeyNotFoundException($"SLP Client with id {slpClientId} not found");
-                }
-
-                if (slpClient.Assignments != null)
-                {
-                    var assignment = slpClient.Assignments.FirstOrDefault(a => a.Id == assignmentId);
-                    if (assignment != null)
-                    {
-                        slpClient.Assignments.Remove(assignment);
-                        _dbContext.SLPClients.Update(slpClient);
-                        await _dbContext.SaveChangesAsync();
-                    }
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error removing assignment from SLP Client: {ex.Message}");
-                return false;
-            }
+            return DeleteClientResult.Deleted;
         }
     }
 }

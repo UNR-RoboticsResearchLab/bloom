@@ -12,6 +12,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', ['launch/speech.launch.py']),
         ('share/' + package_name, ['.env']),
+        ('share/' + package_name + '/sounds', ['bloom_speech/chime.wav']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

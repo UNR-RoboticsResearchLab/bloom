@@ -13,6 +13,13 @@ namespace bloom.Models
         public Guid RobotSessionId { get; set; }
         public RobotSession? RobotSession { get; set; }
 
+        /// <summary>
+        /// Identifies the lesson run this interaction belongs to. Nullable so historical
+        /// rows that predate the LessonRun concept remain queryable; new rows always set it.
+        /// </summary>
+        public Guid? LessonRunId { get; set; }
+        public LessonRun? LessonRun { get; set; }
+
 
 
         public int StepId { get; set; }

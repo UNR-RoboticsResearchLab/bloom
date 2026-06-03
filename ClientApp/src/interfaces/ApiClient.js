@@ -6,21 +6,17 @@ export default class ApiClient {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     const headers = {
       "Content-Type": "application/json",
       ...(options.headers || {}),
     };
 
-    // const response = await fetch(url, { ...options, headers });
-
     const response = await fetch(url, {
       credentials: "include",
       ...options,
-      headers
+      headers,
     });
-
-    
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -34,277 +30,187 @@ export default class ApiClient {
     }
   }
 
+  // ── Auth ──────────────────────────────────────────────────────────────────
 
   async signUp(payload) {
-    const body = {
-      userName: payload.email,
-      fullName: payload.fullName,
-      email: payload.email,
-      password: payload.password,
-      selectedRole: String(payload.role),
-    };
-
-    const res = await this.request("/api/account/create", {
+    return this.request("/api/user/create", {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        username: payload.email,
+        fullName: payload.fullName,
+        email: payload.email,
+        password: payload.password,
+        selectedRole: String(payload.role),
+      }),
     });
-
-    return res;
-  }
-
-  //temp
-  async addStudent(payload) {
-    const body = {
-      userName: payload.email,
-      fullName: payload.fullName,
-      email: payload.email,
-      password: payload.password,
-      selectedRole: "STUDENT",
-    };
-
-      const res = await this.request("/api/account/create", {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      return res;
   }
 
   async signIn(email, password) {
-      const payload = { email, password };
+    return this.request("/api/user/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+  }
 
-    const data = await this.request("/api/account/login", {
+  // ── User / Profile ────────────────────────────────────────────────────────
+
+  async getMe() {
+    return this.request("/api/user/me", { method: "GET" });
+  }
+
+  async getUserProfile(id) {
+    return this.request(`/api/user/${id}`, { method: "GET" });
+  }
+
+  async updateUserProfile(id, payload) {
+    return this.request(`/api/user/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        fullName: payload.fullName ?? null,
+        userName: payload.userName ?? null,
+        email: payload.email ?? null,
+      }),
+    });
+  }
+
+  async deleteUserProfile(id) {
+    return this.request(`/api/user/${id}`, { method: "DELETE" });
+  }
+
+  // ── Students / SLP Clients ────────────────────────────────────────────────
+
+  async addStudent(payload) {
+    return this.request("/api/user/student", {
+      method: "POST",
+      body: JSON.stringify({
+        fullName: payload.fullName,
+        email: payload.email,
+      }),
+    });
+  }
+
+  async getStudents() {
+    return this.request("/api/user/clients", { method: "GET" });
+  }
+
+  async getStudent(id) {
+    const clients = await this.getStudents();
+    const match = clients.find(
+      (c) => c.studentId === id || c.studentId === String(id)
+    );
+    return match || null;
+  }
+
+  async getClient(id) {
+    return this.request(`/api/user/clients/${id}`, { method: "GET" });
+  }
+
+  async deleteSLPClient(slpClientId) {
+    return this.request(`/api/user/clients/${slpClientId}`, { method: "DELETE" });
+  }
+
+  // ── Assignments ───────────────────────────────────────────────────────────
+
+  async createAssignment(payload) {
+    return this.request("/api/user/assignments", {
       method: "POST",
       body: JSON.stringify(payload),
     });
-
-      return data;
-    }
-
-      async getSessions() {
-        const res = await this.request(`/api/robotsession`, { method: "GET" });
-        return res || [];
-      }
-
-      async getSessionHistory(sessionId) {
-          const res = await this.request(`/api/robotsession/${sessionId}/history`);
-          return res;
-      }
-
-
-  async getUserProfile(id) {
-    const res = await this.request(`/api/account/${id}`, {
-      method: "GET"
-    });
-    return res;
   }
 
-  //temp
-  async getStudents(id) {
-    const res = await this.request(`/api/account/${id}`, {
-      method: "GET",
-    });
-    return res;
+  async getMyAssignments() {
+    return this.request("/api/user/assignments/my", { method: "GET" });
   }
 
-  //temp
-  async getStudent(id) {
-    const res = await this.request(`/api/student/${id}`, {
-      method: "GET",
-    });
-    return res;
+  async getStudentAssignments(studentId) {
+    return this.request(`/api/user/assignments/student/${studentId}`, { method: "GET" });
   }
 
- async getLessons() {
-  const res = await this.request(`/api/lesson/all`, {
-    method: "GET",
-  });
-  return res;
-}
-
-  //temp
-  async getLesson(id) {
-    const res = await this.request(`/api/lesson/${id}`, {
-      method: "GET",
-    });
-    return res;
+  async completeAssignment(assignmentId) {
+    return this.request(`/api/user/assignments/${assignmentId}/complete`, { method: "PUT" });
   }
 
-  //temp
-  async addNoteToSession(sessionId, note) {
-    const res = await this.request(`/api/robotsession/${sessionId}/notes`, {
+  // ── Sessions ──────────────────────────────────────────────────────────────
+
+  async getSessions() {
+    const res = await this.request("/api/session", { method: "GET" });
+    return res || [];
+  }
+
+  async getSession(sessionId) {
+    return this.request(`/api/session/${sessionId}`, { method: "GET" });
+  }
+
+  async startSession({ robotId, anonymous = false, userId = null } = {}) {
+    return this.request("/api/session", {
       method: "POST",
-      body: JSON.stringify({ note }),
+      body: JSON.stringify({ robotId, anonymous, userId }),
     });
-    return res;
   }
 
-  //temp
-  async updateStudentProgress(studentId, progressData) {
-    const res = await this.request(`/api/student/${studentId}/progress`, {
-      method: "POST",
-      body: JSON.stringify(progressData),
-    });
-    return res;
-  }
-
-  async startSession({ anonymous = false } = {}) {
-    const res = await this.request("/api/robotsession", {
-      method: "POST",
-      body: JSON.stringify({ anonymous }),
-    });
-    return res;
-  }
-
-  async getSessionIdFromRobotCode(robotCode) {
-    const res = await this.request(
-      `/api/robotsession/join/${encodeURIComponent(robotCode)}`,
-      {
-        method: "GET",
-      }
-    );
-    return res;
-  }
-
-  async addRobotToSession(sessionId, robotId, currentState = {}) {
-    const body = {
-      robotId,
-      currentState: {
-        status: currentState.status ?? "",
-        currentTask: currentState.currentTask ?? "",
-        currentBehaviorId: currentState.currentBehaviorId ?? null,
-        speechLog: currentState.speechLog ?? ""
-      }
-    };
-
-    const res = await this.request(`/api/robotsession/${sessionId}/robots`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-    return res;
-  }
-
-  async updateRobotState(sessionId, robotId, state) {
-    const body = {
-      status: state.status ?? "",
-      currentTask: state.currentTask ?? "",
-      currentBehaviorId: state.currentBehaviorId ?? null,
-      speechLog: state.speechLog ?? ""
-    };
-
-    const res = await this.request(`/api/robotsession/${sessionId}/robots/${robotId}/state`, {
-      method: "PUT",
-      body: JSON.stringify(body),
-    });
-    return res;
-  }
-
-  async getCurrentStates(sessionId) {
-    const res = await this.request(`/api/robotsession/${sessionId}/states`, {
-      method: "GET",
-    });
-    return res;
-  }
-
-  async removeRobotFromSession(sessionId, robotId) {
-    const res = await this.request(`/api/robotsession/${sessionId}/robots/${robotId}`, {
-      method: "DELETE",
-    });
-    return res;
+  async getSessionIdFromRobotCode(code) {
+    return this.request(`/api/session/code?code=${encodeURIComponent(code)}`, { method: "GET" });
   }
 
   async endSession(sessionId) {
-    const res = await this.request(`/api/robotsession/${sessionId}/end`, {
-      method: "POST",
-    });
-    return res;
+    return this.request(`/api/session/${sessionId}/end`, { method: "POST" });
   }
 
+  async unpairRobot(sessionId) {
+    return this.request(`/api/session/${sessionId}/user`, { method: "DELETE" });
+  }
 
-  async registerRobot(payload) {
-  const body = {
-    name: payload.name,
-    model: payload.model,
-    serialNumber: payload.serialNumber,
-    manufactureDate: payload.manufactureDate, // ISO string recommended
-    firmwareVersion: payload.firmwareVersion,
-    ipAddress: payload.ipAddress,
-    registeredUserId: payload.registeredUserId ?? null,
-  };
+  async getSessionHistory(sessionId) {
+    return this.request(`/api/session/${sessionId}/history`);
+  }
 
-  const res = await this.request("/api/robot/register", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-  return res;
-}
+  async getTrackerEvents(sessionId) {
+    return this.request(`/api/session/${sessionId}/tracker-events`, { method: "GET" });
+  }
 
-  async updateRobot(id, payload) {
-    const body = {
-      name: payload.name,
-      model: payload.model,
-      serialNumber: payload.serialNumber,
-      manufactureDate: payload.manufactureDate,
-      firmwareVersion: payload.firmwareVersion,
-      ipAddress: payload.ipAddress,
-      registeredUserId: payload.registeredUserId ?? null,
-    };
+  // ── Session — Robot Membership ────────────────────────────────────────────
 
-    const res = await this.request(`/api/robot/${id}`, {
+  async addRobotToSession(sessionId, robotId) {
+    return this.request(`/api/session/${sessionId}/robots`, {
+      method: "POST",
+      body: JSON.stringify({ robotId }),
+    });
+  }
+
+  async removeRobotFromSession(sessionId, robotId) {
+    return this.request(`/api/session/${sessionId}/robots/${robotId}`, { method: "DELETE" });
+  }
+
+  async getSessionRobots(sessionId) {
+    return this.request(`/api/session/${sessionId}/robots`, { method: "GET" });
+  }
+
+  // ── Session — Robot State ─────────────────────────────────────────────────
+
+  async updateRobotState(sessionId, robotId, state) {
+    return this.request(`/api/session/${sessionId}/robots/${robotId}/state`, {
       method: "PUT",
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        status: state.status ?? "",
+        currentTask: state.currentTask ?? "",
+        currentBehaviorId: state.currentBehaviorId ?? null,
+        speechLog: state.speechLog ?? "",
+      }),
     });
-    return res;
   }
 
-  async deleteRobot(id) {
-    const res = await this.request(`/api/robot/${id}`, { method: "DELETE" });
-    return res;
+  async getCurrentStates(sessionId) {
+    return this.request(`/api/session/${sessionId}/states`, { method: "GET" });
   }
 
-  async getRobot(id) {
-    const res = await this.request(`/api/robot/${id}`, { method: "GET" });
-    return res;
+  // ── Lesson Content ────────────────────────────────────────────────────────
+
+  async getLessons() {
+    return this.request("/api/lesson/all", { method: "GET" });
   }
 
-  async getAllRobots() {
-    const res = await this.request(`/api/robot`, { method: "GET" });
-    return res;
-  }
-
-  async getRobotsByUserId(userId) {
-    const res = await this.request(`/api/robot/user/${userId}`, { method: "GET" });
-    return res;
-  }
-
-  async getRobotsByFirmwareVersion(firmwareVersion) {
-    const res = await this.request(`/api/robots/firmware/${encodeURIComponent(firmwareVersion)}`, {
-      method: "GET",
-    });
-    return res;
-  }
-
-  async createLesson(payload) {
-    const body = {
-      title: payload.title,
-      description: payload.description ?? "",
-      lessonType: payload.lessonType,
-      lessonDescription: payload.lessonDescription,
-      createdById: payload.createdById,
-    };
-
-    const res = await this.request("/api/lesson/create", {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-    return res;
-  }
-
-  async startLessonSession(lessonId, sessionId) {
-    const res = await this.request(`/api/LessonSession/${sessionId}/lesson`, {
-      method: "POST",
-      body: JSON.stringify({ lessonId }),
-    });
-    return res;
+  async getLesson(id) {
+    return this.request(`/api/lesson/${id}`, { method: "GET" });
   }
 
   async createLesson(lessonDto) {
@@ -314,15 +220,159 @@ export default class ApiClient {
     });
   }
 
-  async getTrackerEvents(sessionId) {
-    const res = await fetch(`${this.baseUrl}/api/RobotSession/${sessionId}/tracker-events`, {
-      credentials: "include"
+  // ── Lesson Progress ───────────────────────────────────────────────────────
+
+  async getMyLessonProgress() {
+    return this.request("/api/lesson/progress/my", { method: "GET" });
+  }
+
+  async getStudentLessonProgress(studentId) {
+    return this.request(`/api/lesson/progress/student/${studentId}`, { method: "GET" });
+  }
+
+  // ── Lesson Runtime — SLP Commands ─────────────────────────────────────────
+
+  async startLessonSession(sessionId, lessonId, studentId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/start`, {
+      method: "POST",
+      body: JSON.stringify({ lessonId, studentId }),
     });
+  }
 
-    if (!res.ok) {
-      throw new Error("Failed to fetch tracker events");
-    }
+  async stopLesson(sessionId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/stop`, { method: "POST" });
+  }
 
-    return await res.json();
+  async skipStep(sessionId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/skip`, { method: "POST" });
+  }
+
+  async replayStep(sessionId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/replay`, { method: "POST" });
+  }
+
+  async setStep(sessionId, targetStep) {
+    return this.request(`/api/lesson-runtime/${sessionId}/set-step`, {
+      method: "POST",
+      body: JSON.stringify({ targetStep }),
+    });
+  }
+
+  async recordSLPFeedback(sessionId, stepId, feedbackCommand) {
+    return this.request(`/api/lesson-runtime/${sessionId}/feedback`, {
+      method: "POST",
+      body: JSON.stringify({ stepId, feedbackCommand }),
+    });
+  }
+
+  // ── Lesson Runtime — Robot Polling ────────────────────────────────────────
+
+  async getPendingLesson(sessionId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/pending-lesson`, { method: "GET" });
+  }
+
+  async getPendingStepControl(sessionId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/step-control`, { method: "GET" });
+  }
+
+  async getPendingFeedback(sessionId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/pending-feedback`, { method: "GET" });
+  }
+
+  // ── Lesson Runtime — Robot Reporting ──────────────────────────────────────
+
+  async updateLessonProgress(sessionId, dto) {
+    return this.request(`/api/lesson-runtime/${sessionId}/progress`, {
+      method: "PUT",
+      body: JSON.stringify(dto),
+    });
+  }
+
+  async addNoteToSession(sessionId, note, stepId = 0) {
+    return this.request(`/api/lesson-runtime/${sessionId}/interactions`, {
+      method: "POST",
+      body: JSON.stringify({
+        stepId,
+        interactionType: "Note",
+        studentResponse: note,
+        isCorrect: null,
+        responseTimeMs: 0,
+      }),
+    });
+  }
+
+  async getLessonInteractions(sessionId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/interactions`, { method: "GET" });
+  }
+
+  async acknowledgeStepControl(sessionId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/step-control`, { method: "DELETE" });
+  }
+
+  async acknowledgeFeedback(sessionId, feedbackId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/feedback/${feedbackId}/acknowledge`, {
+      method: "PUT",
+    });
+  }
+
+  async getStudentLessonHistory(studentId) {
+    const res = await this.request(`/api/lesson-runtime/student/${studentId}/history`, {
+      method: "GET",
+    });
+    return res || [];
+  }
+
+  // ── Robots ────────────────────────────────────────────────────────────────
+
+  async registerRobot(payload) {
+    return this.request("/api/robot/register", {
+      method: "POST",
+      body: JSON.stringify({
+        name: payload.name,
+        model: payload.model,
+        serialNumber: payload.serialNumber,
+        manufactureDate: payload.manufactureDate,
+        firmwareVersion: payload.firmwareVersion,
+        ipAddress: payload.ipAddress,
+        registeredUserId: payload.registeredUserId ?? null,
+      }),
+    });
+  }
+
+  async updateRobot(id, payload) {
+    return this.request(`/api/robot/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        name: payload.name,
+        model: payload.model,
+        serialNumber: payload.serialNumber,
+        manufactureDate: payload.manufactureDate,
+        firmwareVersion: payload.firmwareVersion,
+        ipAddress: payload.ipAddress,
+        registeredUserId: payload.registeredUserId ?? null,
+      }),
+    });
+  }
+
+  async deleteRobot(id) {
+    return this.request(`/api/robot/${id}`, { method: "DELETE" });
+  }
+
+  async getRobot(id) {
+    return this.request(`/api/robot/${id}`, { method: "GET" });
+  }
+
+  async getAllRobots() {
+    return this.request("/api/robot", { method: "GET" });
+  }
+
+  async getRobotsByUserId(userId) {
+    return this.request(`/api/robot/user/${userId}`, { method: "GET" });
+  }
+
+  async getRobotsByFirmwareVersion(firmwareVersion) {
+    return this.request(`/api/robot/firmware/${encodeURIComponent(firmwareVersion)}`, {
+      method: "GET",
+    });
   }
 }

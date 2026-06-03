@@ -16,7 +16,7 @@ export function PairRobotCard({ onCancel, onPaired }) {
       setError("");
 
       const res = await api.getSessionIdFromRobotCode(robotCode);
-      const returnedSessionId = res?.sessionId ?? res?.sessionCode ?? res?.id ?? "";
+      const returnedSessionId = res?.id;
 
       if (returnedSessionId) {
         setSessionId(returnedSessionId);
@@ -28,7 +28,7 @@ export function PairRobotCard({ onCancel, onPaired }) {
         }
       } else {
         setError("No session ID returned from server.");
-        console.error("No session ID returned from server");
+        console.error("Invalid response:", res);
       }
     } catch (err) {
       console.error("Failed to pair robot:", err);

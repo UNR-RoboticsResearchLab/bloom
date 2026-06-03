@@ -12,9 +12,9 @@ namespace bloom.Services
     {
 
         private readonly BloomDbContext _context;
-        private readonly AccountService _accountService;
+        private readonly IAccountService _accountService;
 
-        public LessonProgressService(BloomDbContext context, AccountService accountService)
+        public LessonProgressService(BloomDbContext context, IAccountService accountService)
         {
             _context = context;
             _accountService = accountService;

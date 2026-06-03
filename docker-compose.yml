@@ -38,8 +38,8 @@ services:
         condition: service_started
         restart: true
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_HTTPS_PORT=2443
+    - ASPNETCORE_ENVIRONMENT=Development
+    - ASPNETCORE_URLS=http://+:8080
     restart: always
     volumes:
       - dpkeys:/var/dpkeys

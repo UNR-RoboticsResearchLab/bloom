@@ -9,7 +9,7 @@ namespace bloom.Models
     public enum LessonType
     {
         Language,
-        SpeechTherapy
+        Speech
     }
 
     public class Lesson

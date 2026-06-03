@@ -1,10 +1,8 @@
 // bloom
 // LessonController.cs
-// API controller for managing lesson content and delivery.
+// Lesson content management and student progress tracking.
 
 using System.Security.Claims;
-using System.Text;
-using System.Text.Json;
 using bloom.Models.dto;
 using bloom.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -15,12 +13,11 @@ namespace bloom.Controllers
     /// <summary>
     /// Manages lesson content and delivery.
     /// Provides endpoints for creating lessons, retrieving lesson metadata and steps,
-    /// serving lesson JSON for robot consumption, and removing individual steps.
-    /// Lesson content is stored in the database; file export reconstructs the original format on demand.
+    /// and tracking student progress. Caller: SLP (content management) and Student (progress reads).
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    public class LessonController : ControllerBase
+    public class LessonController : BloomControllerBase
     {
         private readonly ILessonService _lessonService;
         private readonly ILessonProgressService _progressService;
@@ -31,8 +28,10 @@ namespace bloom.Controllers
             _progressService = progressService;
         }
 
-        [HttpGet]
-        [Route("all")]
+        /// <summary>
+        /// Returns metadata for all lessons (no step detail). Public endpoint.
+        /// </summary>
+        [HttpGet("all")]
         public async Task<IActionResult> GetAllLessons()
         {
             try
@@ -57,14 +56,15 @@ namespace bloom.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("{lessonId}")]
+        /// <summary>
+        /// Returns full lesson data including all steps and interaction configs for the specified lesson.
+        /// </summary>
+        [HttpGet("{lessonId}")]
         public async Task<IActionResult> GetLessonInfo(string lessonId)
         {
             try
             {
                 var lesson = await _lessonService.GetByIdAsync(lessonId);
-
                 if (lesson == null)
                     return NotFound(new { message = "Lesson not found." });
 
@@ -111,19 +111,20 @@ namespace bloom.Controllers
             }
         }
 
+        /// <summary>
+        /// Creates a new lesson authored by the authenticated user.
+        /// </summary>
         [Authorize]
-        [HttpPost]
-        [Route("create")]
+        [HttpPost("create")]
         public async Task<IActionResult> CreateLesson([FromBody] LessonDto lesson)
         {
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userId = GetCurrentUserId();
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized(new { message = "User not authenticated." });
 
                 lesson.CreatedById = userId;
-
                 var success = await _lessonService.CreateAsync(lesson);
 
                 if (success)
@@ -137,15 +138,16 @@ namespace bloom.Controllers
             }
         }
 
+        /// <summary>
+        /// Removes a single step from a lesson.
+        /// </summary>
         [Authorize]
-        [HttpDelete]
-        [Route("{lessonId}/steps/{stepId}")]
+        [HttpDelete("{lessonId}/steps/{stepId}")]
         public async Task<IActionResult> DeleteStep(Guid lessonId, Guid stepId)
         {
             try
             {
                 var success = await _lessonService.RemoveStepAsync(lessonId, stepId);
-
                 if (!success)
                     return NotFound(new { message = "Step not found." });
 
@@ -158,13 +160,13 @@ namespace bloom.Controllers
         }
 
         /// <summary>
-        /// Get the authenticated student's lesson progress records.
+        /// Returns lesson progress records for the currently authenticated student.
         /// </summary>
         [Authorize]
         [HttpGet("progress/my")]
         public async Task<IActionResult> GetMyProgress()
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = GetCurrentUserId();
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized();
 
@@ -183,7 +185,7 @@ namespace bloom.Controllers
         }
 
         /// <summary>
-        /// Get a specific student's lesson progress. Intended for SLP/Admin use.
+        /// Returns lesson progress records for the specified student. Intended for SLP or admin callers.
         /// </summary>
         [Authorize]
         [HttpGet("progress/student/{studentId}")]

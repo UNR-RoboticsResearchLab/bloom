@@ -1,5 +1,5 @@
 // src/components/dashboard/DashboardLayout.js
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { getSession, signOut } from "../../utils/auth";
 
 function cls(...xs) {
@@ -16,6 +16,7 @@ function titleCase(s = "") {
 export default function DashboardLayout({ title, children, actions = null }) {
   const session = getSession();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const parts = location.pathname.split("/").filter(Boolean);
   const crumbs = [{ to: "/", label: "Home" }].concat(
@@ -34,8 +35,8 @@ export default function DashboardLayout({ title, children, actions = null }) {
   const role = session?.role?.toUpperCase();
 
   return (
-    <div className="rounded-lg border p-6 shadow-sm min-h-screen bg-white text-gray-900 mt-[50px]">
-      <div className="mx-auto max-w-6xl px-6 py-10 lg:px-8">
+    <div className="min-h-screen bg-white text-gray-900">
+      <div className="mx-auto max-w-6xl px-6 py-10 lg:px-8 mt-[100px]">
         {/* Header */}
         <header className="mb-6">
           <div className="flex items-start justify-between gap-4">
@@ -74,6 +75,13 @@ export default function DashboardLayout({ title, children, actions = null }) {
               </div>
 
               {actions}
+
+              <button
+                onClick={() => navigate("/account")}
+                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 shadow-xs hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              >
+                Edit account
+              </button>
 
               <button
                 onClick={() => {

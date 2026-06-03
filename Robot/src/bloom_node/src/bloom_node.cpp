@@ -7,6 +7,10 @@
 #include <filesystem>
 #include <iostream>
 #include <algorithm>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
@@ -97,6 +101,38 @@ int main(int argc, char ** argv)
 		RCLCPP_WARN(node->get_logger(), "HOME not set, persistent config unavailable");
 	}
 
+	// Detect the outbound LAN IP on every boot and write it to the persistent config.
+	// A UDP socket is opened but never sends data — connect() only sets the routing entry.
+	{
+		std::string detected_ip;
+		int sock = ::socket(AF_INET, SOCK_DGRAM, 0);
+		if (sock >= 0) {
+			sockaddr_in dest{};
+			dest.sin_family = AF_INET;
+			dest.sin_port   = htons(80);
+			::inet_pton(AF_INET, "8.8.8.8", &dest.sin_addr);
+			if (::connect(sock, reinterpret_cast<sockaddr *>(&dest), sizeof(dest)) == 0) {
+				sockaddr_in local{};
+				socklen_t len = sizeof(local);
+				if (::getsockname(sock, reinterpret_cast<sockaddr *>(&local), &len) == 0) {
+					char buf[INET_ADDRSTRLEN];
+					::inet_ntop(AF_INET, &local.sin_addr, buf, sizeof(buf));
+					detected_ip = buf;
+				}
+			}
+			::close(sock);
+		}
+
+		if (!detected_ip.empty()) {
+			config_mgr->set("robot_ip_address", detected_ip);
+			if (!persistent_config.empty())
+				config_mgr->save_to_file(persistent_config.string());
+			RCLCPP_INFO(node->get_logger(), "Local IP detected and saved: %s", detected_ip.c_str());
+		} else {
+			RCLCPP_WARN(node->get_logger(), "Could not detect local IP - using value from config");
+		}
+	}
+
 	auto state_mgr = std::make_shared<bloom_node::StateManager>(rclcpp::NodeOptions());
 
 	// WebServiceClient constructor expects (node_name, base_url, default_timeout_ms, max_retries)
@@ -174,12 +210,22 @@ int main(int argc, char ** argv)
 	web_client->enableResponsePublisher("/status_response");
 
 	// Register and save credentials / login to get robot id to feed to sessionId
-	nlohmann::json robotInfo = {
+	std::string serial_number = config_mgr->get_string("robot_serial_number").value_or("");
+	if (serial_number.empty()) {
+		char hostname[256];
+		if (gethostname(hostname, sizeof(hostname)) == 0) {
+			serial_number = hostname;
+		} else {
+			serial_number = "unknown";
+		}
+	}
 
+	nlohmann::json robotInfo = {
 		{"name", config_mgr->get_string("robot_name").value_or("Unnamed Robot")},
 		{"model", config_mgr->get_string("robot_model").value_or("Unknown Model")},
-		{"firmwareversion", config_mgr->get_string("robot_firmware_version").value_or("N/A")},
-		{"ipaddress", config_mgr->get_string("robot_ip_address").value_or("N/A")}
+		{"serialNumber", serial_number},
+		{"firmwareVersion", config_mgr->get_string("robot_firmware_version").value_or("N/A")},
+		{"ipAddress", config_mgr->get_string("robot_ip_address").value_or("N/A")}
 	};
 
 	std::string robotId;
@@ -227,9 +273,43 @@ int main(int argc, char ** argv)
 			config_mgr->set("robot_id", robotId);
 		}
 	}
-	
 
+	// Login with robot credentials to get a JWT for all subsequent requests.
+	// Matches on Name + IPAddress — same fields LoginRobotAsync checks on the server.
+	std::string jwt_token;
+	auto do_login = [&]() {
+		auto login_future = web_client->sendJsonPostAsync(
+			"/api/robot/login",
+			robotInfo,
+			{"Content-Type: application/json"},
+			[web_client, &jwt_token](const std::string &body, long http_code) {
+				if (http_code >= 200 && http_code < 300) {
+					try {
+						auto response = nlohmann::json::parse(body);
+						if (response.contains("token")) {
+							jwt_token = response["token"].get<std::string>();
+							web_client->setAuthHeader("Authorization: Bearer " + jwt_token);
+							RCLCPP_INFO(web_client->get_logger(), "Robot authenticated - JWT acquired");
+						} else {
+							RCLCPP_WARN(web_client->get_logger(), "Login response missing 'token' field");
+						}
+					} catch (const std::exception &e) {
+						RCLCPP_WARN(web_client->get_logger(), "Failed to parse login response: %s", e.what());
+					}
+				} else {
+					RCLCPP_WARN(web_client->get_logger(),
+						"Robot login failed (HTTP %ld): %s", http_code, body.c_str());
+				}
+			}
+		);
+		login_future.get();
+	};
 
+	do_login();
+	if (jwt_token.empty()) {
+		RCLCPP_ERROR(node->get_logger(),
+			"Robot login failed — authenticated requests will be rejected by the backend");
+	}
 
 	// Example: Start a session with a POST request to /api/robot/sessions
 	RCLCPP_INFO(node->get_logger(), "Robot ID before session creation: %s (empty=%s)",
@@ -237,7 +317,7 @@ int main(int argc, char ** argv)
 
 	nlohmann::json session_payload = {
 		{"anonymous", false},
-		{"robot_id", robotId}
+		{"robotId", robotId}
 	};
 
 	RCLCPP_INFO(node->get_logger(), "Session payload: %s", session_payload.dump().c_str());
@@ -314,11 +394,15 @@ int main(int argc, char ** argv)
 		);
 		rereg_future.get();
 
+		// Re-authenticate after re-registration so the session retry carries a valid JWT
+		jwt_token.clear();
+		do_login();
+
 		// Retry session creation with new robot ID
 		if (!robotId.empty()) {
 			nlohmann::json retry_payload = {
 				{"anonymous", false},
-				{"robot_id", robotId}
+				{"robotId", robotId}
 			};
 			auto retry_future = web_client->sendRequestAsync(
 				"POST",
@@ -396,6 +480,102 @@ int main(int argc, char ** argv)
 	lesson_poller->start_polling();
 	lesson_poller->set_pairing_code(pairing_code);
 	feedback_poller->start_polling();  // Starts in inactive state, activated by LessonCoordinator during interactions
+
+	// ====== JWT Refresh Timer ======
+	// Refresh 5 minutes before the 30-minute token expiry so requests never hit an expired token.
+	auto jwt_refresh_timer = node->create_wall_timer(
+		std::chrono::minutes(25),
+		[&do_login, node]() {
+			RCLCPP_INFO(node->get_logger(), "Refreshing JWT token (25-minute interval)");
+			do_login();
+		}
+	);
+
+	// ====== Session Inactivity Reset Timer ======
+	// If no lesson has been running for 5 minutes, end the current session and open a fresh one
+	// so the robot is immediately re-pairable without a manual restart.
+	auto last_lesson_active_time = std::make_shared<std::chrono::steady_clock::time_point>(
+		std::chrono::steady_clock::now());
+
+	// Keep the activity timestamp current whenever a lesson finishes.
+	lesson_coord->set_completion_callback(
+		[last_lesson_active_time, node](const std::string &lesson_id) {
+			*last_lesson_active_time = std::chrono::steady_clock::now();
+			RCLCPP_INFO(node->get_logger(), "Lesson %s completed — inactivity timer reset", lesson_id.c_str());
+		}
+	);
+
+	auto session_inactivity_timer = node->create_wall_timer(
+		std::chrono::seconds(60),
+		[&session_id, &pairing_code, &robotId, lesson_coord, lesson_poller,
+		 feedback_poller, web_client, last_lesson_active_time, node]() {
+
+			if (session_id.empty()) return;
+
+			// Reset the clock while a lesson is actively running.
+			if (lesson_coord->is_lesson_running()) {
+				*last_lesson_active_time = std::chrono::steady_clock::now();
+				return;
+			}
+
+			auto elapsed = std::chrono::steady_clock::now() - *last_lesson_active_time;
+			if (elapsed < std::chrono::minutes(5)) return;
+
+			RCLCPP_INFO(node->get_logger(),
+				"Session %s idle for 5 minutes — resetting session", session_id.c_str());
+
+			// End the stale session.
+			web_client->sendRequestAsync(
+				"DELETE",
+				"/api/robotsession/" + session_id,
+				std::nullopt, std::nullopt, {},
+				[web_client](const std::string &body, long http_code) {
+					if (http_code >= 200 && http_code < 300)
+						RCLCPP_INFO(web_client->get_logger(), "Stale session ended (HTTP %ld)", http_code);
+					else
+						RCLCPP_WARN(web_client->get_logger(), "End session returned HTTP %ld: %s", http_code, body.c_str());
+				}
+			).get();
+
+			// Open a fresh session with the same robot.
+			nlohmann::json new_session_payload = {{"anonymous", false}, {"robotId", robotId}};
+			web_client->sendRequestAsync(
+				"POST",
+				"/api/robotsession/",
+				new_session_payload.dump(),
+				std::nullopt,
+				{"Content-Type: application/json"},
+				[&session_id, &pairing_code, lesson_poller, feedback_poller, lesson_coord, web_client, node](
+					const std::string &body, long http_code) {
+					if (http_code < 200 || http_code >= 300) {
+						RCLCPP_ERROR(web_client->get_logger(),
+							"Failed to create replacement session (HTTP %ld): %s", http_code, body.c_str());
+						return;
+					}
+					try {
+						auto response = nlohmann::json::parse(body);
+						if (response.contains("id")) {
+							session_id = response["id"].get<std::string>();
+							lesson_poller->set_session_id(session_id);
+							feedback_poller->set_session_id(session_id);
+							lesson_coord->set_session_id(session_id);
+							RCLCPP_INFO(node->get_logger(), "New session created: %s", session_id.c_str());
+						}
+						if (response.contains("sessionCode")) {
+							pairing_code = response["sessionCode"].get<std::string>();
+							web_client->publishSessionCode(pairing_code);
+							lesson_poller->set_pairing_code(pairing_code);
+							RCLCPP_INFO(node->get_logger(), "New session code: %s", pairing_code.c_str());
+						}
+					} catch (const std::exception &e) {
+						RCLCPP_WARN(web_client->get_logger(), "Failed to parse new session response: %s", e.what());
+					}
+				}
+			).get();
+
+			*last_lesson_active_time = std::chrono::steady_clock::now();
+		}
+	);
 
 	RCLCPP_INFO(node->get_logger(), "bloom_node started - state_manager + web_service_client + lesson_coordinator + lesson_poller + feedback_poller running");
 	executor.spin();

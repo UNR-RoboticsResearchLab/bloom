@@ -134,6 +134,16 @@ void LessonPoller::on_polling_tick() {
                         msg.data = current_pairing_code;
                         session_code_pub_->publish(msg);
                     }
+					if (currently_executing_.load() && paired_.load()) {
+						bool has_active_lesson = j.contains("activeLessonId") && !j["activeLessonId"].is_null();
+						if (!has_active_lesson) {
+							RCLCPP_WARN(this->get_logger(), "[SAFETY] Lesson running but backend reports no active lesson — stopping");
+							if (lesson_coord_) lesson_coord_->stop_lesson();
+							last_lesson_id_ = "";
+							currently_executing_.store(false);
+							stop_step_control_polling();
+						}
+					}
                 } catch (...) {
                     RCLCPP_WARN(this->get_logger(), "Failed to parse session status response");
                 }
@@ -190,14 +200,19 @@ void LessonPoller::on_polling_tick() {
                 }
 
                 RCLCPP_INFO(this->get_logger(), "Pending lesson received, calling handle_pending_lesson");
-                handle_pending_lesson(response["lesson"]);
+				std::string lesson_run_id = "";
+				if (response.contains("activeLessonRunId") && !response["activeLessonRunId"].is_null()) {
+					lesson_run_id = response["activeLessonRunId"].get<std::string>();
+					RCLCPP_INFO(this->get_logger(), "Lesson run ID: %s", lesson_run_id.c_str());
+				}
+                handle_pending_lesson(response["lesson"], lesson_run_id);
             } catch (const json::exception &e) {
                 RCLCPP_ERROR(this->get_logger(), "Failed to parse lesson JSON: %s", e.what());
             }
         });
 }
 
-void LessonPoller::handle_pending_lesson(const json &lesson_json) {
+void LessonPoller::handle_pending_lesson(const json &lesson_json, const std::string &lesson_run_id) {
 	try {
 
 
@@ -221,10 +236,12 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json) {
 		// Parse lesson JSON to LessonData struct
 		LessonData lesson_data;
 		lesson_data.lesson_id = lesson_id;
+		lesson_data.lesson_run_id = lesson_run_id;
 
 		if (lesson_json.contains("title")) {
 			lesson_data.title = lesson_json["title"].get<std::string>();
 		}
+		lesson_data.conversation_mode = (lesson_data.title == "Conversation Mode");
 
 		if (lesson_json.contains("learning_objectives")) {
 			lesson_data.learning_objectives = lesson_json["learning_objectives"].get<std::vector<std::string>>();
@@ -464,6 +481,12 @@ void LessonPoller::on_step_control_tick() {
                     } else {
                         RCLCPP_WARN(this->get_logger(), "[STEP_CONTROL] set_step missing or invalid targetStep");
                     }
+				} else if (command == "stop") {
+					RCLCPP_INFO(this->get_logger(), "[STEP_CONTROL] Stop command received - stopping lesson");
+					if (lesson_coord_) lesson_coord_->stop_lesson();
+					last_lesson_id_ = "";
+					currently_executing_.store(false);
+					stop_step_control_polling();
                 } else {
                     RCLCPP_WARN(this->get_logger(), "[STEP_CONTROL] Unknown command: %s", command.c_str());
                 }

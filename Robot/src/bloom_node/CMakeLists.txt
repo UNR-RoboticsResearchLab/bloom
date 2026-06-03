@@ -62,6 +62,9 @@ install(DIRECTORY config/
 install(DIRECTORY launch/
   DESTINATION share/${PROJECT_NAME}/launch)
 
+install(PROGRAMS scripts/follower.py
+  DESTINATION lib/${PROJECT_NAME})
+
 ament_export_targets(bloom_nodeTargets HAS_LIBRARY_TARGET)
 ament_export_dependencies(rclcpp std_msgs std_srvs CURL)
 

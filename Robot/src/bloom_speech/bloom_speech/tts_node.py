@@ -1,9 +1,16 @@
 import os
 import sys
 import time
-_robot_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              '..', '..', '..', '..', '..', 'bloom', 'Robot'))
-if _robot_dir not in sys.path:
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+_robot_dir = None
+for _levels in (3, 6):
+    _candidate = _this_dir
+    for _ in range(_levels):
+        _candidate = os.path.dirname(_candidate)
+    if os.path.isdir(os.path.join(_candidate, 'tts_module')):
+        _robot_dir = _candidate
+        break
+if _robot_dir and _robot_dir not in sys.path:
     sys.path.insert(0, _robot_dir)
 import json
 import threading
@@ -49,6 +56,10 @@ class TTSNode(Node):
         self.get_logger().info('TTS node ready - listening on /tts/speak')
         self._interrupted = False
         self.create_subscription(String, '/tts/interrupt', self.on_interrupt, 10)
+        self.chime_sub = self.create_subscription(
+            String, '/audio/chime', self.on_chime, 10)
+        chime_path = os.path.join(get_package_share_directory('bloom_speech'), 'sounds', 'chime.wav')
+        self.chime_sound = pygame.mixer.Sound(chime_path) if os.path.exists(chime_path) else None
 
     def set_face_emotion(self, emotion: str):
         msg = String()
@@ -162,7 +173,13 @@ class TTSNode(Node):
         self.get_logger().info('TTS interrupted')
         self._interrupted = True
         pygame.mixer.music.stop()
-
+    
+    def on_chime(self, msg: String):
+        if self.chime_sound:
+            self.chime_sound.play()
+            self.get_logger().info('Playing chime')
+        else:
+            self.get_logger().warn('Chime sound not found')
 def main(args=None):
     env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')
     if os.path.exists(env_path):

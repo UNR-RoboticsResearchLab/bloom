@@ -69,6 +69,19 @@ namespace bloom.Services
             // Clear in-memory states
             _stateRepository.ClearSession(sessionId.ToString());
 
+            // Close any still-active lesson run so it doesn't dangle as "active" forever.
+            if (session.ActiveLessonRunId is Guid runId)
+            {
+                var run = await _dbContext.LessonRuns.FindAsync(runId);
+                if (run != null && run.EndedAt == null)
+                {
+                    run.EndedAt = DateTime.UtcNow;
+                    run.Status = "abandoned";
+                    _dbContext.LessonRuns.Update(run);
+                }
+                session.ActiveLessonRunId = null;
+            }
+
             // Update session metadata
             session.LastUpdatedAt = DateTime.UtcNow;
             _dbContext.Update(session);
@@ -226,9 +239,10 @@ namespace bloom.Services
             {
                 RobotSessionId = sessionId,
                 LessonId = session.ActiveLessonId,
+                LessonRunId = session.ActiveLessonRunId,
                 StepId = dto.StepId,
                 InteractionType = dto.InteractionType,
-                // StudentResponse = dto.StudentResponse,
+                DialogTurn = dto.StudentResponse,
                 IsCorrect = dto.IsCorrect,
                 ResponseTimeMs = dto.ResponseTimeMs,
                 Timestamp = DateTime.UtcNow
@@ -250,7 +264,19 @@ namespace bloom.Services
 
             if (dto.Status == "Completed")
             {
+                if (session.ActiveLessonRunId is Guid runId)
+                {
+                    var run = await _dbContext.LessonRuns.FindAsync(runId);
+                    if (run != null && run.EndedAt == null)
+                    {
+                        run.EndedAt = DateTime.UtcNow;
+                        run.Status = "completed";
+                        _dbContext.LessonRuns.Update(run);
+                    }
+                }
+
                 session.ActiveLessonId = null;
+                session.ActiveLessonRunId = null;
                 _dbContext.RobotSessions.Update(session);
                 await _dbContext.SaveChangesAsync();
                 return;
@@ -318,6 +344,7 @@ namespace bloom.Services
             return new
             {
                 hasPendingLesson = true,
+                activeLessonRunId = session.ActiveLessonRunId,
                 lesson = session.ActiveLesson
             };
         }
@@ -335,6 +362,7 @@ namespace bloom.Services
             {
                 RobotSessionId = sessionId,
                 LessonId = session.ActiveLessonId,
+                LessonRunId = session.ActiveLessonRunId,
                 StepId = dto.StepId,
                 InteractionType = "SLPFeedback",
                 FeedbackCommand = dto.FeedbackCommand,
@@ -353,10 +381,16 @@ namespace bloom.Services
             var session = await _sessionRepository.GetAsync(sessionId)
                 ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
 
-            // Find the most recent unacknowledged SLPFeedback for this session
+            // Scope to the active run so feedback from a previous run of the same lesson
+            // doesn't leak into the current one.
+            if (session.ActiveLessonRunId == null)
+                return null;
+
+            var runId = session.ActiveLessonRunId.Value;
+
             var pending = await _dbContext.LessonInteractions
                 .Where(li =>
-                    li.RobotSessionId == sessionId &&
+                    li.LessonRunId == runId &&
                     li.InteractionType == "SLPFeedback" &&
                     li.IsAcknowledged == false)
                 .OrderByDescending(li => li.Timestamp)
@@ -400,8 +434,33 @@ namespace bloom.Services
             if (dto.LessonId == Guid.Empty)
                 throw new ArgumentException("LessonId cannot be empty (Guid.Empty)", nameof(dto.LessonId));
 
-            // Update session with active lesson
+            // Close any prior active run on this session, even if it was the same lesson.
+            // Without this, repeating a lesson in one session would leave the previous run
+            // dangling as "active" and its interactions would bleed into the new run's queries.
+            if (session.ActiveLessonRunId is Guid priorRunId)
+            {
+                var prior = await _dbContext.LessonRuns.FindAsync(priorRunId);
+                if (prior != null && prior.EndedAt == null)
+                {
+                    prior.EndedAt = DateTime.UtcNow;
+                    prior.Status = "abandoned";
+                    _dbContext.LessonRuns.Update(prior);
+                }
+            }
+
+            var run = new LessonRun
+            {
+                RobotSessionId = sessionId,
+                LessonId = dto.LessonId,
+                SlpId = session.UserId,
+                StudentId = session.UserId,
+                StartedAt = DateTime.UtcNow,
+                Status = "active",
+            };
+            _dbContext.LessonRuns.Add(run);
+
             session.ActiveLessonId = dto.LessonId;
+            session.ActiveLessonRunId = run.Id;
             session.LastUpdatedAt = DateTime.UtcNow;
             _dbContext.Update(session);
             await _dbContext.SaveChangesAsync();
@@ -423,6 +482,16 @@ namespace bloom.Services
             await _dbContext.SaveChangesAsync();
         }
 
+        public async Task ClearSessionUserAsync(Guid sessionId)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            session.UserId = null;
+            session.LastUpdatedAt = DateTime.UtcNow;
+            _dbContext.Update(session);
+            await _dbContext.SaveChangesAsync();
+        }
 
         public async Task<List<TrackerEventDto>> GetTrackerEventsAsync(Guid sessionId)
         {
@@ -599,6 +668,73 @@ namespace bloom.Services
             return events
                 .OrderByDescending(e => e.Timestamp)
                 .ToList();
+        }
+
+        public async Task<List<LessonInteractionResponseDto>> GetLessonInteractionsAsync(Guid sessionId)
+        {
+            return await _dbContext.LessonInteractions
+                .Where(x => x.RobotSessionId == sessionId)
+                .OrderBy(x => x.Timestamp)
+                .Select(x => new LessonInteractionResponseDto
+                {
+                    Id = x.Id,
+                    StepId = x.StepId,
+                    InteractionType = x.InteractionType,
+                    StudentResponse = x.DialogTurn,
+                    IsCorrect = x.IsCorrect,
+                    Timestamp = x.Timestamp,
+                    ResponseTimeMs = x.ResponseTimeMs,
+                    LessonRunId = x.LessonRunId,
+                    LessonId = x.LessonId
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<StudentLessonHistoryDto>> GetStudentLessonHistoryAsync(string studentId)
+        {
+            // Match runs either by LessonRun.StudentId directly or by the owning session's
+            // UserId. The session-level join keeps historical rows queryable for runs
+            // created before LessonRun.StudentId was populated.
+            var query =
+                from run in _dbContext.LessonRuns
+                join session in _dbContext.RobotSessions on run.RobotSessionId equals session.Id
+                where run.StudentId == studentId || session.UserId == studentId
+                orderby run.StartedAt descending
+                select new StudentLessonHistoryDto
+                {
+                    LessonRunId = run.Id,
+                    LessonId = run.LessonId,
+                    LessonTitle = run.Lesson != null ? run.Lesson.Title : string.Empty,
+                    RobotSessionId = run.RobotSessionId,
+                    StartedAt = run.StartedAt,
+                    EndedAt = run.EndedAt,
+                    Status = run.Status,
+                    InteractionCount = _dbContext.LessonInteractions
+                        .Count(li => li.LessonRunId == run.Id)
+                };
+
+            return await query.ToListAsync();
+        }
+        public async Task StopLessonAsync(Guid sessionId)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            if (session.ActiveLessonRunId is Guid runId)
+            {
+                var run = await _dbContext.LessonRuns.FindAsync(runId);
+                if (run != null && run.EndedAt == null)
+                {
+                    run.EndedAt = DateTime.UtcNow;
+                    run.Status = "abandoned";
+                    _dbContext.LessonRuns.Update(run);
+                }
+            }
+
+            session.ActiveLessonId = null;
+            session.ActiveLessonRunId = null;
+            _dbContext.RobotSessions.Update(session);
+            await _dbContext.SaveChangesAsync();
         }
     }
 }

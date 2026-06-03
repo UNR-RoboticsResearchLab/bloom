@@ -6,6 +6,7 @@ using System.Security.Claims;
 using bloom.Models.dto;
 using bloom.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace bloom.Controllers
 {
@@ -14,6 +15,7 @@ namespace bloom.Controllers
     /// Handles starting a lesson, polling for a pending lesson assignment,
     /// and updating lesson progress as the robot advances through steps.
     /// </summary>
+    [Authorize(Policy = "JwtOrCookie")]
     [ApiController]
     [Route("api/[controller]")]
     public class LessonSessionController : ControllerBase
@@ -259,6 +261,38 @@ namespace bloom.Controllers
             _stepControlService.ClearControl(sessionId);
             _logger.LogInformation("Step control acknowledged and cleared for session {SessionId}", sessionId);
             return Ok(new { Message = "Step control cleared", SessionId = sessionId });
+        }
+
+        /// <summary>
+        /// Get the lesson run history for a given student. Each entry is a single lesson run
+        /// of a lesson within a robot session; repeating the same lesson yields multiple entries.
+        /// </summary>
+        /// <param name="studentId">Account ID of the student</param>
+        [HttpGet("student/{studentId}/history")]
+        public async Task<IActionResult> GetStudentLessonHistory(string studentId)
+        {
+            if (string.IsNullOrWhiteSpace(studentId))
+                return BadRequest(new { Message = "studentId is required" });
+
+            var history = await _sessionService.GetStudentLessonHistoryAsync(studentId);
+            return Ok(history);
+        }
+
+
+        /// <summary>
+        /// Stop the current lesson in a session. The robot will exit the lesson and return to idle state.
+        /// </summary>
+        [HttpPost("{sessionId}/lessons/stop")]
+        public async Task<IActionResult> StopLesson(Guid sessionId)
+        {
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            _stepControlService.SetPendingControl(sessionId, "stop");
+            await _sessionService.StopLessonAsync(sessionId);
+            _logger.LogInformation("Stop command issued for session {SessionId}", sessionId);
+            return Ok(new { Message = "Stop command queued", SessionId = sessionId });
         }
 
         private string? GetCurrentUserId()

@@ -1,4 +1,6 @@
-import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useApiClient } from "../context/ApiClientContext";
 
 function getInitials(name) {
     return name
@@ -9,9 +11,98 @@ function getInitials(name) {
 }
 
 export default function Student() {
-    const { name } = useParams();
-    
+    const { studentId } = useParams();
+    const api = useApiClient();
+    const navigate = useNavigate();
+
+    const [student, setStudent] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [lessonHistory, setLessonHistory] = useState([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    useEffect(() => {
+        async function loadStudent() {
+            try {
+                const data = await api.getStudent(studentId);
+                console.log("Student from backend:", data);
+                setStudent(data);
+            } catch (err) {
+                console.error("Failed to load student:", err);
+                setStudent(null);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+
+        loadStudent();
+    }, [api, studentId]);
+
+    useEffect(() => {
+        async function loadLessonHistory() {
+            try {
+                const data = await api.getStudentLessonHistory(studentId);
+                console.log("Lesson history from backend:", data);
+
+
+
+                const backendHistory = Array.isArray(data) ? data : [];
+
+                const testHistory = [
+                    {
+                        sessionId: "a566333f-e0a8-4f31-8426-a4b47ded5c3c",
+                        lessonTitle: "Homophones",
+                        startedAt: new Date().toISOString(),
+                    },
+                    {
+                        sessionId: "test-session-2",
+                        lessonTitle: "Conversation Mode",
+                        startedAt: new Date(Date.now() - 86400000).toISOString(),
+                    },
+                ];
+
+                setLessonHistory(backendHistory);
+            } catch (err) {
+                console.error("Failed to load lesson history:", err);
+                setLessonHistory([]);
+            } finally {
+                setIsLoadingHistory(false);
+            }
+        }
+
+        loadLessonHistory();
+    }, [api, studentId]);
+
+    async function handleDeleteStudent() {
+        const confirmDelete = window.confirm(
+            `Are you sure you want to delete ${name}? This cannot be undone.`
+        );
+
+        if (!confirmDelete) return;
+
+        try {
+            setIsDeleting(true);
+            await api.deleteSLPClient(student.id ?? student.Id);
+            navigate("/students");
+        } catch (err) {
+            console.error("Failed to delete student:", err);
+            alert("Failed to delete student.");
+        } finally {
+            setIsDeleting(false);
+        }
+    }
+
+    if (isLoading) {
+        return <div className="rounded-lg border p-6 shadow-sm">Loading student...</div>;
+    }
+
+    if (!student) {
+        return <div className="rounded-lg border p-6 shadow-sm">Student not found</div>;
+    }
+
+    const name = student.fullName ?? student.studentName ?? student.name ?? "No Name";
     const initials = getInitials(name);
+    
     return (
         <div className= "rounded-lg border p-6 shadow-sm">
             <p className=" text-sm font-semibold text-gray-900">
@@ -26,21 +117,34 @@ export default function Student() {
                         </span>
                     </div>
 
+                    <div className="flex w-full items-center justify-between">
+  
                     <div className="leading-tight">
                         <p className="text-sm font-semibold text-gray-900">
-                            {name}
+                        {name}
                         </p>
                         <p className="text-xs text-gray-900">
-                            level 2
+                        level 2
                         </p>
                         <p className="text-xs text-gray-900">
-                            Active
+                        Active
                         </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleDeleteStudent}
+                        disabled={isDeleting}
+                        className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-500 disabled:cursor-not-allowed disabled:bg-red-300"
+                    >
+                        {isDeleting ? "Deleting..." : "Delete Account"}
+                    </button>
+
                     </div>
                 </div>
             </div>
 
-            <div className="mt-4 rounded-lg border p-6 shadow-sm">
+            {/* <div className="mt-4 rounded-lg border p-6 shadow-sm">
                 <p className="text-base font-semibold text-gray-900">Notes</p>
                 <p className="mt-1 text-sm text-gray-500">
                     Record observations and recommendations for this student.
@@ -60,36 +164,44 @@ export default function Student() {
                         </button>
                     </div>
                 </div>
-            </div>
+            </div> */}
 
-            <div className="mt-6 rounded-lg border shadow-sm">
-                
-                <div className="border-b px-6 py-4">
-                    <p className="text-base font-semibold text-gray-900">Lesson History</p>
-                    <p className="mt-1 text-sm text-gray-500">Past sessions</p>
-                </div>
+            <div className="mt-6 rounded-lg border border-gray-200 p-6 shadow-sm">  
+                <p className="text-base font-semibold text-gray-900">Lesson History</p>
+                <div className="divide-y">
+                    {isLoadingHistory ? (
+                        <div className="px-6 py-4">
+                            <p className="text-sm text-gray-500">Loading lesson history...</p>
+                        </div>
+                    ) : lessonHistory.length === 0 ? (
+                        <div className="px-6 py-4">
+                            <p className="text-sm text-gray-500">No past sessions found.</p>
+                        </div>
+                    ) : (
+                        lessonHistory.map((item, index) => {
+                            const sessionId = item.sessionId ?? item.SessionId ?? item.id ?? item.Id;
+                            const lessonTitle = item.lessonTitle ?? item.LessonTitle ?? item.title ?? "Untitled Lesson";
+                            const date = item.startedAt ?? item.StartedAt ?? item.createdAt ?? item.CreatedAt;
 
-                
-                <div className="border-b px-6 py-4">
-                    <p className="text-sm font-medium text-gray-900">
-                    Articulation Practice: /r/ sounds
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                    February 17, 2026 | 30 minutes
-                    </p>
-                </div>
-
-                
-                <div className="px-6 py-4">
-                    <p className="text-sm font-medium text-gray-900">
-                    Articulation Practice: /s/ sounds
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                    February 15, 2026 | 30 minutes
-                    </p>
+                            return (
+                                <button
+                                    key={sessionId ?? index}
+                                    type="button"
+                                    onClick={() => navigate(`/lesson-history/${sessionId}`)}
+                                    className="block w-full px-6 py-4 text-left hover:bg-gray-50 mb-4 rounded-lg border border-black"
+                                >
+                                    <p className="text-sm font-medium text-gray-900">
+                                        {lessonTitle}
+                                    </p>
+                                    <p className="mt-1 text-sm text-gray-500">
+                                        {date ? new Date(date).toLocaleDateString() : "No date"}
+                                    </p>
+                                </button>
+                            );
+                        })
+                    )}
                 </div>
             </div>
         </div>
     );
 }
-

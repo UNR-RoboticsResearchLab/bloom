@@ -63,6 +63,15 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
 
     )));
 
+builder.Services.AddDbContext<ArSrDbContext>(options =>
+    options.UseMySql(ConnectionString,
+        new MySqlServerVersion(new Version(11, 7, 2)),
+        mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null
+    )));
+
 
 
 

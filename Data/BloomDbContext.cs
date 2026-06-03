@@ -176,7 +176,7 @@ namespace bloom.Data
 
         public static async Task SeedDatabaseRoles(RoleManager<IdentityRole> roleMgr)
         {
-            string[] roleNames = { "Admin", "SLP", "Student" };
+            string[] roleNames = { "Admin", "SLP", "Student", "Participant" };
 
             foreach (var roleName in roleNames)
             {

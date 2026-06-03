@@ -34,6 +34,10 @@ import AddLessonCard from "./pages/AddLessonCard";
 
 import LessonView from "./pages/LessonView";
 
+import ArSrStudy       from "./pages/ArSr/ArSrStudy";
+import ArSrResults     from "./pages/ArSr/ArSrResults";
+import ArSrSessionDetail from "./pages/ArSr/ArSrSessionDetail";
+
 export default function App() {
 
   const apiBase = process.env.REACT_APP_API_BASE_URL || "http://bloom-server-dev:5000/";
@@ -83,6 +87,13 @@ export default function App() {
               <Route path="slp" element={<SlpDashboard />} />
             </Route>
           </Route>
+        </Route>
+
+        {/* Auto RSR study */}
+        <Route element={<RequireAuth />}>
+          <Route path="/arsr/study"              element={<ArSrStudy />} />
+          <Route path="/arsr/results"            element={<ArSrResults />} />
+          <Route path="/arsr/sessions/:sessionId" element={<ArSrSessionDetail />} />
         </Route>
 
         {/* Fallback */}

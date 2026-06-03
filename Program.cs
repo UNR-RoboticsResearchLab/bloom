@@ -72,6 +72,16 @@ builder.Services.AddDbContext<ArSrDbContext>(options =>
                 errorNumbersToAdd: null
     )));
 
+// ArSr services
+builder.Services.AddScoped<IArSrService, ArSrService>();
+builder.Services.AddScoped<ArSrTranscriptionService>();
+builder.Services.AddHttpClient("ArSrMicroservice", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ArSr:MicroserviceUrl"]
+        ?? "http://arsr-service:5050");
+    client.Timeout = TimeSpan.FromMinutes(5); // WhisperX can take time on long sessions
+});
+
 
 
 

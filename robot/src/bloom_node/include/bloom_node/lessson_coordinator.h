@@ -15,6 +15,7 @@
 #include <mutex>
 #include <chrono>
 #include <algorithm>
+#include <optional>
 #include <std_msgs/msg/string.hpp>
 
 namespace bloom_node {
@@ -25,10 +26,16 @@ struct InteractionConfig {
     std::string correct_response_script;
     std::string incorrect_response_script;
     std::string fallback_script;
+    bool llm_follow_up{false};
+    bool single_turn_llm{false};          
+    std::string single_turn_llm_prompt;   
+    std::vector<std::string> fallback_visual_aid;
+    std::vector<std::string> fallback_visual_aid_labels;
 };
 
 struct LessonStep {
-    int id;
+    std::string id;        
+    int step_order;        
     std::string type;
     std::string script;
     std::map<std::string, std::string> behaviors;  // gesture, facial_expression, gaze, etc.
@@ -36,13 +43,21 @@ struct LessonStep {
     std::string visual_aid_url;
     bool has_interaction;
     InteractionConfig interaction;
+    std::vector<std::string> visual_aid_images;
+    std::vector<std::string> visual_aid_labels;
+    std::vector<std::string> visual_aid_footers;
+    std::string motor_sequence;
+    
 };
 
 struct LessonData {
     std::string lesson_id;
+    std::string lesson_run_id;
     std::string title;
     std::vector<std::string> learning_objectives;
     std::vector<LessonStep> sequence;
+    bool conversation_mode{false};
+
 };
 
 /**
@@ -83,6 +98,17 @@ public:
     // Set the feedback poller to control during interactions
     void set_feedback_poller(std::shared_ptr<FeedbackPoller> feedback_poller);
 
+    // Set the session ID (called when user joins with pairing code and userId is set)
+    void set_session_id(const std::string &session_id);
+
+    // Get the current session ID
+    std::string get_session_id() const;
+
+    // Step control, called by LessonPoller when SLP issues commands
+    void skip_step();
+    void replay_step();
+    void set_step(int target_step_order);
+
 private:
 
     void execute_step(const LessonStep &step);
@@ -96,14 +122,18 @@ private:
     void advance_to_next_step();
 
     void update_progress_with_backend();
-    void log_interaction_to_backend(int step_id, const std::string &response, bool is_correct);
+    void log_interaction_to_backend(int step_order, const std::string &response, bool is_correct);
+    void log_interaction_to_backend(int step_order, const std::string &interaction_type, const std::string &content, std::optional<bool> is_correct);
 
+    void on_tts_done(const std_msgs::msg::String::SharedPtr msg);
+    void on_llm_wrap_up(const std_msgs::msg::String::SharedPtr msg);
 
     LessonData current_lesson_;
     size_t current_step_index_;
     bool lesson_active_;
     std::string lesson_progress_id_;
     std::string session_id_;
+    std::string lesson_run_id_;
 
     // For interaction handling
     LessonStep* current_interaction_step_;
@@ -124,8 +154,26 @@ private:
 
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr lesson_progress_publisher_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr tts_publisher_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr visual_aid_publisher_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr vosk_subscriber_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr llm_mode_pub_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr llm_context_pub_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr tts_done_sub_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr wrap_up_sub_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr motor_pub_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr stt_enable_pub_;
+    bool waiting_for_tts_done_{false};
+    bool waiting_for_wrap_up_{false};
+    bool waiting_for_interaction_tts_{false};
+    bool waiting_for_single_turn_{false};
+    bool waiting_for_llm_tts_done_{false};
+    bool conversation_mode_{false};
 
+    std::string robot_state_{"idle"};
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_state_sub_;
+
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr tts_interrupt_pub_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr chime_pub_;
 
 };
 }

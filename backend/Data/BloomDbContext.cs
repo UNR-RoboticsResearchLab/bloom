@@ -16,12 +16,16 @@ namespace bloom.Data
         public DbSet<Account> Accounts { get; set; }
         public DbSet<Lesson> Lessons { get; set; }
         public DbSet<Assignment> Assignments { get; set; }
-        public DbSet<SLPClient> SLPClients { get; set; }
+        public DbSet<Classroom> Classrooms { get; set; }
         public DbSet<Robot> Robots { get; set; }
         public DbSet<RobotSession> RobotSessions { get; set; }
         public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
+        public DbSet<LessonStep> LessonSteps { get; set; }
         public DbSet<LessonProgress> LessonProgresses { get; set; }
         public DbSet<LessonInteraction> LessonInteractions { get; set; }
+        public DbSet<LessonRun> LessonRuns { get; set; }
+        public DbSet<StepInteraction> StepInteractions { get; set; }
+        public DbSet<SLPClient> SLPClients { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
@@ -50,6 +54,26 @@ namespace bloom.Data
                     .WithOne(a => a.Lesson)
                     .HasForeignKey(a => a.LessonId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(l => l.Steps)
+                    .WithOne(s => s.Lesson)
+                    .HasForeignKey(s => s.LessonId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<LessonStep>(entity =>
+            {
+                entity.ToTable("LessonSteps");
+
+                entity.HasOne(s => s.Interaction)
+                    .WithOne(i => i.LessonStep)
+                    .HasForeignKey<LessonStep>(s => s.InteractionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<StepInteraction>(entity =>
+            {
+                entity.ToTable("StepInteractions");
             });
 
             builder.Entity<Assignment>(entity =>
@@ -71,22 +95,27 @@ namespace bloom.Data
             {
                 entity.ToTable("SLPClients");
 
-                // One-to-Many: SLPClient - Student (Account)
                 entity.HasOne(c => c.Student)
                     .WithMany()
                     .HasForeignKey(c => c.StudentId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // Many-to-Many: SLPClient - Teachers (Accounts)
+                entity.HasOne(c => c.Slp)
+                    .WithMany()
+                    .HasForeignKey(c => c.SlpId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<Classroom>(entity =>
+            {
+                entity.ToTable("Classrooms");
+
+                // Many-to-Many: Classroom - Students (Accounts)
+                entity.HasMany(c => c.Students)
+                    .WithMany();
+
+                // Many-to-Many: Classroom - Teachers (Accounts)
                 entity.HasMany(c => c.Teachers)
-                    .WithMany();
-
-                // Many-to-Many: SLPClient - Lessons
-                entity.HasMany(c => c.Lessons)
-                    .WithMany();
-
-                // Many-to-Many: SLPClient - Assignments
-                entity.HasMany(c => c.Assignments)
                     .WithMany();
             });
 
@@ -98,6 +127,38 @@ namespace bloom.Data
                     .WithMany()
                     .HasForeignKey(rs => rs.UserId)
                     .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(rs => rs.ActiveLessonRun)
+                    .WithMany()
+                    .HasForeignKey(rs => rs.ActiveLessonRunId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            builder.Entity<LessonRun>(entity =>
+            {
+                entity.ToTable("LessonRuns");
+
+                entity.HasOne(r => r.RobotSession)
+                    .WithMany()
+                    .HasForeignKey(r => r.RobotSessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(r => r.Lesson)
+                    .WithMany()
+                    .HasForeignKey(r => r.LessonId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasMany(r => r.Interactions)
+                    .WithOne(i => i.LessonRun)
+                    .HasForeignKey(i => i.LessonRunId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(r => new { r.RobotSessionId, r.LessonId, r.StartedAt });
+            });
+
+            builder.Entity<LessonInteraction>(entity =>
+            {
+                entity.HasIndex(li => new { li.LessonRunId, li.InteractionType, li.IsAcknowledged });
             });
 
             builder.Entity<RobotStateHistory>(entity =>
@@ -113,37 +174,7 @@ namespace bloom.Data
                 entity.OwnsOne(r => r.RobotState);
             });
 
-            builder.Entity<LessonProgress>(entity =>
-            {
-                entity.ToTable("LessonProgresses");
-
-                entity.HasOne(lp => lp.Student)
-                    .WithMany()
-                    .HasForeignKey(lp => lp.StudentId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(lp => lp.Lesson)
-                    .WithMany()
-                    .HasForeignKey(lp => lp.LessonId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            builder.Entity<LessonInteraction>(entity =>
-            {
-                entity.ToTable("LessonInteractions");
-
-                entity.HasOne(li => li.RobotSession)
-                    .WithMany()
-                    .HasForeignKey(li => li.RobotSessionId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(li => li.Lesson)
-                    .WithMany()
-                    .HasForeignKey(li => li.LessonId)
-                    .OnDelete(DeleteBehavior.SetNull);
-            });
-
-            builder.Entity<Robot>(entity => {
+            builder.Entity<Robot>(entity => { 
                 entity.HasOne(r => r.RegisteredUser)
                     .WithMany(a => a.RegisteredRobots)
                     .HasForeignKey(r => r.RegisteredUserId)
@@ -154,7 +185,7 @@ namespace bloom.Data
 
         public static async Task SeedDatabaseRoles(RoleManager<IdentityRole> roleMgr)
         {
-            string[] roleNames = { "Admin", "SLP", "Student" };
+            string[] roleNames = { "Admin", "SLP", "Student", "Teacher", "Facilitator", "Participant" };
 
             foreach (var roleName in roleNames)
             {
@@ -185,6 +216,37 @@ namespace bloom.Data
                     await userMgr.AddToRoleAsync(adminUser, "Admin");
                 }
             }
+        }
+
+        public async Task SeedLessons()
+        {
+                if (!Lessons.Any())
+                {
+                    var sampleLessons = new List<Lesson>
+                    {
+                        new Lesson
+                        {
+                            Title = "Sample Language Lesson",
+                            Description = "A sample language lesson for testing.",
+                            CreatedDate = DateTime.UtcNow,
+                            CreatedById = Accounts.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(),
+                            LessonType = LessonType.Language,
+                            TotalSteps = 5
+                        },
+                        new Lesson
+                        {
+                            Title = "Sample Speech Therapy Lesson",
+                            Description = "A sample speech therapy lesson for testing.",
+                            CreatedDate = DateTime.UtcNow,
+                            CreatedById = Accounts.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(),
+                            LessonType = LessonType.Speech,
+                            TotalSteps = 7
+                        }
+                    };
+    
+                    Lessons.AddRange(sampleLessons);
+                    await SaveChangesAsync();
+                }
         }
     }
 }

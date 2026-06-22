@@ -1,0 +1,23 @@
+slide_sea.png:
+<a href="https://www.flaticon.com/free-icons/sea" title="sea icons">Sea icons created by Freepik - Flaticon</a>
+
+slide_see.png:
+<a href="https://www.flaticon.com/free-icons/looking" title="looking icons">Looking icons created by Freepik - Flaticon</a>
+
+slide_bear.png:
+<a href="https://www.flaticon.com/free-icons/bear" title="bear icons">Bear icons created by Freepik - Flaticon</a>
+
+slide_bare.png:
+<a href="https://www.flaticon.com/free-icons/feet" title="feet icons">Feet icons created by Beginning - Flaticon</a>
+
+slide_knight.png:
+<a href="https://www.flaticon.com/free-icons/knight" title="knight icons">Knight icons created by max.icons - Flaticon</a>
+
+slide_night.png:
+<a href="https://www.flaticon.com/free-icons/moon" title="moon icons">Moon icons created by Freepik - Flaticon</a>
+
+slide_write.png:
+<a href="https://www.flaticon.com/free-icons/writing" title="writing icons">Writing icons created by Freepik - Flaticon</a>
+
+slide_right.png:
+<a href="https://www.flaticon.com/free-icons/done" title="done icons">Done icons created by kliwir art - Flaticon</a>

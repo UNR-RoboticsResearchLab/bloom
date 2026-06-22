@@ -36,14 +36,14 @@ StateManager::StateManager(const rclcpp::NodeOptions & options)
 
 	// Default in-memory state -> behavior mapping. Replaceable via set_state_behaviors().
 	set_state_behaviors({
-		{"waiting", {"idle"}},
-		{"talking", {"visyme_sync"}},
-        {"loading", {"bringup"}},
-		{"listening", {"listening_bobble", "look_up", "look_left"}},
-		{"happy", {"happy"}},
-		{"affirm", {"affirm"}},
-		{"reject", {"reject"}},
-		{"correct", {"look_up"}},
+		{"waiting",   {"idle"}},
+		{"talking",   {"idle"}},           // TODO: replace with talking motor sequence
+		{"loading",   {"idle"}},           // TODO: replace with loading/startup sequence
+		{"listening", {"look_up", "look_left"}},
+		{"happy",     {"happy"}},
+		{"affirm",    {"yes"}},
+		{"reject",    {"no"}},
+		{"correct",   {"look_up"}},
 		{"incorrect", {"look_down"}}
 	});
 

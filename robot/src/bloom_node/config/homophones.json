@@ -1,142 +1,132 @@
 {
   "id": "lesson_001",
-  "lesson": {
-    "title": "homophones",
-    "grade": "4",
-    "duration": 10,
-    "objectives": ["distinguish between homophones"]
-  },
+  "title": "Homophones",
+  "learning_objectives": ["distinguish between homophones", "use context clues to choose the correct homophone"],
   "sequence": [
     {
       "id": 1,
       "type": "introduction",
-      "script": "Hello, there! Today we're going to learn about homophones... Do you know what a homophone is?",
-      "behaviors": {
-        "behavior": "happy",
-        "facial_expression": "smile",
-        "gaze": "scan_room"
-      },
-      "timing_seconds": 10
+      "script": "Hi there! I am Bloom, and I am so excited to learn with you today! Today we are going to explore something really cool about words. Some words sound exactly the same when you say them out loud, but they mean completely different things and are spelled differently. These special words are called homophones!",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "excited"
     },
     {
       "id": 2,
       "type": "definition",
-      "script": "Homophones are words that sound the same when we say them, but they have different meanings and different spellings.",
-      "behaviors": {
-        "behavior": "idle",
-        "head_movement": "nod_emphasis",
-        "gaze": "center"
-      },
-      "visual_aid": ["slide_definition_homophones.png"],
-      "timing_seconds": 20
+      "script": "Let me say that again. Homophones are words that sound the same but have different meanings and different spellings. The word homophone comes from Greek. Homo means same, and phone means sound. Same sound!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy"
     },
     {
       "id": 3,
       "type": "example",
-      "script": "For example: 'sea' and 'see'. They sound the same. But 'sea' is the ocean, and 'see' means to look at something.",
-      "behaviors": {
-        "behavior": "engaged",
-        "facial_expression": "engaged",
-        "gaze": "left_to_right"
-      },
-      "visual_aid": "slide_sea_see.png",
-      "timing_seconds": 25
+      "script": "Here is our first example. Sea and see. Try saying them out loud. Sea and see! They sound identical! But the first sea on the left is the big body of water where fish live and waves crash. And the second see on the right means to look at something with your eyes. Same sound, totally different meanings!",
+      "behaviors": {"behavior": "idle"},
+      "motor_sequence": "look_left",
+      "visual_aid": ["slide_sea.png", "slide_see.png"],
+      "visual_aid_labels": ["Sea", "See"]
     },
     {
       "id": 4,
       "type": "example",
-      "script": "Another example is 'their', 'there', and 'they're'. These are tricky! 'Their' shows ownership. 'There' tells a place. 'They're' means  they are.",
-      "behaviors": {
-        "behavior": "inquisitive",
-        "facial_expression": "thoughtful",
-        "gaze": "center"
-      },
-      "visual_aid": "slide_their_there_theyre.png",
-      "timing_seconds": 30
+      "script": "Here is another one. Bear and bare. The first bear on the left is the big furry animal that lives in the forest. But the second bare on the right means empty or uncovered, like bare feet with no shoes! Bear and bare. Same sound, different meanings.",
+      "behaviors": {"behavior": "idle"},
+      "motor_sequence": "look_right",
+      "visual_aid": ["slide_bear.png", "slide_bare.png"],
+      "visual_aid_labels": ["Bear", "Bare"]
     },
     {
       "id": 5,
-      "type": "interactive_question",
-      "script": "Can you think of a pair of homophones?",
-      "behaviors": {
-        "behavior": "invite_response",
-        "gaze": "to_user"
-      },
-      "interaction": {
-        "wait_for_response": true,
-        "llm_follow_up": true,
-        "max_wait_seconds": 15,
-        "fallback_script": "One example is 'right' and 'write'."
-      }
+      "type": "example",
+      "script": "One more example before we practice. Knight and night. The first knight on the left is a brave warrior in shining armor from long ago. And the second night on the right is the dark time when the stars come out and we go to sleep. Knight and night!",
+      "behaviors": {"behavior": "idle"},
+      "motor_sequence": "look_left",
+      "visual_aid": ["slide_knight.png", "slide_night.png"],
+      "visual_aid_labels": ["Knight", "Night"]
     },
     {
       "id": 6,
-      "type": "guided_practice",
-      "script": "Listen carefully. Which word fits the sentence: I will ___ you a letter. Is it 'write' or 'right'?",
-      "behaviors": {
-        "behavior": "inquisitive",
-        "facial_expression": "curious",
-        "gaze": "to_user"
-      },
+      "type": "interactive_question",
+      "script": "Now it is your turn! Can you think of two words that sound the same but mean different things? Tell me what each one means or try using them in a sentence!",
+      "behaviors": {"behavior": "idle"},
+      "motor_sequence": "look_up",
       "interaction": {
         "wait_for_response": true,
-        "max_wait_seconds": 8,
-        "correct_answer": "write",
-        "correct_response_script": "Correct! 'Write' means to put words on paper.",
-        "incorrect_response_script": "Not quite. 'Right' means correct or a direction like your right hand. 'Write' means to put words on paper."
-      },
-      "timing_seconds": 20
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked to give an example of two words that are homophones - words that sound the same but have different meanings. Evaluate whatever the student says. If they gave a valid pair of homophones, praise them enthusiastically and briefly explain why it is a great example. If their answer is unclear, incorrect, or not a real homophone pair, gently say that is a good try and explain why it does not quite work, then say 'Another great example is write and right - the first write means to put words on paper, and the second right means correct.' If they said nothing useful or gave up, say 'That is okay! Another great example is write and right - the first write means to put words on paper, and right means correct.'",
+        "fallback_script": "That is okay! Another great example is write and right. The first write means to put words on paper, and the second right means correct.",
+        "fallback_visual_aid": ["slide_write.png", "slide_right.png"],
+        "fallback_visual_aid_labels": ["Write", "Right"]
+      }
     },
     {
       "id": 7,
-      "type": "explanation",
-      "script": "To figure out which homophone to use, you need to look at the meaning of the sentence. Context clues help us decide.",
-      "behaviors": {
-        "behavior": "idle",
-        "head_movement": "nod",
-        "gaze": "center"
-      },
-      "timing_seconds": 20
+      "type": "guided_practice",
+      "script": "Now let's practice what we've learned. Listen to this sentence. I went to the blank to swim. Is the missing word one or two?",
+      "behaviors": {"behavior": "idle"},
+      "motor_sequence": "look_up",
+      "visual_aid": ["slide_sea.png", "slide_see.png"],
+      "visual_aid_labels": ["Sea", "See"],
+      "visual_aid_footers": ["1", "2"],
+      "interaction": {
+        "wait_for_response": true,
+        "max_wait_seconds": 10,
+        "correct_answer": "one",
+        "correct_response_script": "Yes! One is correct! You go to the sea to swim. The first sea is the big body of water. Fantastic job!",
+        "incorrect_response_script": "Not quite! The answer is one. The first sea is the big body of water where you swim. The second see means to look at something.",
+        "fallback_script": "The answer is one! The first sea is the big body of water where you go to swim."
+      }
     },
     {
       "id": 8,
-      "type": "activity",
-      "script": "Let's say this together: 'I see the sea.' Notice how the words sound the same but mean different things!",
-      "behaviors": {
-        "behavior": "encourage_repeat",
-        "facial_expression": "playful",
-        "gaze": "center"
-      },
+      "type": "guided_practice",
+      "script": "Here is another one. The blank growled and looked for honey in the forest. Is the missing word one or two?",
+      "behaviors": {"behavior": "idle"},
+      "motor_sequence": "look_up",
+      "visual_aid": ["slide_bear.png", "slide_bare.png"],
+      "visual_aid_labels": ["Bear", "Bare"],
+      "visual_aid_footers": ["1", "2"],
       "interaction": {
-        "repeat_count": 2,
-        "pause_between_repeats_seconds": 3
-      },
-      "timing_seconds": 20
+        "wait_for_response": true,
+        "max_wait_seconds": 10,
+        "correct_answer": "one",
+        "correct_response_script": "That is right! One is correct! The first bear is the furry animal that loves honey. You are doing amazing!",
+        "incorrect_response_script": "Good try! The answer is one. The first bear is the big furry animal that growls and looks for honey.",
+        "fallback_script": "The answer is one! The first bear is the furry animal that lives in the forest and loves honey."
+      }
     },
     {
       "id": 9,
-      "type": "summary",
-      "script": "Today we learned that homophones sound the same but have different meanings and spellings. We use context to choose the correct    word.",
-      "behaviors": {
-        "behavior": "hands_together_emphasis",
-        "facial_expression": "smile",
-        "gaze": "scan_room"
-      },
-      "timing_seconds": 15
+      "type": "guided_practice",
+      "script": "Last practice question! I want to blank a story in my journal. Is the missing word one or two?",
+      "behaviors": {"behavior": "idle"},
+      "motor_sequence": "look_up",
+      "visual_aid": ["slide_write.png", "slide_right.png"],
+      "visual_aid_labels": ["Write", "Right"],
+      "visual_aid_footers": ["1", "2"],
+      "interaction": {
+        "wait_for_response": true,
+        "max_wait_seconds": 10,
+        "correct_answer": "one",
+        "correct_response_script": "Excellent! One is correct! The first write means to put words on paper, exactly what you do in a journal. You are a homophone superstar!",
+        "incorrect_response_script": "Almost! The answer is one. The first write means to put words on paper or in a journal. The second right means correct.",
+        "fallback_script": "The answer is one! The first write means to put words on paper, like writing in a journal."
+      }
     },
     {
       "id": 10,
+      "type": "summary",
+      "script": "You did such a great job today! Let's review what we learned. Homophones are words that sound the same but have different meanings and spellings. We practiced sea and see, bear and bare, knight and night, and write and right. The trick is to always think about what the sentence means to pick the right one!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy"
+    },
+    {
+      "id": 11,
       "type": "closing",
-      "script": "Great job today! Keep listening carefully to words that sound the same. Do you have any questions?",
-      "behaviors": {
-        "behavior": "open_invite",
-        "posture": "relaxed",
-        "gaze": "audience"
-      },
-      "interaction": {
-        "wait_for_questions": true,
-        "max_wait_seconds": 15
-      }
+      "script": "I am so proud of how hard you worked today! Keep your ears open for homophones out in the world. You might be surprised how many you find. See you next time!",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "bounce_smooth"
     }
   ]
 }

@@ -22,7 +22,7 @@ using json = nlohmann::json;
  * via LessonCoordinator. Implements deduplication to prevent duplicate lesson
  * execution and waits for lesson completion before accepting new lessons.
  *
- * Polling endpoint: GET /api/robotsessions/{sessionId}/pending-lesson
+ * Polling endpoint: GET /api/lessonsession/{sessionId}/pending-lesson
  * Response format:
  *   {
  *     "hasPendingLesson": true,
@@ -57,12 +57,14 @@ public:
 	/// Dynamically update the session ID
 	bool set_session_id(const std::string &session_id);
 
+	void set_pairing_code(const std::string &pairing_code);
+
 private:
 	/// Timer callback - executed every poll_interval_ms
 	void on_polling_tick();
 
 	/// Handle retrieved pending lesson data
-	void handle_pending_lesson(const json &lesson_json);
+	void handle_pending_lesson(const json &lesson_json, const std::string &lesson_run_id = "");
 
 	// Dependencies
 	std::shared_ptr<WebServiceClient> web_client_;
@@ -82,6 +84,15 @@ private:
 
 	// Mutex for thread-safe session_id updates
 	mutable std::mutex session_mutex_;
+
+	std::atomic<bool> paired_{false};
+	std::string pairing_code_;
+	rclcpp::Publisher<std_msgs::msg::String>::SharedPtr session_code_pub_;
+	
+	rclcpp::TimerBase::SharedPtr step_control_timer_;
+	void on_step_control_tick();
+	void start_step_control_polling();
+	void stop_step_control_polling();
 };
 
 }  // namespace bloom_node

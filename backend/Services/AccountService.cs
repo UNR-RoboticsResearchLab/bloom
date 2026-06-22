@@ -2,15 +2,16 @@
 // AccountService.cs
 // Class for interfacing with the database, providing useful helper functions.
 // Created: 10/22/2025
+using System.ComponentModel.DataAnnotations;
 using bloom.Models;
 using bloom.Models.dto;
 using bloom.Data;
 using Microsoft.AspNetCore.Identity;
-using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.AspNetCore.Http.HttpResults;
+using System.Security.Cryptography;
 
 namespace bloom.Services
 {
@@ -31,15 +32,57 @@ namespace bloom.Services
         }
 
 
-        public Task<bool> AddToRoleAsync(Account user, string role)
+        public async Task<bool> AddToRoleAsync(Account user, string role)
         {
+            var result = await _userManager.AddToRoleAsync(user, role);
+            return result.Succeeded;
+        }
 
-            throw new NotImplementedException();
-        }   
+        private async Task<IdentityResult> RegisterWithRoleAsync(CreateAccountDto user, string role)
+        {
+            if (user == null) throw new ArgumentNullException(nameof(user));
+
+            var account = new Account
+            {
+                UserName = user.UserName,
+                Email = user.Email,
+                FullName = user.FullName,
+                EmailConfirmed = false,
+                CreatedDate = DateTime.UtcNow,
+                Role = role
+            };
+
+            var result = await _userManager.CreateAsync(account, user.Password);
+            if (result.Succeeded)
+            {
+                await _userManager.AddToRoleAsync(account, role);
+            }
+            return result;
+        }
 
         public async Task<IEnumerable<Account?>> GetAllAsync()
         {
             return await _dbContext.Accounts.ToListAsync();
+        }
+
+        public async Task<IdentityResult> DeleteAsync(Account user)
+        {
+            var dependents = await _dbContext.SLPClients
+                .Where(c => c.SlpId == user.Id || c.StudentId == user.Id)
+                .ToListAsync();
+
+            if (dependents.Count > 0)
+            {
+                _dbContext.SLPClients.RemoveRange(dependents);
+                await _dbContext.SaveChangesAsync();
+            }
+
+            return await _userManager.DeleteAsync(user);
+        }
+
+        public async Task<IdentityResult> UpdateAsync(Account user)
+        {
+            return await _userManager.UpdateAsync(user);
         }
 
 
@@ -74,87 +117,89 @@ namespace bloom.Services
             await _signInManager.SignOutAsync();
         }
 
-        public async Task<IdentityResult> RegisterAdminAsync(CreateAccountDto user)
+        public Task<IdentityResult> RegisterAdminAsync(CreateAccountDto user) =>
+            RegisterWithRoleAsync(user, "Admin");
+
+        public Task<IdentityResult> RegisterFacilitatorAsync(CreateAccountDto user) =>
+            RegisterWithRoleAsync(user, "Facilitator");
+
+        public Task<IdentityResult> RegisterStudentAsync(CreateAccountDto user) =>
+            RegisterWithRoleAsync(user, "Student");
+
+        public async Task<(IdentityResult Result, string GeneratedPassword)> RegisterStudentWithGeneratedPasswordAsync(CreateStudentByPrivilegedUserDto dto)
         {
-            if (user == null)
+            if (dto == null)
             {
-                throw new ArgumentNullException(nameof(user));
+                throw new ArgumentNullException(nameof(dto));
             }
 
-            // todo : do some additinoal validation
+            var password = GenerateTemporaryPassword();
 
             try
             {
-                var result = await _userManager.CreateAsync(new Account
+                var account = new Account
                 {
-                    Email = user.Email,
-                    FullName = user.FullName,
+                    Email = dto.Email,
+                    FullName = dto.FullName,
                     EmailConfirmed = false,
                     CreatedDate = DateTime.UtcNow,
-                    Role = "Admin"
-                }, user.Password);
+                    Role = "Student",
+                    UserName = dto.Email
+                };
 
-                return result;
+                var result = await _userManager.CreateAsync(account, password);
+                if (result.Succeeded)
+                {
+                    await _userManager.AddToRoleAsync(account, "Student");
+                }
+
+                return (result, result.Succeeded ? password : string.Empty);
             }
             catch (Exception ex)
             {
-                throw new Exception("Error creating a new admin user", ex);
+                throw new Exception("Error creating student account", ex);
             }
         }
 
-        public async Task<IdentityResult> RegisterStudentAsync(CreateAccountDto user)
+        private static string GenerateTemporaryPassword()
         {
-            if (user == null)
-            {
-                throw new ArgumentNullException(nameof(user));
-            }
-            // todo : do some additinoal validation
+            const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+            const string lower = "abcdefghjkmnpqrstuvwxyz";
+            const string digits = "23456789";
+            const string all = upper + lower + digits;
 
-            try
-            {
-                var result = await _userManager.CreateAsync(new Account
-                {
-                    Email = user.Email,
-                    FullName = user.FullName,
-                    EmailConfirmed = false,
-                    CreatedDate = DateTime.UtcNow,
-                    Role = "Student"
-                }, user.Password);
+            var chars = new char[8];
+            var bytes = new byte[8];
+            RandomNumberGenerator.Fill(bytes);
 
-                return result;
-            }
-            catch (Exception ex)
+            // Guarantee at least one char from each required class
+            chars[0] = upper[bytes[0] % upper.Length];
+            chars[1] = lower[bytes[1] % lower.Length];
+            chars[2] = digits[bytes[2] % digits.Length];
+
+            // Fill remaining positions from the full set
+            for (int i = 3; i < 8; i++)
             {
-                throw new Exception("Error creating a new student user", ex);
+                chars[i] = all[bytes[i] % all.Length];
             }
+
+            // Shuffle using Fisher-Yates with a fresh random buffer
+            var shuffleBytes = new byte[8];
+            RandomNumberGenerator.Fill(shuffleBytes);
+            for (int i = 7; i > 0; i--)
+            {
+                int j = shuffleBytes[i] % (i + 1);
+                (chars[i], chars[j]) = (chars[j], chars[i]);
+            }
+
+            return new string(chars);
         }
 
-        public async Task<IdentityResult> RegisterSLPAsync(CreateAccountDto user)
-        {
-            if (user == null)
-            {
-                throw new ArgumentNullException(nameof(user));
-            }
-            // todo : do some additional validation
+        public Task<IdentityResult> RegisterTeacherAsync(CreateAccountDto user) =>
+            RegisterWithRoleAsync(user, "Teacher");
 
-            try
-            {
-                var result = await _userManager.CreateAsync(new Account
-                {
-                    Email = user.Email,
-                    FullName = user.FullName,
-                    EmailConfirmed = false,
-                    CreatedDate = DateTime.UtcNow,
-                    Role = "SLP"
-                }, user.Password);
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error creating a new SLP user", ex);
-            }
-        }
+        public Task<IdentityResult> RegisterSLPAsync(CreateAccountDto user) =>
+            RegisterWithRoleAsync(user, "SLP");
 
         public async Task<SignInResult> SignInAsync(string email, string password)
         {
@@ -165,82 +210,14 @@ namespace bloom.Services
 
             Account? user;
 
-            try
+            user = await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
             {
-                user = await _dbContext.Accounts.FirstOrDefaultAsync(u => u.Email == email);
-                if (user == null)
-                {
-                    throw new KeyNotFoundException("User not found");
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new KeyNotFoundException("Error retrieving user by email", ex);
+                return Microsoft.AspNetCore.Identity.SignInResult.Failed;
             }
 
-            try
-            {
-                var result = await _signInManager.PasswordSignInAsync(user.UserName ?? "", password, isPersistent: false, lockoutOnFailure: false);
-                return result;
+            return await _signInManager.PasswordSignInAsync(user.UserName ?? "", password, isPersistent: false, lockoutOnFailure: false);
+
             }
-            catch (Exception ex)
-            {
-                throw new Exception("Error signing in user", ex);
-            }
-
-        }
-
-        public async Task<IdentityResult> DeleteUserAsync(string accountId)
-        {
-            try {
-
-                var userRecord = await _dbContext.Accounts.Where(a => a.Id == accountId).ToListAsync();
-
-
-                if (userRecord == null || userRecord.Count == 0)
-                {
-                    return IdentityResult.Failed(
-                        new IdentityError[]{
-                            new IdentityError {
-                                Code = "404",
-                                Description = "User record not found"
-                            }
-                        }
-                    );
-                }
-
-                _dbContext.Accounts.RemoveRange(userRecord);
-
-                var result = await _dbContext.SaveChangesAsync();
-                
-                if (result == 0)
-                {
-                    return IdentityResult.Failed(
-                        new IdentityError[]{
-                            new IdentityError {
-                                Code = "300",
-                                Description = "Internal error deleting user record"
-                            }
-                        }
-                    );
-                }
-
-                return IdentityResult.Success;
-                
-            }
-            catch (Exception ex)
-            {
-                return IdentityResult.Failed(new IdentityError[]
-                {
-                    new IdentityError
-                    {
-                        Code = "500",
-                        Description = ex.Message
-                    }
-                });
-            }
-
-            
-        }
     }
 }

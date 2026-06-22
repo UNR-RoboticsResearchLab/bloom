@@ -9,7 +9,6 @@ using bloom.Models.dto;
 using bloom.Data;
 using bloom.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Hosting;
 
 namespace bloom.Services
 {
@@ -19,20 +18,17 @@ namespace bloom.Services
         private readonly IRobotSessionRepository _sessionRepository;
         private readonly IRobotStateRepository _stateRepository;
         private readonly ISessionCodeService _sessionCodeService;
-        private readonly IWebHostEnvironment _env;
 
         public RobotSessionService(
             BloomDbContext dbContext,
             IRobotSessionRepository sessionRepository,
             IRobotStateRepository stateRepository,
-            ISessionCodeService sessionCodeService,
-            IWebHostEnvironment env)
+            ISessionCodeService sessionCodeService)
         {
             _dbContext = dbContext;
             _sessionRepository = sessionRepository;
             _stateRepository = stateRepository;
             _sessionCodeService = sessionCodeService;
-            _env = env;
         }
 
         public async Task<RobotSession> StartSessionAsync(Guid robotId, string? userId = null, bool anon = false)
@@ -72,6 +68,19 @@ namespace bloom.Services
 
             // Clear in-memory states
             _stateRepository.ClearSession(sessionId.ToString());
+
+            // Close any still-active lesson run so it doesn't dangle as "active" forever.
+            if (session.ActiveLessonRunId is Guid runId)
+            {
+                var run = await _dbContext.LessonRuns.FindAsync(runId);
+                if (run != null && run.EndedAt == null)
+                {
+                    run.EndedAt = DateTime.UtcNow;
+                    run.Status = "abandoned";
+                    _dbContext.LessonRuns.Update(run);
+                }
+                session.ActiveLessonRunId = null;
+            }
 
             // Update session metadata
             session.LastUpdatedAt = DateTime.UtcNow;
@@ -230,9 +239,10 @@ namespace bloom.Services
             {
                 RobotSessionId = sessionId,
                 LessonId = session.ActiveLessonId,
+                LessonRunId = session.ActiveLessonRunId,
                 StepId = dto.StepId,
                 InteractionType = dto.InteractionType,
-                StudentResponse = dto.StudentResponse,
+                DialogTurn = dto.StudentResponse,
                 IsCorrect = dto.IsCorrect,
                 ResponseTimeMs = dto.ResponseTimeMs,
                 Timestamp = DateTime.UtcNow
@@ -252,11 +262,35 @@ namespace bloom.Services
             if (session.ActiveLessonId == null)
                 throw new InvalidOperationException($"Session {sessionId} has no active lesson");
 
+            if (dto.Status == "Completed")
+            {
+                if (session.ActiveLessonRunId is Guid runId)
+                {
+                    var run = await _dbContext.LessonRuns.FindAsync(runId);
+                    if (run != null && run.EndedAt == null)
+                    {
+                        run.EndedAt = DateTime.UtcNow;
+                        run.Status = "completed";
+                        _dbContext.LessonRuns.Update(run);
+                    }
+                }
+
+                session.ActiveLessonId = null;
+                session.ActiveLessonRunId = null;
+                _dbContext.RobotSessions.Update(session);
+                await _dbContext.SaveChangesAsync();
+                return;
+            }
+
             if (string.IsNullOrEmpty(session.UserId))
                 throw new InvalidOperationException($"Session {sessionId} has no associated user");
 
             var lessonId = session.ActiveLessonId.Value;
             var studentId = session.UserId;
+
+            var lesson = await _dbContext.Lessons.FindAsync(lessonId);
+            int totalSteps = lesson?.TotalSteps ?? 1;
+            int percentage = totalSteps > 0 ? (dto.CompletedSteps * 100) / totalSteps : 0;
 
             var progress = await _dbContext.LessonProgresses
                 .FirstOrDefaultAsync(p => p.LessonId == lessonId && p.StudentId == studentId);
@@ -268,7 +302,7 @@ namespace bloom.Services
                     LessonId = lessonId,
                     StudentId = studentId,
                     LessonStep = dto.CurrentStepId,
-                    // lol ProgressPercentage = dto.TotalSteps > 0 ? (dto.CompletedSteps * 100) / dto.TotalSteps : 0,
+                    ProgressPercentage = percentage,
                     LastUpdated = DateTime.UtcNow
                 };
                 _dbContext.LessonProgresses.Add(progress);
@@ -276,9 +310,20 @@ namespace bloom.Services
             else
             {
                 progress.LessonStep = dto.CurrentStepId;
-                // lol progress.ProgressPercentage = dto.TotalSteps > 0 ? (dto.CompletedSteps * 100) / dto.TotalSteps : 0;
+                progress.ProgressPercentage = percentage;
                 progress.LastUpdated = DateTime.UtcNow;
                 _dbContext.LessonProgresses.Update(progress);
+            }
+
+            if (dto.Status == "Completed")
+            {
+                var assignment = await _dbContext.Assignments
+                    .FirstOrDefaultAsync(a => a.StudentId == studentId && a.LessonId == lessonId);
+                if (assignment != null)
+                {
+                    assignment.IsCompleted = true;
+                    _dbContext.Assignments.Update(assignment);
+                }
             }
 
             await _dbContext.SaveChangesAsync();
@@ -286,56 +331,22 @@ namespace bloom.Services
 
         public async Task<dynamic?> GetPendingLessonAsync(Guid sessionId)
         {
-            try
+            var session = await _dbContext.RobotSessions
+                .Include(s => s.ActiveLesson)
+                    .ThenInclude(l => l!.Steps.OrderBy(step => step.StepOrder))
+                        .ThenInclude(s => s.Interaction)
+                .FirstOrDefaultAsync(s => s.Id == sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            if (session.ActiveLessonId == null || session.ActiveLesson == null)
+                return null;
+
+            return new
             {
-                // Get the session with its active lesson
-                var session = await _dbContext.RobotSessions
-                    .Include(s => s.ActiveLesson)
-                    .FirstOrDefaultAsync(s => s.Id == sessionId);
-
-                if (session == null)
-                    throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
-
-                // If no active lesson, return null (no pending lesson)
-                if (session.ActiveLessonId == null || session.ActiveLesson == null)
-                    return null;
-
-                // Load the lesson JSON file
-                string lessonJson;
-                try
-                {
-                    var filePath = session.ActiveLesson.LessonFileUrl;
-
-                    // If the path is relative, resolve it against the content root
-                    if (!Path.IsPathRooted(filePath))
-                    {
-                        filePath = Path.Combine(_env.ContentRootPath, filePath);
-                    }
-
-                    lessonJson = await File.ReadAllTextAsync(filePath);
-                }
-                catch (FileNotFoundException)
-                {
-                    throw new InvalidOperationException($"Lesson file not found at {session.ActiveLesson.LessonFileUrl}");
-                }
-
-                // Parse the lesson JSON to ensure it's valid
-                var parsedLesson = System.Text.Json.JsonSerializer.Deserialize<dynamic>(lessonJson);
-
-                return new
-                {
-                    hasPendingLesson = true,
-                    lesson = parsedLesson
-                };
-            }
-            catch (KeyNotFoundException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Error retrieving pending lesson for session {sessionId}: {ex.Message}", ex);
-            }
+                hasPendingLesson = true,
+                activeLessonRunId = session.ActiveLessonRunId,
+                lesson = session.ActiveLesson
+            };
         }
 
         public async Task<Guid> RecordSLPFeedbackAsync(Guid sessionId, RecordSLPFeedbackDto dto)
@@ -351,6 +362,7 @@ namespace bloom.Services
             {
                 RobotSessionId = sessionId,
                 LessonId = session.ActiveLessonId,
+                LessonRunId = session.ActiveLessonRunId,
                 StepId = dto.StepId,
                 InteractionType = "SLPFeedback",
                 FeedbackCommand = dto.FeedbackCommand,
@@ -369,10 +381,16 @@ namespace bloom.Services
             var session = await _sessionRepository.GetAsync(sessionId)
                 ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
 
-            // Find the most recent unacknowledged SLPFeedback for this session
+            // Scope to the active run so feedback from a previous run of the same lesson
+            // doesn't leak into the current one.
+            if (session.ActiveLessonRunId == null)
+                return null;
+
+            var runId = session.ActiveLessonRunId.Value;
+
             var pending = await _dbContext.LessonInteractions
                 .Where(li =>
-                    li.RobotSessionId == sessionId &&
+                    li.LessonRunId == runId &&
                     li.InteractionType == "SLPFeedback" &&
                     li.IsAcknowledged == false)
                 .OrderByDescending(li => li.Timestamp)
@@ -416,8 +434,33 @@ namespace bloom.Services
             if (dto.LessonId == Guid.Empty)
                 throw new ArgumentException("LessonId cannot be empty (Guid.Empty)", nameof(dto.LessonId));
 
-            // Update session with active lesson
+            // Close any prior active run on this session, even if it was the same lesson.
+            // Without this, repeating a lesson in one session would leave the previous run
+            // dangling as "active" and its interactions would bleed into the new run's queries.
+            if (session.ActiveLessonRunId is Guid priorRunId)
+            {
+                var prior = await _dbContext.LessonRuns.FindAsync(priorRunId);
+                if (prior != null && prior.EndedAt == null)
+                {
+                    prior.EndedAt = DateTime.UtcNow;
+                    prior.Status = "abandoned";
+                    _dbContext.LessonRuns.Update(prior);
+                }
+            }
+
+            var run = new LessonRun
+            {
+                RobotSessionId = sessionId,
+                LessonId = dto.LessonId,
+                SlpId = session.UserId,
+                StudentId = session.UserId,
+                StartedAt = DateTime.UtcNow,
+                Status = "active",
+            };
+            _dbContext.LessonRuns.Add(run);
+
             session.ActiveLessonId = dto.LessonId;
+            session.ActiveLessonRunId = run.Id;
             session.LastUpdatedAt = DateTime.UtcNow;
             _dbContext.Update(session);
             await _dbContext.SaveChangesAsync();
@@ -425,5 +468,273 @@ namespace bloom.Services
             return session;
         }
 
+        public async Task SetSessionUserIdAsync(Guid sessionId, string userId)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("UserId cannot be null or empty", nameof(userId));
+
+            session.UserId = userId;
+            session.LastUpdatedAt = DateTime.UtcNow;
+            _dbContext.Update(session);
+            await _dbContext.SaveChangesAsync();
+        }
+
+        public async Task ClearSessionUserAsync(Guid sessionId)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            session.UserId = null;
+            session.LastUpdatedAt = DateTime.UtcNow;
+            _dbContext.Update(session);
+            await _dbContext.SaveChangesAsync();
+        }
+
+        public async Task<List<TrackerEventDto>> GetTrackerEventsAsync(Guid sessionId)
+        {
+            // Aggregates all events related to a robot session
+            // into a single timeline for monitoring, debugging, and data visualization purposes.
+            var events = new List<TrackerEventDto>();
+            
+            // Temporary test event to verify data flow
+            // TODO: Remove this after confirming the dashboard can receive and display events correctly
+            events.Add(new TrackerEventDto
+            {
+                // 
+                Id = Guid.NewGuid(),
+                Timestamp = DateTime.UtcNow,
+                Severity = "info",
+                Source = "System",
+                EventType = "test_event",
+                Message = "Test event working",
+                SessionId = sessionId,
+                LessonTitle = "Test Lesson",
+                StudentName = "Test Student",
+                RobotName = "BLOSSOM 01"
+            });
+
+            // Load session data from repository
+            var session = await _sessionRepository.GetAsync(sessionId);
+            // If session does not exist, return current events (for debugging)
+            if (session == null)
+            {
+                return events;
+            }
+            
+            // Robots in session
+            var robots = await GetSessionRobotsAsync(sessionId);
+
+            foreach (var robotId in robots)
+            {
+                events.Add(new TrackerEventDto
+                {
+                    Id = Guid.NewGuid(),
+                    Timestamp = session.CreatedAt,
+                    Severity = "info",
+                    Source = "Robot",
+                    EventType = "robot_joined",
+                    Message = $"Robot {robotId} joined session",
+                    SessionId = session.Id,
+                    RobotName = robotId.ToString()
+                });
+            }
+
+            var currentStates = await GetCurrentStatesAsync(sessionId);
+
+            foreach (var state in currentStates)
+            {
+                events.Add(new TrackerEventDto
+                {
+                    Id = Guid.NewGuid(),
+                    Timestamp = state.LastStatusChange,
+                    Severity = state.Status == "error" ? "error" : "info",
+                    Source = "Robot",
+                    EventType = "current_state",
+                    Message = $"Status: {state.Status}, Task: {state.CurrentTask}",
+                    SessionId = session.Id,
+                    RobotName = state.RobotId.ToString()
+                });
+            }
+
+            // 1. Session Created Event
+            events.Add(new TrackerEventDto
+            {
+                Id = Guid.NewGuid(),
+                Timestamp = session.CreatedAt,
+                Severity = "info",
+                Source = "Session",
+                EventType = "session_created",
+                Message = "Session started",
+                SessionId = session.Id
+            });
+
+            // 2. Lesson Attached Event
+            if (session.ActiveLesson != null)
+            {
+                events.Add(new TrackerEventDto
+                {
+                    Id = Guid.NewGuid(),
+                    Timestamp = session.LastUpdatedAt,
+                    Severity = "info",
+                    Source = "Lesson",
+                    EventType = "lesson_attached",
+                    Message = $"Lesson \"{session.ActiveLesson.Title}\" attached",
+                    SessionId = session.Id,
+                    LessonTitle = session.ActiveLesson.Title
+                });
+            }
+
+            // 3. Robot State History
+            // var history = await _robotSessionRepository.GetSessionHistoryAsync(sessionId);
+            var history = await _sessionRepository.GetHistoryAsync(sessionId);
+            foreach (var h in history)
+            {
+                events.Add(new TrackerEventDto
+                {
+                    Id = Guid.NewGuid(),
+                    Timestamp = h.Timestamp,
+                    Severity = "info",
+                    Source = "Robot",
+                    EventType = "state_change",
+                    Message = $"Robot status: {h.RobotState.Status}, Task: {h.RobotState.CurrentTask}",
+                    SessionId = session.Id
+                });
+            }
+
+            // 4. Lesson Interactions
+            // var interactions = await _context.LessonInteractions
+            var interactions = await _dbContext.LessonInteractions
+                .Where(i => i.RobotSessionId == sessionId)
+                .ToListAsync();
+
+            foreach (var i in interactions)
+            {
+                var severity = "info";
+
+                if (i.InteractionType == "Timeout")
+                    severity = "warning";
+
+                if (i.InteractionType == "Fallback")
+                    severity = "error";
+
+                events.Add(new TrackerEventDto
+                {
+                    Id = Guid.NewGuid(),
+                    Timestamp = i.Timestamp,
+                    Severity = severity,
+                    Source = "Lesson",
+                    EventType = i.InteractionType,
+                    Message = $"Step {i.StepId}: {i.InteractionType}",
+                    SessionId = session.Id,
+                    StepId = i.StepId
+                });
+
+                // Feedback events
+                if (!string.IsNullOrEmpty(i.FeedbackCommand))
+                {
+                    events.Add(new TrackerEventDto
+                    {
+                        Id = Guid.NewGuid(),
+                        Timestamp = i.Timestamp,
+                        Severity = "info",
+                        Source = "SLP",
+                        EventType = "feedback",
+                        Message = $"SLP requested: {i.FeedbackCommand}",
+                        SessionId = session.Id,
+                        StepId = i.StepId
+                    });
+                }
+
+                if (i.IsAcknowledged == true && i.AcknowledgedAt != null)
+                {
+                    events.Add(new TrackerEventDto
+                    {
+                        Id = Guid.NewGuid(),
+                        Timestamp = i.AcknowledgedAt.Value,
+                        Severity = "info",
+                        Source = "Robot",
+                        EventType = "feedback_ack",
+                        Message = $"Robot acknowledged feedback",
+                        SessionId = session.Id,
+                        StepId = i.StepId
+                    });
+                }
+            }
+
+            // Sort newest first
+            return events
+                .OrderByDescending(e => e.Timestamp)
+                .ToList();
+        }
+
+        public async Task<List<LessonInteractionResponseDto>> GetLessonInteractionsAsync(Guid sessionId)
+        {
+            return await _dbContext.LessonInteractions
+                .Where(x => x.RobotSessionId == sessionId)
+                .OrderBy(x => x.Timestamp)
+                .Select(x => new LessonInteractionResponseDto
+                {
+                    Id = x.Id,
+                    StepId = x.StepId,
+                    InteractionType = x.InteractionType,
+                    StudentResponse = x.DialogTurn,
+                    IsCorrect = x.IsCorrect,
+                    Timestamp = x.Timestamp,
+                    ResponseTimeMs = x.ResponseTimeMs,
+                    LessonRunId = x.LessonRunId,
+                    LessonId = x.LessonId
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<StudentLessonHistoryDto>> GetStudentLessonHistoryAsync(string studentId)
+        {
+            // Match runs either by LessonRun.StudentId directly or by the owning session's
+            // UserId. The session-level join keeps historical rows queryable for runs
+            // created before LessonRun.StudentId was populated.
+            var query =
+                from run in _dbContext.LessonRuns
+                join session in _dbContext.RobotSessions on run.RobotSessionId equals session.Id
+                where run.StudentId == studentId || session.UserId == studentId
+                orderby run.StartedAt descending
+                select new StudentLessonHistoryDto
+                {
+                    LessonRunId = run.Id,
+                    LessonId = run.LessonId,
+                    LessonTitle = run.Lesson != null ? run.Lesson.Title : string.Empty,
+                    RobotSessionId = run.RobotSessionId,
+                    StartedAt = run.StartedAt,
+                    EndedAt = run.EndedAt,
+                    Status = run.Status,
+                    InteractionCount = _dbContext.LessonInteractions
+                        .Count(li => li.LessonRunId == run.Id)
+                };
+
+            return await query.ToListAsync();
+        }
+        public async Task StopLessonAsync(Guid sessionId)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            if (session.ActiveLessonRunId is Guid runId)
+            {
+                var run = await _dbContext.LessonRuns.FindAsync(runId);
+                if (run != null && run.EndedAt == null)
+                {
+                    run.EndedAt = DateTime.UtcNow;
+                    run.Status = "abandoned";
+                    _dbContext.LessonRuns.Update(run);
+                }
+            }
+
+            session.ActiveLessonId = null;
+            session.ActiveLessonRunId = null;
+            _dbContext.RobotSessions.Update(session);
+            await _dbContext.SaveChangesAsync();
+        }
     }
 }

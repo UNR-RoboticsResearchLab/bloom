@@ -18,5 +18,9 @@ namespace bloom.Models
         public ICollection<Robot>? RegisteredRobots { get; set; }
         public string? Role { get; set; }
 
+        /// <summary>
+        /// Set only for Participant accounts. Used as the sole login credential — no password required.
+        /// </summary>
+        public string? ParticipantCode { get; set; }
     }
 }

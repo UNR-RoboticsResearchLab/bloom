@@ -26,11 +26,21 @@ export function signInSession(user) {
   localStorage.setItem(
     "authUser",
     JSON.stringify({
+      id: user.id,
       email: user.email,
       role: user.role,
       name: user.fullName || "",
+      fullName: user.fullName || "",
+      userName: user.userName || "",
     })
   );
+}
+
+export function updateSession(partial) {
+  const current = getSession() || {};
+  const next = { ...current, ...partial };
+  localStorage.setItem("authUser", JSON.stringify(next));
+  return next;
 }
 
 export function getSession() {
@@ -45,11 +55,20 @@ export function signOut() {
   localStorage.removeItem("authUser");
 }
 
+
+// Returns the correct dashboard route based on user role
+// Used after authentication for role-based navigation
 export function dashboardPathForRole(role) {
+  // If no role is provided, redirect to sign-in
   if (!role) return "/sign-in";
 
+  // Normalize role to ensure consistent matching
   const normalized = role.toLowerCase();
+
+  // Debug log to verify role mapping during development
   console.log("dashboardPathForRole called with role:", role);
+
+  // Map each role to its corresponding dashboard route
   switch (normalized) {
     case "admin":
       return "/dashboard/admin";
@@ -59,6 +78,8 @@ export function dashboardPathForRole(role) {
       return "/dashboard/student";
     case "slp":
       return "/dashboard/slp";
+
+    // Fallback for unknown roles  
     default:
       return "/sign-in";
   }

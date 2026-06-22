@@ -1,39 +1,44 @@
 // bloom
 // ISLPClientService.cs
-// Interface defining behavior of SLPClientService
-// Created: 02/21/2026
+// Interface for managing SLPClient records (student-SLP associations).
 
 using bloom.Models;
+using bloom.Models.dto;
 
 namespace bloom.Services
 {
+    public enum DeleteClientResult
+    {
+        Deleted,
+        NotFound,
+        Forbidden
+    }
+
     public interface ISLPClientService
     {
-        // Get
-        Task<SLPClient?> GetByIdAsync(Guid id);
-        Task<IEnumerable<SLPClient>> GetAllAsync();
-        Task<IEnumerable<SLPClient>> GetByTeacherIdAsync(string teacherId);
-        Task<IEnumerable<SLPClient>> GetByStudentIdAsync(string studentId);
+        /// <summary>
+        /// Create a new SLPClient linking a student to the requesting SLP.
+        /// </summary>
+        Task<SLPClient> CreateAsync(string name, string slpId, string studentId);
 
-        // Create
-        Task<bool> CreateAsync(string name, string teacherId, string studentId);
+        /// <summary>
+        /// Create a new SLPClient and return the response DTO. Returns null if the student or SLP is missing.
+        /// </summary>
+        Task<SLPClientResponseDto?> CreateClientAsync(string name, string slpId, string studentId);
 
-        // Modify
-        Task<bool> ModifyAsync(SLPClient slpClient);
+        /// <summary>
+        /// List all SLPClients owned by the given SLP.
+        /// </summary>
+        Task<List<SLPClientResponseDto>> GetClientsForSlpAsync(string slpId);
 
-        // Delete
-        Task DeleteByIdAsync(Guid id);
+        /// <summary>
+        /// Get a single SLPClient with assignments and progress, or null if not found.
+        /// </summary>
+        Task<SLPClientResponseDto?> GetClientAsync(Guid id);
 
-        // Teacher management
-        Task<bool> AddTeacherAsync(Guid slpClientId, string teacherId);
-        Task<bool> RemoveTeacherAsync(Guid slpClientId, string teacherId);
-
-        // Lesson management
-        Task<bool> AddLessonAsync(Guid slpClientId, Guid lessonId);
-        Task<bool> RemoveLessonAsync(Guid slpClientId, Guid lessonId);
-
-        // Assignment management
-        Task<bool> AddAssignmentAsync(Guid slpClientId, Guid assignmentId);
-        Task<bool> RemoveAssignmentAsync(Guid slpClientId, Guid assignmentId);
+        /// <summary>
+        /// Delete an SLPClient. The requesting SLP must own the client.
+        /// </summary>
+        Task<DeleteClientResult> DeleteClientAsync(Guid clientId, string slpId);
     }
 }

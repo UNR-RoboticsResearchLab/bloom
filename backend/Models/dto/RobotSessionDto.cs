@@ -3,8 +3,6 @@
 // Data transfer objects for RobotSession API operations
 // Created: 11/18/2025
 
-using System.Text.Json.Serialization;
-
 namespace bloom.Models.dto
 {
     /// <summary>
@@ -15,17 +13,14 @@ namespace bloom.Models.dto
         /// <summary>
         /// Whether to create an anonymous session (null UserId)
         /// </summary>
-        [JsonPropertyName("anonymous")]
         public bool Anonymous { get; set; } = false;
         /// <summary>
         /// RobotId to associate with the session
         /// </summary>
-        [JsonPropertyName("robot_id")]
         public Guid RobotId { get; set; }
         /// <summary>
         /// Optional UserId for the session
         /// </summary>
-        [JsonPropertyName("user_id")]
         public string? UserId { get; set; }
     }
 
@@ -42,6 +37,7 @@ namespace bloom.Models.dto
         public int Robots { get; set; }
         public List<Guid> RobotIds { get; set; } = new();
         public RobotState? LastState { get; set; }
+        public Guid? ActiveLessonId { get; set; }
     }
 
     /// <summary>
@@ -56,6 +52,15 @@ namespace bloom.Models.dto
     }
 
     /// <summary>
+    /// Request DTO for adding a robot to a session
+    /// </summary>
+    public class AddRobotToSessionDto
+    {
+        public required Guid RobotId { get; set; }
+        public required RobotStateDto CurrentState { get; set; }
+    }
+
+    /// <summary>
     /// Response DTO for robot state history
     /// </summary>
     public class RobotStateHistoryDto
@@ -66,5 +71,28 @@ namespace bloom.Models.dto
         public string? Status { get; set; }
         public string? CurrentTask { get; set; }
         public DateTime Timestamp { get; set; }
+    }
+
+
+    /// <summary>
+    /// DTO for tracker events related to robot sessions (for analytics and debugging)
+    /// </summary>
+    public class TrackerEventDto
+    {
+        public Guid Id { get; set; }
+        public DateTime Timestamp { get; set; }
+
+        public string Severity { get; set; } = "info";
+        public string Source { get; set; } = string.Empty;
+        public string EventType { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+
+        public Guid SessionId { get; set; }
+
+        public string? LessonTitle { get; set; }
+        public string? StudentName { get; set; }
+        public string? RobotName { get; set; }
+
+        public int? StepId { get; set; }
     }
 }

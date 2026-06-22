@@ -44,7 +44,7 @@ namespace bloom.Models.dto
     public class LogLessonInteractionDto
     {
         public int StepId { get; set; }
-        public string InteractionType { get; set; } = "Response";  // "Response", "Question", "Timeout", "Fallback", "Feedback"
+        public string InteractionType { get; set; } = "Response";  // "Response", "RobotDialogue", "Question", "Timeout", "Fallback", "Feedback"
         public string? StudentResponse { get; set; }
         public bool? IsCorrect { get; set; }
         public int ResponseTimeMs { get; set; }
@@ -62,6 +62,8 @@ namespace bloom.Models.dto
         public bool? IsCorrect { get; set; }
         public DateTime Timestamp { get; set; }
         public int ResponseTimeMs { get; set; }
+        public Guid? LessonId { get; set; }
+        public Guid? LessonRunId { get; set; }
     }
 
     /// <summary>
@@ -93,5 +95,52 @@ namespace bloom.Models.dto
         public int? StepId { get; set; }
         public string? FeedbackCommand { get; set; }   // "approve" | "retry"
         public DateTime? IssuedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Request DTO for the set-step step control command.
+    /// </summary>
+    public class SetStepDto
+    {
+        public required int TargetStep { get; set; }
+    }
+
+    /// <summary>
+    /// Response DTO for a student's lesson progress record.
+    /// </summary>
+    public class StudentLessonProgressDto
+    {
+        public Guid Id { get; set; }
+        public Guid LessonId { get; set; }
+        public string LessonTitle { get; set; } = string.Empty;
+        public int LessonStep { get; set; }
+        public int ProgressPercentage { get; set; }
+        public DateTime LastUpdated { get; set; }
+    }
+
+    /// <summary>
+    /// In-memory step control command polled by the robot.
+    /// Cleared once the robot acknowledges it.
+    /// </summary>
+    public class PendingStepControlDto
+    {
+        public string Command { get; set; } = string.Empty;  // "skip" | "replay" | "set_step"
+        public int? TargetStep { get; set; }                 // Only set for "set_step"
+    }
+
+    /// <summary>
+    /// Response DTO for a single lesson run in a student's history.
+    /// Each entry represents one execution of a lesson (a LessonRun).
+    /// </summary>
+    public class StudentLessonHistoryDto
+    {
+        public Guid LessonRunId { get; set; }
+        public Guid LessonId { get; set; }
+        public string LessonTitle { get; set; } = string.Empty;
+        public Guid RobotSessionId { get; set; }
+        public DateTime StartedAt { get; set; }
+        public DateTime? EndedAt { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public int InteractionCount { get; set; }
     }
 }

@@ -9,6 +9,7 @@ namespace bloom.Services
         /// <summary>
         /// Starts a new robot session
         /// </summary>
+        /// <param name="robotId"> ID of the robot making a session</param> 
         /// <param name="userId">ID of the user creating the session (null for anonymous sessions)</param>
         /// <param name="anon">Whether to create an anonymous session (overrides userId)</param>
         /// <returns>The created RobotSession</returns>
@@ -104,6 +105,8 @@ namespace bloom.Services
         /// <param name="dto">Progress update data</param>
         Task UpdateLessonProgressAsync(Guid sessionId, UpdateLessonProgressDto dto);
 
+        Task StopLessonAsync(Guid sessionId);
+        
         /// <summary>
         /// Gets a pending lesson for the session if one is assigned
         /// Returns the full lesson JSON along with metadata for the robot to execute
@@ -143,5 +146,35 @@ namespace bloom.Services
         /// <param name="dto">Lesson start configuration</param>
         /// <returns>The created lesson session</returns>
         Task<RobotSession> StartLessonAsync(Guid sessionId, StartLessonDto dto);
+
+        /// <summary>
+        /// Sets the userId on a session (e.g., when a user joins via pairing code)
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <param name="userId">ID of the user joining the session</param>
+        Task SetSessionUserIdAsync(Guid sessionId, string userId);
+
+        /// <summary>
+        /// Clears the userId from a session, making it unclaimed again.
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        Task ClearSessionUserAsync(Guid sessionId);
+
+        /// <summary>
+        /// Gets tracker events for a session (for analysis)
+        /// </summary>
+        /// <param name="sessionId">ID of the session</param>
+        /// <returns>Collection of tracker events ordered by timestamp descending</returns>
+        Task<List<TrackerEventDto>> GetTrackerEventsAsync(Guid sessionId);
+
+        Task<List<LessonInteractionResponseDto>> GetLessonInteractionsAsync(Guid sessionId);
+
+        /// <summary>
+        /// Returns the lesson run history for a given student, newest first.
+        /// A run represents a single execution of a lesson within a robot session;
+        /// repeating the same lesson produces multiple history entries.
+        /// </summary>
+        /// <param name="studentId">Account ID of the student</param>
+        Task<List<StudentLessonHistoryDto>> GetStudentLessonHistoryAsync(string studentId);
     }
 }

@@ -1,11 +1,32 @@
-## Builds Database container and ASP.NET Core container for development environment
-## Need to add a ROS container potentially
 
 services:
-
-  mariadb-prod:
+  bloom-react-dev:
+    build:
+      context: ./frontend
+      dockerfile: ./Dockerfile.dev
+    image: bloom-react-dev:latest
+    container_name: bloom-react-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src       # Live update for src folder
+      - ./frontend/public:/app/public # Live update for public assets
+      - /app/node_modules    # Keep container node_modules isolated
+    environment:
+      # - REACT_APP_API_BASE_URL=http://192.168.1.190:5000
+      - REACT_APP_API_BASE_URL=http://localhost:5000
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - WATCHPACK_POLLING_INTERVAL=1000
+      - NODE_OPTIONS=--max-old-space-size=4096
+      - HOST=0.0.0.0
+      - PORT=3000
+      - HTTPS=false
+    networks:
+      - bloom-network
+  mariadb-dev:
     image: mariadb:latest
-    container_name: bloom-mariadb
+    container_name: mariadb-dev
     restart: always
     environment:
       MARIADB_ROOT_PASSWORD: bloomrootpassword
@@ -18,38 +39,53 @@ services:
       - db_data:/var/lib/mysql
     networks:
       - bloom-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MARIADB_ROOT_PASSWORD"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-  
-  bloom-server:
+
+  bloom-server-dev:
     build:
       context: .
-    image: bloom-server:latest
-    container_name: bloom-server
+      dockerfile: Dockerfile.dev
+    image: bloom-server-dev:latest
+    container_name: bloom-server-dev
     ports:
       - "5000:8080"
       - "2443:2443"
     depends_on:
-      mariadb-prod:
+      mariadb-dev:
         condition: service_started
-        restart: true
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_HTTPS_PORT=2443
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      # - ASPNETCORE_HTTPS_PORT=2443
     restart: always
     volumes:
       - dpkeys:/var/dpkeys
     networks:
       - bloom-network
 
-networks: 
+
+  arsr-service:
+    build:
+      context: ../AutoRsr-NoBert-SARG
+      dockerfile: Dockerfile
+    image: arsr-service:latest
+    container_name: arsr-service
+    ports:
+      - "5050:5050"
+    environment:
+      - ARSR_PORT=5050
+      - ARSR_RECORDINGS_DIR=/data/recordings
+    volumes:
+      - arsr_recordings:/data/recordings
+    networks:
+      - bloom-network
+    restart: always
+
+networks:
   bloom-network:
     driver: bridge
 
 volumes:
   dpkeys:
   db_data:
+  arsr_recordings:
+

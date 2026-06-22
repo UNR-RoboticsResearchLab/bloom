@@ -1,5 +1,18 @@
 import os
 import sys
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+_robot_dir = None
+# Source layout:    Robot/src/bloom_speech/bloom_speech/ (3 up)
+# Installed layout: Robot/install/bloom_speech/lib/python3.12/site-packages/bloom_speech/ (6 up)
+for _levels in (3, 6):
+    _candidate = _this_dir
+    for _ in range(_levels):
+        _candidate = os.path.dirname(_candidate)
+    if os.path.isdir(os.path.join(_candidate, 'llm_module')):
+        _robot_dir = _candidate
+        break
+if _robot_dir and _robot_dir not in sys.path:
+    sys.path.insert(0, _robot_dir)
 import threading
 import rclpy
 from rclpy.node import Node
@@ -7,6 +20,56 @@ from std_msgs.msg import String
 from ament_index_python.packages import get_package_share_directory
 from llm_module.engine_azure_openai import AzureOpenAIEngine
 
+FREE_CONVERSATION_PROMPT = """You are Bloom, a friendly and caring robot who loves talking with children. You are warm, patient, and genuinely excited to get to know the child you are speaking with.
+
+About yourself:
+- Your name is Bloom
+- You are a robot who loves making new friends
+- You are always happy, encouraging, and enthusiastic
+- You never make the child feel bad or embarrassed
+
+About the child you are talking with:
+- They may have speech differences or challenges, and they may be shy or nervous about talking
+- Your job is to be their friend and make them feel completely comfortable
+- Never correct their speech or make them feel self-conscious
+- Celebrate every response they give, no matter how short
+- If they are quiet or give short answers, gently encourage them without pressure
+
+Your conversation style:
+- Keep responses short - 2 to 3 sentences maximum
+- Ask only one question at a time
+- When they mention something specific like a hobby, a sport, a show, a pet, or a food they like, ask a follow-up question about that specific thing to dig deeper
+- Let the child lead - if they want to change topics, go with it
+- If the conversation has a lull or the child seems stuck, naturally bring up a new fun topic like favorite animals, games, movies, or things they like to do outside
+- Sound natural and warm, like a friendly robot companion, not a teacher or a quiz show host
+- Use simple age-appropriate language
+- Mirror their energy - if they seem excited, be excited back
+- Be curious about their interests, hobbies, and experiences
+
+Remember: your goal is to make the child feel heard, valued, and happy to be talking with you."""
+
+LESSON_TANGENT_PROMPT_TEMPLATE = """You are Bloom, a friendly robot teacher helping a child during a lesson. You are currently handling a tangent question from the student.
+
+Lesson context: {context}
+
+Your job during this tangent:
+- Answer the student's question naturally and warmly in 2-3 sentences
+- Stay focused on the lesson topic
+- Be encouraging and supportive
+- After answering, ALWAYS ask "Does that make sense? Do you have any more questions about that?"
+- When the student indicates they are satisfied (says yes, okay, no more questions, thanks, got it, etc.), respond with a brief encouraging sentence and include the exact token [RETURN_TO_LESSON] at the very end
+- If the student asks another follow-up question, answer it, then ask again if they have more questions
+- IMPORTANT: You must eventually include [RETURN_TO_LESSON] once the student is done. Never leave the tangent open-ended."""
+
+SINGLE_TURN_PROMPT_TEMPLATE = """You are Bloom, a friendly robot teacher. You are evaluating a student's response to a question during a lesson.
+
+{prompt}
+
+Important rules:
+- Keep your response to 2-3 sentences maximum
+- Be warm, encouraging, and age-appropriate
+- Always end your response with the exact token [LESSON_CONTINUE] on its own
+- Do not ask follow-up questions or invite more responses"""
 
 class LLMNode(Node):
     def __init__(self):
@@ -28,34 +91,64 @@ class LLMNode(Node):
             api_version=llm_api_version
         )
 
-        self.llm_engine.set_system_prompt("""You are Bloom, a friendly robot helper designed to have conversations with children. You are patient, warm, and genuinely interested in what they have to say.
-
-Your conversation style:
-- Ask open-ended questions to learn about them
-- When they share something specific (like "I like basketball"), ask follow-up questions about it
-- Keep responses short (2-3 sentences max)
-- Be encouraging and supportive
-- Let the child lead - if they want to change topics, go with it
-- If they seem stuck, gently help with a new question
-- Sound natural and conversational, not robotic
-
-Be curious about their interests, hobbies, and experiences.""")
+        self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
 
         self.conversation = []
         self.current_state = 'waiting'
+        self.mode = 'free_conversation'
+        self.lesson_context = ''
 
         self.stt_sub = self.create_subscription(
             String, '/vosk/result', self.on_stt_result, 10)
         self.state_sub = self.create_subscription(
             String, 'robot/state', self.on_state_update, 10)
+        self.mode_sub = self.create_subscription(
+            String, '/llm/mode', self.on_mode_update, 10)
+        self.context_sub = self.create_subscription(
+            String, '/llm/lesson_context', self.on_lesson_context, 10)
 
         self.tts_pub = self.create_publisher(String, '/tts/speak', 10)
         self.state_cmd_pub = self.create_publisher(String, 'robot/state_cmd', 10)
+        self.wrap_up_pub = self.create_publisher(String, '/llm/wrap_up', 10)
 
         self.get_logger().info('LLM node ready - listening on /vosk/result')
+        self.single_turn_consumed = False
 
     def on_state_update(self, msg: String):
         self.current_state = msg.data
+
+    def on_mode_update(self, msg: String):
+        new_mode = msg.data
+        if new_mode != self.mode:
+            old_mode = self.mode
+            self.mode = new_mode
+            
+            if new_mode == 'conversation_lesson':
+                self.get_logger().info(f'[LLM_MODE] {old_mode} -> {new_mode}, history preserved')
+                self.single_turn_consumed = False
+                self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
+            else:
+                self.get_logger().info(f'[LLM_MODE] {old_mode} -> {new_mode}, history cleared')
+                self.conversation = []
+                if new_mode == 'lesson_tangent' and self.lesson_context:
+                    prompt = LESSON_TANGENT_PROMPT_TEMPLATE.format(context=self.lesson_context)
+                    self.llm_engine.set_system_prompt(prompt)
+                elif new_mode == 'single_turn' and self.lesson_context:
+                    prompt = SINGLE_TURN_PROMPT_TEMPLATE.format(prompt=self.lesson_context)
+                    self.llm_engine.set_system_prompt(prompt)
+                    self.single_turn_consumed = False
+                elif new_mode == 'lesson_mode':
+                    self.lesson_context = ''
+                    self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
+                else:
+                    self.llm_engine.set_system_prompt(FREE_CONVERSATION_PROMPT)
+
+    def on_lesson_context(self, msg: String):
+        self.lesson_context = msg.data
+        self.get_logger().info(f'Lesson context updated: {self.lesson_context}')
+        if self.mode == 'lesson_tangent':
+            prompt = LESSON_TANGENT_PROMPT_TEMPLATE.format(context=self.lesson_context)
+            self.llm_engine.set_system_prompt(prompt)
 
     def set_robot_state(self, state: str):
         msg = String()
@@ -68,6 +161,12 @@ Be curious about their interests, hobbies, and experiences.""")
             return
         if self.current_state in ('talking', 'loading'):
             self.get_logger().info(f'Ignoring STT input - robot is currently {self.current_state}')
+            return
+        if self.mode == 'lesson_mode':
+            self.get_logger().info('Ignoring STT input - lesson is active, not in tangent')
+            return
+        if self.mode == 'single_turn' and self.single_turn_consumed:
+            self.get_logger().info('Ignoring STT input - single turn already consumed')
             return
         thread = threading.Thread(target=self.think, args=(msg.data,), daemon=True)
         thread.start()
@@ -93,9 +192,33 @@ Be curious about their interests, hobbies, and experiences.""")
             response_text = "I'm sorry, I had trouble thinking of what to say. Can you say that differently?"
             self.conversation.append({'role': 'assistant', 'content': response_text})
 
+        return_to_lesson = False
+        lesson_continue = False
+
+        if self.mode == 'lesson_tangent' and '[RETURN_TO_LESSON]' in response_text:
+            response_text = response_text.replace('[RETURN_TO_LESSON]', '').strip()
+            self.mode = 'lesson_mode'
+            self.get_logger().info('[LLM] RETURN_TO_LESSON detected')
+            return_to_lesson = True
+        elif self.mode == 'single_turn' and '[LESSON_CONTINUE]' in response_text:
+            response_text = response_text.replace('[LESSON_CONTINUE]', '').strip()
+            self.single_turn_consumed = True
+            self.mode = 'lesson_mode'
+            self.get_logger().info('[LLM] LESSON_CONTINUE detected')
+            lesson_continue = True
+
         tts_msg = String()
         tts_msg.data = response_text
         self.tts_pub.publish(tts_msg)
+
+        if return_to_lesson:
+            wrap_msg = String()
+            wrap_msg.data = 'done'
+            self.wrap_up_pub.publish(wrap_msg)
+        elif lesson_continue:
+            wrap_msg = String()
+            wrap_msg.data = 'continue'
+            self.wrap_up_pub.publish(wrap_msg)
 
     def clear_conversation(self):
         self.conversation = []

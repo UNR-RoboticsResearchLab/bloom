@@ -12,9 +12,9 @@ namespace bloom.Services
     {
 
         private readonly BloomDbContext _context;
-        private readonly AccountService _accountService;
+        private readonly IAccountService _accountService;
 
-        public LessonProgressService(BloomDbContext context, AccountService accountService)
+        public LessonProgressService(BloomDbContext context, IAccountService accountService)
         {
             _context = context;
             _accountService = accountService;
@@ -58,14 +58,22 @@ namespace bloom.Services
 
         public async Task<IEnumerable<LessonProgress>> GetByEmailAsync(string email)
         {
-        
+
             var lessonProgresses = await _context.LessonProgresses
                 .Include(p => p.Student)
-                .Where(p => p.Student.Email == email)
+                .Where(p => p.Student != null && p.Student.Email == email)
                 .ToListAsync();
 
-            
+
             return lessonProgresses;
+        }
+
+        public async Task<IEnumerable<LessonProgress>> GetByUserIdWithLessonAsync(string userId)
+        {
+            return await _context.LessonProgresses
+                .Include(p => p.Lesson)
+                .Where(p => p.StudentId == userId)
+                .ToListAsync();
         }
 
         public async Task<LessonProgress> GetByIDAsync(string id)
@@ -83,8 +91,15 @@ namespace bloom.Services
 
         public async Task<bool> ModifyAsync(LessonProgress progress)
         {
-            LessonProgress existingProgress = await _context.LessonProgresses.FirstOrDefaultAsync(p => p.Id == progress.Id);
-            
+            ArgumentNullException.ThrowIfNull(progress);
+
+            if (progress.Id == Guid.Empty)
+            {
+                throw new ArgumentException("Lesson progress Id cannot be empty.", nameof(progress));
+            }
+
+            LessonProgress? existingProgress = await _context.LessonProgresses.FirstOrDefaultAsync(p => p.Id == progress.Id);
+
             if (existingProgress == null)
             {
                 throw new Exception("Lesson progress not found.");

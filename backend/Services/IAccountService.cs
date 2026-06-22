@@ -20,12 +20,13 @@ namespace bloom.Services
 
         // Register Accounts
         Task<IdentityResult> RegisterAdminAsync(CreateAccountDto user);
+        Task<IdentityResult> RegisterFacilitatorAsync(CreateAccountDto user);
 
-        // Delete Account
-        Task<IdentityResult> DeleteUserAsync(string id);
-
-        // this is kind of idiosyncratic since they wont register themselves ? 
+        // this is kind of idiosyncratic since they wont register themselves ?
         Task<IdentityResult> RegisterStudentAsync(CreateAccountDto user);
+
+        // Used by privileged users (Admin/SLP) to create a student account with a server-generated starting password
+        Task<(IdentityResult Result, string GeneratedPassword)> RegisterStudentWithGeneratedPasswordAsync(CreateStudentByPrivilegedUserDto dto);
 
         Task<IdentityResult> RegisterSLPAsync(CreateAccountDto user);
     
@@ -38,6 +39,13 @@ namespace bloom.Services
         Task<bool> AddToRoleAsync(Account user, string role);
         Task<bool> IsInRoleAsync(Account user, string role);
         Task<IList<string>> GetUserRolesByIdAsync(string userId);
-    }   
+        Task<IdentityResult> RegisterTeacherAsync(CreateAccountDto account);
+
+        // Delete
+        Task<IdentityResult> DeleteAsync(Account user);
+
+        // Update
+        Task<IdentityResult> UpdateAsync(Account user);
+    }
     
 }

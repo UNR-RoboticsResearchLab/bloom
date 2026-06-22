@@ -1,0 +1,263 @@
+{
+  "lesson": {
+    "title": "Conversation Mode",
+    "grade": "All",
+    "objectives": ["build confidence in verbal communication", "engage in natural conversation"]
+  },
+  "sequence": [
+    {
+      "id": 1,
+      "type": "introduction",
+      "script": "Hi there! I am Bloom, and I am so happy to meet you! I am a robot and my favorite thing in the whole world is making new friends.",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "excited"
+    },
+    {
+      "id": 2,
+      "type": "interactive_question",
+      "script": "What is your name?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "That is okay! I will just call you my new friend. I have a question I am really excited to ask you."
+      }
+    },
+    {
+      "id": 3,
+      "type": "interactive_question",
+      "script": "What do you like to do for fun?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "There are so many fun things in the world! I love learning about everything. Here is something I have been wondering about."
+      }
+    },
+    {
+      "id": 4,
+      "type": "interactive_question",
+      "script": "Do you have a favorite animal?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_right",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "Animals are so amazing! I think they are one of the coolest things in the world. I have another question for you."
+      }
+    },
+    {
+      "id": 5,
+      "type": "interactive_question",
+      "script": "What is your favorite food?",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "Food is so yummy to think about! I love hearing about the things people enjoy. Let me ask you something else."
+      }
+    },
+    {
+      "id": 6,
+      "type": "interactive_question",
+      "script": "Do you have any brothers or sisters?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_left",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "Families are so special! I feel lucky to get to meet so many wonderful people. Here is my next question."
+      }
+    },
+    {
+      "id": 7,
+      "type": "interactive_question",
+      "script": "What is your favorite thing about school?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "School is such an interesting place with so many things to discover. I am curious about something else too."
+      }
+    },
+    {
+      "id": 8,
+      "type": "interactive_question",
+      "script": "If you could have any superpower, what would you pick?",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "excited",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "Superpowers are so fun to think about! I think I would want to fly everywhere. I have another fun question."
+      }
+    },
+    {
+      "id": 9,
+      "type": "interactive_question",
+      "script": "Do you have a favorite movie or TV show?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_right",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "There are so many amazing stories out there! I love how movies and shows can take you to another world. Let me think of another question."
+      }
+    },
+    {
+      "id": 10,
+      "type": "interactive_question",
+      "script": "What is something you are really good at?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "I know you are good at lots of things even if it is hard to think of them! Everyone has something special about them. I have one more thing I want to ask."
+      }
+    },
+    {
+      "id": 11,
+      "type": "interactive_question",
+      "script": "If you could go anywhere in the world, where would you want to go?",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "The world is such an amazing place full of incredible things to see! I love thinking about adventures. Here is another question I have been saving."
+      }
+    },
+    {
+      "id": 12,
+      "type": "interactive_question",
+      "script": "What kind of music do you like?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "Music is so wonderful! It can make you feel so many different things. I want to ask you something else."
+      }
+    },
+    {
+      "id": 13,
+      "type": "interactive_question",
+      "script": "Do you have a pet or is there an animal you wish you had?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_left",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "Animals make such wonderful companions! I think it would be so fun to have a pet. Let me ask you something different."
+      }
+    },
+    {
+      "id": 14,
+      "type": "interactive_question",
+      "script": "What is the most fun thing you have ever done?",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "excited",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "Life is full of so many great memories! I love thinking about happy moments. I have one more question for you."
+      }
+    },
+    {
+      "id": 15,
+      "type": "interactive_question",
+      "script": "If you could learn to do anything new, what would you want to learn?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "Learning new things is one of the most exciting parts of life! There is always something amazing to discover. Here is my next question."
+      }
+    },
+    {
+      "id": 16,
+      "type": "interactive_question",
+      "script": "What do you like to do on weekends?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_right",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "Weekends are such a great time to relax and have fun! I love hearing about how people spend their free time. I am curious about something else."
+      }
+    },
+    {
+      "id": 17,
+      "type": "interactive_question",
+      "script": "Do you like to be outside or inside more?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_left",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "Both inside and outside have such great things about them! I find it so interesting how everyone is a little different. Let me ask you one more thing."
+      }
+    },
+    {
+      "id": 18,
+      "type": "interactive_question",
+      "script": "What is your favorite season, like summer, fall, winter, or spring?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "Every season has something so special about it! I love thinking about all the different things each one brings. Here is another question."
+      }
+    },
+    {
+      "id": 19,
+      "type": "interactive_question",
+      "script": "If you could meet any animal in real life, even a wild one, which one would you choose?",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "excited",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "What a fun thing to imagine! I think meeting a dolphin would be incredible. I have one last question saved up for you."
+      }
+    },
+    {
+      "id": 20,
+      "type": "interactive_question",
+      "script": "What is something that always makes you smile?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy",
+      "interaction": {
+        "wait_for_response": true,
+        "llm_follow_up": true,
+        "max_wait_seconds": 20,
+        "fallback_script": "There are so many wonderful things in the world that can make us smile! Talking with you today has definitely made me smile. You are such a great friend."
+      }
+    }
+  ]
+}

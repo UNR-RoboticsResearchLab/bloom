@@ -1,19 +1,15 @@
 // bloom
 // Lesson.cs
 // Lesson model representing a lesson in the system.
-// Created: 10/21/2025
 
 using System.ComponentModel.DataAnnotations;
 
 namespace bloom.Models
 {
-    
-    // should be able to add more lesson types in the future as needed,
-    // but for now we'll just have these two categories to keep it simple
     public enum LessonType
     {
         Language,
-        SpeechTherapy
+        Speech
     }
 
     public class Lesson
@@ -25,18 +21,19 @@ namespace bloom.Models
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
 
-        
         public int TotalSteps { get; set; }
 
-        public required string LessonFileUrl { get; set; }
+        // JSON array string: ["objective one", "objective two"]
+        public string? LearningObjectives { get; set; }
 
         [Required]
         public required string CreatedById { get; set; }
-        public required Account CreatedBy { get; set; }
+        public Account? CreatedBy { get; set; }
 
         public LessonType LessonType { get; set; }
 
         // Navigation properties
+        public ICollection<LessonStep> Steps { get; set; } = new List<LessonStep>();
         public ICollection<Assignment>? Assignments { get; set; }
     }
 }

@@ -4,7 +4,7 @@ REM Usage: startserver.bat [--migration]
 
 SETLOCAL ENABLEDELAYEDEXPANSION
 
-SET COMPOSE_FILE=docker-compose.dev.yml
+SET COMPOSE_FILE=docker-compose.yml
 SET SERVER_CONTAINER=bloom-server-dev
 SET REACT_CONTAINER=bloom-react-dev
 SET DB_SERVICE=mariadb-dev

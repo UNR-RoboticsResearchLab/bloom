@@ -15,7 +15,7 @@ Senor Project Team 24
 
 1. Install Docker and Docker Compose
 2. Clone this repository
-3. Run `./startserver-dev.sh` or `./startserver-dev.bat` in the project directory (if it doesn't work, try `docker compose -f docker-compose.dev.yml up --build` and/or `docker compose -f docker-compose.dev.yml build --no-cache`)
+3. Run `./startdocker-dev.sh` or `./startdocker-dev.bat` in the project directory (if it doesn't work, try `docker compose -f docker-compose.yml up --build` and/or `docker compose -f docker-compose.yml build --no-cache`)
 4. Access the browser app at `http://localhost:3000` and the API at `http://localhost:5000`
 
 ## API Documentation

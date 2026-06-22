@@ -53,7 +53,7 @@ if [ "$DO_MIGRATE" -eq 1 ]; then
 
     # Run the migrations in the server container. Use --no-deps so compose doesn't try to start
     # the mariadb-dev service again. We assume the image has dotnet and dotnet-ef available (see Dockerfile).
-    docker-compose -f docker-compose.yml run --rm server-dev dotnet ef database update --no-build || {
+    docker-compose -f docker-compose.yml run --rm bloom-server-dev dotnet ef database update --no-build || {
         echo "Migration command failed. Exiting with non-zero status." >&2
         exit 1
     }

@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-COMPOSE_FILE="docker-compose.dev.yml"
+COMPOSE_FILE="docker-compose.yml"
 SERVER_CONTAINER="bloom-server-dev"
 REACT_CONTAINER="bloom-react-dev"
 DB_SERVICE="mariadb-dev"
@@ -16,7 +16,7 @@ DB_SERVICE="mariadb-dev"
 for arg in "$@"; do
   case $arg in
     --prod)
-      COMPOSE_FILE="docker-compose.yml"
+      COMPOSE_FILE="docker-compose.prod.yml"
       SERVER_CONTAINER="bloom-server"
       REACT_CONTAINER="bloom-react"
       DB_SERVICE="mariadb-prod"

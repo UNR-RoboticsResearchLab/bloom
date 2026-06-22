@@ -1,4 +1,4 @@
-## Builds Database container and ASP.NET Core container for development environment
+## Builds Database container and ASP.NET Core container for the production environment
 ## Need to add a ROS container potentially
 
 services:

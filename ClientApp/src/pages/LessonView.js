@@ -138,42 +138,15 @@ export default function LessonView() {
         }
     }, [activeSessionId, api]);
 
-    const getValidSessionId = useCallback(async () => {
-        try {
-            const sessions = await api.getSessions();
-            console.log("RAW SESSIONS RESPONSE:", JSON.stringify(sessions, null, 2));
-
-            if (!Array.isArray(sessions) || sessions.length === 0) {
-                localStorage.removeItem("pairedSessionId");
-                setActiveSessionId(null);
-                return null;
-            }
-
-            const savedSessionId = localStorage.getItem("pairedSessionId");
-
-            const matchingSession = sessions.find((session) => {
-                const id = session.id ?? session.Id;
-                return id === savedSessionId;
-            });
-
-            if (!matchingSession) {
-                localStorage.removeItem("pairedSessionId");
-                setActiveSessionId(null);
-                return null;
-            }
-
-            const realSessionId = matchingSession.id ?? matchingSession.Id;
-
-            localStorage.setItem("pairedSessionId", realSessionId);
-            setActiveSessionId(realSessionId);
-            return realSessionId;
-        } catch (error) {
-            console.error("Failed to verify session:", error);
-            localStorage.removeItem("pairedSessionId");
+    const getValidSessionId = useCallback(() => {
+        const savedSessionId = localStorage.getItem("pairedSessionId");
+        if (!savedSessionId) {
             setActiveSessionId(null);
             return null;
         }
-    }, [api]);
+        setActiveSessionId(savedSessionId);
+        return savedSessionId;
+    }, []);
 
     useEffect(() => {
         async function startLesson() {
@@ -194,7 +167,7 @@ export default function LessonView() {
             hasStartedRef.current = true;
 
             try {
-                const sessionIdToUse = await getValidSessionId();
+                const sessionIdToUse = getValidSessionId();
 
                 if (!sessionIdToUse) {
                     console.error("Missing sessionId");
@@ -337,24 +310,22 @@ export default function LessonView() {
     async function handleEndSession() {
         if (!activeSessionId || isEndingSession) return;
 
+        setIsEndingSession(true);
         try {
-            setIsEndingSession(true);
-
-            try {
-                await api.stopLesson(activeSessionId);
-            } catch (e) {
-                console.warn("Failed to stop lesson (may not be active):", e);
-            }
-
-            await api.endSession(activeSessionId);
-
-            localStorage.removeItem("pairedSessionId");
-            navigate("/lessons");
-        } catch (error) {
-            console.error("Failed to end session:", error);
-        } finally {
-            setIsEndingSession(false);
+            await api.stopLesson(activeSessionId);
+        } catch (e) {
+            console.warn("Failed to stop lesson (may not be active):", e);
         }
+        try {
+            await api.endSession(activeSessionId);
+        } catch (e) {
+            // Demo mode has no cookie auth — server session will be cleaned up by the
+            // robot's inactivity timer. Don't block navigation on a 401 here.
+            console.warn("Failed to end session server-side:", e);
+        }
+        localStorage.removeItem("pairedSessionId");
+        setIsEndingSession(false);
+        navigate("/lessons");
     }
 
     function renderMessage(item) {

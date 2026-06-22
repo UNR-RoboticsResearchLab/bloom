@@ -149,7 +149,7 @@ export default class ApiClient {
   }
 
   async getSessionIdFromRobotCode(code) {
-    return this.request(`/api/session/join/${encodeURIComponent(code)}`, { method: "GET" });
+    return this.request(`/api/session/code?code=${encodeURIComponent(code)}`, { method: "GET" });
   }
 
   async endSession(sessionId) {

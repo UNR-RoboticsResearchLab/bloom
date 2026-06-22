@@ -1,5 +1,6 @@
 using System.Net;
 using System.Reflection;
+using System.Text;
 using bloom.Models;
 using bloom.Services;
 using bloom.Data;
@@ -12,6 +13,8 @@ using Microsoft.Extensions.Options;
 using Pomelo.EntityFrameworkCore.MySql.Internal;
 using Microsoft.AspNetCore.DataProtection;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -73,7 +76,24 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
 
     )));
 
+builder.Services.AddDbContext<ArSrDbContext>(options =>
+    options.UseMySql(ConnectionString,
+        new MySqlServerVersion(new Version(11, 7, 2)),
+        mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null
+    )));
 
+// ArSr services
+builder.Services.AddScoped<IArSrService, ArSrService>();
+builder.Services.AddScoped<ArSrTranscriptionService>();
+builder.Services.AddHttpClient("ArSrMicroservice", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ArSr:MicroserviceUrl"]
+        ?? "http://arsr-service:5050");
+    client.Timeout = TimeSpan.FromMinutes(5); // WhisperX can take time on long sessions
+});
 
 
 // Add identity
@@ -116,6 +136,24 @@ builder.Services.ConfigureApplicationCookie(options =>
         return Task.CompletedTask;
     };
 });
+
+// AddAuthentication() without a default scheme preserves Identity's cookie as the default.
+// JWT is available via the "JwtOnly" / "JwtOrCookie" policies below.
+builder.Services.AddAuthentication()
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+                builder.Configuration["Jwt:Key"]
+                    ?? throw new InvalidOperationException("Jwt:Key is not configured.")
+            ))
+        };
+    });
 
 // =========== Add Custom Services ===========
 builder.Services.AddScoped<IAccountService, AccountService>();
@@ -164,7 +202,20 @@ builder.Services.AddCors(options => {
 });
 
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("JwtOnly", policy => policy
+        .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+        .RequireAuthenticatedUser());
+
+    options.AddPolicy("CookieOnly", policy => policy
+        .AddAuthenticationSchemes(IdentityConstants.ApplicationScheme)
+        .RequireAuthenticatedUser());
+
+    options.AddPolicy("JwtOrCookie", policy => policy
+        .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, IdentityConstants.ApplicationScheme)
+        .RequireAuthenticatedUser());
+});
 
 var app = builder.Build();
 
@@ -187,7 +238,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
-
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 

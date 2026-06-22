@@ -1,22 +1,33 @@
 #!/usr/bin/env python3
+import math
+import os
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Pose
 from cv_bridge import CvBridge
 import cv2
 
 
-FACE_CASCADE = cv2.CascadeClassifier(
-    cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-)
+def _haarcascades_dir() -> str:
+    if hasattr(cv2, 'data'):
+        return cv2.data.haarcascades
+    for path in ('/usr/share/opencv4/haarcascades/', '/usr/share/opencv/haarcascades/'):
+        if os.path.isdir(path):
+            return path
+    raise RuntimeError('Cannot find OpenCV haarcascades directory')
 
-# Proportional gain: fraction of frame offset to convert to angular velocity
-KP_YAW = 1.2
-KP_PITCH = 0.8
+FACE_CASCADE = cv2.CascadeClassifier(_haarcascades_dir() + 'haarcascade_frontalface_default.xml')
+
+# Proportional gain: fraction of frame offset to target angle (radians)
+KP_YAW = 2.5
+KP_PITCH = -0.5
 
 # Dead zone: ignore offsets smaller than this fraction of half-frame
 DEAD_ZONE = 0.05
+
+# Neutral head height sent with every pose command
+NEUTRAL_HEIGHT = 1.0
 
 
 class CameraFollower(Node):
@@ -24,14 +35,14 @@ class CameraFollower(Node):
         super().__init__('camera_follower')
 
         self.declare_parameter('image_topic', '/camera/image_raw')
-        self.declare_parameter('cmd_topic', '/cmd_vel')
+        self.declare_parameter('pose_topic', 'target_pose')
 
         image_topic = self.get_parameter('image_topic').get_parameter_value().string_value
-        cmd_topic = self.get_parameter('cmd_topic').get_parameter_value().string_value
+        pose_topic = self.get_parameter('pose_topic').get_parameter_value().string_value
 
         self.bridge = CvBridge()
         self.sub = self.create_subscription(Image, image_topic, self._image_cb, 10)
-        self.pub = self.create_publisher(Twist, cmd_topic, 10)
+        self.pub = self.create_publisher(Pose, pose_topic, 10)
 
         self.get_logger().info(f'Camera follower ready — listening on {image_topic}')
 
@@ -43,6 +54,8 @@ class CameraFollower(Node):
         if face is None:
             return
 
+        print(f'Detected face at {face}')
+
         fx, fy, fw, fh = face
         cx = fx + fw / 2
         cy = fy + fh / 2
@@ -51,14 +64,27 @@ class CameraFollower(Node):
         x_err = (cx - w / 2) / (w / 2)
         y_err = (cy - h / 2) / (h / 2)
 
-        twist = Twist()
-        if abs(x_err) > DEAD_ZONE:
-            twist.angular.z = -KP_YAW * x_err
-        if abs(y_err) > DEAD_ZONE:
-            # Positive y_err means face is below center; positive linear.z tilts up
-            twist.linear.z = -KP_PITCH * y_err
+        yaw = KP_YAW * x_err if abs(x_err) > DEAD_ZONE else 0.0
+        pitch = KP_PITCH * y_err if abs(y_err) > DEAD_ZONE else 0.0
 
-        self.pub.publish(twist)
+        print(f'Offset x={x_err:.2f} y={y_err:.2f} → yaw={yaw:.2f} pitch={pitch:.2f}')
+        pose = Pose()
+        pose.position.z = NEUTRAL_HEIGHT
+        pose.orientation = self._euler_to_quaternion(pitch, yaw)
+        self.pub.publish(pose)
+
+    @staticmethod
+    def _euler_to_quaternion(pitch: float, yaw: float) -> 'Quaternion':
+        """Build a geometry_msgs/Quaternion from pitch (y-axis) and yaw (z-axis), roll=0."""
+        from geometry_msgs.msg import Quaternion
+        cp, sp = math.cos(pitch / 2), math.sin(pitch / 2)
+        cy, sy = math.cos(yaw / 2), math.sin(yaw / 2)
+        q = Quaternion()
+        q.w = cy * cp
+        q.x = -sy * sp
+        q.y = cy * sp
+        q.z = sy * cp
+        return q
 
     def _detect_face(self, frame):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)

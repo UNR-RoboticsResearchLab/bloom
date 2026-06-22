@@ -62,11 +62,29 @@ services:
       - bloom-network
 
 
-networks: 
+  arsr-service:
+    build:
+      context: ../AutoRsr-NoBert-SARG
+      dockerfile: Dockerfile
+    image: arsr-service:latest
+    container_name: arsr-service
+    ports:
+      - "5050:5050"
+    environment:
+      - ARSR_PORT=5050
+      - ARSR_RECORDINGS_DIR=/data/recordings
+    volumes:
+      - arsr_recordings:/data/recordings
+    networks:
+      - bloom-network
+    restart: always
+
+networks:
   bloom-network:
     driver: bridge
 
 volumes:
   dpkeys:
   db_data:
+  arsr_recordings:
 

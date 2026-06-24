@@ -151,6 +151,15 @@ builder.Services.AddScoped<IRobotStateService, RobotStateService>();
 builder.Services.AddScoped<ISLPClientService, SLPClientService>();
 builder.Services.AddSingleton<IStepControlService, StepControlService>();
 
+// AutoRSR microservice integration
+var autoRsrBaseUrl = builder.Configuration["AutoRsr:BaseUrl"] ?? "http://localhost:5050";
+builder.Services.AddHttpClient("AutoRsr", client =>
+{
+    client.BaseAddress = new Uri(autoRsrBaseUrl);
+    client.Timeout = TimeSpan.FromMinutes(10);
+});
+builder.Services.AddScoped<IRsrService, RsrService>();
+
 // Add MVC model
 builder.Services.AddControllersWithViews();
 

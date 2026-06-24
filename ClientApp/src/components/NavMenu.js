@@ -50,6 +50,12 @@ export default function NavMenu() {
               </NavLink>
             </NavItem>
 
+            <NavItem>
+              <NavLink tag={Link} to="/rsr-assessment" className="text-dark">
+                RSR
+              </NavLink>
+            </NavItem>
+
             {!isLoggedIn ? (
               <NavItem>
                 <NavLink tag={Link} to="/sign-in" className="text-dark">

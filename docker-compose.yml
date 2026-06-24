@@ -46,10 +46,34 @@ services:
     networks:
       - bloom-network
 
-networks: 
+  auto_rsr:
+    build:
+      context: ./AutoRSR
+    image: auto-rsr:latest
+    container_name: auto-rsr
+    restart: always
+    environment:
+      - ARSR_PORT=5050
+      - ARSR_RECORDINGS_DIR=/app/uploads/recordings
+    ports:
+      - "5050:5050"
+    volumes:
+      - rsr_recordings:/app/uploads/recordings
+    networks:
+      - bloom-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+networks:
   bloom-network:
     driver: bridge
 
 volumes:
   dpkeys:
   db_data:
+  rsr_recordings:

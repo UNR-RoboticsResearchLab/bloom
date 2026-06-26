@@ -142,6 +142,16 @@ void LessonPoller::on_polling_tick() {
 							last_lesson_id_ = "";
 							currently_executing_.store(false);
 							stop_step_control_polling();
+							std::string ack_endpoint = "/api/lessonsession/" + current_session_id + "/lessons/step-control";
+							web_client_->sendRequestAsync("DELETE", ack_endpoint, std::nullopt, std::nullopt, {}, 
+								[this](const std::string&, long){});
+						}
+					}
+					if (!currently_executing_.load() && !last_lesson_id_.empty() && paired_.load()) {
+						bool has_active_lesson = j.contains("activeLessonId") && !j["activeLessonId"].is_null();
+						if (!has_active_lesson) {
+							RCLCPP_INFO(this->get_logger(), "[POLLER] Backend cleared active lesson — ready for new lesson");
+							last_lesson_id_ = "";
 						}
 					}
                 } catch (...) {
@@ -223,15 +233,14 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json, const std::str
 		}
 
 		std::string lesson_id = lesson_json["id"].get<std::string>();
-		// Deduplicate: skip if this is the same lesson we just ran
-		if (lesson_id == last_lesson_id_) {
+		if (!lesson_run_id.empty() && lesson_run_id == last_lesson_id_) {
 			RCLCPP_DEBUG(this->get_logger(), "Skipping duplicate lesson: %s", lesson_id.c_str());
 			return;
 		}
 
 		// Mark as executing before loading to prevent race conditions
 		currently_executing_.store(true);
-		last_lesson_id_ = lesson_id;
+		last_lesson_id_ = lesson_run_id.empty() ? lesson_id : lesson_run_id;
 
 		// Parse lesson JSON to LessonData struct
 		LessonData lesson_data;
@@ -405,7 +414,6 @@ void LessonPoller::handle_pending_lesson(const json &lesson_json, const std::str
 			[this](const std::string &completed_lesson_id) {
 				RCLCPP_INFO(this->get_logger(), "Lesson completion callback: %s", completed_lesson_id.c_str());
 				stop_step_control_polling();
-				last_lesson_id_ = "";
 				currently_executing_.store(false);
 			});
 
@@ -484,7 +492,6 @@ void LessonPoller::on_step_control_tick() {
 				} else if (command == "stop") {
 					RCLCPP_INFO(this->get_logger(), "[STEP_CONTROL] Stop command received - stopping lesson");
 					if (lesson_coord_) lesson_coord_->stop_lesson();
-					last_lesson_id_ = "";
 					currently_executing_.store(false);
 					stop_step_control_polling();
                 } else {

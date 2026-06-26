@@ -191,6 +191,9 @@ namespace bloom.Controllers
             if (session == null)
                 return NotFound(new { Message = $"Session with ID {sessionId} not found" });
 
+            if (session.ActiveLessonId == null)
+                return BadRequest(new { Message = "No active lesson to skip" });
+
             _stepControlService.SetPendingControl(sessionId, "skip");
             _logger.LogInformation("Skip command issued for session {SessionId}", sessionId);
             return Ok(new { Message = "Skip command queued", SessionId = sessionId });
@@ -205,6 +208,9 @@ namespace bloom.Controllers
             var session = await _sessionService.GetSessionAsync(sessionId);
             if (session == null)
                 return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            if (session.ActiveLessonId == null)
+                return BadRequest(new { Message = "No active lesson to replay" });
 
             _stepControlService.SetPendingControl(sessionId, "replay");
             _logger.LogInformation("Replay command issued for session {SessionId}", sessionId);
@@ -223,6 +229,9 @@ namespace bloom.Controllers
             var session = await _sessionService.GetSessionAsync(sessionId);
             if (session == null)
                 return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            if (session.ActiveLessonId == null)
+                return BadRequest(new { Message = "No active lesson to set step on" });
 
             _stepControlService.SetPendingControl(sessionId, "set_step", dto.TargetStep);
             _logger.LogInformation("Set step {TargetStep} command issued for session {SessionId}", dto.TargetStep, sessionId);
@@ -289,7 +298,11 @@ namespace bloom.Controllers
             if (session == null)
                 return NotFound(new { Message = $"Session with ID {sessionId} not found" });
 
-            _stepControlService.SetPendingControl(sessionId, "stop");
+            if (session.ActiveLessonId != null)
+            {
+                _stepControlService.SetPendingControl(sessionId, "stop");
+            }
+
             await _sessionService.StopLessonAsync(sessionId);
             _logger.LogInformation("Stop command issued for session {SessionId}", sessionId);
             return Ok(new { Message = "Stop command queued", SessionId = sessionId });

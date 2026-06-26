@@ -69,7 +69,9 @@ export default function SlpDashboard() {
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const { addNote, getNotes } = useNotes();
   const [showPairRobotCard, setShowPairRobotCard] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(() => {
+    return !!localStorage.getItem("pairedSessionId");
+  });
   const [lessons, setLessons] = useState([]);
 
   const [students, setStudents] = useState([]);
@@ -122,14 +124,6 @@ export default function SlpDashboard() {
     }
   }, [students, selectedStudentId]);
 
-  useEffect(() => {
-    const savedSessionId = localStorage.getItem("pairedSessionId");
-
-    if (savedSessionId) {
-      setIsConnected(true);
-    }
-  }, []);
-
   const selectedLesson = useMemo(
     () => mockLessons.find((l) => l.id === selectedLessonId),
     [selectedLessonId]
@@ -158,6 +152,11 @@ export default function SlpDashboard() {
     if (!text) return;
     addNote(selectedStudentId, selectedLessonId, text);
     form.reset();
+  }
+
+  function goToStudent(student) {
+      const id = student.id ?? student.Id;
+      navigate(`/student/${id}`);
   }
 
   return (
@@ -243,7 +242,8 @@ export default function SlpDashboard() {
                 active={[]}
                 completed={[]}
                 selected={selectedStudentId === s.id}
-                onClick={() => setSelectedStudentId(s.id)}
+                // onClick={() => setSelectedStudentId(s.id)}
+                onClick={() => goToStudent(s)}
               />
             ))}
           </div>
@@ -324,15 +324,17 @@ export default function SlpDashboard() {
       
                           <div className="relative z-10 w-full max-w-xl px-4">
                               <PairRobotCard
+                                isConnected={isConnected}
                                 onCancel={() => setShowPairRobotCard(false)}
                                 onPaired={(sessionId) => {
-                                console.log("Paired in dashboard:", sessionId);
-
-                                localStorage.setItem("pairedSessionId", sessionId);
-
-                                setIsConnected(true);
-                                setShowPairRobotCard(false);
-                              }}
+                                  localStorage.setItem("pairedSessionId", sessionId);
+                                  setIsConnected(true);
+                                  setShowPairRobotCard(false);
+                                }}
+                                onUnpaired={() => {
+                                  setIsConnected(false);
+                                  setShowPairRobotCard(false);
+                                }}
                               />
                           </div>
                       </div>

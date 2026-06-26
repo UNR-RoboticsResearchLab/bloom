@@ -21,7 +21,7 @@ export default function LessonView() {
     const [step, setStep] = useState([]);
     const [isLoadingSteps, setIsLoadingSteps] = useState(false);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-    const [isEndingSession, setIsEndingSession] = useState(false);
+    const [isEndingLesson, setIsEndingLesson] = useState(false);
 
     const [conversation, setConversation] = useState([]);
 
@@ -119,9 +119,9 @@ export default function LessonView() {
                     return {
                         id: item.id ?? `interaction-${index}`,
                         type:
-                            interactionType === "student"
+                            interactionType === "response"
                                 ? "student"
-                                : interactionType === "note"
+                                : interactionType === "note" || interactionType === "slpfeedback"
                                 ? "note"
                                 : "robot",
                         text: item.studentResponse || item.dialogTurn || "",
@@ -307,10 +307,10 @@ export default function LessonView() {
         }
     }
 
-    async function handleEndSession() {
-        if (!activeSessionId || isEndingSession) return;
+    async function handleEndLesson() {
+        if (!activeSessionId || isEndingLesson) return;
 
-        setIsEndingSession(true);
+        setIsEndingLesson(true);
         try {
             await api.stopLesson(activeSessionId);
         } catch (e) {
@@ -324,7 +324,7 @@ export default function LessonView() {
             console.warn("Failed to end session server-side:", e);
         }
         localStorage.removeItem("pairedSessionId");
-        setIsEndingSession(false);
+        setIsEndingLesson(false);
         navigate("/lessons");
     }
 
@@ -454,11 +454,11 @@ export default function LessonView() {
 
                         <button
                             type="button"
-                            onClick={handleEndSession}
-                            disabled={isEndingSession}
+                            onClick={handleEndLesson}
+                            disabled={isEndingLesson}
                             className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {isEndingSession ? "Ending..." : "End Session"}
+                            {isEndingLesson ? "Ending..." : "End Lesson"}
                         </button>
                     </div>
 
@@ -480,7 +480,8 @@ export default function LessonView() {
                                 step.map((item) => (
                                     <div
                                         key={item.id}
-                                        className="min-w-[180px] max-w-[220px] flex-shrink-0 h-full rounded-lg bg-gray-100 border border-gray-300 p-3 shadow-sm flex flex-col justify-start"
+                                        onClick={() => !isSendingStepCommand && handleStepClick(item.order)}
+                                        className= {`min-w-[180px] max-w-[220px] flex-shrink-0 h-full rounded-lg bg-gray-100 border border-gray-300 p-3 shadow-sm flex flex-col justify-start ${isSendingStepCommand ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-blue-100"}`}
                                     >
                                         <p className="text-sm font-semibold text-gray-900 leading-tight">
                                             {item.title}

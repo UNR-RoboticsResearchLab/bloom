@@ -615,6 +615,45 @@ namespace bloom.Migrations
                     b.ToTable("Robots", (string)null);
                 });
 
+            modelBuilder.Entity("bloom.Models.RsrAssessment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("AgeInMonths")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Percentile")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Pid")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("TotalScore")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Pid")
+                        .IsUnique();
+
+                    b.ToTable("RsrAssessments", (string)null);
+                });
+
             modelBuilder.Entity("bloom.Models.RobotSession", b =>
                 {
                     b.Property<Guid>("Id")

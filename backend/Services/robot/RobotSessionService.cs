@@ -453,7 +453,7 @@ namespace bloom.Services
                 RobotSessionId = sessionId,
                 LessonId = dto.LessonId,
                 SlpId = session.UserId,
-                StudentId = session.UserId,
+                StudentId = dto.StudentId,
                 StartedAt = DateTime.UtcNow,
                 Status = "active",
             };
@@ -692,28 +692,29 @@ namespace bloom.Services
 
         public async Task<List<StudentLessonHistoryDto>> GetStudentLessonHistoryAsync(string studentId)
         {
-            // Match runs either by LessonRun.StudentId directly or by the owning session's
-            // UserId. The session-level join keeps historical rows queryable for runs
+            // Session-level join keeps historical rows queryable for runs
             // created before LessonRun.StudentId was populated.
-            var query =
-                from run in _dbContext.LessonRuns
-                join session in _dbContext.RobotSessions on run.RobotSessionId equals session.Id
-                where run.StudentId == studentId || session.UserId == studentId
-                orderby run.StartedAt descending
-                select new StudentLessonHistoryDto
+            return await _dbContext.LessonRuns
+                .Join(
+                    _dbContext.RobotSessions,
+                    run => run.RobotSessionId,
+                    session => session.Id,
+                    (run, session) => new { run, session })
+                .Where(x => x.run.StudentId == studentId || x.session.UserId == studentId)
+                .OrderByDescending(x => x.run.StartedAt)
+                .Select(x => new StudentLessonHistoryDto
                 {
-                    LessonRunId = run.Id,
-                    LessonId = run.LessonId,
-                    LessonTitle = run.Lesson != null ? run.Lesson.Title : string.Empty,
-                    RobotSessionId = run.RobotSessionId,
-                    StartedAt = run.StartedAt,
-                    EndedAt = run.EndedAt,
-                    Status = run.Status,
+                    LessonRunId = x.run.Id,
+                    LessonId = x.run.LessonId,
+                    LessonTitle = x.run.Lesson != null ? x.run.Lesson.Title : string.Empty,
+                    RobotSessionId = x.run.RobotSessionId,
+                    StartedAt = x.run.StartedAt,
+                    EndedAt = x.run.EndedAt,
+                    Status = x.run.Status,
                     InteractionCount = _dbContext.LessonInteractions
-                        .Count(li => li.LessonRunId == run.Id)
-                };
-
-            return await query.ToListAsync();
+                        .Count(li => li.LessonRunId == x.run.Id)
+                })
+                .ToListAsync();
         }
         public async Task StopLessonAsync(Guid sessionId)
         {
@@ -736,5 +737,6 @@ namespace bloom.Services
             _dbContext.RobotSessions.Update(session);
             await _dbContext.SaveChangesAsync();
         }
+
     }
 }

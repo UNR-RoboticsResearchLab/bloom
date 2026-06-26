@@ -6,10 +6,10 @@
     "@heroicons/react": "^2.2.0",
     "@material-tailwind/react": "^2.1.10",
     "bootstrap": "^5.3.8",
-    "http-proxy-middleware": "^0.19.1",
+    "http-proxy-middleware": "^4.0.0",
     "jquery": "^3.6.0",
     "merge": "^2.1.1",
-    "oidc-client": "^1.11.5",
+    "oidc-client": "^1.10.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-popper": "^2.3.0",
@@ -72,5 +72,5 @@
       "last 1 safari version"
     ]
   },
-  "homepage": "http://localhost:3000"
+  "homepage": "/"
 }

@@ -69,6 +69,7 @@ services:
       dockerfile: Dockerfile
     image: arsr-service:latest
     container_name: arsr-service
+    # TODO: collides with auto_rsr below on host port 5050 - remap one of these.
     ports:
       - "5050:5050"
     environment:
@@ -80,6 +81,30 @@ services:
       - bloom-network
     restart: always
 
+  auto_rsr:
+    build:
+      context: ./AutoRSR
+    image: auto-rsr:latest
+    container_name: auto-rsr
+    restart: always
+    environment:
+      - ARSR_PORT=5050
+      - ARSR_RECORDINGS_DIR=/app/uploads/recordings
+    # TODO: collides with arsr-service above on host port 5050 - remap one of these.
+    ports:
+      - "5050:5050"
+    volumes:
+      - rsr_recordings:/app/uploads/recordings
+    networks:
+      - bloom-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
 networks:
   bloom-network:
     driver: bridge
@@ -88,4 +113,4 @@ volumes:
   dpkeys:
   db_data:
   arsr_recordings:
-
+  rsr_recordings:

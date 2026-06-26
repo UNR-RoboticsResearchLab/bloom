@@ -113,6 +113,10 @@ void LessonCoordinator::stop_lesson() {
     interrupt_msg.data = "interrupt";
     tts_interrupt_pub_->publish(interrupt_msg);
 
+    auto va_msg = std_msgs::msg::String();
+    va_msg.data = "{\"command\": \"hide\"}";
+    visual_aid_publisher_->publish(va_msg);
+
     auto mode_msg = std_msgs::msg::String();
     mode_msg.data = "lesson_mode";
     llm_mode_pub_->publish(mode_msg);
@@ -316,6 +320,25 @@ void LessonCoordinator::on_tts_done(const std_msgs::msg::String::SharedPtr) {
         return;
     }
 
+    // LLM spoke a tangent response without [RETURN_TO_LESSON] — re-open mic for next exchange
+    if (waiting_for_wrap_up_ && !waiting_for_tts_done_ && !waiting_for_interaction_tts_ && !waiting_for_llm_tts_done_) {
+        RCLCPP_INFO(this->get_logger(), "[TTS_DONE] LLM tangent response done — re-opening mic");
+        step_timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(50),
+            [this]() {
+                step_timer_->cancel();
+                step_timer_ = nullptr;
+                auto stt_msg = std_msgs::msg::String();
+                stt_msg.data = "true";
+                auto chime_msg = std_msgs::msg::String();
+                chime_msg.data = "play";
+                chime_pub_->publish(chime_msg);
+                stt_enable_pub_->publish(stt_msg);
+                waiting_for_response_ = true;
+                RCLCPP_INFO(this->get_logger(), "Now listening for student response (tangent continue)");
+            });
+        return;
+    }
     if (waiting_for_tts_done_) {
         if (waiting_for_wrap_up_) {
             RCLCPP_WARN(this->get_logger(), "[TTS_DONE] waiting_for_wrap_up_ still true, not advancing");
@@ -338,7 +361,7 @@ void LessonCoordinator::on_llm_wrap_up(const std_msgs::msg::String::SharedPtr) {
         auto mode_msg = std_msgs::msg::String();
         mode_msg.data = conversation_mode_ ? "conversation_lesson" : "lesson_mode";
         llm_mode_pub_->publish(mode_msg);
-        waiting_for_tts_done_ = true;
+        waiting_for_llm_tts_done_ = true;
     } else if (waiting_for_single_turn_) {
         waiting_for_single_turn_ = false;
         waiting_for_llm_tts_done_ = true;
@@ -446,6 +469,25 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
             waiting_for_llm_tts_done_ = false;
             return;
         }
+        if (interaction.llm_follow_up) {
+            RCLCPP_INFO(this->get_logger(), "[VOSK] llm_follow_up step — waiting for LLM wrap-up");
+            
+            log_interaction_to_backend(step.step_order, "student", response, std::nullopt);
+            
+            waiting_for_response_ = false;
+            
+            auto stt_msg = std_msgs::msg::String();
+            stt_msg.data = "false";
+            stt_enable_pub_->publish(stt_msg);
+            
+            if (feedback_poller_) feedback_poller_->set_polling_active(false);
+            
+            if (step_timer_) {
+                step_timer_->cancel();
+                step_timer_ = nullptr;
+            }
+            return;  
+        }   
 
         RCLCPP_DEBUG(this->get_logger(), "Received speech input: %s", response.c_str());
 
@@ -567,6 +609,14 @@ void LessonCoordinator::advance_to_next_step() {
 
     const LessonStep &current_step = current_lesson_.sequence[current_step_index_];
     current_step_index_++;
+    if (current_step.type == "loop") {
+        RCLCPP_INFO(this->get_logger(), "[LOOP] Restarting demo lesson");
+        current_step_index_ = 0;
+        update_progress_with_backend();
+        execute_step(current_lesson_.sequence[0]);
+        return;
+    }
+
     update_progress_with_backend();
     execute_step(current_step);
 }

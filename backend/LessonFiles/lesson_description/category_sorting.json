@@ -1,0 +1,100 @@
+{
+  "lesson": {
+    "title": "Category Sorting",
+    "grade": "Elementary",
+    "objectives": ["identify categories", "sort items into the correct category"]
+  },
+  "sequence": [
+    {
+      "id": 1,
+      "type": "introduction",
+      "script": "Hi there! Today we are going to learn about categories! A category is a group of things that belong together because they share something in common. Like all fruits belong together, or all animals belong together!",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "excited"
+    },
+    {
+      "id": 2,
+      "type": "definition",
+      "script": "When we sort things into categories, we look for what they have in common. Apple, banana, and grape are all fruits. Hammer, screwdriver, and wrench are all tools. Sorting helps our brain organize information and makes it easier to remember things!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy"
+    },
+    {
+      "id": 3,
+      "type": "example",
+      "script": "Let me show you how it works. If I say rose, tulip, and daisy, what category do they belong to? They are all flowers! And if I say soccer, basketball, and tennis, they are all sports! Do you see how we find what they have in common?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_up"
+    },
+    {
+      "id": 4,
+      "type": "interactive_question",
+      "script": "Okay your turn! Listen carefully. Shirt, pants, and shoes. What category do these belong to?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked what category shirt, pants, and shoes belong to. The correct answer is clothing or clothes. Accept any reasonable variation like things you wear, outfits, or apparel. Evaluate their response. If they got it right, praise them enthusiastically. If they said something incorrect, gently explain that shirt, pants, and shoes are all things we wear so they belong to the clothing category. If they said nothing, say that is okay and explain the answer.",
+        "fallback_script": "That is okay! Shirt, pants, and shoes are all things we wear, so they belong to the clothing category!"
+      }
+    },
+    {
+      "id": 5,
+      "type": "interactive_question",
+      "script": "Great job! Here is another one. Piano, guitar, and drums. What category do these belong to?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_right",
+      "interaction": {
+        "wait_for_response": true,
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked what category piano, guitar, and drums belong to. The correct answer is musical instruments or instruments. Accept any reasonable variation like things you play music with or music. Evaluate their response. If they got it right, praise them enthusiastically. If they said something incorrect, gently explain that piano, guitar, and drums are all things we use to make music so they belong to the musical instruments category. If they said nothing, say that is okay and explain the answer.",
+        "fallback_script": "That is okay! Piano, guitar, and drums are all musical instruments because we use them to make music!"
+      }
+    },
+    {
+      "id": 6,
+      "type": "interactive_question",
+      "script": "You are on a roll! Listen to these. Carrot, broccoli, and spinach. What category do these belong to?",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "look_up",
+      "interaction": {
+        "wait_for_response": true,
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked what category carrot, broccoli, and spinach belong to. The correct answer is vegetables or veggies. Accept any reasonable variation like healthy food or greens. Evaluate their response. If they got it right, praise them enthusiastically. If they said something incorrect, gently explain that carrots, broccoli, and spinach are all vegetables we eat to stay healthy. If they said nothing, say that is okay and explain the answer.",
+        "fallback_script": "That is okay! Carrot, broccoli, and spinach are all vegetables, which are healthy foods we eat!"
+      }
+    },
+    {
+      "id": 7,
+      "type": "interactive_question",
+      "script": "Last one! You are doing so well. Listen carefully. Doctor, teacher, and firefighter. What category do these belong to?",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "look_left",
+      "interaction": {
+        "wait_for_response": true,
+        "single_turn_llm": true,
+        "max_wait_seconds": 15,
+        "single_turn_llm_prompt": "The student was asked what category doctor, teacher, and firefighter belong to. The correct answer is jobs or community helpers or people who help us or occupations. Accept any reasonable variation. Evaluate their response. If they got it right, praise them enthusiastically. If they said something incorrect, gently explain that doctors, teachers, and firefighters are all jobs that people do to help others in our community. If they said nothing, say that is okay and explain the answer.",
+        "fallback_script": "That is okay! Doctor, teacher, and firefighter are all jobs or community helpers, people who work to help others!"
+      }
+    },
+    {
+      "id": 8,
+      "type": "summary",
+      "script": "Incredible work today! We learned that a category is a group of things that share something in common. Clothing, instruments, vegetables, and jobs are all categories. When you see a group of things, try to think about what they all have in common!",
+      "behaviors": {"behavior": "happy"},
+      "motor_sequence": "happy"
+    },
+    {
+      "id": 9,
+      "type": "closing",
+      "script": "You are a category sorting champion! I am so proud of how hard you worked today. Keep looking for categories in the world around you. See you next time!",
+      "behaviors": {"behavior": "excited"},
+      "motor_sequence": "bounce_smooth"
+    }
+  ]
+}

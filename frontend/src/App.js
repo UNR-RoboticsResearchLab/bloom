@@ -33,6 +33,7 @@ import AddLessonCard from "./pages/AddLessonCard";
 import LessonView from "./pages/LessonView";
 import EditAccount from "./pages/EditAccount";
 import Demo from "./pages/Demo";
+import RsrAssessment from "./pages/RsrAssessment";
 
 import ArSrStudy       from "./pages/ArSr/ArSrStudy";
 import ArSrResults     from "./pages/ArSr/ArSrResults";
@@ -61,6 +62,7 @@ export default function App() {
         <Route path="/lesson-view" element={<LessonView />} />
         <Route path="/lesson-history/:sessionId" element={<LessonHistory />} />
         <Route path="/demo" element={<Demo />} />
+        <Route path="/rsr-assessment" element={<RsrAssessment />} />
         
         <Route path="/add-student" element={<AddStudentCard />} />
 

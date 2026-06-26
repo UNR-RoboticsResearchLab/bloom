@@ -539,6 +539,18 @@ namespace bloom.Controllers
             return Ok(events);
         }
 
+        [HttpDelete("{sessionId}/user")]
+        public async Task<IActionResult> UnpairUser(Guid sessionId)
+        {
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            await _sessionService.ClearSessionUserAsync(sessionId);
+            _logger.LogInformation("User unpaired from session {SessionId}", sessionId);
+            return Ok(new { Message = "User unpaired successfully", SessionId = sessionId });
+        }
+
         #endregion
     }
 }

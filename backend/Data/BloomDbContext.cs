@@ -26,6 +26,7 @@ namespace bloom.Data
         public DbSet<LessonRun> LessonRuns { get; set; }
         public DbSet<StepInteraction> StepInteractions { get; set; }
         public DbSet<SLPClient> SLPClients { get; set; }
+        public DbSet<RsrAssessment> RsrAssessments { get; set; }
 
         public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
         {
@@ -174,11 +175,17 @@ namespace bloom.Data
                 entity.OwnsOne(r => r.RobotState);
             });
 
-            builder.Entity<Robot>(entity => { 
+            builder.Entity<Robot>(entity => {
                 entity.HasOne(r => r.RegisteredUser)
                     .WithMany(a => a.RegisteredRobots)
                     .HasForeignKey(r => r.RegisteredUserId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            builder.Entity<RsrAssessment>(entity =>
+            {
+                entity.ToTable("RsrAssessments");
+                entity.HasIndex(a => a.Pid).IsUnique();
             });
 
         }

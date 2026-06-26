@@ -58,7 +58,8 @@ export default function SignIn() {
 
       console.log("user.role:", user.role);
       console.log("normalizedRole:", normalizedRole);
-      navigate(dashboardPathForRole(normalizedRole), { replace: true });
+      // navigate(dashboardPathForRole(normalizedRole), { replace: true });
+      window.location.href = dashboardPathForRole(normalizedRole);
     } catch (error) {
       console.error("Sign in error:", error);
       if (error.message.includes("Invalid login attempt")) {

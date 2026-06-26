@@ -375,4 +375,29 @@ export default class ApiClient {
       method: "GET",
     });
   }
+
+  // ── RSR Assessment ────────────────────────────────────────────────────────
+
+  async analyzeRsr(formData) {
+    const url = `${this.baseUrl}/api/rsr/analyze`;
+    const response = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    return response.json();
+  }
+
+  async getRsrAssessments(studentId) {
+    const qs = studentId ? `?studentId=${encodeURIComponent(studentId)}` : "";
+    return this.request(`/api/rsr/assessments${qs}`, { method: "GET" });
+  }
+
+  async getRsrAssessment(id) {
+    return this.request(`/api/rsr/assessments/${id}`, { method: "GET" });
+  }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -6,17 +6,24 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace bloom.Migrations
 {
     /// <inheritdoc />
-    public partial class AddRsrAssessments : Migration
+    public partial class AddRsrAssessmentsAndParticipantCode : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<string>(
+                name: "ParticipantCode",
+                table: "Accounts",
+                type: "longtext",
+                nullable: true)
+                .Annotation("MySql:CharSet", "utf8mb4");
+
             migrationBuilder.CreateTable(
                 name: "RsrAssessments",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Pid = table.Column<string>(type: "varchar(16)", maxLength: 16, nullable: false)
+                    Pid = table.Column<string>(type: "varchar(255)", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     AgeInMonths = table.Column<int>(type: "int", nullable: false),
                     Percentile = table.Column<int>(type: "int", nullable: false),
@@ -43,7 +50,12 @@ namespace bloom.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(name: "RsrAssessments");
+            migrationBuilder.DropTable(
+                name: "RsrAssessments");
+
+            migrationBuilder.DropColumn(
+                name: "ParticipantCode",
+                table: "Accounts");
         }
     }
 }

@@ -28,10 +28,10 @@ namespace bloom.Data
         public DbSet<SLPClient> SLPClients { get; set; }
         public DbSet<RsrAssessment> RsrAssessments { get; set; }
 
-        public BloomDbContext(DbContextOptions dbContextOptions) : base(dbContextOptions)
+        public BloomDbContext(DbContextOptions<BloomDbContext> dbContextOptions) : base(dbContextOptions)
         {
-            
-            
+
+
         }
 
         protected override void OnModelCreating(ModelBuilder builder)

@@ -21,8 +21,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Get ConnectionString
 var build_environmment = builder.Environment.EnvironmentName;
 var ConnectionString = build_environmment == "Production"
-        ? builder.Configuration.GetConnectionString("ProductionConnection") 
+        ? builder.Configuration.GetConnectionString("ProductionConnection")
         : builder.Configuration.GetConnectionString("DefaultConnection");
+var ArSrConnectionString = build_environmment == "Production"
+        ? builder.Configuration.GetConnectionString("ProdArsrConnection")
+        : builder.Configuration.GetConnectionString("DevArsrConnection");
 
 var redactedConnectionString = System.Text.RegularExpressions.Regex.Replace(
     ConnectionString ?? "", @"(?i)(password|pwd)=[^;]*", "$1=***");
@@ -76,8 +79,10 @@ builder.Services.AddDbContext<BloomDbContext>(options =>
 
     )));
 
+
+// arsr db context
 builder.Services.AddDbContext<ArSrDbContext>(options =>
-    options.UseMySql(ConnectionString,
+    options.UseMySql(ArSrConnectionString,
         new MySqlServerVersion(new Version(11, 7, 2)),
         mySqlOptions => mySqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 5,

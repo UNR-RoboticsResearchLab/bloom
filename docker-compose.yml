@@ -40,6 +40,20 @@ services:
     networks:
       - bloom-network
 
+  arsr-db-dev:
+    image: mariadb:latest
+    container_name: arsr-db-dev
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: arsrrootpassword
+      MARIADB_DATABASE: arsrdbl
+    ports:
+      - "3307:3306"
+    volumes:
+      - arsr_db_data:/var/lib/mysql
+    networks:
+      - bloom-network
+
   bloom-server-dev:
     build:
       context: .
@@ -47,10 +61,12 @@ services:
     image: bloom-server-dev:latest
     container_name: bloom-server-dev
     ports:
-      - "5000:8080"
+      - "8080:8080"
       - "2443:2443"
     depends_on:
       mariadb-dev:
+        condition: service_started
+      arsr-db-dev:
         condition: service_started
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
@@ -63,23 +79,23 @@ services:
       - bloom-network
 
 
-  arsr-service:
-    build:
-      context: ../AutoRsr-NoBert-SARG
-      dockerfile: Dockerfile
-    image: arsr-service:latest
-    container_name: arsr-service
-    # TODO: collides with auto_rsr below on host port 5050 - remap one of these.
-    ports:
-      - "5050:5050"
-    environment:
-      - ARSR_PORT=5050
-      - ARSR_RECORDINGS_DIR=/data/recordings
-    volumes:
-      - arsr_recordings:/data/recordings
-    networks:
-      - bloom-network
-    restart: always
+  # Superseded by auto_rsr below (old ArSr integration; backend wiring disabled in Program.cs).
+  # arsr-service:
+  #   build:
+  #     context: ../AutoRsr-NoBert-SARG
+  #     dockerfile: Dockerfile
+  #   image: arsr-service:latest
+  #   container_name: arsr-service
+  #   ports:
+  #     - "5050:5050"
+  #   environment:
+  #     - ARSR_PORT=5050
+  #     - ARSR_RECORDINGS_DIR=/data/recordings
+  #   volumes:
+  #     - arsr_recordings:/data/recordings
+  #   networks:
+  #     - bloom-network
+  #   restart: always
 
   auto_rsr:
     build:
@@ -112,5 +128,6 @@ networks:
 volumes:
   dpkeys:
   db_data:
+  arsr_db_data:
   arsr_recordings:
   rsr_recordings:

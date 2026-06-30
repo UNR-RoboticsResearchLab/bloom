@@ -210,6 +210,7 @@ builder.Services.AddScoped<IRobotSessionService, RobotSessionService>();
 builder.Services.AddScoped<IRobotStateService, RobotStateService>();
 builder.Services.AddScoped<ISLPClientService, SLPClientService>();
 builder.Services.AddSingleton<IStepControlService, StepControlService>();
+builder.Services.AddSingleton<IRsrSpeechService, RsrSpeechService>();
 
 // AutoRSR microservice integration
 var autoRsrBaseUrl = builder.Configuration["AutoRsr:BaseUrl"] ?? "http://localhost:5050";

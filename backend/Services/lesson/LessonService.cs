@@ -29,7 +29,7 @@ namespace bloom.Services
 
                 // Resolve steps: prefer structured Steps, fall back to parsing LessonDescription JSON
                 var steps = lesson.Steps;
-                string? objectives = lesson.LearningObjectives;
+                IEnumerable<string?> objectives = lesson.LearningObjectives;
 
                 if ((steps == null || steps.Count == 0) && !string.IsNullOrEmpty(lesson.LessonDescription))
                 {
@@ -50,12 +50,42 @@ namespace bloom.Services
 
                 if (steps != null && steps.Count > 0)
                 {
-                    newLesson.Steps = steps.Select((s, i) =>
+                    var behaviorCache = new Dictionary<string, Behavior>(StringComparer.OrdinalIgnoreCase);
+                    var resolvedSteps = new List<LessonStep>();
+
+                    for (int i = 0; i < steps.Count; i++)
                     {
+                        var s = steps[i];
+
+                        Behavior? behavior = null;
+                        if (s.Behaviors != null && !string.IsNullOrWhiteSpace(s.Behaviors.Behavior))
+                        {
+                            var cacheKey = $"{s.Behaviors.Behavior}|{s.Behaviors.FacialExpression}";
+                            if (!behaviorCache.TryGetValue(cacheKey, out behavior))
+                            {
+                                behavior = await _context.Behaviors.FirstOrDefaultAsync(b =>
+                                    b.Name == s.Behaviors.Behavior && b.FacialExpression == s.Behaviors.FacialExpression);
+                                if (behavior == null)
+                                {
+                                    behavior = new Behavior
+                                    {
+                                        Name = s.Behaviors.Behavior,
+                                        FacialExpression = s.Behaviors.FacialExpression,
+                                        Gaze = s.Behaviors.Gaze,
+                                        HeadMovement = s.Behaviors.HeadMovement,
+                                        CreatedDate = DateTime.UtcNow
+                                    };
+                                    _context.Behaviors.Add(behavior);
+                                }
+                                behaviorCache[cacheKey] = behavior;
+                            }
+                        }
+
                         var step = new LessonStep
                         {
                             LessonId = newLesson.Id,
                             StepOrder = s.StepOrder > 0 ? s.StepOrder : i + 1,
+                            Title = s.Title,
                             Type = s.Type,
                             Script = s.Script,
                             TimingSeconds = s.TimingSeconds,
@@ -63,7 +93,7 @@ namespace bloom.Services
                             VisualAidLabels = s.VisualAidLabels,
                             VisualAidFooters = s.VisualAidFooters,
                             MotorSequence = s.MotorSequence,
-                            Behaviors = s.Behaviors,
+                            Behaviors = behavior,
                         };
 
                         if (s.Interaction != null)
@@ -84,8 +114,10 @@ namespace bloom.Services
                             };
                         }
 
-                        return step;
-                    }).ToList();
+                        resolvedSteps.Add(step);
+                    }
+
+                    newLesson.Steps = resolvedSteps;
                 }
 
                 _context.Lessons.Add(newLesson);
@@ -111,6 +143,8 @@ namespace bloom.Services
                     .Include(l => l.Assignments)
                     .Include(l => l.Steps.OrderBy(s => s.StepOrder))
                         .ThenInclude(s => s.Interaction)
+                    .Include(l => l.Steps)
+                        .ThenInclude(s => s.Behaviors)
                     .AsSplitQuery()
                     .FirstOrDefaultAsync(l => l.Id == new Guid(id));
 
@@ -259,10 +293,10 @@ namespace bloom.Services
         // Parses the original lesson JSON file format into structured steps and objectives.
         // Handles both { lesson: { objectives: [...] }, sequence: [...] } and
         // { learning_objectives: [...], sequence: [...] } formats.
-        private (List<LessonStepDto> steps, string? objectives) ParseLessonJson(string json)
+        private (List<LessonStepDto> steps, IEnumerable<string?> objectives) ParseLessonJson(string json)
         {
             var steps = new List<LessonStepDto>();
-            string? objectives = null;
+            IEnumerable<string?> objectives = [];
 
             try
             {
@@ -273,11 +307,11 @@ namespace bloom.Services
                 if (root.TryGetProperty("lesson", out var lessonMeta) &&
                     lessonMeta.TryGetProperty("objectives", out var obj1))
                 {
-                    objectives = obj1.GetRawText();
+                    objectives = obj1.EnumerateArray().Select(e => e.GetString());
                 }
                 else if (root.TryGetProperty("learning_objectives", out var obj2))
                 {
-                    objectives = obj2.GetRawText();
+                    objectives = obj2.EnumerateArray().Select(e => e.GetString());
                 }
 
                 if (!root.TryGetProperty("sequence", out var sequence))
@@ -323,8 +357,15 @@ namespace bloom.Services
                             ? vafEl.GetRawText() : null,
                         MotorSequence = step.TryGetProperty("motor_sequence", out var msEl)
                             ? msEl.GetString() : null,
-                        Behaviors = step.TryGetProperty("behaviors", out var beh)
-                            ? beh.GetRawText() : null,
+                        Behaviors = step.TryGetProperty("behaviors", out var beh) &&
+                                    beh.TryGetProperty("behavior", out var bn) &&
+                                    !string.IsNullOrWhiteSpace(bn.GetString())
+                                    ? new StepBehaviorsDto
+                                    {
+                                        Behavior = bn.GetString()!,
+                                        FacialExpression = beh.TryGetProperty("facial_expression", out var fe) ? fe.GetString() : null,
+                                    }
+                                    : null,
                         Interaction = interactionDto
                     });
                     order++;

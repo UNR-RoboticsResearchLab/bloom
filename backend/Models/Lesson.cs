@@ -23,8 +23,7 @@ namespace bloom.Models
 
         public int TotalSteps { get; set; }
 
-        // JSON array string: ["objective one", "objective two"]
-        public string? LearningObjectives { get; set; }
+        public IEnumerable<string?> LearningObjectives = new List<string?>();
 
         [Required]
         public required string CreatedById { get; set; }

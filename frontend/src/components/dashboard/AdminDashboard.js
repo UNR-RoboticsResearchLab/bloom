@@ -289,11 +289,11 @@ export default function AdminDashboard() {
     return ["all", ...new Set(events.map(e => e.source || e.Source).filter(Boolean))];
   }, [events]);
 
-  // async function handleLessonSubmit(dto) {
-  //   await api.createLesson(dto);
-  //   setLessonSuccess(`"${dto.title}" saved.`);
-  //   setLessonPaneOpen(false);
-  // }
+  async function handleLessonSubmit(dto) {
+    await api.createLesson(dto);
+    setLessonSuccess(`"${dto.title}" saved.`);
+    setLessonPaneOpen(false);
+  }
 
   return (
     <DashboardLayout title="Admin Dashboard">
@@ -493,10 +493,10 @@ export default function AdminDashboard() {
                 &times;
               </button>
             </div>
-            {/* <LessonBuilder
+            <LessonBuilder
               onSubmit={handleLessonSubmit}
               onCancel={() => setLessonPaneOpen(false)}
-            /> */}
+            />
           </div>
         </div>
       )}

@@ -27,6 +27,7 @@ namespace bloom.Data
         public DbSet<StepInteraction> StepInteractions { get; set; }
         public DbSet<SLPClient> SLPClients { get; set; }
         public DbSet<RsrAssessment> RsrAssessments { get; set; }
+        public DbSet<Behavior> Behaviors { get; set; }
 
         public BloomDbContext(DbContextOptions<BloomDbContext> dbContextOptions) : base(dbContextOptions)
         {
@@ -70,6 +71,11 @@ namespace bloom.Data
                     .WithOne(i => i.LessonStep)
                     .HasForeignKey<LessonStep>(s => s.InteractionId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(s => s.Behaviors)
+                    .WithMany()
+                    .HasForeignKey(s => s.BehaviorId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             builder.Entity<StepInteraction>(entity =>

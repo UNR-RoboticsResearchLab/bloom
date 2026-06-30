@@ -376,6 +376,33 @@ export default class ApiClient {
     });
   }
 
+  async getAvailableBehaviors() {
+    return this.request("/api/robot/behaviors", { method: "GET" });
+  }
+
+  async getAvailableMotorSequences() {
+    return this.request("/api/robot/motorsequences", { method: "GET" });
+  }
+
+  // ── Lesson Content — Visual Aid Upload ───────────────────────────────────
+
+  async uploadVisualAid(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const url = `${this.baseUrl}/api/lesson/steps/visual-aid`;
+    const response = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    return response.json();
+  }
+
   // ── RSR Assessment ────────────────────────────────────────────────────────
 
   async analyzeRsr(formData) {

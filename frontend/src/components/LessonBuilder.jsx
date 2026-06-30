@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import LessonStepBuilder from "./LessonStepBuilder";
+import { useApiClient } from "../context/ApiClientContext";
 
 const LESSON_TYPES = [
   { value: 0, label: "Language" },
@@ -16,10 +17,12 @@ function emptyStep(order) {
   return {
     _id: crypto.randomUUID(),
     stepOrder: order,
+    title: "",
     type: "",
     script: "",
     timingSeconds: null,
     visualAid: null,
+    motorSequence: null,
     behaviors: null,
     interaction: null,
   };
@@ -35,6 +38,9 @@ function parseObjectives(json) {
 }
 
 export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel }) {
+  const api = useApiClient();
+  const [behaviorOptions, setBehaviorOptions] = useState([]);
+  const [motorSequenceOptions, setMotorSequenceOptions] = useState([]);
   const [title, setTitle] = useState(initialLesson?.title ?? "");
   const [description, setDescription] = useState(initialLesson?.description ?? "");
   const [lessonType, setLessonType] = useState(initialLesson?.lessonType ?? 0);
@@ -51,6 +57,11 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
   );
   const [err, setErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    api.getAvailableBehaviors().then(setBehaviorOptions).catch(() => setBehaviorOptions([]));
+    api.getAvailableMotorSequences().then(setMotorSequenceOptions).catch(() => setMotorSequenceOptions([]));
+  }, [api]);
 
   function updateObjective(id, text) {
     setObjectives((prev) => prev.map((o) => (o._id === id ? { ...o, text } : o)));
@@ -109,10 +120,12 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
         steps: steps.map((s, i) => ({
           ...(s.id ? { id: s.id } : {}),
           stepOrder: i + 1,
+          title: s.title || null,
           type: s.type,
           script: s.script,
           timingSeconds: s.timingSeconds,
           visualAid: s.visualAid,
+          motorSequence: s.motorSequence || null,
           behaviors: s.behaviors,
           interaction: s.interaction,
         })),
@@ -239,6 +252,8 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
               stepNumber={index + 1}
               isFirst={index === 0}
               isLast={index === steps.length - 1}
+              behaviorOptions={behaviorOptions}
+              motorSequenceOptions={motorSequenceOptions}
               onChange={(dto) => handleStepChange(step._id, dto)}
               onRemove={() => removeStep(step._id)}
               onMoveUp={() => moveStep(step._id, -1)}

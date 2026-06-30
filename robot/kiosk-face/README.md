@@ -20,14 +20,28 @@ playback mode.
 python robot/scripts/generate_rsr_audio.py
 ```
 
-Writes `backend/wwwroot/rsr-audio/{sentence_NN.wav, sentence_NN.visemes.json,
-manifest.json}`. Re-run only if the sentence list or voice changes.
+Writes `backend/wwwroot/rsr-audio/{sentence_NN.<ext>, sentence_NN.visemes.json,
+manifest.json}`. Re-run only if the sentence list, voice, or recordings
+change.
 
 Confirm it's being served:
 
 ```
 curl $BACKEND_URL/api/rsr-speech/sentences
 ```
+
+### Using your own recordings instead of Azure TTS
+
+Drop a file named `sentence_NN.wav` (matching the `id` in `rsr_sentences.json`,
+zero-padded — e.g. `sentence_03.wav`) into `robot/scripts/recordings/`. `.flac`
+and `.ogg` also work; `.mp3` does not (soundfile can't read it — convert it
+first). Re-run the script. Sentences with a matching recording use that audio
+file as-is; Azure is still queried for that sentence's text to produce a
+viseme timeline, which is time-stretched to match the recording's actual
+duration (recordings have no viseme data of their own, so this is an
+approximation, not a true alignment). Sentences without a recording fall back
+to full Azure synthesis, unchanged. `--recordings-dir` overrides the default
+location.
 
 ## 2. Register a test robot
 

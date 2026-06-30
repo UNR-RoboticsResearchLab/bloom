@@ -28,3 +28,6 @@ current_visemes.json
 # Secrets
 .env
 config.py
+
+# RSR sentence recordings (personal, not checked in)
+scripts/recordings/

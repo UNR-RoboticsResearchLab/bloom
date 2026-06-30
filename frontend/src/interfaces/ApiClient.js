@@ -400,4 +400,26 @@ export default class ApiClient {
   async getRsrAssessment(id) {
     return this.request(`/api/rsr/assessments/${id}`, { method: "GET" });
   }
+
+  // ── RSR Speech (sentence audio + robot face playback) ───────────────────────
+
+  async getRsrSentenceManifest() {
+    return this.request("/api/rsr-speech/sentences", { method: "GET" });
+  }
+
+  async getRobotIdFromCode(code) {
+    const { sessionId } = await this.getSessionIdFromRobotCode(code);
+    const { robotIds } = await this.getSessionRobots(sessionId);
+    if (!robotIds || robotIds.length === 0) {
+      throw new Error("No robot is paired with that code.");
+    }
+    return robotIds[0];
+  }
+
+  async queueRsrSentence(robotId, sentenceId) {
+    return this.request(`/api/rsr-speech/${robotId}/queue`, {
+      method: "POST",
+      body: JSON.stringify({ sentenceId }),
+    });
+  }
 }

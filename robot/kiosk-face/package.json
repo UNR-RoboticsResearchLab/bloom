@@ -1,0 +1,24 @@
+{
+  "name": "bloom-kiosk-face",
+  "private": true,
+  "packageManager": "pnpm@9.12.2",
+  "workspaces": [
+    "packages/*/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter fullscreen-face run dev",
+    "build": "pnpm --filter fullscreen-face run build",
+    "typecheck": "pnpm -r --if-present run typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "source-map": "0.7.4",
+      "zustand": "5.0.9",
+      "use-sync-external-store": "1.6.0"
+    }
+  }
+}

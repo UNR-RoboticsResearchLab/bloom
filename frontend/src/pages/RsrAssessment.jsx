@@ -1,6 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useApiClient } from "../context/ApiClientContext";
 
+// Fallback sentence text, used only if the backend manifest (with pre-generated
+// audio URLs) can't be fetched — keeps the page usable for the no-audio flow.
 const SENTENCES = [
   "The big football player washed the car with the hose.",
   "All of the pictures were colored by his little sister.",
@@ -37,14 +39,91 @@ export default function RsrAssessment() {
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
 
+  // Sentence playback: manifest (with pre-generated audio) fetched on mount,
+  // falling back to the hardcoded text-only list if the backend isn't reachable.
+  const [sentences, setSentences] = useState(
+    SENTENCES.map((text, i) => ({ id: i + 1, text, audioUrl: null, visemeUrl: null }))
+  );
+  const [playMode, setPlayMode] = useState("browser"); // "browser" | "robot"
+  const [pairingCode, setPairingCode] = useState("");
+  const [robotId, setRobotId] = useState(null);
+  const [pairing, setPairing] = useState(false);
+  const [pairError, setPairError] = useState(null);
+  const [playError, setPlayError] = useState(null);
+  const [sentToRobotId, setSentToRobotId] = useState(null);
+
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const sessionStartRef = useRef(null);
   const streamRef = useRef(null);
+  const audioPlayerRef = useRef(null);
+
+  useEffect(() => {
+    api.getRsrSentenceManifest()
+      .then((manifest) => {
+        if (Array.isArray(manifest) && manifest.length > 0) {
+          setSentences(manifest);
+        }
+      })
+      .catch(() => {
+        // Keep the hardcoded fallback; browser playback just won't be available.
+      });
+  }, [api]);
 
   function preferredMimeType() {
     const types = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
     return types.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
+  }
+
+  async function handleConnectRobot() {
+    if (!pairingCode.trim()) {
+      setPairError("Enter a pairing code.");
+      return;
+    }
+    setPairing(true);
+    setPairError(null);
+    try {
+      const id = await api.getRobotIdFromCode(pairingCode.trim());
+      setRobotId(id);
+    } catch (e) {
+      setRobotId(null);
+      setPairError(e.message || "Could not connect to robot.");
+    } finally {
+      setPairing(false);
+    }
+  }
+
+  async function handlePlaySentence() {
+    const sentence = sentences[currentIdx];
+    if (!sentence) return;
+    setPlayError(null);
+
+    if (playMode === "browser") {
+      if (!sentence.audioUrl) {
+        setPlayError("Audio isn't available for this sentence yet.");
+        return;
+      }
+      const audio = audioPlayerRef.current ?? new Audio();
+      audioPlayerRef.current = audio;
+      audio.src = sentence.audioUrl.startsWith("http") ? sentence.audioUrl : `${api.baseUrl}${sentence.audioUrl}`;
+      try {
+        await audio.play();
+      } catch {
+        setPlayError("Could not play audio in this browser.");
+      }
+    } else {
+      if (!robotId) {
+        setPlayError("Connect a robot with a pairing code first.");
+        return;
+      }
+      try {
+        await api.queueRsrSentence(robotId, sentence.id);
+        setSentToRobotId(sentence.id);
+        setTimeout(() => setSentToRobotId((cur) => (cur === sentence.id ? null : cur)), 2000);
+      } catch (e) {
+        setPlayError(`Could not send sentence to robot: ${e.message}`);
+      }
+    }
   }
 
   async function startAssessment() {
@@ -190,14 +269,68 @@ export default function RsrAssessment() {
           </div>
 
           <div className="mt-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Assessment sentences ({SENTENCES.length} total)</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Assessment sentences ({sentences.length} total)</h3>
             <ol className="text-sm text-gray-500 space-y-1 max-h-48 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 p-3">
-              {SENTENCES.map((s, i) => (
-                <li key={i} className="leading-snug">
-                  <span className="font-mono text-gray-400 mr-2">{i + 1}.</span>{s}
+              {sentences.map((s, i) => (
+                <li key={s.id} className="leading-snug">
+                  <span className="font-mono text-gray-400 mr-2">{i + 1}.</span>{s.text}
                 </li>
               ))}
             </ol>
+          </div>
+
+          <div className="mt-6">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Sentence playback</h3>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPlayMode("browser")}
+                className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                  playMode === "browser"
+                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Web terminal
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlayMode("robot")}
+                className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                  playMode === "robot"
+                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Robot face
+              </button>
+            </div>
+
+            {playMode === "robot" && (
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={pairingCode}
+                  onChange={(e) => setPairingCode(e.target.value)}
+                  placeholder="Robot pairing code"
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleConnectRobot}
+                  disabled={pairing}
+                  className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-40 transition-colors"
+                >
+                  {pairing ? "Connecting…" : robotId ? "Reconnect" : "Connect"}
+                </button>
+              </div>
+            )}
+            {playMode === "robot" && robotId && (
+              <p className="mt-2 text-sm text-green-600">Robot connected.</p>
+            )}
+            {playMode === "robot" && pairError && (
+              <p className="mt-2 text-sm text-red-500">{pairError}</p>
+            )}
           </div>
 
           <button
@@ -213,14 +346,14 @@ export default function RsrAssessment() {
       {phase === PHASE.ASSESSMENT && (
         <div className="space-y-4">
           <div className="flex items-center justify-between text-sm text-gray-500">
-            <span>Sentence {currentIdx + 1} of {SENTENCES.length}</span>
+            <span>Sentence {currentIdx + 1} of {sentences.length}</span>
             <span>{markedCount} recorded</span>
           </div>
 
           <div className="w-full bg-gray-200 rounded-full h-1.5">
             <div
               className="bg-blue-500 h-1.5 rounded-full transition-all"
-              style={{ width: `${(currentIdx / SENTENCES.length) * 100}%` }}
+              style={{ width: `${(currentIdx / sentences.length) * 100}%` }}
             />
           </div>
 
@@ -229,8 +362,22 @@ export default function RsrAssessment() {
               Read this sentence aloud to the student:
             </p>
             <p className="text-xl font-medium text-gray-800 leading-relaxed">
-              {SENTENCES[currentIdx]}
+              {sentences[currentIdx]?.text}
             </p>
+
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handlePlaySentence}
+                className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                ▶ Play {playMode === "robot" ? "on robot" : "in browser"}
+              </button>
+              {sentToRobotId === sentences[currentIdx]?.id && (
+                <span className="text-sm text-green-600 font-medium">Sent to robot</span>
+              )}
+            </div>
+            {playError && <p className="mt-2 text-sm text-red-500">{playError}</p>}
 
             <div className="mt-6 flex items-center gap-3">
               {!isRecording ? (
@@ -262,7 +409,7 @@ export default function RsrAssessment() {
           </div>
 
           <div className="flex gap-3">
-            {currentIdx < SENTENCES.length - 1 ? (
+            {currentIdx < sentences.length - 1 ? (
               <>
                 <button
                   onClick={() => { if (!isRecording) setCurrentIdx((i) => i + 1); }}
@@ -290,9 +437,9 @@ export default function RsrAssessment() {
             )}
           </div>
 
-          {currentIdx === SENTENCES.length - 1 && markedCount > 0 && markedCount < SENTENCES.length && (
+          {currentIdx === sentences.length - 1 && markedCount > 0 && markedCount < sentences.length && (
             <p className="text-sm text-gray-500 text-center">
-              {markedCount} of {SENTENCES.length} sentences recorded — you can still submit.
+              {markedCount} of {sentences.length} sentences recorded — you can still submit.
             </p>
           )}
         </div>

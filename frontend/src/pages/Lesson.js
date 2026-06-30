@@ -1,7 +1,9 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useApiClient } from "../context/ApiClientContext";
+import { getSession } from "../utils/auth";
 import SelectStudentCard from "./SelectStudentCard";
+import LessonBuilder from "../components/LessonBuilder";
 
 const TYPE_CONFIG = {
     0: { label: "Language", bg: "bg-blue-50", badge: "bg-blue-100 text-blue-700", accent: "bg-blue-500" },
@@ -112,6 +114,7 @@ export default function Lesson() {
     const [lesson, setLesson] = useState(null);
     const [students, setStudents] = useState([]);
     const [showSelectStudent, setShowSelectStudent] = useState(false);
+    const [showEdit, setShowEdit] = useState(false);
 
     const typeKey = lesson?.lessonType ?? lesson?.LessonType ?? 0;
     const typeConfig = TYPE_CONFIG[typeKey] ?? TYPE_CONFIG[0];
@@ -121,10 +124,18 @@ export default function Lesson() {
     const steps = lesson?.steps ?? lesson?.Steps ?? [];
     const totalSteps = lesson?.totalSteps ?? lesson?.TotalSteps ?? steps.length;
     const createdDate = lesson?.createdDate ?? lesson?.CreatedDate;
+    const createdById = lesson?.createdById ?? lesson?.CreatedById;
+    const session = getSession();
+    const isOwner = Boolean(session?.id && createdById && session.id === createdById);
 
     function handleStudentSelect(student) {
         setShowSelectStudent(false);
         navigate("/lesson-view", { state: { lesson, student } });
+    }
+
+    function handleEditSubmit() {
+        // TODO: wire up to a lesson update endpoint once the backend supports it.
+        setShowEdit(false);
     }
 
     useEffect(() => {
@@ -168,13 +179,21 @@ export default function Lesson() {
     return (
         <main className="max-w-3xl mx-auto space-y-6 pb-8">
             {/* Breadcrumb */}
-            <nav aria-label="Breadcrumb">
+            <nav aria-label="Breadcrumb" className="flex items-center justify-between">
                 <button
                     onClick={() => navigate("/lessons")}
                     className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-indigo-600 transition-colors"
                 >
                     ← Back to Lessons
                 </button>
+                {isOwner && (
+                    <button
+                        onClick={() => setShowEdit(true)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                    >
+                        Edit Lesson
+                    </button>
+                )}
             </nav>
 
             {/* Hero */}
@@ -262,6 +281,23 @@ export default function Lesson() {
                         onSelect={handleStudentSelect}
                         onCancel={() => setShowSelectStudent(false)}
                     />
+                </div>
+            )}
+
+            {showEdit && (
+                <div
+                    className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 sm:p-8"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Edit lesson"
+                >
+                    <div className="mx-auto max-w-7xl rounded-2xl bg-gray-50 shadow-xl">
+                        <LessonBuilder
+                            initialLesson={lesson}
+                            onSubmit={handleEditSubmit}
+                            onCancel={() => setShowEdit(false)}
+                        />
+                    </div>
                 </div>
             )}
         </main>

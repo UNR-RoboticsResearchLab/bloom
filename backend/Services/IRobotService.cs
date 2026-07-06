@@ -76,5 +76,21 @@ namespace bloom.Services
          * <returns>JWT string, or null if no matching robot is found</returns>
          */
         Task<string?> LoginRobotAsync(RobotDto robot);
+
+        /**
+         * <summary>
+         * GetAvailableBehaviorsAsync() returns all unique behavior values found in LessonStep.Behaviors.
+         * </summary>
+         * <returns>Sorted list of distinct behavior name strings</returns>
+         */
+        Task<ICollection<Behavior>> GetAvailableBehaviorsAsync();
+
+        /**
+         * <summary>
+         * GetAvailableMotorSequencesAsync() returns all unique motor sequence values from LessonStep.MotorSequence.
+         * </summary>
+         * <returns>Sorted list of distinct motor sequence name strings</returns>
+         */
+        Task<ICollection<string>> GetAvailableMotorSequencesAsync();
     }
 }

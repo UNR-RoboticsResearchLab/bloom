@@ -220,6 +220,13 @@ export default class ApiClient {
     });
   }
 
+  async generateLessonWithAi(prompt, existingLesson = null) {
+    return this.request("/api/lesson/ai/generate", {
+      method: "POST",
+      body: JSON.stringify({ prompt, existingLesson }),
+    });
+  }
+
   // ── Lesson Progress ───────────────────────────────────────────────────────
 
   async getMyLessonProgress() {
@@ -376,6 +383,33 @@ export default class ApiClient {
     });
   }
 
+  async getAvailableBehaviors() {
+    return this.request("/api/robot/behaviors", { method: "GET" });
+  }
+
+  async getAvailableMotorSequences() {
+    return this.request("/api/robot/motorsequences", { method: "GET" });
+  }
+
+  // ── Lesson Content — Visual Aid Upload ───────────────────────────────────
+
+  async uploadVisualAid(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const url = `${this.baseUrl}/api/lesson/steps/visual-aid`;
+    const response = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    return response.json();
+  }
+
   // ── RSR Assessment ────────────────────────────────────────────────────────
 
   async analyzeRsr(formData) {
@@ -399,5 +433,27 @@ export default class ApiClient {
 
   async getRsrAssessment(id) {
     return this.request(`/api/rsr/assessments/${id}`, { method: "GET" });
+  }
+
+  // ── RSR Speech (sentence audio + robot face playback) ───────────────────────
+
+  async getRsrSentenceManifest() {
+    return this.request("/api/rsr-speech/sentences", { method: "GET" });
+  }
+
+  async getRobotIdFromCode(code) {
+    const { sessionId } = await this.getSessionIdFromRobotCode(code);
+    const { robotIds } = await this.getSessionRobots(sessionId);
+    if (!robotIds || robotIds.length === 0) {
+      throw new Error("No robot is paired with that code.");
+    }
+    return robotIds[0];
+  }
+
+  async queueRsrSentence(robotId, sentenceId) {
+    return this.request(`/api/rsr-speech/${robotId}/queue`, {
+      method: "POST",
+      body: JSON.stringify({ sentenceId }),
+    });
   }
 }

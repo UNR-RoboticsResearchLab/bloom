@@ -329,7 +329,9 @@ namespace bloom.Controllers
 
         /// <summary>
         /// Returns the IDs of all robots currently in the specified session.
+        /// Anonymous so the RSR Assessment page (no login) can resolve a robot from a pairing code.
         /// </summary>
+        [AllowAnonymous]
         [HttpGet("{sessionId}/robots")]
         public async Task<IActionResult> GetSessionRobots(Guid sessionId)
         {

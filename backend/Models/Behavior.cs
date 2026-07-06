@@ -13,10 +13,18 @@ namespace bloom.Models
         public int Id { get; set; }
         [Required]
         public required string Name { get; set; }
+
+        public string? FacialExpression { get; set; }
+
+        public string? Gaze { get; set; }
+
+        public string? HeadMovement { get; set; }
         public string? Description { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
 
+
+        // experimental
         public string? BehaviorType { get; set; }
         public double? Scaling { get; set; }
     }

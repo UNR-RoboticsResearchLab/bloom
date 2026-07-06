@@ -75,6 +75,15 @@ What happens:
 5. Bloom responds with animated face
 6. Press Ctrl+C to stop
 
+
+## Systemd Service
+
+sudo cp robot/bloom.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable bloom
+sudo systemctl start bloom
+
+
 ## How It Works
 
 **Flow:**

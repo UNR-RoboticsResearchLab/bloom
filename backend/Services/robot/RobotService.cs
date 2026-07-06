@@ -154,6 +154,25 @@ namespace bloom.Services
             return GenerateRobotJwt(robot);
         }
 
+        public async Task<ICollection<Behavior>> GetAvailableBehaviorsAsync()
+        {
+            return await _dbContext.Behaviors
+                .OrderBy(b => b.Name)
+                .ToListAsync();
+        }
+
+        public async Task<ICollection<string>> GetAvailableMotorSequencesAsync()
+        {
+            var sequences = await _dbContext.LessonSteps
+                .Where(s => s.MotorSequence != null && s.MotorSequence != "")
+                .Select(s => s.MotorSequence!)
+                .Distinct()
+                .OrderBy(s => s)
+                .ToListAsync();
+
+            return sequences;
+        }
+
         private string GenerateRobotJwt(Robot robot)
         {
             var jwtKey = _configuration["Jwt:Key"]

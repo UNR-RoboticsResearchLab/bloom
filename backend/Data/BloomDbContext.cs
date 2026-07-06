@@ -27,6 +27,7 @@ namespace bloom.Data
         public DbSet<StepInteraction> StepInteractions { get; set; }
         public DbSet<SLPClient> SLPClients { get; set; }
         public DbSet<RsrAssessment> RsrAssessments { get; set; }
+        public DbSet<Behavior> Behaviors { get; set; }
 
         public BloomDbContext(DbContextOptions<BloomDbContext> dbContextOptions) : base(dbContextOptions)
         {
@@ -70,6 +71,11 @@ namespace bloom.Data
                     .WithOne(i => i.LessonStep)
                     .HasForeignKey<LessonStep>(s => s.InteractionId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(s => s.Behaviors)
+                    .WithMany()
+                    .HasForeignKey(s => s.BehaviorId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             builder.Entity<StepInteraction>(entity =>
@@ -192,7 +198,7 @@ namespace bloom.Data
 
         public static async Task SeedDatabaseRoles(RoleManager<IdentityRole> roleMgr)
         {
-            string[] roleNames = { "Admin", "SLP", "Student", "Teacher", "Facilitator", "Participant" };
+            string[] roleNames = { "Admin", "SLP", "Student", "Researcher", "Participant" };
 
             foreach (var roleName in roleNames)
             {
@@ -221,6 +227,28 @@ namespace bloom.Data
                 if (result.Succeeded)
                 {
                     await userMgr.AddToRoleAsync(adminUser, "Admin");
+                }
+            }
+
+
+            string slpEmail = "slp@example.com";
+            string slpPassword = "Slp@123";
+
+            if (await userMgr.FindByEmailAsync(slpEmail) == null)
+            {
+                var slpUser = new Account
+                {
+                    UserName = slpEmail,
+                    Email = slpEmail,
+                    FullName = "SLP Account",
+                    CreatedDate = DateTime.UtcNow,
+                    Role = "SLP"
+                };
+                var result = await userMgr.CreateAsync(slpUser, slpPassword);
+
+                if (result.Succeeded)
+                {
+                    await userMgr.AddToRoleAsync(slpUser, "SLP");
                 }
             }
         }

@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import LessonStepBuilder from "./LessonStepBuilder";
+import LessonAiPromptPanel from "./LessonAiPromptPanel";
+import { useApiClient } from "../context/ApiClientContext";
 
 const LESSON_TYPES = [
   { value: 0, label: "Language" },
@@ -16,25 +18,32 @@ function emptyStep(order) {
   return {
     _id: crypto.randomUUID(),
     stepOrder: order,
+    title: "",
     type: "",
     script: "",
     timingSeconds: null,
     visualAid: null,
+    motorSequence: null,
     behaviors: null,
     interaction: null,
   };
 }
 
-function parseObjectives(json) {
-  if (!json) return [""];
+function parseObjectives(objectives) {
+  if (!objectives) return [""];
+  if (Array.isArray(objectives)) return objectives.length ? objectives : [""];
   try {
-    return JSON.parse(json);
+    const parsed = JSON.parse(objectives);
+    return Array.isArray(parsed) && parsed.length ? parsed : [""];
   } catch {
     return [""];
   }
 }
 
 export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel }) {
+  const api = useApiClient();
+  const [behaviorOptions, setBehaviorOptions] = useState([]);
+  const [motorSequenceOptions, setMotorSequenceOptions] = useState([]);
   const [title, setTitle] = useState(initialLesson?.title ?? "");
   const [description, setDescription] = useState(initialLesson?.description ?? "");
   const [lessonType, setLessonType] = useState(initialLesson?.lessonType ?? 0);
@@ -51,6 +60,12 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
   );
   const [err, setErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+
+  useEffect(() => {
+    api.getAvailableBehaviors().then(setBehaviorOptions).catch(() => setBehaviorOptions([]));
+    api.getAvailableMotorSequences().then(setMotorSequenceOptions).catch(() => setMotorSequenceOptions([]));
+  }, [api]);
 
   function updateObjective(id, text) {
     setObjectives((prev) => prev.map((o) => (o._id === id ? { ...o, text } : o)));
@@ -84,6 +99,51 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
     setSteps((prev) => prev.map((s) => (s._id === localId ? { ...s, ...dto } : s)));
   }
 
+  function buildLessonPayload() {
+    const filledObjectives = objectives.map((o) => o.text).filter((t) => t.trim());
+    return {
+      ...(initialLesson?.id ? { id: initialLesson.id } : {}),
+      title,
+      description: description || null,
+      lessonType,
+      learningObjectives: filledObjectives,
+      steps: steps.map((s, i) => ({
+        ...(s.id ? { id: s.id } : {}),
+        stepOrder: i + 1,
+        title: s.title || null,
+        type: s.type,
+        script: s.script,
+        timingSeconds: s.timingSeconds,
+        visualAid: s.visualAid,
+        motorSequence: s.motorSequence || null,
+        behaviors: s.behaviors,
+        interaction: s.interaction,
+      })),
+    };
+  }
+
+  function applyGeneratedLesson(lessonDto) {
+    setTitle(lessonDto.title ?? "");
+    setDescription(lessonDto.description ?? "");
+    setLessonType(lessonDto.lessonType ?? 0);
+    setObjectives(
+      parseObjectives(lessonDto.learningObjectives).map((text) => ({
+        _id: crypto.randomUUID(),
+        text,
+      }))
+    );
+    setSteps(
+      lessonDto.steps?.length
+        ? lessonDto.steps.map((s) => ({ ...s, _id: crypto.randomUUID() }))
+        : [emptyStep(1)]
+    );
+  }
+
+  async function handleAiGenerate(promptText) {
+    const generated = await api.generateLessonWithAi(promptText, buildLessonPayload());
+    applyGeneratedLesson(generated);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setErr("");
@@ -99,24 +159,7 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
 
     setSubmitting(true);
     try {
-      const filledObjectives = objectives.map((o) => o.text).filter((t) => t.trim());
-      await onSubmit({
-        ...(initialLesson?.id ? { id: initialLesson.id } : {}),
-        title,
-        description: description || null,
-        lessonType,
-        learningObjectives: filledObjectives.length ? JSON.stringify(filledObjectives) : null,
-        steps: steps.map((s, i) => ({
-          ...(s.id ? { id: s.id } : {}),
-          stepOrder: i + 1,
-          type: s.type,
-          script: s.script,
-          timingSeconds: s.timingSeconds,
-          visualAid: s.visualAid,
-          behaviors: s.behaviors,
-          interaction: s.interaction,
-        })),
-      });
+      await onSubmit(buildLessonPayload());
     } catch (error) {
       setErr(error.message || "Failed to save lesson.");
     } finally {
@@ -125,14 +168,35 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 px-4 py-6">
-      <div className="rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow-sm">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          {initialLesson ? "Edit Lesson" : "New Lesson"}
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Fill in the lesson details, then add and configure each step.
-        </p>
+    <div className="mx-auto max-w-7xl space-y-5 px-4 py-6">
+      <div className="flex items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            {initialLesson ? "Edit Lesson" : "New Lesson"}
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Fill in the lesson details, then add and configure each step.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="text-sm font-medium text-gray-700">AI Assistant</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={aiEnabled}
+            aria-label="Toggle AI Assistant"
+            onClick={() => setAiEnabled((v) => !v)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              aiEnabled ? "bg-indigo-600" : "bg-gray-200"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                aiEnabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       {err && (
@@ -220,6 +284,8 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
           </div>
         </section>
 
+        {aiEnabled && <LessonAiPromptPanel onGenerate={handleAiGenerate} />}
+
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-800">
             Steps{" "}
@@ -239,6 +305,8 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
               stepNumber={index + 1}
               isFirst={index === 0}
               isLast={index === steps.length - 1}
+              behaviorOptions={behaviorOptions}
+              motorSequenceOptions={motorSequenceOptions}
               onChange={(dto) => handleStepChange(step._id, dto)}
               onRemove={() => removeStep(step._id)}
               onMoveUp={() => moveStep(step._id, -1)}

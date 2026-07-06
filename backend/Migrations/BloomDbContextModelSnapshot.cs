@@ -327,6 +327,15 @@ namespace bloom.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("longtext");
 
+                    b.Property<string>("FacialExpression")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Gaze")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("HeadMovement")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -339,7 +348,7 @@ namespace bloom.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Behavior");
+                    b.ToTable("Behaviors");
                 });
 
             modelBuilder.Entity("bloom.Models.Classroom", b =>
@@ -386,9 +395,6 @@ namespace bloom.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("LearningObjectives")
                         .HasColumnType("longtext");
 
                     b.Property<int>("LessonType")
@@ -541,8 +547,8 @@ namespace bloom.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("Behaviors")
-                        .HasColumnType("longtext");
+                    b.Property<int?>("BehaviorId")
+                        .HasColumnType("int");
 
                     b.Property<Guid?>("InteractionId")
                         .HasColumnType("char(36)");
@@ -563,6 +569,9 @@ namespace bloom.Migrations
                     b.Property<int?>("TimingSeconds")
                         .HasColumnType("int");
 
+                    b.Property<string>("Title")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -577,6 +586,8 @@ namespace bloom.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BehaviorId");
 
                     b.HasIndex("InteractionId")
                         .IsUnique();
@@ -982,6 +993,11 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("bloom.Models.LessonStep", b =>
                 {
+                    b.HasOne("bloom.Models.Behavior", "Behaviors")
+                        .WithMany()
+                        .HasForeignKey("BehaviorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("bloom.Models.StepInteraction", "Interaction")
                         .WithOne("LessonStep")
                         .HasForeignKey("bloom.Models.LessonStep", "InteractionId")
@@ -992,6 +1008,8 @@ namespace bloom.Migrations
                         .HasForeignKey("LessonId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Behaviors");
 
                     b.Navigation("Interaction");
 

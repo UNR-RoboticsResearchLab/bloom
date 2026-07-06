@@ -1,7 +1,7 @@
 // bloom
 // LessonStep.cs
 // Represents a single step in a lesson sequence.
-// Behaviors and Interaction are stored as JSON strings since their schema varies by step type.
+// Interaction is stored as a separate entity; Behaviors maps to { behavior, facial_expression }.
 
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
@@ -18,6 +18,8 @@ namespace bloom.Models
         public Lesson Lesson { get; set; } = null!;
 
         public int StepOrder { get; set; }
+
+        public string? Title { get; set; }
 
         public required string Type { get; set; }
 
@@ -37,8 +39,8 @@ namespace bloom.Models
         // Motor sequence to play for this step, e.g. "look_left"
         public string? MotorSequence { get; set; }
 
-        // JSON string: { behavior, facial_expression, gaze, head_movement, posture, ... }
-        public string? Behaviors { get; set; }
+        public int? BehaviorId { get; set; }
+        public Behavior? Behaviors { get; set; }
 
         // Structured interaction definition for this step (optional — not all steps have interactions)
         public Guid? InteractionId { get; set; }

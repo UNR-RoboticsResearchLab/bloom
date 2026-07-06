@@ -8,7 +8,7 @@ import {
 } from "reactstrap";
 import { Link } from "react-router-dom";
 import { getSession, dashboardPathForRole } from "../utils/auth";
-import "./NavMenu.css";
+import "../styles/components/nav-menu.css";
 
 function getInitials(name) {
   if (!name) return "";

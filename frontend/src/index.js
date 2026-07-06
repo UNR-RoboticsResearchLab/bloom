@@ -8,8 +8,7 @@ import App from "./App";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import reportWebVitals from "./reportWebVitals";
 
-import './index.css';
-import "./custom.css";
+import "./styles/index.css";
 import { ApiClientProvider } from "./context/ApiClientContext";
 
 const baseUrl = document.getElementsByTagName("base")[0]?.getAttribute("href") || "/";

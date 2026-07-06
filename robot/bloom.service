@@ -1,0 +1,29 @@
+[Unit]
+Description=Bloom Robot (combined.launch.py)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jrkre
+Group=jrkre
+
+# Azure OpenAI / TTS keys
+EnvironmentFile=-/home/jrkre/development/bloom/robot/.env
+# Required for bloom_face display output
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/jrkre/.Xauthority
+
+# Source ROS2 Jazzy and the colcon workspace, then launch
+ExecStart=/bin/bash -c "\
+  source /opt/ros/jazzy/setup.bash && \
+  source /home/jrkre/development/bloom/robot/install/local_setup.bash && \
+  exec ros2 launch bloom_node combined.launch.py"
+
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

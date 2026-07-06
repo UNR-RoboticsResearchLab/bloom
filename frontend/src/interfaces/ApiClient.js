@@ -220,6 +220,13 @@ export default class ApiClient {
     });
   }
 
+  async generateLessonWithAi(prompt, existingLesson = null) {
+    return this.request("/api/lesson/ai/generate", {
+      method: "POST",
+      body: JSON.stringify({ prompt, existingLesson }),
+    });
+  }
+
   // ── Lesson Progress ───────────────────────────────────────────────────────
 
   async getMyLessonProgress() {

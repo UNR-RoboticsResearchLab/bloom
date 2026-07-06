@@ -483,7 +483,7 @@ export default function AdminDashboard() {
             className="absolute inset-0 bg-black/30"
             onClick={() => setLessonPaneOpen(false)}
           />
-          <div className="relative z-50 w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-50 shadow-xl rounded-xl">
+          <div className="relative z-50 w-full max-w-7xl max-h-[90vh] overflow-y-auto bg-gray-50 shadow-xl rounded-xl">
             <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
               <h2 className="text-lg font-semibold text-gray-900">New Lesson</h2>
               <button

@@ -1,3 +1,62 @@
+# Testing the robot face without a live backend or robot
+
+`apps/tutorial-fullscreen-face` has a Playwright suite
+(`e2e/rsr-face.spec.ts`) that drives the real kiosk face in a real headless
+browser through the full poll -> fetch sentence -> play audio -> run the
+viseme timeline -> acknowledge cycle. It intercepts the app's HTTP calls at
+the network boundary (`page.route()`), so it needs none of the bloom
+backend, MariaDB, Azure TTS credentials, or a physical robot — only the
+packages built once (see step 4 below) and a browser binary. It asserts on
+the sentence/viseme fetches, real audio playback duration, and the
+acknowledge round-trip; it does not inspect exact 3D rig weights, since
+those live behind an internal, undocumented id scheme in `@vizij/render`'s
+store rather than the human-readable path.
+
+```
+cd robot/kiosk-face
+pnpm install
+pnpm --filter @vizij/utils run build
+pnpm --filter @vizij/render run build
+pnpm --filter @vizij/node-graph-authoring run build
+pnpm --filter @vizij/orchestrator-react run build
+pnpm --filter @vizij/runtime-react run build
+pnpm --filter fullscreen-face exec playwright install chromium   # one-time
+pnpm --filter fullscreen-face run test:e2e
+```
+
+This is a trade-off worth knowing: it's real coverage of the frontend's
+poll/play/animate/acknowledge logic, but it does not exercise the real
+ASP.NET controllers or database. For that, use the manual end-to-end flow
+below.
+
+## Eyeballing it live: `?robotId=mock`
+
+For manually watching the face speak without any backend, database, Azure
+credentials, or robot at all, open the kiosk face with `robotId=mock`:
+
+```
+cd robot/kiosk-face
+pnpm --filter fullscreen-face run dev
+```
+
+Then open `http://localhost:5173/?robotId=mock` and press **N** to speak
+the next sentence from `robot/scripts/rsr_sentences.json` (bundled into the
+app as `src/mockRsrSentences.ts`, so no fetch is needed). Each press:
+
+- Shows that sentence's text in a subtitle bar at the bottom of the screen.
+- Plays a short synthetic silent audio clip and a rotating viseme timeline
+  through the real `useStaticVisemePlayback` pipeline, so the mouth cycles
+  through its shapes on the same code path real RSR playback uses — there's
+  no real phoneme timing behind it, so it's for eyeballing "does playback
+  and lip movement happen at all," not for judging accuracy.
+- Ignores further N presses until that clip finishes (~350ms/word, clamped
+  1.2–4s) and the subtitle clears.
+
+For a real robot id, the subtitle bar shows the actual sentence text too —
+`useRsrPolling` fetches `/api/rsr-speech/sentences` once client-side to
+resolve each pending command's `sentenceId` to its text (no backend change
+needed, since that manifest already carries it).
+
 # Testing the robot face with a real session
 
 Steps to drive the kiosk face app (`apps/tutorial-fullscreen-face`) end to end

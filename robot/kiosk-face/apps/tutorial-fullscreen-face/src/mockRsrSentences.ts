@@ -1,0 +1,24 @@
+export type MockRsrSentence = { id: number; text: string };
+
+// Mirrors robot/scripts/rsr_sentences.json, duplicated here (rather than
+// fetched from the backend) so mock playback (?robotId=mock) never needs
+// the bloom backend or Azure TTS credentials — that's the whole point of
+// the mock path.
+export const MOCK_RSR_SENTENCES: MockRsrSentence[] = [
+  { id: 1, text: "The big football player washed the car with the hose." },
+  { id: 2, text: "All of the pictures were colored by his little sister." },
+  { id: 3, text: "The rose bushes were planted yesterday by the girl scouts." },
+  { id: 4, text: "The happy little girl kicked the ball over the fence." },
+  { id: 5, text: "His little brother cleaned the dirty dishes and cups." },
+  { id: 6, text: "A special cage was made to hold the dangerous animals." },
+  { id: 7, text: "Everybody in my school colored Easter eggs for the picnic." },
+  { id: 8, text: "A new hole was dug for the kid's swimming pool." },
+  { id: 9, text: "Only the first graders made a birdhouse for their parents." },
+  { id: 10, text: "My little sister's dog caught the ball on the first bounce." },
+  { id: 11, text: "The soccer ball was kicked into the school's parking lot." },
+  { id: 12, text: "The lion's teeth were cleaned with a giant toothbrush." },
+  { id: 13, text: "Some of the kids dug holes in the sand two feet deep." },
+  { id: 14, text: "The little white mouse was caught by our neighbor's cat." },
+  { id: 15, text: "The second grade students planted coconuts in the garden." },
+  { id: 16, text: "The dirty clothes were washed with soap one more time." },
+];

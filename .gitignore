@@ -243,5 +243,7 @@ _Pvt_Extensions
 
 cookies.txt
 
+.github/workflows/
+
 # Environment variables
 .env

@@ -12,7 +12,27 @@ export type StaticPlaybackRequest = {
   visemeUrl: string;
 } | null;
 
-const CROSSFADE_SEC = 0.08;
+// Firing a fresh animateValue tween each time the active viseme changes (even
+// with easeInOut and a duration spanning the whole gap) makes every segment
+// independently decelerate to zero velocity right as it's replaced, then the
+// next segment re-accelerates from rest — across a whole sentence that reads
+// as a repeating slow-down/lurch rather than steady motion, since each pair
+// of adjacent segments eases on its own clock instead of a shared one.
+//
+// Instead, every frame this computes a single smoothstep progress value
+// between the current viseme and the next one, and drives both segments'
+// weights directly off that *same* value (1-eased / eased) via setInput —
+// so a segment's rise and its own later fall are always two positions on one
+// continuous curve, not two independently-timed tweens that happen to meet
+// at 1. Real Azure timelines (~60-150ms between events) and sparser ones
+// (mock mode, ~350-500ms) both just get a shorter or longer window for that
+// same curve.
+const CLOSE_DURATION_SEC = 0.15;
+
+function smoothstep(t: number): number {
+  const clamped = Math.min(1, Math.max(0, t));
+  return clamped * clamped * (3 - 2 * clamped);
+}
 
 // Plays a pre-recorded audio file while driving the rig's viseme weights from
 // a matching pre-generated Azure viseme timeline. Unlike
@@ -23,7 +43,7 @@ export function useStaticVisemePlayback(
   request: StaticPlaybackRequest,
   onComplete: () => void,
 ) {
-  const { faceId: runtimeFaceId, animateValue } = useVizijRuntime();
+  const { faceId: runtimeFaceId, setInput, animateValue } = useVizijRuntime();
   const faceId = (runtimeFaceId ?? "face").toLowerCase();
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -34,28 +54,31 @@ export function useStaticVisemePlayback(
 
     let cancelled = false;
     let rafId = 0;
-    let activeSegment: FaceVisemeSegment | null = null;
+    let visibleSegments = new Set<FaceVisemeSegment>();
     const audio = new Audio(req.audioUrl);
 
-    function setSegment(segment: FaceVisemeSegment | null) {
-      if (segment === activeSegment) return;
-      if (activeSegment) {
-        animateValue(`rig/${faceId}/visemes/${activeSegment}.weight`, { float: 0 }, { duration: CROSSFADE_SEC });
-      }
-      if (segment) {
-        animateValue(`rig/${faceId}/visemes/${segment}.weight`, { float: 1 }, { duration: CROSSFADE_SEC });
-      }
-      activeSegment = segment;
+    function weightPath(segment: FaceVisemeSegment): string {
+      return `rig/${faceId}/visemes/${segment}.weight`;
     }
 
-    function findActiveEvent(events: VisemeEvent[], tMs: number): VisemeEvent | null {
+    // Snaps any segment not part of the current pair back to 0 immediately
+    // (they've already finished their own curve by the time they're dropped).
+    function clearStaleSegments(keep: Set<FaceVisemeSegment>) {
+      for (const segment of visibleSegments) {
+        if (!keep.has(segment)) {
+          setInput(weightPath(segment), { float: 0 });
+        }
+      }
+    }
+
+    function findActiveEventIndex(events: VisemeEvent[], tMs: number): number {
       let lo = 0;
       let hi = events.length - 1;
-      let result: VisemeEvent | null = null;
+      let result = -1;
       while (lo <= hi) {
         const mid = (lo + hi) >> 1;
         if (events[mid].timestamp_ms <= tMs) {
-          result = events[mid];
+          result = mid;
           lo = mid + 1;
         } else {
           hi = mid - 1;
@@ -66,15 +89,51 @@ export function useStaticVisemePlayback(
 
     function tick(events: VisemeEvent[]) {
       if (cancelled) return;
-      const active = findActiveEvent(events, audio.currentTime * 1000);
-      setSegment(active ? mapAzureViseme(active.viseme_id).segment : null);
+      const tMs = audio.currentTime * 1000;
+      const activeIndex = findActiveEventIndex(events, tMs);
+      const active = activeIndex >= 0 ? events[activeIndex] : null;
+      const next = activeIndex >= 0 ? events[activeIndex + 1] : undefined;
+
+      const activeSegment = active ? mapAzureViseme(active.viseme_id).segment : null;
+      const nextSegment = next ? mapAzureViseme(next.viseme_id).segment : null;
+
+      let progress = 1;
+      if (active && next) {
+        const span = next.timestamp_ms - active.timestamp_ms;
+        progress = span > 0 ? (tMs - active.timestamp_ms) / span : 1;
+      }
+      const eased = smoothstep(progress);
+
+      const keep = new Set<FaceVisemeSegment>();
+      if (activeSegment) keep.add(activeSegment);
+      if (nextSegment) keep.add(nextSegment);
+      clearStaleSegments(keep);
+
+      if (activeSegment && activeSegment === nextSegment) {
+        // Consecutive events map to the same segment (no real transition
+        // yet) — hold it fully open rather than tracking `eased`, which
+        // measures progress toward whatever comes *after* nextSegment.
+        setInput(weightPath(activeSegment), { float: 1 });
+      } else {
+        if (activeSegment) setInput(weightPath(activeSegment), { float: 1 - eased });
+        if (nextSegment) setInput(weightPath(nextSegment), { float: eased });
+      }
+      visibleSegments = keep;
+
       if (!audio.ended) {
         rafId = requestAnimationFrame(() => tick(events));
       }
     }
 
+    function closeSegments() {
+      for (const segment of visibleSegments) {
+        animateValue(weightPath(segment), { float: 0 }, { duration: CLOSE_DURATION_SEC, easing: "easeOut" });
+      }
+      visibleSegments = new Set();
+    }
+
     function finish() {
-      setSegment(null);
+      closeSegments();
       if (!cancelled) onCompleteRef.current();
     }
 
@@ -111,8 +170,8 @@ export function useStaticVisemePlayback(
       audio.pause();
       audio.removeEventListener("ended", finish);
       audio.removeEventListener("error", finish);
-      setSegment(null);
+      closeSegments();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [request, faceId, animateValue]);
+  }, [request, faceId, setInput, animateValue]);
 }

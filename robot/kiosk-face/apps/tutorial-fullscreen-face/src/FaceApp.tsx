@@ -42,7 +42,7 @@ function FaceRuntime() {
   const poseConfig = assetBundle.pose?.config ?? null;
   const gazeRef = useMouseGaze(ready);
   usePoseHotkeys(poseConfig, ready);
-  useRsrPolling();
+  const { activeText } = useRsrPolling();
   const [hintsVisible, setHintsVisible] = useState(false);
 
   const handlePointerMove = useCallback(() => {
@@ -96,7 +96,8 @@ function FaceRuntime() {
       <div ref={gazeRef} className="canvas-wrapper">
         <VizijRuntimeFace className="face-canvas" showSafeArea={false} />
       </div>
-      {hintsVisible && (
+      {activeText && <div className="subtitle">{activeText}</div>}
+      {hintsVisible && !activeText && (
         <div className="hint">
           <div>Move the mouse to steer gaze.</div>
           <div>Press the number keys to trigger poses:</div>

@@ -242,3 +242,5 @@ _Pvt_Extensions
 .cache/
 
 cookies.txt
+
+.github/workflows/

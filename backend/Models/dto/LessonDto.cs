@@ -15,8 +15,7 @@ namespace bloom.Models.dto
         // Set server-side from auth claims — never trusted from the request body
         public string? CreatedById { get; set; }
 
-        // JSON array string of learning objectives — populated on response, optional on create
-        public string? LearningObjectives { get; set; }
+        public IEnumerable<string?> LearningObjectives { get; set; } = [];
 
         // Structured steps — populated on response; used for direct creation
         public List<LessonStepDto>? Steps { get; set; }

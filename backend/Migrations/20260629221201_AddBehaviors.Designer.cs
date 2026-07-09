@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using bloom.Data;
 
@@ -11,9 +12,11 @@ using bloom.Data;
 namespace bloom.Migrations
 {
     [DbContext(typeof(BloomDbContext))]
-    partial class BloomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260629221201_AddBehaviors")]
+    partial class AddBehaviors
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -50,6 +53,21 @@ namespace bloom.Migrations
                     b.HasIndex("TeachersId");
 
                     b.ToTable("AccountClassroom1");
+                });
+
+            modelBuilder.Entity("BehaviorLessonStep", b =>
+                {
+                    b.Property<int>("BehaviorsId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("LessonStepId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("BehaviorsId", "LessonStepId");
+
+                    b.HasIndex("LessonStepId");
+
+                    b.ToTable("LessonStepBehaviors", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -327,15 +345,6 @@ namespace bloom.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("longtext");
 
-                    b.Property<string>("FacialExpression")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Gaze")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("HeadMovement")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -547,9 +556,6 @@ namespace bloom.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<int?>("BehaviorId")
-                        .HasColumnType("int");
-
                     b.Property<Guid?>("InteractionId")
                         .HasColumnType("char(36)");
 
@@ -569,9 +575,6 @@ namespace bloom.Migrations
                     b.Property<int?>("TimingSeconds")
                         .HasColumnType("int");
 
-                    b.Property<string>("Title")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -586,8 +589,6 @@ namespace bloom.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("BehaviorId");
 
                     b.HasIndex("InteractionId")
                         .IsUnique();
@@ -828,6 +829,21 @@ namespace bloom.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("BehaviorLessonStep", b =>
+                {
+                    b.HasOne("bloom.Models.Behavior", null)
+                        .WithMany()
+                        .HasForeignKey("BehaviorsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("bloom.Models.LessonStep", null)
+                        .WithMany()
+                        .HasForeignKey("LessonStepId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -993,11 +1009,6 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("bloom.Models.LessonStep", b =>
                 {
-                    b.HasOne("bloom.Models.Behavior", "Behaviors")
-                        .WithMany()
-                        .HasForeignKey("BehaviorId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("bloom.Models.StepInteraction", "Interaction")
                         .WithOne("LessonStep")
                         .HasForeignKey("bloom.Models.LessonStep", "InteractionId")
@@ -1008,8 +1019,6 @@ namespace bloom.Migrations
                         .HasForeignKey("LessonId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Behaviors");
 
                     b.Navigation("Interaction");
 

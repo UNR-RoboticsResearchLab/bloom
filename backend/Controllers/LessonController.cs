@@ -21,11 +21,15 @@ namespace bloom.Controllers
     {
         private readonly ILessonService _lessonService;
         private readonly ILessonProgressService _progressService;
+        private readonly IWebHostEnvironment _env;
 
-        public LessonController(ILessonService lessonService, ILessonProgressService progressService)
+        private static readonly string[] AllowedImageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"];
+
+        public LessonController(ILessonService lessonService, ILessonProgressService progressService, IWebHostEnvironment env)
         {
             _lessonService = lessonService;
             _progressService = progressService;
+            _env = env;
         }
 
         /// <summary>
@@ -82,11 +86,18 @@ namespace bloom.Controllers
                     {
                         Id = s.Id,
                         StepOrder = s.StepOrder,
+                        Title = s.Title,
                         Type = s.Type,
                         Script = s.Script,
                         TimingSeconds = s.TimingSeconds,
                         VisualAid = s.VisualAid,
-                        Behaviors = s.Behaviors,
+                        Behaviors = s.Behaviors != null ? new StepBehaviorsDto
+                        {
+                            Behavior = s.Behaviors.Name,
+                            FacialExpression = s.Behaviors.FacialExpression,
+                            Gaze = s.Behaviors.Gaze,
+                            HeadMovement = s.Behaviors.HeadMovement
+                        } : null,
                         Interaction = s.Interaction != null ? new StepInteractionDto
                         {
                             Id = s.Interaction.Id,
@@ -135,6 +146,45 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 return BadRequest(new { message = $"Request error: {ex.Message}" });
+            }
+        }
+
+        /// <summary>
+        /// Uploads an image to use as a step's visual aid and returns its relative URL.
+        /// </summary>
+        [Authorize]
+        [HttpPost("steps/visual-aid")]
+        [RequestSizeLimit(10_000_000)]
+        public async Task<IActionResult> UploadVisualAid([FromForm] IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "No file uploaded." });
+
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!AllowedImageExtensions.Contains(ext) || !file.ContentType.StartsWith("image/"))
+                return BadRequest(new { message = "Unsupported file type." });
+
+            try
+            {
+                var webRoot = string.IsNullOrEmpty(_env.WebRootPath)
+                    ? Path.Combine(_env.ContentRootPath, "wwwroot")
+                    : _env.WebRootPath;
+                var uploadsDir = Path.Combine(webRoot, "uploads", "lessons");
+                Directory.CreateDirectory(uploadsDir);
+
+                var fileName = $"{Guid.NewGuid()}{ext}";
+                var filePath = Path.Combine(uploadsDir, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                return Ok(new { url = $"/uploads/lessons/{fileName}" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Upload failed: {ex.Message}" });
             }
         }
 

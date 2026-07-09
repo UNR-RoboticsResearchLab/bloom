@@ -35,15 +35,58 @@ namespace bloom.Data
                 return;
             }
 
+            // Pre-load existing behaviors keyed by "name|facialExpression" to avoid duplicates
+            var behaviorCache = db.Behaviors.ToDictionary(
+                b => $"{b.Name}|{b.FacialExpression}",
+                StringComparer.OrdinalIgnoreCase);
+
+            // Seed behaviors from all lesson files before processing lessons,
+            // so the behavior table is populated even when lessons already exist.
+            await SeedBehaviorsFromFilesAsync(db, files, behaviorCache);
+
             foreach (var file in files)
             {
-                await SeedLessonFileAsync(db, admin.Id, file);
+                await SeedLessonFileAsync(db, admin.Id, file, behaviorCache);
             }
 
             await db.SaveChangesAsync();
         }
 
-        private static async Task SeedLessonFileAsync(BloomDbContext db, string adminId, string filePath)
+        private static async Task SeedBehaviorsFromFilesAsync(BloomDbContext db, string[] files, Dictionary<string, Behavior> behaviorCache)
+        {
+            foreach (var filePath in files)
+            {
+                string json;
+                try { json = await File.ReadAllTextAsync(filePath); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[LessonSeeder] Failed to read {filePath}: {ex.Message}");
+                    continue;
+                }
+
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (!root.TryGetProperty("sequence", out var seqEl)) continue;
+
+                foreach (var stepEl in seqEl.EnumerateArray())
+                {
+                    if (!stepEl.TryGetProperty("behaviors", out var behavEl)) continue;
+                    var behName = behavEl.TryGetProperty("behavior", out var behNameEl) ? behNameEl.GetString() : null;
+                    var facialExpr = behavEl.TryGetProperty("facial_expression", out var feEl) ? feEl.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(behName)) continue;
+
+                    var cacheKey = $"{behName}|{facialExpr}";
+                    if (!behaviorCache.ContainsKey(cacheKey))
+                    {
+                        var behavior = new Behavior { Name = behName, FacialExpression = facialExpr, CreatedDate = DateTime.UtcNow };
+                        db.Behaviors.Add(behavior);
+                        behaviorCache[cacheKey] = behavior;
+                    }
+                }
+            }
+        }
+
+        private static async Task SeedLessonFileAsync(BloomDbContext db, string adminId, string filePath, Dictionary<string, Behavior> behaviorCache)
         {
             var fileName = Path.GetFileNameWithoutExtension(filePath);
 
@@ -66,9 +109,9 @@ namespace bloom.Data
             var lessonMeta = root.TryGetProperty("lesson", out var metaEl) ? metaEl : (JsonElement?)null;
             var title = lessonMeta?.TryGetProperty("title", out var titleEl) == true ? titleEl.GetString() : fileName;
             var grade = lessonMeta?.TryGetProperty("grade", out var gradeEl) == true ? gradeEl.GetString() : null;
-            var objectives = lessonMeta?.TryGetProperty("objectives", out var objEl) == true
-                ? objEl.GetRawText()
-                : null;
+            IEnumerable<string?> objectives = lessonMeta?.TryGetProperty("objectives", out var objEl) == true
+                ? objEl.EnumerateArray().Select(e => e.GetString()).ToList()
+                : [];
 
             // Deduplicate by title
             if (db.Lessons.Any(l => l.Title == title))
@@ -92,7 +135,6 @@ namespace bloom.Data
                     if (stepEl.TryGetProperty("visual_aid", out var vaEl))
                         visualAid = vaEl.ValueKind == JsonValueKind.Array ? vaEl.GetRawText() : vaEl.GetString();
 
-                    string? behaviors = stepEl.TryGetProperty("behaviors", out var behavEl) ? behavEl.GetRawText() : null;
 
                     StepInteraction? interaction = null;
                     if (stepEl.TryGetProperty("interaction", out var interEl))
@@ -120,6 +162,29 @@ namespace bloom.Data
                     string? motorSequence = stepEl.TryGetProperty("motor_sequence", out var msEl)
                         ? msEl.GetString() : null;
 
+                    Behavior? stepBehavior = null;
+                    if (stepEl.TryGetProperty("behaviors", out var behavEl))
+                    {
+                        var behName = behavEl.TryGetProperty("behavior", out var behNameEl) ? behNameEl.GetString() : null;
+                        var facialExpr = behavEl.TryGetProperty("facial_expression", out var feEl) ? feEl.GetString() : null;
+
+                        if (!string.IsNullOrWhiteSpace(behName))
+                        {
+                            var cacheKey = $"{behName}|{facialExpr}";
+                            if (!behaviorCache.TryGetValue(cacheKey, out stepBehavior))
+                            {
+                                stepBehavior = new Behavior
+                                {
+                                    Name = behName,
+                                    FacialExpression = facialExpr,
+                                    CreatedDate = DateTime.UtcNow
+                                };
+                                db.Behaviors.Add(stepBehavior);
+                                behaviorCache[cacheKey] = stepBehavior;
+                            }
+                        }
+                    }
+
                     var step = new LessonStep
                     {
                         StepOrder = stepOrder,
@@ -130,7 +195,7 @@ namespace bloom.Data
                         VisualAidLabels = visualAidLabels,
                         VisualAidFooters = visualAidFooters,
                         MotorSequence = motorSequence,
-                        Behaviors = behaviors,
+                        Behaviors = stepBehavior,
                     };
 
                     if (interaction != null)

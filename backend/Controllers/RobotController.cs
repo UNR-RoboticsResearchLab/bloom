@@ -194,5 +194,43 @@ namespace bloom.Controllers
                 return BadRequest(new { ex.Message });
             }
         }
+
+        /// <summary>
+        /// Returns all distinct behavior names found across lesson steps.
+        /// </summary>
+        [Authorize(Policy = "JwtOrCookie")]
+        [HttpGet("behaviors")]
+        public async Task<ActionResult<ICollection<Behavior>>> GetAvailableBehaviors()
+        {
+            try
+            {
+                var behaviors = await _robotService.GetAvailableBehaviorsAsync();
+                return Ok(behaviors);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving available behaviors");
+                return BadRequest(new { ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Returns all distinct motor sequence names found across lesson steps.
+        /// </summary>
+        [Authorize(Policy = "JwtOrCookie")]
+        [HttpGet("motorsequences")]
+        public async Task<ActionResult<ICollection<string>>> GetAvailableMotorSequences()
+        {
+            try
+            {
+                var sequences = await _robotService.GetAvailableMotorSequencesAsync();
+                return Ok(sequences);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving available motor sequences");
+                return BadRequest(new { ex.Message });
+            }
+        }
     }
 }

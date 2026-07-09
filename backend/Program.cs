@@ -16,6 +16,30 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
+// Load .env (if present) into process environment variables for local development.
+// Must run before WebApplication.CreateBuilder, which snapshots env vars into IConfiguration.
+// Existing environment variables always win, so this never overrides real deployment config.
+var envFilePath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+if (File.Exists(envFilePath))
+{
+    foreach (var line in File.ReadAllLines(envFilePath))
+    {
+        var trimmed = line.Trim();
+        if (trimmed.Length == 0 || trimmed.StartsWith('#'))
+            continue;
+
+        var separatorIndex = trimmed.IndexOf('=');
+        if (separatorIndex <= 0)
+            continue;
+
+        var key = trimmed[..separatorIndex].Trim();
+        var value = trimmed[(separatorIndex + 1)..].Trim().Trim('"');
+
+        if (Environment.GetEnvironmentVariable(key) is null)
+            Environment.SetEnvironmentVariable(key, value);
+    }
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Get ConnectionString
@@ -165,6 +189,18 @@ builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IRobotService, RobotService>();
 builder.Services.AddScoped<ILessonService, LessonService>();
 builder.Services.AddScoped<ILessonProgressService, LessonProgressService>();
+
+// Lesson AI assistant — calls Azure OpenAI for lesson/step generation
+builder.Services.AddScoped<ILessonAiService, LessonAiService>();
+builder.Services.AddHttpClient("AzureOpenAILesson", client =>
+{
+    var endpoint = builder.Configuration["AZURE_OPENAI_ENDPOINT"]
+        ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT is not configured.");
+    client.BaseAddress = new Uri(endpoint);
+    client.DefaultRequestHeaders.Add("api-key", builder.Configuration["AZURE_OPENAI_KEY"]
+        ?? throw new InvalidOperationException("AZURE_OPENAI_KEY is not configured."));
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
 
 // Add RobotSession Services and Repositories
 builder.Services.AddSingleton<IRobotStateRepository, InMemoryRobotStateRepository>();

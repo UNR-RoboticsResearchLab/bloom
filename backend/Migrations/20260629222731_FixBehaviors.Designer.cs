@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using bloom.Data;
 
@@ -11,9 +12,11 @@ using bloom.Data;
 namespace bloom.Migrations
 {
     [DbContext(typeof(BloomDbContext))]
-    partial class BloomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260629222731_FixBehaviors")]
+    partial class FixBehaviors
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -330,12 +333,6 @@ namespace bloom.Migrations
                     b.Property<string>("FacialExpression")
                         .HasColumnType("longtext");
 
-                    b.Property<string>("Gaze")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("HeadMovement")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -568,9 +565,6 @@ namespace bloom.Migrations
 
                     b.Property<int?>("TimingSeconds")
                         .HasColumnType("int");
-
-                    b.Property<string>("Title")
-                        .HasColumnType("longtext");
 
                     b.Property<string>("Type")
                         .IsRequired()

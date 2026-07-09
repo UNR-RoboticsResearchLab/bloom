@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bloom_face_bridge</name>
+  <version>0.0.1</version>
+  <description>Bridges the bloom_face ROS topics (emotion, visemes, visual aid, pairing code, mic state) to the vizij browser face over a local WebSocket, and serves visual aid images over local HTTP.</description>
+  <maintainer email="mknaefler@unr.edu">Max Knaefler</maintainer>
+  <license>MIT</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>bloom_face</exec_depend>
+  <exec_depend>python3-websockets</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

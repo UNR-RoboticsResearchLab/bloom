@@ -25,6 +25,7 @@ setup(
             'tts_node = bloom_speech.tts_node:main',
             'llm_node = bloom_speech.llm_node:main',
             'stt_node = bloom_speech.stt_node:main',
+            'rsr_speech_node = bloom_speech.rsr_speech_node:main',
         ],
     },
 )

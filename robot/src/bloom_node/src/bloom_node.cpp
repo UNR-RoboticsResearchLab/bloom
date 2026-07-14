@@ -14,8 +14,10 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include "bloom_msgs/action/play_behavior.hpp"
 #include "bloom_node/state_manager.h"
 #include "bloom_node/web_service_client.h"
 #include "bloom_node/configuration_manager.h"
@@ -183,27 +185,69 @@ int main(int argc, char ** argv)
 		}
 	);
 
-	// Publisher to execute behaviors from coordinator queue
-	auto behavior_execution_pub = node->create_publisher<std_msgs::msg::String>(
-		"play_sequence", 10);
+	// Action client to execute behaviors from coordinator queue via the
+	// play_behavior action server (owned by whichever robot body node is
+	// running, e.g. openhmi_blossom's sequence_player in the blsm_unr repo).
+	using PlayBehavior = bloom_msgs::action::PlayBehavior;
+	auto behavior_action_client = rclcpp_action::create_client<PlayBehavior>(node, "play_behavior");
 
 	// Timer to process queued behaviors and execute them
-	// Runs every 100ms to check if next high-priority behavior should execute
+	// Runs every 100ms to check if next high-priority behavior should execute.
+	// get_next_behavior() only ever returns a name when it's safe to dispatch
+	// (an empty execution slot, or an explicit interrupt), so no client-side
+	// in-flight tracking is needed here -- the action server preempts on its
+	// own, and behavior_completed() below is what frees the slot back up.
 	auto behavior_execution_timer = node->create_wall_timer(
 		std::chrono::milliseconds(100),
-		[behavior_coord, behavior_execution_pub, node]() {
+		[behavior_coord, behavior_action_client, node]() {
 			// Get next behavior from priority queue
 			std::string next_behavior = behavior_coord->get_next_behavior();
 
-			if (!next_behavior.empty()) {
-				// Publish to behavior execution topic
-				auto msg = std::make_shared<std_msgs::msg::String>();
-				msg->data = next_behavior;
-				behavior_execution_pub->publish(*msg);
+			if (next_behavior.empty()) return;
 
-				RCLCPP_DEBUG(node->get_logger(), "Executed queued behavior: %s (pending=%zu)",
-					next_behavior.c_str(), behavior_coord->pending_count());
+			if (!behavior_action_client->action_server_is_ready()) {
+				RCLCPP_WARN(node->get_logger(),
+					"play_behavior action server not available - dropping behavior: %s",
+					next_behavior.c_str());
+				behavior_coord->behavior_completed(next_behavior);
+				return;
 			}
+
+			PlayBehavior::Goal goal;
+			goal.behavior_name = next_behavior;
+
+			rclcpp_action::Client<PlayBehavior>::SendGoalOptions options;
+			options.goal_response_callback =
+				[behavior_coord, node, next_behavior](
+					const rclcpp_action::ClientGoalHandle<PlayBehavior>::SharedPtr & goal_handle) {
+					if (!goal_handle) {
+						RCLCPP_WARN(node->get_logger(),
+							"Behavior rejected by play_behavior action server: %s", next_behavior.c_str());
+						behavior_coord->behavior_completed(next_behavior);
+					}
+				};
+			options.result_callback =
+				[behavior_coord, node, next_behavior](
+					const rclcpp_action::ClientGoalHandle<PlayBehavior>::WrappedResult & result) {
+					switch (result.code) {
+						case rclcpp_action::ResultCode::SUCCEEDED:
+							RCLCPP_DEBUG(node->get_logger(), "Behavior completed: %s", next_behavior.c_str());
+							break;
+						case rclcpp_action::ResultCode::CANCELED:
+							RCLCPP_INFO(node->get_logger(), "Behavior preempted: %s", next_behavior.c_str());
+							break;
+						case rclcpp_action::ResultCode::ABORTED:
+						default:
+							RCLCPP_WARN(node->get_logger(), "Behavior failed: %s", next_behavior.c_str());
+							break;
+					}
+					behavior_coord->behavior_completed(next_behavior);
+				};
+
+			behavior_action_client->async_send_goal(goal, options);
+
+			RCLCPP_DEBUG(node->get_logger(), "Dispatched queued behavior: %s (pending=%zu)",
+				next_behavior.c_str(), behavior_coord->pending_count());
 		}
 	);
 

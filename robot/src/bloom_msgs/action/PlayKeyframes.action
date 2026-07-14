@@ -1,0 +1,15 @@
+# Play a raw keyframe animation script -- a JSON-encoded list of keyframe
+# dicts, each shaped like:
+#   [{"joints": {"lazy_susan": 512, "motor_front": 300}, "duration": 0.6}, ...]
+# Joint names are arbitrary strings interpreted by whichever robot body's
+# action server receives the goal -- this message never hardcodes a specific
+# robot's motor layout, so any robot body can implement this same action.
+string script_json
+# Global playback-speed multiplier (0.5 = half speed / 2x duration,
+# 2.0 = double speed).
+float32 speed_scale 1.0
+---
+bool success
+string message
+---
+float32 progress

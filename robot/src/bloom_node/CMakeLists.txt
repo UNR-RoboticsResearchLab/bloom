@@ -9,10 +9,12 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(CURL REQUIRED)
 find_package(ament_index_cpp REQUIRED)
+find_package(bloom_msgs REQUIRED)
 
 
 # Build bloom_node library
@@ -33,7 +35,7 @@ target_include_directories(bloom_node_lib PUBLIC
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
 target_compile_features(bloom_node_lib PUBLIC c_std_99 cxx_std_17)
-ament_target_dependencies(bloom_node_lib rclcpp std_msgs std_srvs ament_index_cpp)
+ament_target_dependencies(bloom_node_lib rclcpp rclcpp_action std_msgs std_srvs ament_index_cpp bloom_msgs)
 target_link_libraries(bloom_node_lib CURL::libcurl pthread)
 
 # Build bloom_node executable
@@ -42,7 +44,7 @@ add_executable(bloom_node
 )
 
 target_link_libraries(bloom_node bloom_node_lib)
-ament_target_dependencies(bloom_node rclcpp)
+ament_target_dependencies(bloom_node rclcpp rclcpp_action bloom_msgs)
 
 install(TARGETS bloom_node_lib
   EXPORT bloom_nodeTargets
@@ -66,7 +68,7 @@ install(PROGRAMS scripts/follower.py
   DESTINATION lib/${PROJECT_NAME})
 
 ament_export_targets(bloom_nodeTargets HAS_LIBRARY_TARGET)
-ament_export_dependencies(rclcpp std_msgs std_srvs CURL)
+ament_export_dependencies(rclcpp rclcpp_action std_msgs std_srvs CURL bloom_msgs)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

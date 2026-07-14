@@ -8,7 +8,8 @@ StateManager::StateManager(const rclcpp::NodeOptions & options)
 {
 	// Publishers
 	state_pub_ = this->create_publisher<std_msgs::msg::String>("robot/state", 10);
-	behavior_pub_ = this->create_publisher<std_msgs::msg::String>("play_sequence", 10);
+	behavior_action_client_ = rclcpp_action::create_client<bloom_msgs::action::PlayBehavior>(
+		this, "play_behavior");
 	face_pub_ = this->create_publisher<std_msgs::msg::String>("robot/face_state", 10);
 
 	// Subscription to accept state change commands
@@ -166,10 +167,36 @@ void StateManager::publish_state()
 
 void StateManager::publish_behavior(const std::string & behavior_name)
 {
-	std_msgs::msg::String msg;
-	msg.data = behavior_name;
-	if (behavior_pub_) behavior_pub_->publish(msg);
-	RCLCPP_INFO(this->get_logger(), "Published behavior execute request: %s", behavior_name.c_str());
+	if (!behavior_action_client_) return;
+
+	if (!behavior_action_client_->action_server_is_ready()) {
+		RCLCPP_WARN(this->get_logger(),
+			"play_behavior action server not available - dropping behavior: %s", behavior_name.c_str());
+		return;
+	}
+
+	bloom_msgs::action::PlayBehavior::Goal goal;
+	goal.behavior_name = behavior_name;
+
+	rclcpp_action::Client<bloom_msgs::action::PlayBehavior>::SendGoalOptions options;
+	auto logger = this->get_logger();
+	options.goal_response_callback =
+		[logger, behavior_name](
+			const rclcpp_action::ClientGoalHandle<bloom_msgs::action::PlayBehavior>::SharedPtr & goal_handle) {
+			if (!goal_handle) {
+				RCLCPP_WARN(logger, "Behavior rejected by play_behavior action server: %s", behavior_name.c_str());
+			}
+		};
+	options.result_callback =
+		[logger, behavior_name](
+			const rclcpp_action::ClientGoalHandle<bloom_msgs::action::PlayBehavior>::WrappedResult & result) {
+			if (result.code != rclcpp_action::ResultCode::SUCCEEDED) {
+				RCLCPP_WARN(logger, "Behavior did not complete successfully: %s", behavior_name.c_str());
+			}
+		};
+
+	behavior_action_client_->async_send_goal(goal, options);
+	RCLCPP_INFO(this->get_logger(), "Dispatched behavior execute request: %s", behavior_name.c_str());
 }
 
 void StateManager::publish_face(const std::string & face_expression)

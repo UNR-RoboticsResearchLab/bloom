@@ -2,6 +2,8 @@
 #define BLOOM_NODE_LESSON_COORDINATOR_H
 
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
+#include "bloom_msgs/action/play_behavior.hpp"
 #include "bloom_node/behavior_coordinator.h"
 #include "bloom_node/web_service_client.h"
 #include "bloom_node/state_manager.h"
@@ -160,7 +162,7 @@ private:
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr llm_context_pub_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr tts_done_sub_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr wrap_up_sub_;
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr motor_pub_;
+    rclcpp_action::Client<bloom_msgs::action::PlayBehavior>::SharedPtr motor_action_client_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr stt_enable_pub_;
     bool waiting_for_tts_done_{false};
     bool waiting_for_wrap_up_{false};

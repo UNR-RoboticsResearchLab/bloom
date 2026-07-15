@@ -31,18 +31,6 @@ def generate_launch_description():
         description='Skip real I2C/PCA9685 hardware (for dev-machine testing)'
     )
 
-    kiosk_arg = DeclareLaunchArgument(
-        'kiosk',
-        default_value='false',
-        description='Launch Chromium in kiosk mode pointing at the face web server'
-    )
-
-    face_port_arg = DeclareLaunchArgument(
-        'face_port',
-        default_value='8765',
-        description='TCP port for the face HTTP/WebSocket server'
-    )
-
     # Include bloom_node launch file
     bloom_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -69,8 +57,6 @@ def generate_launch_description():
         ),
         launch_arguments={
             'dry_run': LaunchConfiguration('dry_run'),
-            'kiosk': LaunchConfiguration('kiosk'),
-            'face_port': LaunchConfiguration('face_port'),
         }.items()
     )
 
@@ -78,8 +64,6 @@ def generate_launch_description():
         config_file_arg,
         base_url_arg,
         dry_run_arg,
-        kiosk_arg,
-        face_port_arg,
         bloom_launch,
         m_sarg_launch,
     ])

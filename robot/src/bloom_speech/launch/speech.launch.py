@@ -22,4 +22,10 @@ def generate_launch_description():
             name='llm_node',
             output='screen',
         ),
+        Node(
+            package='bloom_speech',
+            executable='rsr_speech_node',
+            name='rsr_speech_node',
+            output='screen',
+        ),
     ])

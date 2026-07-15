@@ -148,6 +148,8 @@ publish/
 !**/packages/build/
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/packages/repositories.config
+# except the vendored @vizij source packages, which are real pnpm workspace members, not a NuGet restore folder
+!robot/kiosk-face/packages/**
 
 # Microsoft Azure Build Output
 csx/

@@ -60,10 +60,23 @@ def generate_launch_description():
         }.items()
     )
 
+    # Include bloom_speech launch file (tts_node drives face visemes/emotion
+    # during speech; without it the face never animates past its idle state)
+    speech_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('bloom_speech'),
+                'launch',
+                'speech.launch.py'
+            ])
+        )
+    )
+
     return LaunchDescription([
         config_file_arg,
         base_url_arg,
         dry_run_arg,
         bloom_launch,
         m_sarg_launch,
+        speech_launch,
     ])

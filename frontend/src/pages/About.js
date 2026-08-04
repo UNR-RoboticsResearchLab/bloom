@@ -41,47 +41,55 @@ export default function About() {
       <div className="mb-8 p-6 rounded-lg border border-gray-200 shadow-sm text-left">
         <h2 className="text-2xl font-semibold mb-3 text-center">Project Description</h2>
         <p>
-          Bloom is an aid to Speech Language Pathologists to guide students that struggle in certain
-          areas of language to aid them through speech therapy intervention. The overall goal is to have a
-          system that is easy to use and provides students engagement and repetition with interventions.
-          The system should be easy to set up, use, and be reliable in a real world setting.
+          Bloom is an open source, dual-system platform for pediatric speech-language therapy that pairs a
+          therapist-controlled web dashboard with a socially assistive robot (SAR). Rather than automating
+          therapy outright, Bloom gives the Speech-Language Pathologist supervised autonomy over robot-led
+          practice: the SLP designs and assigns the intervention, the robot delivers repetitive practice
+          directly to the student, and results are recorded automatically. This offloads the most
+          time-consuming parts of a session from the clinician while keeping them in control of the plan
+          and pacing.
         </p>
         <br />
         <h3 className="text-xl font-semibold mb-2">Intended Users</h3>
         <p>
-          The intended user of the web app will be the Speech Language Pathologists and Teachers that will
-          be assigning students their lessons based on the needs of the student. The other end of the table
-          the user will be the student that is interacting with the robot and is going through the lesson.
-          It is important to have an engaging experience to keep the student involved, interested and engaged.
+          The primary users are the Speech-Language Pathologists and Teachers who plan interventions and
+          assign lessons based on each student's needs. Design decisions are informed directly by
+          conversations with practicing SLPs, who consistently ask for expressive robot behavior,
+          multi-modal communication, and tools that integrate with their existing therapy workflows rather
+          than replace them. The other primary user is the student, who interacts with the robot directly
+          during a lesson, where engagement and motivation through repetition are essential.
         </p>
         <br />
         <h3 className="text-xl font-semibold mb-2">Functionality and Technology</h3>
         <p>
-          The main functionality of Bloom includes interactive exercises that prompt students to speak and
-          follow simple instructions. A robot guides the students, speaks to them, and reacts to their
-          responses. The web interface allows Speech Language Pathology to assign activities, view performance
-          data, and adjust difficulty levels. The system supports real time interaction, progress tracking,
-          and personalized learning paths.
+          Bloom's core functionality centers on the robot as a multi-modal delivery mechanism for therapy
+          content: it speaks prompts to the student, uses expressive facial animation to stay engaging, and
+          listens for spoken responses. The web dashboard is where the clinician assigns lessons, adjusts
+          difficulty, and reviews recognition accuracy and outcomes without needing to be present for every
+          repetition. The system supports real time interaction, progress tracking, and personalized
+          learning paths.
         </p>
         <br />
         <p>
-          Bloom uses a web based platform with a frontend built using React and JavaScript. The backend is
-          developed using .NET. Communication between the robot and the server is handled through secure APIs.
-          Development tools include Docker for environment management, GitHub for version control, and VS Code
-          for coding.
+          Bloom's frontend is built with React and JavaScript, and the backend is developed using .NET.
+          The robot runs on the Robot Operating System (ROS), and communication between the robot and the
+          server is handled through secure APIs. Development tools include Docker for environment
+          management, GitHub for version control, and VS Code for coding.
         </p>
         <br />
         <p>
-          System hardware includes a small interactive robot equipped with speakers, microphones, and a display.
-          It connects to the server over a network and executes the activities created in the web app.
+          System hardware includes a small interactive robot equipped with speakers, microphones, and a
+          display capable of expressive facial animation. It connects to the server over a network and
+          executes the interventions created in the web app.
         </p>
         <br />
         <h3 className="text-xl font-semibold mb-2">Reliability, Security, and Safety</h3>
         <p>
-          Bloom is designed to be simple and reliable. Reliability is achieved through stable server architecture,
-          error handling, and testing of all features. Security is ensured by user authentication, encrypted
-          communication, and controlled access to data. Safety is addressed by following the guidelines and not
-          storing any long term data. These precautions help ensure Bloom is safe and effective for real world use.
+          Bloom is designed to be simple and reliable. Reliability is achieved through stable server
+          architecture, error handling, and testing of all features. Security is ensured by user
+          authentication, encrypted communication, and controlled access to data. Safety is addressed by
+          following the guidelines and not storing any long term data. These precautions help ensure Bloom
+          is safe and effective for real world use.
         </p>
       </div>
 

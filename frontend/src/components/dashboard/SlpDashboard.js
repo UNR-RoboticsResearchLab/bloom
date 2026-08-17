@@ -5,6 +5,7 @@ import { LessonCard } from "../../pages/LessonCard";
 import { StudentCard } from "../../pages/StudentCard";
 import { PairRobotCard } from "../../pages/PairRobotCard";
 import { useApiClient } from "../../context/ApiClientContext";
+import { useRobotPairing } from "../../context/RobotPairingContext";
 
 // Same mock data as Teacher dashboard
 const mockLessons = [
@@ -69,9 +70,7 @@ export default function SlpDashboard() {
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const { addNote, getNotes } = useNotes();
   const [showPairRobotCard, setShowPairRobotCard] = useState(false);
-  const [isConnected, setIsConnected] = useState(() => {
-    return !!localStorage.getItem("pairedSessionId");
-  });
+  const { isPaired } = useRobotPairing();
   const [lessons, setLessons] = useState([]);
 
   const [students, setStudents] = useState([]);
@@ -178,13 +177,13 @@ export default function SlpDashboard() {
           <div className="mt-1 flex items-center gap-2">
             <span
               className={`h-2.5 w-2.5 rounded-full ${
-                isConnected ? "bg-green-500" : "bg-red-500"
+                isPaired ? "bg-green-500" : "bg-red-500"
               }`}
-              
+
             />
-            
+
             <span className="text-2xl font-semibold">
-              {isConnected ? "Connected" : "Disconnected"}
+              {isPaired ? "Connected" : "Disconnected"}
             </span>
           </div>
         </div>
@@ -324,17 +323,9 @@ export default function SlpDashboard() {
       
                           <div className="relative z-10 w-full max-w-xl px-4">
                               <PairRobotCard
-                                isConnected={isConnected}
                                 onCancel={() => setShowPairRobotCard(false)}
-                                onPaired={(sessionId) => {
-                                  localStorage.setItem("pairedSessionId", sessionId);
-                                  setIsConnected(true);
-                                  setShowPairRobotCard(false);
-                                }}
-                                onUnpaired={() => {
-                                  setIsConnected(false);
-                                  setShowPairRobotCard(false);
-                                }}
+                                onPaired={() => setShowPairRobotCard(false)}
+                                onUnpaired={() => setShowPairRobotCard(false)}
                               />
                           </div>
                       </div>

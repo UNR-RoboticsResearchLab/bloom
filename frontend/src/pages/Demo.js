@@ -1,26 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApiClient } from "../context/ApiClientContext";
+import { useRobotPairing } from "../context/RobotPairingContext";
 
 const STEPS = ["pair", "lesson", "name"];
 
 export default function Demo() {
   const navigate = useNavigate();
   const api = useApiClient();
+  const { sessionId, robotCode: pairedRobotCode, pair, unpair } = useRobotPairing();
 
-  const [step, setStep] = useState(STEPS[0]);
+  const [step, setStep] = useState(sessionId ? STEPS[1] : STEPS[0]);
   const [robotCode, setRobotCode] = useState("");
-  const [sessionId, setSessionId] = useState(localStorage.getItem("pairedSessionId") || "");
   const [lessons, setLessons] = useState([]);
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [studentName, setStudentName] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  // Skip pairing step if already paired
-  useEffect(() => {
-    if (sessionId) setStep(STEPS[1]);
-  }, []);
 
   useEffect(() => {
     if (step !== "lesson") return;
@@ -35,13 +31,7 @@ export default function Demo() {
     setError("");
     setIsLoading(true);
     try {
-      const res = await api.getSessionIdFromRobotCode(robotCode.trim());
-      console.log("API response for session ID:", res);
-      const id = res?.sessionId ?? res?.id;
-      if (!id) throw new Error("No session ID returned.");
-      localStorage.setItem("pairedSessionId", id);
-      localStorage.setItem("pairedRobotCode", robotCode.trim());
-      setSessionId(id);
+      await pair(robotCode);
       setStep(STEPS[1]);
     } catch {
       setError("Could not find a session for that code. Check the robot and try again.");
@@ -66,10 +56,8 @@ export default function Demo() {
     });
   }
 
-  function handleUnpair() {
-    localStorage.removeItem("pairedSessionId");
-    localStorage.removeItem("pairedRobotCode");
-    setSessionId("");
+  async function handleUnpair() {
+    await unpair();
     setStep(STEPS[0]);
     setSelectedLesson(null);
   }
@@ -147,9 +135,7 @@ export default function Demo() {
               <h2 className="text-base font-semibold text-gray-900">Select a Lesson</h2>
               <p className="mt-1 text-sm text-gray-500">
                 Robot paired
-                {localStorage.getItem("pairedRobotCode")
-                  ? ` · Code: ${localStorage.getItem("pairedRobotCode")}`
-                  : ""}
+                {pairedRobotCode ? ` · Code: ${pairedRobotCode}` : ""}
               </p>
             </div>
             <button

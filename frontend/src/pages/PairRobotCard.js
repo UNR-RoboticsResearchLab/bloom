@@ -1,15 +1,11 @@
 import React, { useState } from "react";
-import { useApiClient } from "../context/ApiClientContext";
+import { useRobotPairing } from "../context/RobotPairingContext";
 
-export function PairRobotCard({ onCancel, onPaired, onUnpaired, isConnected }) {
+export function PairRobotCard({ onCancel, onPaired, onUnpaired }) {
+  const { sessionId, robotCode: storedCode, isPaired, pair, unpair } = useRobotPairing();
   const [robotCode, setRobotCode] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  const sessionId = localStorage.getItem("pairedSessionId") || "";
-  const storedCode = localStorage.getItem("pairedRobotCode") || "";
-
-  const api = useApiClient();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -19,16 +15,8 @@ export function PairRobotCard({ onCancel, onPaired, onUnpaired, isConnected }) {
       setIsLoading(true);
       setError("");
 
-      const res = await api.getSessionIdFromRobotCode(robotCode);
-      const returnedSessionId = res?.id;
-
-      if (returnedSessionId) {
-        localStorage.setItem("pairedSessionId", returnedSessionId);
-        localStorage.setItem("pairedRobotCode", robotCode);
-        if (onPaired) onPaired(returnedSessionId);
-      } else {
-        setError("No session ID returned from server.");
-      }
+      const returnedSessionId = await pair(robotCode);
+      if (onPaired) onPaired(returnedSessionId);
     } catch (err) {
       console.error("Failed to pair robot:", err);
       setError("Failed to pair robot. Check the code and try again.");
@@ -41,9 +29,7 @@ export function PairRobotCard({ onCancel, onPaired, onUnpaired, isConnected }) {
     try {
       setIsLoading(true);
       setError("");
-      await api.unpairRobot(sessionId);
-      localStorage.removeItem("pairedSessionId");
-      localStorage.removeItem("pairedRobotCode");
+      await unpair();
       if (onUnpaired) onUnpaired();
     } catch (err) {
       console.error("Failed to unpair robot:", err);
@@ -57,16 +43,18 @@ export function PairRobotCard({ onCancel, onPaired, onUnpaired, isConnected }) {
     <div className="w-full max-w-xl rounded-lg border border-gray-300 bg-white shadow-sm">
       <div className="border-b border-gray-300 px-6 py-4">
         <p className="text-lg font-semibold text-gray-900">
-          {isConnected ? "Robot Connected" : "Pair Robot"}
+          {isPaired ? "Robot Connected" : "Pair Robot"}
         </p>
         <p className="mt-1 text-sm text-gray-500">
-          {isConnected ? "Your robot is currently paired." : "Pair a robot to a session."}
+          {isPaired
+            ? "Your robot is paired and will stay connected as you move around the app."
+            : "Pair a robot to a session."}
         </p>
       </div>
 
       <div className="px-6 py-5">
         <div className="space-y-4">
-          {isConnected ? (
+          {isPaired ? (
             <>
               {storedCode && (
                 <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
@@ -114,14 +102,14 @@ export function PairRobotCard({ onCancel, onPaired, onUnpaired, isConnected }) {
             </form>
           )}
 
-          {isConnected && error && (
+          {isPaired && error && (
             <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
             </div>
           )}
         </div>
 
-        {isConnected && (
+        {isPaired && (
           <div className="mt-6 border-t border-gray-200 pt-5 flex justify-end gap-3">
             <button
               type="button"

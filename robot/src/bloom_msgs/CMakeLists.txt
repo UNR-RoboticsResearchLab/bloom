@@ -8,6 +8,7 @@ find_package(action_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/PlayBehavior.action"
   "action/PlayKeyframes.action"
+  "action/PlayStaticBehavior.action"
   "srv/ListBehaviors.srv"
   DEPENDENCIES action_msgs
 )

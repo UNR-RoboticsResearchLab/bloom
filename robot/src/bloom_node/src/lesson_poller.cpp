@@ -489,6 +489,10 @@ void LessonPoller::on_step_control_tick() {
                     } else {
                         RCLCPP_WARN(this->get_logger(), "[STEP_CONTROL] set_step missing or invalid targetStep");
                     }
+                } else if (command == "pause") {
+                    if (lesson_coord_) lesson_coord_->pause_lesson();
+                } else if (command == "resume") {
+                    if (lesson_coord_) lesson_coord_->resume_lesson();
 				} else if (command == "stop") {
 					RCLCPP_INFO(this->get_logger(), "[STEP_CONTROL] Stop command received - stopping lesson");
 					if (lesson_coord_) lesson_coord_->stop_lesson();

@@ -1,0 +1,19 @@
+# Play a pre-authored "static" behavior -- a fixed keyframe script stored as a
+# JSON file in m_sarg/behaviors/static/ (e.g. authored with the animation
+# designer web tool), keyed by its "name" field. Distinct from PlayBehavior,
+# whose behavior_name looks up a *programmatic* Python function in
+# m_sarg.behaviors.REGISTRY (head.py/arm.py/torso.py/idle.py) -- the two
+# namespaces are kept separate because names can otherwise collide (e.g.
+# static/wave.json's "wave" vs. arm.py's programmatic ArmPulse-based 'wave').
+string behavior_name
+# Global playback-speed multiplier applied to the script's authored
+# 'at'/'duration'/'end_time' values (2.0 = double speed / half duration),
+# same semantics as PlayKeyframes.speed_scale -- static scripts have no
+# params to regenerate from, so speed is applied by rescaling the authored
+# timing rather than recomputing poses like PlayBehavior's speed_scale does.
+float32 speed_scale 1.0
+---
+bool success
+string message
+---
+float32 progress

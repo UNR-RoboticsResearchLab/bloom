@@ -265,6 +265,14 @@ export default class ApiClient {
     });
   }
 
+  async pauseLesson(sessionId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/pause`, { method: "POST" });
+  }
+
+  async resumeLesson(sessionId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/resume`, { method: "POST" });
+  }
+
   async recordSLPFeedback(sessionId, stepId, feedbackCommand) {
     return this.request(`/api/lesson-runtime/${sessionId}/feedback`, {
       method: "POST",
@@ -389,6 +397,28 @@ export default class ApiClient {
 
   async getAvailableMotorSequences() {
     return this.request("/api/robot/motorsequences", { method: "GET" });
+  }
+
+  // ── Robot Profile (student customization) ───────────────────────────────
+
+  async getMyRobotProfile() {
+    return this.request("/api/robotprofile/me", { method: "GET" });
+  }
+
+  async updateMyRobotProfile(payload) {
+    return this.request("/api/robotprofile/me", {
+      method: "PUT",
+      body: JSON.stringify({
+        nickname: payload.nickname,
+        personalityTrait: payload.personalityTrait,
+        catchphrase: payload.catchphrase ?? null,
+        colorTheme: payload.colorTheme ?? null,
+      }),
+    });
+  }
+
+  async getRobotPersonalityPresets() {
+    return this.request("/api/robotprofile/presets", { method: "GET" });
   }
 
   // ── Lesson Content — Visual Aid Upload ───────────────────────────────────

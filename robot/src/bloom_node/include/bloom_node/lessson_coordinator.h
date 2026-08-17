@@ -111,6 +111,12 @@ public:
     void replay_step();
     void set_step(int target_step_order);
 
+    // Pause execution in place (interrupts immediately, keeps current_step_index_
+    // intact) and resume by re-playing the current step from its beginning.
+    // Called by LessonPoller when SLP issues pause/resume commands.
+    void pause_lesson();
+    void resume_lesson();
+
 private:
 
     void execute_step(const LessonStep &step);
@@ -140,6 +146,10 @@ private:
     // For interaction handling
     LessonStep* current_interaction_step_;
     bool waiting_for_response_;
+
+    // True while paused: lesson_active_ stays true, current_step_index_ is
+    // preserved, execution is frozen until resume_lesson() re-plays the step.
+    bool lesson_paused_{false};
 
     std::shared_ptr<BehaviorCoordinator> behavior_coordinator_;
     std::shared_ptr<bloom_node::WebServiceClient> web_client_;

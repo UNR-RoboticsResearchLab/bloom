@@ -130,7 +130,7 @@ namespace bloom.Models.dto
     /// </summary>
     public class PendingStepControlDto
     {
-        public string Command { get; set; } = string.Empty;  // "skip" | "replay" | "set_step"
+        public string Command { get; set; } = string.Empty;  // "skip" | "replay" | "set_step" | "pause" | "resume" | "stop"
         public int? TargetStep { get; set; }                 // Only set for "set_step"
     }
 

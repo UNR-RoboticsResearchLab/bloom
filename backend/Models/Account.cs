@@ -16,6 +16,7 @@ namespace bloom.Models
         public ICollection<Lesson>? CreatedLessons { get; set; }
         public ICollection<Assignment>? AssignedAssignments { get; set; }
         public ICollection<Robot>? RegisteredRobots { get; set; }
+        public RobotProfile? RobotProfile { get; set; }
         public string? Role { get; set; }
 
         /// <summary>

@@ -1,9 +1,11 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useApiClient } from "../context/ApiClientContext";
+import { useRobotPairing } from "../context/RobotPairingContext";
 import { getSession } from "../utils/auth";
 import SelectStudentCard from "./SelectStudentCard";
 import LessonBuilder from "../components/LessonBuilder";
+import { PairRobotCard } from "./PairRobotCard";
 
 const TYPE_CONFIG = {
     0: { label: "Language", bg: "bg-blue-50", badge: "bg-blue-100 text-blue-700", accent: "bg-blue-500" },
@@ -111,10 +113,13 @@ export default function Lesson() {
     const apiClient = useApiClient();
     const navigate = useNavigate();
 
+    const { isPaired, sessionId } = useRobotPairing();
+
     const [lesson, setLesson] = useState(null);
     const [students, setStudents] = useState([]);
     const [showSelectStudent, setShowSelectStudent] = useState(false);
     const [showEdit, setShowEdit] = useState(false);
+    const [showPairToTest, setShowPairToTest] = useState(false);
 
     const typeKey = lesson?.lessonType ?? lesson?.LessonType ?? 0;
     const typeConfig = TYPE_CONFIG[typeKey] ?? TYPE_CONFIG[0];
@@ -131,6 +136,19 @@ export default function Lesson() {
     function handleStudentSelect(student) {
         setShowSelectStudent(false);
         navigate("/lesson-view", { state: { lesson, student } });
+    }
+
+    function handleTestOnRobot() {
+        if (!isPaired) {
+            setShowPairToTest(true);
+            return;
+        }
+        navigate("/lesson-view", {
+            state: {
+                lesson,
+                student: { id: sessionId, fullName: "Test Run", name: "Test Run" },
+            },
+        });
     }
 
     function handleEditSubmit() {
@@ -260,12 +278,21 @@ export default function Lesson() {
             )}
 
             {/* CTA */}
-            <div className="flex justify-center pt-2">
+            <div className="flex flex-wrap justify-center gap-3 pt-2">
                 <button
                     onClick={() => setShowSelectStudent(true)}
                     className="rounded-xl bg-indigo-600 px-10 py-4 text-base font-semibold text-white shadow-md hover:bg-indigo-500 active:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                     Start Lesson
+                </button>
+                <button
+                    onClick={handleTestOnRobot}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-10 py-4 text-base font-semibold text-gray-700 shadow-md transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                    <span
+                        className={`h-2 w-2 rounded-full ${isPaired ? "bg-green-500" : "bg-gray-400"}`}
+                    />
+                    {isPaired ? "Test on Robot" : "Pair Robot to Test"}
                 </button>
             </div>
 
@@ -280,6 +307,21 @@ export default function Lesson() {
                         students={students}
                         onSelect={handleStudentSelect}
                         onCancel={() => setShowSelectStudent(false)}
+                    />
+                </div>
+            )}
+
+            {showPairToTest && (
+                <div
+                    className="fixed inset-0 flex items-center justify-center bg-black/40 z-50"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Pair a robot to test this lesson"
+                >
+                    <PairRobotCard
+                        onCancel={() => setShowPairToTest(false)}
+                        onPaired={() => setShowPairToTest(false)}
+                        onUnpaired={() => setShowPairToTest(false)}
                     />
                 </div>
             )}

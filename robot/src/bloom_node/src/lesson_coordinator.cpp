@@ -82,6 +82,7 @@ void LessonCoordinator::start_lesson() {
     }
 
     lesson_active_ = true;
+    lesson_paused_ = false;
     current_step_index_ = 0;
 
     RCLCPP_INFO(this->get_logger(), "[LESSON_START] Starting lesson: %s with %zu steps", current_lesson_.title.c_str(), current_lesson_.sequence.size());
@@ -126,6 +127,7 @@ void LessonCoordinator::stop_lesson() {
     if (feedback_poller_) feedback_poller_->set_polling_active(false);
 
     lesson_active_ = false;
+    lesson_paused_ = false;
 
     if (completion_callback_) {
         completion_callback_(current_lesson_.lesson_id);
@@ -143,6 +145,7 @@ void LessonCoordinator::reset_lesson() {
     }
 
     lesson_active_ = false;
+    lesson_paused_ = false;
     current_step_index_ = 0;
     current_interaction_step_ = nullptr;
     waiting_for_tts_done_ = false;
@@ -749,6 +752,10 @@ void LessonCoordinator::skip_step() {
         RCLCPP_WARN(this->get_logger(), "skip_step called but no lesson active");
         return;
     }
+    if (lesson_paused_) {
+        RCLCPP_WARN(this->get_logger(), "skip_step called while paused - ignoring");
+        return;
+    }
     RCLCPP_INFO(this->get_logger(), "[SKIP] Skipping to next step from index %zu", current_step_index_);
 
     if (step_timer_) {
@@ -791,6 +798,10 @@ void LessonCoordinator::replay_step() {
     std::lock_guard<std::mutex> lock(lesson_mutex_);
     if (!lesson_active_) {
         RCLCPP_WARN(this->get_logger(), "replay_step called but no lesson active");
+        return;
+    }
+    if (lesson_paused_) {
+        RCLCPP_WARN(this->get_logger(), "replay_step called while paused - ignoring");
         return;
     }
     RCLCPP_INFO(this->get_logger(), "[REPLAY] Replaying step at index %zu", current_step_index_ - 1);
@@ -840,6 +851,10 @@ void LessonCoordinator::set_step(int target_step_order) {
     std::lock_guard<std::mutex> lock(lesson_mutex_);
     if (!lesson_active_) {
         RCLCPP_WARN(this->get_logger(), "set_step called but no lesson active");
+        return;
+    }
+    if (lesson_paused_) {
+        RCLCPP_WARN(this->get_logger(), "set_step called while paused - ignoring");
         return;
     }
 
@@ -895,6 +910,85 @@ void LessonCoordinator::set_step(int target_step_order) {
             step_timer_ = nullptr;
             advance_to_next_step();
         });
+}
+
+void LessonCoordinator::pause_lesson() {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    if (!lesson_active_) {
+        RCLCPP_WARN(this->get_logger(), "pause_lesson called but no lesson active");
+        return;
+    }
+    if (lesson_paused_) {
+        RCLCPP_WARN(this->get_logger(), "pause_lesson called but lesson already paused");
+        return;
+    }
+    RCLCPP_INFO(this->get_logger(), "[PAUSE] Pausing lesson at step index %zu", current_step_index_);
+
+    if (step_timer_) {
+        step_timer_->cancel();
+        step_timer_ = nullptr;
+    }
+
+    waiting_for_tts_done_ = false;
+    waiting_for_interaction_tts_ = false;
+    waiting_for_wrap_up_ = false;
+    waiting_for_single_turn_ = false;
+    waiting_for_llm_tts_done_ = false;
+    waiting_for_response_ = false;
+    current_interaction_step_ = nullptr;
+
+    auto stt_msg = std_msgs::msg::String();
+    stt_msg.data = "false";
+    stt_enable_pub_->publish(stt_msg);
+
+    auto interrupt_msg = std_msgs::msg::String();
+    interrupt_msg.data = "interrupt";
+    tts_interrupt_pub_->publish(interrupt_msg);
+
+    auto mode_msg = std_msgs::msg::String();
+    mode_msg.data = "lesson_mode";
+    llm_mode_pub_->publish(mode_msg);
+
+    // Deliberately leave the visual aid on screen and skip the completion
+    // callback: pausing must not stop LessonPoller's step-control polling,
+    // or a subsequent resume command would never be received.
+    if (state_manager_) state_manager_->set_state("waiting");
+    if (feedback_poller_) feedback_poller_->set_polling_active(false);
+
+    lesson_paused_ = true;
+
+    RCLCPP_INFO(this->get_logger(), "[PAUSE] Lesson paused by SLP command");
+}
+
+void LessonCoordinator::resume_lesson() {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    if (!lesson_active_ || !lesson_paused_) {
+        RCLCPP_WARN(this->get_logger(), "resume_lesson called but lesson not paused");
+        return;
+    }
+    RCLCPP_INFO(this->get_logger(), "[RESUME] Resuming lesson at step index %zu",
+        current_step_index_ > 0 ? current_step_index_ - 1 : 0);
+
+    lesson_paused_ = false;
+
+    if (state_manager_) state_manager_->set_state("waiting");
+    if (feedback_poller_) feedback_poller_->set_polling_active(false);
+
+    // Re-play the current step from its beginning — same index math as
+    // replay_step(): step back one so advance_to_next_step() re-executes it.
+    if (current_step_index_ > 0) {
+        current_step_index_--;
+    }
+
+    step_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(100),
+        [this]() {
+            step_timer_->cancel();
+            step_timer_ = nullptr;
+            advance_to_next_step();
+        });
+
+    RCLCPP_INFO(this->get_logger(), "[RESUME] Lesson resumed by SLP command");
 }
 
 bool LessonCoordinator::is_lesson_running() const {

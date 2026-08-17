@@ -11,6 +11,7 @@ import reportWebVitals from "./reportWebVitals";
 import './index.css';
 import "./custom.css";
 import { ApiClientProvider } from "./context/ApiClientContext";
+import { RobotPairingProvider } from "./context/RobotPairingContext";
 
 const baseUrl = document.getElementsByTagName("base")[0]?.getAttribute("href") || "/";
 const container = document.getElementById("root");
@@ -20,8 +21,9 @@ root.render(
   <ThemeProvider>
     <BrowserRouter basename={baseUrl}>
       <ApiClientProvider>
-  
-        <App />
+        <RobotPairingProvider>
+          <App />
+        </RobotPairingProvider>
       </ApiClientProvider>
     </BrowserRouter>
   </ThemeProvider>

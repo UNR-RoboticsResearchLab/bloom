@@ -187,6 +187,7 @@ builder.Services.AddAuthentication()
 // =========== Add Custom Services ===========
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IRobotService, RobotService>();
+builder.Services.AddScoped<IRobotProfileService, RobotProfileService>();
 builder.Services.AddScoped<ILessonService, LessonService>();
 builder.Services.AddScoped<ILessonProgressService, LessonProgressService>();
 

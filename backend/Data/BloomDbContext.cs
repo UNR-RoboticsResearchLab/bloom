@@ -18,6 +18,7 @@ namespace bloom.Data
         public DbSet<Assignment> Assignments { get; set; }
         public DbSet<Classroom> Classrooms { get; set; }
         public DbSet<Robot> Robots { get; set; }
+        public DbSet<RobotProfile> RobotProfiles { get; set; }
         public DbSet<RobotSession> RobotSessions { get; set; }
         public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
         public DbSet<LessonStep> LessonSteps { get; set; }
@@ -192,6 +193,18 @@ namespace bloom.Data
             {
                 entity.ToTable("RsrAssessments");
                 entity.HasIndex(a => a.Pid).IsUnique();
+            });
+
+            builder.Entity<RobotProfile>(entity =>
+            {
+                entity.ToTable("RobotProfiles");
+
+                entity.HasOne(p => p.Account)
+                    .WithOne(a => a.RobotProfile)
+                    .HasForeignKey<RobotProfile>(p => p.AccountId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(p => p.AccountId).IsUnique();
             });
 
         }

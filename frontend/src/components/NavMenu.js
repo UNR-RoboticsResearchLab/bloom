@@ -11,7 +11,7 @@ import { Link } from "react-router-dom";
 import { getSession, dashboardPathForRole } from "../utils/auth";
 import { useRobotPairing } from "../context/RobotPairingContext";
 import { PairRobotCard } from "../pages/PairRobotCard";
-import "./NavMenu.css";
+import "../styles/components/nav-menu.css";
 
 function getInitials(name) {
   if (!name) return "";
@@ -59,19 +59,12 @@ export default function NavMenu() {
               </NavLink>
             </NavItem>
 
-            {isLoggedIn && (
-              <NavItem>
-                <NavLink tag={Link} to="/arsr/results" className="text-dark">
-                  RSR Study
-                </NavLink>
-              </NavItem>
-            )}
-
-            <NavItem>
+            {isLoggedIn && (<NavItem>
               <NavLink tag={Link} to="/rsr-assessment" className="text-dark">
                 RSR
               </NavLink>
             </NavItem>
+          )}
 
             {canPairRobot && (
               <NavItem>

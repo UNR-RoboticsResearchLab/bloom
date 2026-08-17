@@ -3,6 +3,8 @@
 #include <mutex>
 #include <functional>
 #include <regex>
+#include <filesystem>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 using namespace bloom_node;
 
@@ -218,15 +220,8 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
 
     // Publish visual aid or hide
     if (!step.visual_aid_images.empty()) {
-        nlohmann::json va_json;
-        va_json["images"] = step.visual_aid_images;
-        va_json["labels"] = step.visual_aid_labels;
-        if (!step.visual_aid_footers.empty()) {
-            va_json["footers"] = step.visual_aid_footers;
-        }
-        auto va_msg = std_msgs::msg::String();
-        va_msg.data = va_json.dump();
-        visual_aid_publisher_->publish(va_msg);
+        uint64_t generation = ++visual_aid_generation_;
+        resolve_and_publish_visual_aids(step, generation);
     } else {
         auto va_msg = std_msgs::msg::String();
         va_msg.data = "{\"command\": \"hide\"}";
@@ -250,6 +245,124 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
     } else {
         waiting_for_tts_done_ = true;
         speak_script(step.script);
+    }
+}
+
+std::string LessonCoordinator::resolve_visual_aid_cache_dir() {
+    if (visual_aids_cache_dir_.empty()) {
+        try {
+            visual_aids_cache_dir_ = ament_index_cpp::get_package_share_directory("bloom_face") + "/visual_aids";
+        } catch (const std::exception &e) {
+            RCLCPP_WARN(this->get_logger(),
+                "Could not resolve bloom_face visual_aids share dir (%s); falling back to /tmp", e.what());
+            visual_aids_cache_dir_ = "/tmp/bloom_visual_aids";
+        }
+        std::error_code ec;
+        std::filesystem::create_directories(visual_aids_cache_dir_, ec);
+        if (ec) {
+            RCLCPP_WARN(this->get_logger(), "Could not create visual aid cache dir %s: %s",
+                visual_aids_cache_dir_.c_str(), ec.message().c_str());
+        }
+    }
+    return visual_aids_cache_dir_;
+}
+
+std::string LessonCoordinator::visual_aid_cache_filename(const std::string &entry) const {
+    bool is_remote = entry.rfind("http://", 0) == 0 ||
+                      entry.rfind("https://", 0) == 0 ||
+                      entry.rfind("/", 0) == 0;
+    if (!is_remote) {
+        // Bare filename referring to pre-bundled content in visual_aids/ — unchanged
+        // legacy behavior, resolved by bloom_face exactly as it is today.
+        return entry;
+    }
+
+    // Deterministic cache filename so repeat views are a disk hit, not a re-download.
+    std::string ext;
+    auto dot = entry.find_last_of('.');
+    auto slash = entry.find_last_of('/');
+    if (dot != std::string::npos && (slash == std::string::npos || dot > slash) && entry.size() - dot <= 8) {
+        ext = entry.substr(dot);
+    }
+    size_t hash = std::hash<std::string>{}(entry);
+    std::ostringstream oss;
+    oss << std::hex << hash << ext;
+    return oss.str();
+}
+
+void LessonCoordinator::publish_visual_aid_message(
+    const std::vector<std::string> &filenames,
+    const std::vector<std::string> &labels,
+    const std::vector<std::string> &footers)
+{
+    nlohmann::json va_json;
+    va_json["images"] = filenames;
+    va_json["labels"] = labels;
+    if (!footers.empty()) {
+        va_json["footers"] = footers;
+    }
+    auto va_msg = std_msgs::msg::String();
+    va_msg.data = va_json.dump();
+    visual_aid_publisher_->publish(va_msg);
+}
+
+void LessonCoordinator::resolve_and_publish_visual_aids(const LessonStep &step, uint64_t generation) {
+    std::string cache_dir = resolve_visual_aid_cache_dir();
+
+    auto filenames = std::make_shared<std::vector<std::string>>();
+    filenames->reserve(step.visual_aid_images.size());
+    for (const auto &entry : step.visual_aid_images) {
+        filenames->push_back(visual_aid_cache_filename(entry));
+    }
+
+    // index into step.visual_aid_images / *filenames, raw source (URL or relative path)
+    std::vector<std::pair<size_t, std::string>> to_download;
+    for (size_t i = 0; i < step.visual_aid_images.size(); ++i) {
+        std::string full_path = cache_dir + "/" + (*filenames)[i];
+        std::error_code ec;
+        if (!std::filesystem::exists(full_path, ec)) {
+            to_download.emplace_back(i, step.visual_aid_images[i]);
+        }
+    }
+
+    auto labels = step.visual_aid_labels;
+    auto footers = step.visual_aid_footers;
+
+    if (to_download.empty()) {
+        // Everything already cached (or was pre-bundled all along) — publish
+        // immediately, exactly matching pre-download-pipeline behavior/latency.
+        publish_visual_aid_message(*filenames, labels, footers);
+        return;
+    }
+
+    if (!web_client_) {
+        RCLCPP_WARN(this->get_logger(),
+            "No web client available to download %zu visual aid(s); publishing without them",
+            to_download.size());
+        publish_visual_aid_message(*filenames, labels, footers);
+        return;
+    }
+
+    auto pending = std::make_shared<std::atomic<size_t>>(to_download.size());
+
+    for (const auto &pair : to_download) {
+        std::string dest = cache_dir + "/" + (*filenames)[pair.first];
+        web_client_->downloadFileAsync(pair.second, dest,
+            [this, generation, pending, filenames, labels, footers]
+            (bool success, const std::string &filePath, const std::string &error) {
+                if (!success) {
+                    RCLCPP_WARN(this->get_logger(), "Visual aid download failed for %s: %s",
+                        filePath.c_str(), error.c_str());
+                }
+                if (pending->fetch_sub(1) == 1) {
+                    // Last download in this step's batch has resolved (success or not).
+                    std::lock_guard<std::mutex> lock(lesson_mutex_);
+                    if (generation != visual_aid_generation_.load()) {
+                        return; // superseded by a later step/command — discard
+                    }
+                    publish_visual_aid_message(*filenames, labels, footers);
+                }
+            });
     }
 }
 

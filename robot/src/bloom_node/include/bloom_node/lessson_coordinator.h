@@ -18,6 +18,7 @@
 #include <chrono>
 #include <algorithm>
 #include <optional>
+#include <atomic>
 #include <std_msgs/msg/string.hpp>
 
 namespace bloom_node {
@@ -129,6 +130,19 @@ private:
     void schedule_next_step(int delay_seconds);
     void advance_to_next_step();
 
+    // Visual aid download pipeline: resolves each entry to a local cache filename
+    // (bare filenames pass through unchanged for pre-bundled content; "http(s)://"
+    // URLs and backend-relative paths are downloaded via web_client_ into the same
+    // share directory bloom_face already resolves local filenames against), then
+    // publishes once every image in the step is ready (downloaded or failed).
+    std::string resolve_visual_aid_cache_dir();
+    std::string visual_aid_cache_filename(const std::string &entry) const;
+    void publish_visual_aid_message(
+        const std::vector<std::string> &filenames,
+        const std::vector<std::string> &labels,
+        const std::vector<std::string> &footers);
+    void resolve_and_publish_visual_aids(const LessonStep &step, uint64_t generation);
+
     void update_progress_with_backend();
     void log_interaction_to_backend(int step_order, const std::string &response, bool is_correct);
     void log_interaction_to_backend(int step_order, const std::string &interaction_type, const std::string &content, std::optional<bool> is_correct);
@@ -150,6 +164,13 @@ private:
     // True while paused: lesson_active_ stays true, current_step_index_ is
     // preserved, execution is frozen until resume_lesson() re-plays the step.
     bool lesson_paused_{false};
+
+    // Visual aid download pipeline state. Bumped once per execute_step() call so a
+    // slow/in-flight download's completion can detect it's been superseded by a
+    // later step (skip/replay/set_step/pause/stop) and discard its result instead
+    // of publishing a stale image.
+    std::atomic<uint64_t> visual_aid_generation_{0};
+    std::string visual_aids_cache_dir_;
 
     std::shared_ptr<BehaviorCoordinator> behavior_coordinator_;
     std::shared_ptr<bloom_node::WebServiceClient> web_client_;

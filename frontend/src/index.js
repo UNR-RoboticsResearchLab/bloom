@@ -8,8 +8,7 @@ import App from "./App";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import reportWebVitals from "./reportWebVitals";
 
-import './index.css';
-import "./custom.css";
+import "./styles/index.css";
 import { ApiClientProvider } from "./context/ApiClientContext";
 import { RobotPairingProvider } from "./context/RobotPairingContext";
 

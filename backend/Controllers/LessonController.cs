@@ -21,14 +21,20 @@ namespace bloom.Controllers
     {
         private readonly ILessonService _lessonService;
         private readonly ILessonProgressService _progressService;
+        private readonly ILessonAiService _lessonAiService;
         private readonly IWebHostEnvironment _env;
 
         private static readonly string[] AllowedImageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"];
 
-        public LessonController(ILessonService lessonService, ILessonProgressService progressService, IWebHostEnvironment env)
+        public LessonController(
+            ILessonService lessonService,
+            ILessonProgressService progressService,
+            ILessonAiService lessonAiService,
+            IWebHostEnvironment env)
         {
             _lessonService = lessonService;
             _progressService = progressService;
+            _lessonAiService = lessonAiService;
             _env = env;
         }
 
@@ -146,6 +152,25 @@ namespace bloom.Controllers
             catch (Exception ex)
             {
                 return BadRequest(new { message = $"Request error: {ex.Message}" });
+            }
+        }
+
+        /// <summary>
+        /// Generates a full lesson (title, objectives, steps) from a free-text prompt via AI.
+        /// Returns a LessonDto for the caller to preview/edit in the builder — never persists directly.
+        /// </summary>
+        [Authorize]
+        [HttpPost("ai/generate")]
+        public async Task<IActionResult> GenerateLessonWithAi([FromBody] LessonAiGenerateRequestDto request)
+        {
+            try
+            {
+                var lesson = await _lessonAiService.GenerateLessonAsync(request);
+                return Ok(lesson);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Lesson generation failed: {ex.Message}" });
             }
         }
 

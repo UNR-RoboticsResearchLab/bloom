@@ -187,6 +187,24 @@ int main(int argc, char ** argv)
 	auto behavior_execution_pub = node->create_publisher<std_msgs::msg::String>(
 		"play_sequence", 10);
 
+	// Feedback so current_behavior_ actually clears once a dispatched
+	// behavior finishes -- gesture_bridge_node publishes "completed:<name>"
+	// or "playing:<name>" to sequence_status (see its _publish_sequence_status).
+	// Without this, current_behavior_ stays set to whatever the first
+	// dispatched behavior was, and every later request queues behind it
+	// forever: get_next_behavior() keeps popping the next pending request
+	// and immediately re-pushing it since current_behavior_ never empties.
+	auto sequence_status_sub = node->create_subscription<std_msgs::msg::String>(
+		"sequence_status", 10,
+		[behavior_coord](const std_msgs::msg::String::SharedPtr msg) {
+			if (!msg) return;
+			const std::string prefix = "completed:";
+			if (msg->data.compare(0, prefix.size(), prefix) == 0) {
+				behavior_coord->behavior_completed(msg->data.substr(prefix.size()));
+			}
+		}
+	);
+
 	// Timer to process queued behaviors and execute them
 	// Runs every 100ms to check if next high-priority behavior should execute
 	auto behavior_execution_timer = node->create_wall_timer(

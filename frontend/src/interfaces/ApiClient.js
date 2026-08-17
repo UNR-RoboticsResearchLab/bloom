@@ -152,6 +152,16 @@ export default class ApiClient {
     return this.request(`/api/session/code?code=${encodeURIComponent(code)}`, { method: "GET" });
   }
 
+  // Unlike getSessionIdFromRobotCode (GET /code -- anonymous, explicitly
+  // documented as not modifying the session), this hits the authenticated
+  // GET /join/{code} endpoint that actually claims the session for the
+  // current user (sets UserId) -- required so the session's pairing state
+  // (session.UserId) reflects reality for anything polling it, e.g. the
+  // robot's own pairing-code display.
+  async joinSessionByCode(code) {
+    return this.request(`/api/session/join/${encodeURIComponent(code)}`, { method: "GET" });
+  }
+
   async endSession(sessionId) {
     return this.request(`/api/session/${sessionId}/end`, { method: "POST" });
   }

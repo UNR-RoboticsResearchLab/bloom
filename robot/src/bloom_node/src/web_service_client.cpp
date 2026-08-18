@@ -1,4 +1,5 @@
 #include "bloom_node/web_service_client.h"
+#include <fstream>
 
 using namespace bloom_node;
 
@@ -281,6 +282,53 @@ std::future<std::pair<std::string, long>> WebServiceClient::sendRequestAsync(
             on_response(res.first, res.second);
         }
         return res;
+    });
+}
+
+std::future<bool> WebServiceClient::downloadFileAsync(
+    const std::string &pathOrUrl,
+    const std::string &destFilePath,
+    DownloadCallback on_complete)
+{
+    // Absolute URLs (any host) are used as-is; anything else is resolved against
+    // base_url_ exactly like every other request this client makes.
+    bool is_absolute = pathOrUrl.rfind("http://", 0) == 0 || pathOrUrl.rfind("https://", 0) == 0;
+    std::string url = is_absolute ? pathOrUrl : buildUrl(pathOrUrl, std::nullopt);
+
+    return thread_pool_->enqueue([this, url, destFilePath, on_complete]() {
+        auto res = this->performRequest("GET", url, nullptr, {},
+                                       this->default_timeout_ms_, this->max_retries_);
+        const std::string &body = res.first;
+        long http_code = res.second;
+
+        if (http_code < 200 || http_code >= 300 || body.empty()) {
+            std::string error = "Download failed (HTTP " + std::to_string(http_code) + ")";
+            RCLCPP_WARN(this->get_logger(), "Failed to download %s: %s", url.c_str(), error.c_str());
+            if (on_complete) on_complete(false, destFilePath, error);
+            return false;
+        }
+
+        try {
+            std::ofstream out(destFilePath, std::ios::binary | std::ios::trunc);
+            if (!out.is_open()) {
+                std::string error = "Could not open destination file for writing";
+                RCLCPP_WARN(this->get_logger(), "%s: %s", error.c_str(), destFilePath.c_str());
+                if (on_complete) on_complete(false, destFilePath, error);
+                return false;
+            }
+            out.write(body.data(), static_cast<std::streamsize>(body.size()));
+            out.close();
+        } catch (const std::exception &e) {
+            std::string error = std::string("Exception writing downloaded file: ") + e.what();
+            RCLCPP_ERROR(this->get_logger(), "%s", error.c_str());
+            if (on_complete) on_complete(false, destFilePath, error);
+            return false;
+        }
+
+        RCLCPP_INFO(this->get_logger(), "Downloaded %s -> %s (%zu bytes)",
+            url.c_str(), destFilePath.c_str(), body.size());
+        if (on_complete) on_complete(true, destFilePath, "");
+        return true;
     });
 }
 

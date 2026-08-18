@@ -3,6 +3,8 @@
 #include <mutex>
 #include <functional>
 #include <regex>
+#include <filesystem>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 using namespace bloom_node;
 
@@ -37,7 +39,8 @@ LessonCoordinator::LessonCoordinator(
 
     llm_mode_pub_ = this->create_publisher<std_msgs::msg::String>("/llm/mode", 10);
     llm_context_pub_ = this->create_publisher<std_msgs::msg::String>("/llm/lesson_context", 10);
-    motor_pub_ = this->create_publisher<std_msgs::msg::String>("play_sequence", 10);
+    motor_action_client_ = rclcpp_action::create_client<bloom_msgs::action::PlayBehavior>(
+        this, "play_behavior");
     stt_enable_pub_ = this->create_publisher<std_msgs::msg::String>("/stt/enable", 10);
     robot_state_sub_ = this->create_subscription<std_msgs::msg::String>(
         "robot/state", 10,
@@ -81,6 +84,7 @@ void LessonCoordinator::start_lesson() {
     }
 
     lesson_active_ = true;
+    lesson_paused_ = false;
     current_step_index_ = 0;
 
     RCLCPP_INFO(this->get_logger(), "[LESSON_START] Starting lesson: %s with %zu steps", current_lesson_.title.c_str(), current_lesson_.sequence.size());
@@ -125,6 +129,7 @@ void LessonCoordinator::stop_lesson() {
     if (feedback_poller_) feedback_poller_->set_polling_active(false);
 
     lesson_active_ = false;
+    lesson_paused_ = false;
 
     if (completion_callback_) {
         completion_callback_(current_lesson_.lesson_id);
@@ -142,6 +147,7 @@ void LessonCoordinator::reset_lesson() {
     }
 
     lesson_active_ = false;
+    lesson_paused_ = false;
     current_step_index_ = 0;
     current_interaction_step_ = nullptr;
     waiting_for_tts_done_ = false;
@@ -178,24 +184,44 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
 
     queue_behavior(step);
 
-    if (!step.motor_sequence.empty()) {
-        auto motor_msg = std_msgs::msg::String();
-        motor_msg.data = step.motor_sequence;
-        motor_pub_->publish(motor_msg);
-        RCLCPP_INFO(this->get_logger(), "Playing motor sequence: %s", step.motor_sequence.c_str());
+    if (!step.motor_sequence.empty() && motor_action_client_) {
+        if (!motor_action_client_->action_server_is_ready()) {
+            RCLCPP_WARN(this->get_logger(),
+                "play_behavior action server not available - dropping motor sequence: %s",
+                step.motor_sequence.c_str());
+        } else {
+            bloom_msgs::action::PlayBehavior::Goal goal;
+            goal.behavior_name = step.motor_sequence;
+
+            rclcpp_action::Client<bloom_msgs::action::PlayBehavior>::SendGoalOptions options;
+            auto logger = this->get_logger();
+            std::string sequence_name = step.motor_sequence;
+            options.goal_response_callback =
+                [logger, sequence_name](
+                    const rclcpp_action::ClientGoalHandle<bloom_msgs::action::PlayBehavior>::SharedPtr & goal_handle) {
+                    if (!goal_handle) {
+                        RCLCPP_WARN(logger, "Motor sequence rejected by play_behavior action server: %s",
+                            sequence_name.c_str());
+                    }
+                };
+            options.result_callback =
+                [logger, sequence_name](
+                    const rclcpp_action::ClientGoalHandle<bloom_msgs::action::PlayBehavior>::WrappedResult & result) {
+                    if (result.code != rclcpp_action::ResultCode::SUCCEEDED) {
+                        RCLCPP_WARN(logger, "Motor sequence did not complete successfully: %s",
+                            sequence_name.c_str());
+                    }
+                };
+
+            motor_action_client_->async_send_goal(goal, options);
+            RCLCPP_INFO(this->get_logger(), "Playing motor sequence: %s", step.motor_sequence.c_str());
+        }
     }
 
     // Publish visual aid or hide
     if (!step.visual_aid_images.empty()) {
-        nlohmann::json va_json;
-        va_json["images"] = step.visual_aid_images;
-        va_json["labels"] = step.visual_aid_labels;
-        if (!step.visual_aid_footers.empty()) {
-            va_json["footers"] = step.visual_aid_footers;
-        }
-        auto va_msg = std_msgs::msg::String();
-        va_msg.data = va_json.dump();
-        visual_aid_publisher_->publish(va_msg);
+        uint64_t generation = ++visual_aid_generation_;
+        resolve_and_publish_visual_aids(step, generation);
     } else {
         auto va_msg = std_msgs::msg::String();
         va_msg.data = "{\"command\": \"hide\"}";
@@ -219,6 +245,124 @@ void LessonCoordinator::execute_step(const LessonStep &step) {
     } else {
         waiting_for_tts_done_ = true;
         speak_script(step.script);
+    }
+}
+
+std::string LessonCoordinator::resolve_visual_aid_cache_dir() {
+    if (visual_aids_cache_dir_.empty()) {
+        try {
+            visual_aids_cache_dir_ = ament_index_cpp::get_package_share_directory("bloom_face") + "/visual_aids";
+        } catch (const std::exception &e) {
+            RCLCPP_WARN(this->get_logger(),
+                "Could not resolve bloom_face visual_aids share dir (%s); falling back to /tmp", e.what());
+            visual_aids_cache_dir_ = "/tmp/bloom_visual_aids";
+        }
+        std::error_code ec;
+        std::filesystem::create_directories(visual_aids_cache_dir_, ec);
+        if (ec) {
+            RCLCPP_WARN(this->get_logger(), "Could not create visual aid cache dir %s: %s",
+                visual_aids_cache_dir_.c_str(), ec.message().c_str());
+        }
+    }
+    return visual_aids_cache_dir_;
+}
+
+std::string LessonCoordinator::visual_aid_cache_filename(const std::string &entry) const {
+    bool is_remote = entry.rfind("http://", 0) == 0 ||
+                      entry.rfind("https://", 0) == 0 ||
+                      entry.rfind("/", 0) == 0;
+    if (!is_remote) {
+        // Bare filename referring to pre-bundled content in visual_aids/ — unchanged
+        // legacy behavior, resolved by bloom_face exactly as it is today.
+        return entry;
+    }
+
+    // Deterministic cache filename so repeat views are a disk hit, not a re-download.
+    std::string ext;
+    auto dot = entry.find_last_of('.');
+    auto slash = entry.find_last_of('/');
+    if (dot != std::string::npos && (slash == std::string::npos || dot > slash) && entry.size() - dot <= 8) {
+        ext = entry.substr(dot);
+    }
+    size_t hash = std::hash<std::string>{}(entry);
+    std::ostringstream oss;
+    oss << std::hex << hash << ext;
+    return oss.str();
+}
+
+void LessonCoordinator::publish_visual_aid_message(
+    const std::vector<std::string> &filenames,
+    const std::vector<std::string> &labels,
+    const std::vector<std::string> &footers)
+{
+    nlohmann::json va_json;
+    va_json["images"] = filenames;
+    va_json["labels"] = labels;
+    if (!footers.empty()) {
+        va_json["footers"] = footers;
+    }
+    auto va_msg = std_msgs::msg::String();
+    va_msg.data = va_json.dump();
+    visual_aid_publisher_->publish(va_msg);
+}
+
+void LessonCoordinator::resolve_and_publish_visual_aids(const LessonStep &step, uint64_t generation) {
+    std::string cache_dir = resolve_visual_aid_cache_dir();
+
+    auto filenames = std::make_shared<std::vector<std::string>>();
+    filenames->reserve(step.visual_aid_images.size());
+    for (const auto &entry : step.visual_aid_images) {
+        filenames->push_back(visual_aid_cache_filename(entry));
+    }
+
+    // index into step.visual_aid_images / *filenames, raw source (URL or relative path)
+    std::vector<std::pair<size_t, std::string>> to_download;
+    for (size_t i = 0; i < step.visual_aid_images.size(); ++i) {
+        std::string full_path = cache_dir + "/" + (*filenames)[i];
+        std::error_code ec;
+        if (!std::filesystem::exists(full_path, ec)) {
+            to_download.emplace_back(i, step.visual_aid_images[i]);
+        }
+    }
+
+    auto labels = step.visual_aid_labels;
+    auto footers = step.visual_aid_footers;
+
+    if (to_download.empty()) {
+        // Everything already cached (or was pre-bundled all along) — publish
+        // immediately, exactly matching pre-download-pipeline behavior/latency.
+        publish_visual_aid_message(*filenames, labels, footers);
+        return;
+    }
+
+    if (!web_client_) {
+        RCLCPP_WARN(this->get_logger(),
+            "No web client available to download %zu visual aid(s); publishing without them",
+            to_download.size());
+        publish_visual_aid_message(*filenames, labels, footers);
+        return;
+    }
+
+    auto pending = std::make_shared<std::atomic<size_t>>(to_download.size());
+
+    for (const auto &pair : to_download) {
+        std::string dest = cache_dir + "/" + (*filenames)[pair.first];
+        web_client_->downloadFileAsync(pair.second, dest,
+            [this, generation, pending, filenames, labels, footers]
+            (bool success, const std::string &filePath, const std::string &error) {
+                if (!success) {
+                    RCLCPP_WARN(this->get_logger(), "Visual aid download failed for %s: %s",
+                        filePath.c_str(), error.c_str());
+                }
+                if (pending->fetch_sub(1) == 1) {
+                    // Last download in this step's batch has resolved (success or not).
+                    std::lock_guard<std::mutex> lock(lesson_mutex_);
+                    if (generation != visual_aid_generation_.load()) {
+                        return; // superseded by a later step/command — discard
+                    }
+                    publish_visual_aid_message(*filenames, labels, footers);
+                }
+            });
     }
 }
 
@@ -721,6 +865,10 @@ void LessonCoordinator::skip_step() {
         RCLCPP_WARN(this->get_logger(), "skip_step called but no lesson active");
         return;
     }
+    if (lesson_paused_) {
+        RCLCPP_WARN(this->get_logger(), "skip_step called while paused - ignoring");
+        return;
+    }
     RCLCPP_INFO(this->get_logger(), "[SKIP] Skipping to next step from index %zu", current_step_index_);
 
     if (step_timer_) {
@@ -763,6 +911,10 @@ void LessonCoordinator::replay_step() {
     std::lock_guard<std::mutex> lock(lesson_mutex_);
     if (!lesson_active_) {
         RCLCPP_WARN(this->get_logger(), "replay_step called but no lesson active");
+        return;
+    }
+    if (lesson_paused_) {
+        RCLCPP_WARN(this->get_logger(), "replay_step called while paused - ignoring");
         return;
     }
     RCLCPP_INFO(this->get_logger(), "[REPLAY] Replaying step at index %zu", current_step_index_ - 1);
@@ -812,6 +964,10 @@ void LessonCoordinator::set_step(int target_step_order) {
     std::lock_guard<std::mutex> lock(lesson_mutex_);
     if (!lesson_active_) {
         RCLCPP_WARN(this->get_logger(), "set_step called but no lesson active");
+        return;
+    }
+    if (lesson_paused_) {
+        RCLCPP_WARN(this->get_logger(), "set_step called while paused - ignoring");
         return;
     }
 
@@ -867,6 +1023,85 @@ void LessonCoordinator::set_step(int target_step_order) {
             step_timer_ = nullptr;
             advance_to_next_step();
         });
+}
+
+void LessonCoordinator::pause_lesson() {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    if (!lesson_active_) {
+        RCLCPP_WARN(this->get_logger(), "pause_lesson called but no lesson active");
+        return;
+    }
+    if (lesson_paused_) {
+        RCLCPP_WARN(this->get_logger(), "pause_lesson called but lesson already paused");
+        return;
+    }
+    RCLCPP_INFO(this->get_logger(), "[PAUSE] Pausing lesson at step index %zu", current_step_index_);
+
+    if (step_timer_) {
+        step_timer_->cancel();
+        step_timer_ = nullptr;
+    }
+
+    waiting_for_tts_done_ = false;
+    waiting_for_interaction_tts_ = false;
+    waiting_for_wrap_up_ = false;
+    waiting_for_single_turn_ = false;
+    waiting_for_llm_tts_done_ = false;
+    waiting_for_response_ = false;
+    current_interaction_step_ = nullptr;
+
+    auto stt_msg = std_msgs::msg::String();
+    stt_msg.data = "false";
+    stt_enable_pub_->publish(stt_msg);
+
+    auto interrupt_msg = std_msgs::msg::String();
+    interrupt_msg.data = "interrupt";
+    tts_interrupt_pub_->publish(interrupt_msg);
+
+    auto mode_msg = std_msgs::msg::String();
+    mode_msg.data = "lesson_mode";
+    llm_mode_pub_->publish(mode_msg);
+
+    // Deliberately leave the visual aid on screen and skip the completion
+    // callback: pausing must not stop LessonPoller's step-control polling,
+    // or a subsequent resume command would never be received.
+    if (state_manager_) state_manager_->set_state("waiting");
+    if (feedback_poller_) feedback_poller_->set_polling_active(false);
+
+    lesson_paused_ = true;
+
+    RCLCPP_INFO(this->get_logger(), "[PAUSE] Lesson paused by SLP command");
+}
+
+void LessonCoordinator::resume_lesson() {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    if (!lesson_active_ || !lesson_paused_) {
+        RCLCPP_WARN(this->get_logger(), "resume_lesson called but lesson not paused");
+        return;
+    }
+    RCLCPP_INFO(this->get_logger(), "[RESUME] Resuming lesson at step index %zu",
+        current_step_index_ > 0 ? current_step_index_ - 1 : 0);
+
+    lesson_paused_ = false;
+
+    if (state_manager_) state_manager_->set_state("waiting");
+    if (feedback_poller_) feedback_poller_->set_polling_active(false);
+
+    // Re-play the current step from its beginning — same index math as
+    // replay_step(): step back one so advance_to_next_step() re-executes it.
+    if (current_step_index_ > 0) {
+        current_step_index_--;
+    }
+
+    step_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(100),
+        [this]() {
+            step_timer_->cancel();
+            step_timer_ = nullptr;
+            advance_to_next_step();
+        });
+
+    RCLCPP_INFO(this->get_logger(), "[RESUME] Lesson resumed by SLP command");
 }
 
 bool LessonCoordinator::is_lesson_running() const {

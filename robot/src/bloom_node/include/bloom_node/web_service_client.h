@@ -72,6 +72,7 @@ class WebServiceClient : public rclcpp::Node {
 public:
 
     using ResponseCallback = std::function<void(const std::string &body, long http_code)>;
+    using DownloadCallback = std::function<void(bool success, const std::string &filePath, const std::string &error)>;
 
     /// Construct with node name, base URL, and optional thread/connection pool sizes
     WebServiceClient(
@@ -128,6 +129,15 @@ public:
         const std::optional<std::string> &query = std::nullopt,
         const std::vector<std::string> &headers = {},
         ResponseCallback on_response = nullptr);
+
+    // Downloads a file (e.g. an image) to disk asynchronously. `pathOrUrl` may be an
+    // absolute "http(s)://" URL (used as-is, any host) or a relative path (resolved
+    // against base_url_, same as every other request this client makes). Never
+    // throws into the caller; on_complete always fires with success/failure.
+    std::future<bool> downloadFileAsync(
+        const std::string &pathOrUrl,
+        const std::string &destFilePath,
+        DownloadCallback on_complete = nullptr);
 
     // Configure SSL verification (true = verify peer certs, false = skip verification)
     void setVerifySSL(bool verify) { verify_ssl_ = verify; }

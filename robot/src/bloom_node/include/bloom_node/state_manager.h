@@ -2,8 +2,10 @@
 #define STATE_MANAGER_H
 
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
+#include "bloom_msgs/action/play_behavior.hpp"
 
 #include <string>
 #include <vector>
@@ -88,7 +90,7 @@ private:
 
 	// ROS interfaces
 	rclcpp::Publisher<std_msgs::msg::String>::SharedPtr state_pub_;
-	rclcpp::Publisher<std_msgs::msg::String>::SharedPtr behavior_pub_;
+	rclcpp_action::Client<bloom_msgs::action::PlayBehavior>::SharedPtr behavior_action_client_;
 	rclcpp::Publisher<std_msgs::msg::String>::SharedPtr face_pub_;
 	rclcpp::Subscription<std_msgs::msg::String>::SharedPtr state_cmd_sub_;
 	rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sequence_status_sub_;

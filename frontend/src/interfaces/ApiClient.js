@@ -152,6 +152,16 @@ export default class ApiClient {
     return this.request(`/api/session/code?code=${encodeURIComponent(code)}`, { method: "GET" });
   }
 
+  // Unlike getSessionIdFromRobotCode (GET /code -- anonymous, explicitly
+  // documented as not modifying the session), this hits the authenticated
+  // GET /join/{code} endpoint that actually claims the session for the
+  // current user (sets UserId) -- required so the session's pairing state
+  // (session.UserId) reflects reality for anything polling it, e.g. the
+  // robot's own pairing-code display.
+  async joinSessionByCode(code) {
+    return this.request(`/api/session/join/${encodeURIComponent(code)}`, { method: "GET" });
+  }
+
   async endSession(sessionId) {
     return this.request(`/api/session/${sessionId}/end`, { method: "POST" });
   }
@@ -263,6 +273,14 @@ export default class ApiClient {
       method: "POST",
       body: JSON.stringify({ targetStep }),
     });
+  }
+
+  async pauseLesson(sessionId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/pause`, { method: "POST" });
+  }
+
+  async resumeLesson(sessionId) {
+    return this.request(`/api/lesson-runtime/${sessionId}/resume`, { method: "POST" });
   }
 
   async recordSLPFeedback(sessionId, stepId, feedbackCommand) {
@@ -389,6 +407,28 @@ export default class ApiClient {
 
   async getAvailableMotorSequences() {
     return this.request("/api/robot/motorsequences", { method: "GET" });
+  }
+
+  // ── Robot Profile (student customization) ───────────────────────────────
+
+  async getMyRobotProfile() {
+    return this.request("/api/robotprofile/me", { method: "GET" });
+  }
+
+  async updateMyRobotProfile(payload) {
+    return this.request("/api/robotprofile/me", {
+      method: "PUT",
+      body: JSON.stringify({
+        nickname: payload.nickname,
+        personalityTrait: payload.personalityTrait,
+        catchphrase: payload.catchphrase ?? null,
+        colorTheme: payload.colorTheme ?? null,
+      }),
+    });
+  }
+
+  async getRobotPersonalityPresets() {
+    return this.request("/api/robotprofile/presets", { method: "GET" });
   }
 
   // ── Lesson Content — Visual Aid Upload ───────────────────────────────────

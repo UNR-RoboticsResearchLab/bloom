@@ -26,8 +26,6 @@ import ForgotPassword from "./pages/ForgotPassword";
 import FetchData from "./pages/FetchData";
 import Counter from "./pages/Counter";
 
-// import "./custom.css";
-
 import AddStudentCard from "./pages/AddStudentCard";
 import AddLessonCard from "./pages/AddLessonCard";
 

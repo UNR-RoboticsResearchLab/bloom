@@ -2,6 +2,8 @@
 #define BLOOM_NODE_LESSON_COORDINATOR_H
 
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
+#include "bloom_msgs/action/play_behavior.hpp"
 #include "bloom_node/behavior_coordinator.h"
 #include "bloom_node/web_service_client.h"
 #include "bloom_node/state_manager.h"
@@ -16,6 +18,7 @@
 #include <chrono>
 #include <algorithm>
 #include <optional>
+#include <atomic>
 #include <std_msgs/msg/string.hpp>
 
 namespace bloom_node {
@@ -109,6 +112,12 @@ public:
     void replay_step();
     void set_step(int target_step_order);
 
+    // Pause execution in place (interrupts immediately, keeps current_step_index_
+    // intact) and resume by re-playing the current step from its beginning.
+    // Called by LessonPoller when SLP issues pause/resume commands.
+    void pause_lesson();
+    void resume_lesson();
+
 private:
 
     void execute_step(const LessonStep &step);
@@ -120,6 +129,19 @@ private:
 
     void schedule_next_step(int delay_seconds);
     void advance_to_next_step();
+
+    // Visual aid download pipeline: resolves each entry to a local cache filename
+    // (bare filenames pass through unchanged for pre-bundled content; "http(s)://"
+    // URLs and backend-relative paths are downloaded via web_client_ into the same
+    // share directory bloom_face already resolves local filenames against), then
+    // publishes once every image in the step is ready (downloaded or failed).
+    std::string resolve_visual_aid_cache_dir();
+    std::string visual_aid_cache_filename(const std::string &entry) const;
+    void publish_visual_aid_message(
+        const std::vector<std::string> &filenames,
+        const std::vector<std::string> &labels,
+        const std::vector<std::string> &footers);
+    void resolve_and_publish_visual_aids(const LessonStep &step, uint64_t generation);
 
     void update_progress_with_backend();
     void log_interaction_to_backend(int step_order, const std::string &response, bool is_correct);
@@ -138,6 +160,17 @@ private:
     // For interaction handling
     LessonStep* current_interaction_step_;
     bool waiting_for_response_;
+
+    // True while paused: lesson_active_ stays true, current_step_index_ is
+    // preserved, execution is frozen until resume_lesson() re-plays the step.
+    bool lesson_paused_{false};
+
+    // Visual aid download pipeline state. Bumped once per execute_step() call so a
+    // slow/in-flight download's completion can detect it's been superseded by a
+    // later step (skip/replay/set_step/pause/stop) and discard its result instead
+    // of publishing a stale image.
+    std::atomic<uint64_t> visual_aid_generation_{0};
+    std::string visual_aids_cache_dir_;
 
     std::shared_ptr<BehaviorCoordinator> behavior_coordinator_;
     std::shared_ptr<bloom_node::WebServiceClient> web_client_;
@@ -160,7 +193,7 @@ private:
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr llm_context_pub_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr tts_done_sub_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr wrap_up_sub_;
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr motor_pub_;
+    rclcpp_action::Client<bloom_msgs::action::PlayBehavior>::SharedPtr motor_action_client_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr stt_enable_pub_;
     bool waiting_for_tts_done_{false};
     bool waiting_for_wrap_up_{false};

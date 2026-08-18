@@ -11,7 +11,7 @@ LessonCoordinator::LessonCoordinator(
     std::shared_ptr<WebServiceClient> web_client,
     std::shared_ptr<StateManager> state_manager,
     const std::string &node_name
-) : rclcpp::Node(node_name),
+) : rclcpp::Node(node_name, rclcpp::NodeOptions().use_global_arguments(false)),
     current_step_index_(0),
     lesson_active_(false),
     current_interaction_step_(nullptr),

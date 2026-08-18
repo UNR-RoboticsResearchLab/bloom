@@ -3,7 +3,7 @@
 using namespace bloom_node;
 
 ConfigurationManager::ConfigurationManager(const rclcpp::Node::SharedPtr& node)
-  	: rclcpp::Node(node->get_name()),
+  	: rclcpp::Node("configuration_manager", rclcpp::NodeOptions().use_global_arguments(false)),
 	node_(node)
 {
   	// If a node was supplied, subscribe to a config update topic on that node.

@@ -10,7 +10,7 @@ WebServiceClient::WebServiceClient(
     size_t thread_pool_size,
     size_t curl_pool_size,
     bool verify_ssl
-) : Node(node_name),
+) : Node(node_name, rclcpp::NodeOptions().use_global_arguments(false)),
     base_url_(base_url),
     default_timeout_ms_(default_timeout_ms),
     max_retries_(max_retries),

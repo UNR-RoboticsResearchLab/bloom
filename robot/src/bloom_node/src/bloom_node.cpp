@@ -133,7 +133,8 @@ int main(int argc, char ** argv)
 		}
 	}
 
-	auto state_mgr = std::make_shared<bloom_node::StateManager>(rclcpp::NodeOptions());
+	auto state_mgr = std::make_shared<bloom_node::StateManager>(
+		rclcpp::NodeOptions().use_global_arguments(false));
 
 	// WebServiceClient constructor expects (node_name, base_url, default_timeout_ms, max_retries)
 	auto web_client = std::make_shared<bloom_node::WebServiceClient>(

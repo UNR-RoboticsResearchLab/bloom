@@ -23,7 +23,7 @@ export default function Home() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Bloom</h1>
               <p className="mt-2 max-w-2xl text-gray-700">
-                A robotics assisted speech therapy platform that gives SLPs and teachers simple tools to run lessons, track progress, and help students practice with instant feedback. Bloom pairs lesson content with on-device and cloud components so you can choose the right setup for your classroom or clinic.
+                An open source, dual-system platform for pediatric speech-language therapy. Bloom pairs a therapist-controlled web dashboard with a socially assistive robot (SAR): the SLP plans and assigns the intervention, the robot delivers repetitive practice directly to the student with speech and expressive feedback, and results are recorded automatically.
               </p>
             </div>
             <div className="flex gap-3">
@@ -62,7 +62,7 @@ export default function Home() {
           />
           <RoleCard
             title="SLP"
-            desc="Browse lessons, review assigned students, add notes, and check recognition accuracy and outcomes."
+            desc="Plan interventions, assign lessons to the robot, and stay in the loop with recognition accuracy and outcomes without sitting through every repetition."
             to="/dashboard/slp"
           />
           {/* <RoleCard
@@ -83,27 +83,27 @@ export default function Home() {
           <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <Feature
               title="Lesson management"
-              text="Create and organize sessions that match classroom or clinic needs. Assign lessons to students and monitor progress in one place."
+              text="Create and organize interventions that match classroom or clinic needs. Assign lessons to students and monitor progress in one place."
             />
             <Feature
-              title="Notes and outcomes"
-              text="Record observations per student and per lesson with a simple notes flow. Notes are saved now and can be synced to the backend later."
+              title="Supervised autonomy"
+              text="The robot handles repetitive practice reps directly with the student. The SLP sets the plan and pacing without needing to run every rep by hand, cutting down on session-to-session cognitive load."
+            />
+            <Feature
+              title="Automatic outcome tracking"
+              text="Recognition results and session notes are recorded automatically as the robot runs a lesson, so outcomes are captured without extra data entry."
             />
             <Feature
               title="Recognition feedback"
               text="See accuracy trends for recognition with quick success and failure counts. Use this to adjust pacing and content."
             />
             <Feature
-              title="Flexible deployment"
-              text="Choose on-device or cloud components when you connect a robot. Monitor memory and latency to guide the decision."
+              title="Multi-modal robot behavior"
+              text="The robot combines speech and expressive facial animation to keep students engaged through repetition, rather than relying on speech alone."
             />
             <Feature
-              title="Clean navigation"
-              text="Move between roles and pages with consistent styling that matches the sign in and sign up experience."
-            />
-            <Feature
-              title="Ready for integration"
-              text="Current prototype uses local storage. The structure is ready to swap to your ASP.NET API for secure accounts and data."
+              title="Open source and extensible"
+              text="Bloom is built in the open on ROS, React, and .NET, so clinics and researchers can inspect, adapt, or extend the system for their own setting."
             />
           </div>
         </section>
@@ -125,7 +125,7 @@ export default function Home() {
           <Step
             number="3"
             title="Connect the robot"
-            text="When hardware is ready, hook up the telemetry and audio endpoints. The admin health cards will update from real data."
+            text="Pair the dashboard with a Bloom robot to hand off repetitive practice. The SLP stays in control of the plan while the robot delivers it, and the admin health cards update from real telemetry."
           />
         </section>
 

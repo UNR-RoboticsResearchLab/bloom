@@ -220,11 +220,37 @@ void LessonPoller::on_polling_tick() {
                 RCLCPP_ERROR(this->get_logger(), "Failed to parse lesson JSON: %s", e.what());
             }
         });
+
+    // Idle-mode polling — only reached when no lesson is executing (see the
+    // early return above). Reuses the 7s tick cadence; if snappier response is
+    // ever needed this can move to its own faster timer like
+    // start_step_control_polling()/on_step_control_tick() (1500ms).
+    std::ostringstream idle_mode_path;
+    idle_mode_path << "/api/robot-idle-mode/" << current_session_id;
+
+    web_client_->sendGetAsync(
+        idle_mode_path.str(),
+        std::nullopt,
+        std::vector<std::string>{},
+        [this, lesson_coord = lesson_coord_](const std::string &body, long http_code) {
+            if (http_code < 200 || http_code >= 300) {
+                return;
+            }
+            try {
+                json response = json::parse(body);
+                std::string mode = response.value("mode", "passive");
+                if (lesson_coord) lesson_coord->set_idle_mode(mode);
+            } catch (const json::exception &e) {
+                RCLCPP_WARN(this->get_logger(), "Failed to parse idle-mode response: %s", e.what());
+            }
+        });
 }
 
 void LessonPoller::handle_pending_lesson(const json &lesson_json, const std::string &lesson_run_id) {
 	try {
-
+		// Tear down any active conversational idle mode before a real lesson
+		// takes over — nothing else resets mic/LLM mode automatically.
+		if (lesson_coord_) lesson_coord_->set_idle_mode("passive");
 
 		// Extract lesson_id for deduplication
 		if (!lesson_json.contains("id")) {

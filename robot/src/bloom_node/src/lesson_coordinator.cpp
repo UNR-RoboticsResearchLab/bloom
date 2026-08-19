@@ -1104,6 +1104,39 @@ void LessonCoordinator::resume_lesson() {
     RCLCPP_INFO(this->get_logger(), "[RESUME] Lesson resumed by SLP command");
 }
 
+void LessonCoordinator::set_idle_mode(const std::string &mode) {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    if (lesson_active_) {
+        RCLCPP_WARN(this->get_logger(), "Ignoring set_idle_mode(%s) — lesson is active", mode.c_str());
+        return;
+    }
+    if (mode == current_idle_mode_) return;  // avoid restarting behavior loop every tick
+    current_idle_mode_ = mode;
+
+    auto mode_msg = std_msgs::msg::String();
+    auto stt_msg = std_msgs::msg::String();
+
+    if (mode == "conversational") {
+        mode_msg.data = "free_conversation";
+        stt_msg.data = "true";
+    } else {
+        // "passive" — reuse "lesson_mode" as the neutral LLM mode value: stt_node.py
+        // already treats it as mic-off, and llm_node.py already resets to its
+        // no-lesson-context prompt for it.
+        mode_msg.data = "lesson_mode";
+        stt_msg.data = "false";
+    }
+    llm_mode_pub_->publish(mode_msg);
+    stt_enable_pub_->publish(stt_msg);
+
+    // Both idle modes reuse the existing "waiting" state (idle/breathing behavior
+    // loop + neutral face) — tts_node.py hardcodes a revert to "waiting" after
+    // every spoken utterance, so a distinct state here would just get clobbered.
+    if (state_manager_) state_manager_->set_state("waiting");
+
+    RCLCPP_INFO(this->get_logger(), "[IDLE] Idle mode set to %s", mode.c_str());
+}
+
 bool LessonCoordinator::is_lesson_running() const {
     // Use const_cast to allow locking in const method
     std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(lesson_mutex_));

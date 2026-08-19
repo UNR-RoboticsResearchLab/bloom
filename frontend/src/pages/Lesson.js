@@ -151,8 +151,9 @@ export default function Lesson() {
         });
     }
 
-    function handleEditSubmit() {
-        // TODO: wire up to a lesson update endpoint once the backend supports it.
+    async function handleEditSubmit(dto) {
+        const updated = await apiClient.updateLesson(lessonId, dto);
+        setLesson(updated);
         setShowEdit(false);
     }
 

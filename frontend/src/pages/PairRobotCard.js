@@ -15,20 +15,6 @@ export function PairRobotCard({ onCancel, onPaired, onUnpaired }) {
       setIsLoading(true);
       setError("");
 
-      // joinSessionByCode (not getSessionIdFromRobotCode) -- this needs to
-      // actually claim the session (set its UserId) so the session reflects
-      // as paired for anything polling it, e.g. the robot's own pairing-code
-      // display, which otherwise never sees userId set and never clears.
-      const res = await api.joinSessionByCode(robotCode);
-      const returnedSessionId = res?.id;
-
-      if (returnedSessionId) {
-        localStorage.setItem("pairedSessionId", returnedSessionId);
-        localStorage.setItem("pairedRobotCode", robotCode);
-        if (onPaired) onPaired(returnedSessionId);
-      } else {
-        setError("No session ID returned from server.");
-      }
       const returnedSessionId = await pair(robotCode);
       if (onPaired) onPaired(returnedSessionId);
     } catch (err) {

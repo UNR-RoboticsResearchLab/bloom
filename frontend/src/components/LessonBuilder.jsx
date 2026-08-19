@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import LessonStepBuilder from "./LessonStepBuilder";
 import LessonAiPromptPanel from "./LessonAiPromptPanel";
+import LessonPreview from "./LessonPreview";
 import { useApiClient } from "../context/ApiClientContext";
+import { useRobotPairing } from "../context/RobotPairingContext";
+import { PairRobotCard } from "../pages/PairRobotCard";
 
 const LESSON_TYPES = [
   { value: 0, label: "Language" },
@@ -42,6 +46,8 @@ function parseObjectives(objectives) {
 
 export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel }) {
   const api = useApiClient();
+  const navigate = useNavigate();
+  const { isPaired, sessionId } = useRobotPairing();
   const [behaviorOptions, setBehaviorOptions] = useState([]);
   const [motorSequenceOptions, setMotorSequenceOptions] = useState([]);
   const [title, setTitle] = useState(initialLesson?.title ?? "");
@@ -61,6 +67,9 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
   const [err, setErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showPairToPreview, setShowPairToPreview] = useState(false);
+  const [previewingOnRobot, setPreviewingOnRobot] = useState(false);
 
   useEffect(() => {
     api.getAvailableBehaviors().then(setBehaviorOptions).catch(() => setBehaviorOptions([]));
@@ -144,18 +153,20 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
     applyGeneratedLesson(generated);
   }
 
+  function validate() {
+    if (!title.trim()) return "Lesson title is required.";
+    if (steps.some((s) => !s.type || !s.script?.trim())) return "Every step needs a type and a script.";
+    return null;
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
+    const validationError = validate();
+    if (validationError) {
+      setErr(validationError);
+      return;
+    }
     setErr("");
-
-    if (!title.trim()) {
-      setErr("Lesson title is required.");
-      return;
-    }
-    if (steps.some((s) => !s.type || !s.script?.trim())) {
-      setErr("Every step needs a type and a script.");
-      return;
-    }
 
     setSubmitting(true);
     try {
@@ -164,6 +175,43 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
       setErr(error.message || "Failed to save lesson.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // Runs the current draft on the paired robot. The robot session runtime only knows
+  // how to play lessons it can look up by Id, so this saves the draft first (creating
+  // or updating, whichever applies) and then launches the same test-run flow the saved
+  // lesson's "Test on Robot" button uses.
+  async function handlePreviewOnRobot() {
+    const validationError = validate();
+    if (validationError) {
+      setErr(validationError);
+      return;
+    }
+    setErr("");
+
+    if (!isPaired) {
+      setShowPairToPreview(true);
+      return;
+    }
+
+    setPreviewingOnRobot(true);
+    try {
+      const payload = buildLessonPayload();
+      const saved = initialLesson?.id
+        ? await api.updateLesson(initialLesson.id, payload)
+        : (await api.createLesson(payload)).lesson;
+
+      navigate("/lesson-view", {
+        state: {
+          lesson: saved,
+          student: { id: sessionId, fullName: "Test Run", name: "Test Run" },
+        },
+      });
+    } catch (error) {
+      setErr(error.message || "Failed to start preview on robot.");
+    } finally {
+      setPreviewingOnRobot(false);
     }
   }
 
@@ -334,6 +382,29 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
             </button>
           )}
           <button
+            type="button"
+            onClick={() => setShowPreview(true)}
+            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50"
+          >
+            Preview
+          </button>
+          <button
+            type="button"
+            onClick={handlePreviewOnRobot}
+            disabled={previewingOnRobot}
+            className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${isPaired ? "bg-green-500" : "bg-gray-400"}`}
+              aria-hidden="true"
+            />
+            {previewingOnRobot
+              ? "Starting..."
+              : isPaired
+              ? "Preview on Robot"
+              : "Pair Robot to Preview"}
+          </button>
+          <button
             type="submit"
             disabled={submitting}
             className="flex justify-center rounded-md bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
@@ -342,6 +413,25 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
           </button>
         </div>
       </form>
+
+      {showPreview && (
+        <LessonPreview lesson={buildLessonPayload()} onClose={() => setShowPreview(false)} />
+      )}
+
+      {showPairToPreview && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pair a robot to preview this lesson"
+        >
+          <PairRobotCard
+            onCancel={() => setShowPairToPreview(false)}
+            onPaired={() => setShowPairToPreview(false)}
+            onUnpaired={() => setShowPairToPreview(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

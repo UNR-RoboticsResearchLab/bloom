@@ -25,8 +25,12 @@ export const RobotPairingProvider = ({ children }) => {
   const pair = useCallback(
     async (code) => {
       const trimmed = code.trim();
-      const res = await api.getSessionIdFromRobotCode(trimmed);
-      const returnedSessionId = res?.sessionId ?? res?.id;
+      // joinSessionByCode (not getSessionIdFromRobotCode) -- this needs to
+      // actually claim the session (set its UserId) so the session reflects
+      // as paired for anything polling it, e.g. the robot's own pairing-code
+      // display, which otherwise never sees userId set and never clears.
+      const res = await api.joinSessionByCode(trimmed);
+      const returnedSessionId = res?.id ?? res?.sessionId;
       if (!returnedSessionId) {
         throw new Error("No session ID returned from server.");
       }

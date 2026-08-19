@@ -4,6 +4,7 @@
 
 using bloom.Models;
 using Microsoft.AspNetCore.Identity;
+using System.Linq;
 using System.Text.Json;
 
 namespace bloom.Data
@@ -215,7 +216,7 @@ namespace bloom.Data
                 CreatedById = adminId,
                 LessonType = LessonType.Language,
                 TotalSteps = steps.Count,
-                LearningObjectives = objectives,
+                LearningObjectives = objectives.ToList(),
                 Steps = steps
             };
 

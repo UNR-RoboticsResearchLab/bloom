@@ -137,12 +137,24 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
 
 // Identity's application cookie: return 401/403 for API calls instead of redirecting to a login page.
 // Also relax cookie security so LAN dev (cross-origin, plain HTTP) can carry the cookie.
+//
+// SameSite=None + SecurePolicy.Always looks like it should allow this, but does the
+// opposite: None requires Secure, and browsers only transmit a Secure cookie over
+// plain HTTP on origins they treat as "potentially trustworthy" -- localhost/127.0.0.1
+// only, NOT a LAN IP like http://192.168.x.x. So the cookie silently never comes back
+// on any machine other than the one running Docker, and every [Authorize] endpoint
+// 401s (e.g. GET /api/user/clients, POST session join for robot pairing).
+// Frontend and backend here are always same host/different port (same-site, just
+// cross-origin), so SameSite=Lax is sufficient -- it only restricts cross-site
+// requests, not same-site ones. SecurePolicy.SameAsRequest makes the cookie Secure
+// when served over HTTPS (prod) and plain when served over HTTP (LAN dev), so it
+// actually gets sent back in both cases.
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = "bloom_cookie";
     options.Cookie.HttpOnly = true;
-    options.Cookie.SameSite = SameSiteMode.None;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 
     options.Events.OnRedirectToLogin = ctx =>
     {
@@ -211,6 +223,7 @@ builder.Services.AddScoped<IRobotSessionService, RobotSessionService>();
 builder.Services.AddScoped<IRobotStateService, RobotStateService>();
 builder.Services.AddScoped<ISLPClientService, SLPClientService>();
 builder.Services.AddSingleton<IStepControlService, StepControlService>();
+builder.Services.AddSingleton<IIdleModeService, IdleModeService>();
 builder.Services.AddSingleton<IRsrSpeechService, RsrSpeechService>();
 
 // AutoRSR microservice integration

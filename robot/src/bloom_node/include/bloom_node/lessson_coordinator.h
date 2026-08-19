@@ -118,6 +118,13 @@ public:
     void pause_lesson();
     void resume_lesson();
 
+    // Idle-mode control (no lesson active). "conversational" turns on free-form
+    // STT/LLM/TTS chat; "passive" (default) is plain breathing/idle with mic off.
+    // No-ops while a lesson is active. Idempotent — no-ops if mode is already
+    // applied, so LessonPoller can call this every poll tick without restarting
+    // StateManager's behavior loop.
+    void set_idle_mode(const std::string &mode);
+
 private:
 
     void execute_step(const LessonStep &step);
@@ -201,6 +208,10 @@ private:
     bool waiting_for_single_turn_{false};
     bool waiting_for_llm_tts_done_{false};
     bool conversation_mode_{false};
+
+    // Current idle mode ("passive" or "conversational"), tracked so
+    // set_idle_mode() can no-op on repeated identical polls.
+    std::string current_idle_mode_{"passive"};
 
     std::string robot_state_{"idle"};
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_state_sub_;

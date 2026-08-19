@@ -12,11 +12,10 @@ namespace bloom.Services
 {
     public class LessonAiService : ILessonAiService
     {
-        private readonly HttpClient _http;
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly IRobotService _robotService;
+        private readonly IConfiguration _config;
         private readonly ILogger<LessonAiService> _logger;
-        private readonly string _deployment;
-        private readonly string _apiVersion;
 
         // Fallback options shown when the Behaviors catalog is empty — mirrors the
         // defaultOptions in frontend/src/components/LessonStepBuilder.jsx (BEHAVIOR_FIELDS)
@@ -44,14 +43,18 @@ namespace bloom.Services
             Converters = { new JsonStringEnumConverter() }
         };
 
+        // Deliberately does not create the HttpClient or resolve Azure OpenAI config
+        // here -- this service is constructor-injected into LessonController, which
+        // also serves plain lesson CRUD endpoints that have nothing to do with AI, so
+        // eagerly requiring Azure OpenAI config would 500 every lesson endpoint (not
+        // just AI generation) whenever it isn't configured. Deferred to CallAsync,
+        // where it only affects the AI generation endpoints that actually need it.
         public LessonAiService(IHttpClientFactory factory, IRobotService robotService, IConfiguration config, ILogger<LessonAiService> logger)
         {
-            _http = factory.CreateClient("AzureOpenAILesson");
+            _httpClientFactory = factory;
             _robotService = robotService;
+            _config = config;
             _logger = logger;
-            _deployment = config["AZURE_OPENAI_DEPLOYMENT"]
-                ?? throw new InvalidOperationException("AZURE_OPENAI_DEPLOYMENT is not configured.");
-            _apiVersion = config["AZURE_OPENAI_API_VERSION"] ?? "2024-08-01-preview";
         }
 
         public async Task<LessonDto> GenerateLessonAsync(LessonAiGenerateRequestDto request)
@@ -109,6 +112,11 @@ namespace bloom.Services
 
         private async Task<string> CallAsync(string systemPrompt, string userPrompt, string schemaName, string schemaJson)
         {
+            var deployment = _config["AZURE_OPENAI_DEPLOYMENT"]
+                ?? throw new InvalidOperationException("AZURE_OPENAI_DEPLOYMENT is not configured.");
+            var apiVersion = _config["AZURE_OPENAI_API_VERSION"] ?? "2024-08-01-preview";
+            var http = _httpClientFactory.CreateClient("AzureOpenAILesson");
+
             var payload = new
             {
                 messages = new[]
@@ -129,8 +137,8 @@ namespace bloom.Services
                 }
             };
 
-            var url = $"openai/deployments/{_deployment}/chat/completions?api-version={_apiVersion}";
-            using var response = await _http.PostAsJsonAsync(url, payload);
+            var url = $"openai/deployments/{deployment}/chat/completions?api-version={apiVersion}";
+            using var response = await http.PostAsJsonAsync(url, payload);
 
             if (!response.IsSuccessStatusCode)
             {

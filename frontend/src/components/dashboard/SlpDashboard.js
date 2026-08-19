@@ -4,6 +4,7 @@ import DashboardLayout from "./DashboardLayout";
 import { LessonCard } from "../../pages/LessonCard";
 import { StudentCard } from "../../pages/StudentCard";
 import { PairRobotCard } from "../../pages/PairRobotCard";
+import { RobotIdleControlPanel } from "../RobotIdleControlPanel";
 import { useApiClient } from "../../context/ApiClientContext";
 import { useRobotPairing } from "../../context/RobotPairingContext";
 
@@ -70,7 +71,7 @@ export default function SlpDashboard() {
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const { addNote, getNotes } = useNotes();
   const [showPairRobotCard, setShowPairRobotCard] = useState(false);
-  const { isPaired } = useRobotPairing();
+  const { sessionId, isPaired } = useRobotPairing();
   const [lessons, setLessons] = useState([]);
 
   const [students, setStudents] = useState([]);
@@ -189,6 +190,11 @@ export default function SlpDashboard() {
         </div>
       </div>
 
+      {isPaired && sessionId && (
+        <div className="mt-6">
+          <RobotIdleControlPanel sessionId={sessionId} />
+        </div>
+      )}
 
       <div className="mt-6">
         <section className="rounded-lg bg-white p-4 shadow">

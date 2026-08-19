@@ -213,6 +213,23 @@ export default class ApiClient {
     return this.request(`/api/session/${sessionId}/states`, { method: "GET" });
   }
 
+  // ── Robot Idle Mode ────────────────────────────────────────────────────────
+
+  async setRobotIdleMode(sessionId, mode) {
+    return this.request(`/api/robot-idle-mode/${sessionId}`, {
+      method: "POST",
+      body: JSON.stringify({ mode }),
+    });
+  }
+
+  async stopRobotIdleMode(sessionId) {
+    return this.request(`/api/robot-idle-mode/${sessionId}/stop`, { method: "POST" });
+  }
+
+  async getRobotIdleMode(sessionId) {
+    return this.request(`/api/robot-idle-mode/${sessionId}`, { method: "GET" });
+  }
+
   // ── Lesson Content ────────────────────────────────────────────────────────
 
   async getLessons() {
@@ -226,6 +243,13 @@ export default class ApiClient {
   async createLesson(lessonDto) {
     return this.request("/api/lesson/create", {
       method: "POST",
+      body: JSON.stringify(lessonDto),
+    });
+  }
+
+  async updateLesson(lessonId, lessonDto) {
+    return this.request(`/api/lesson/${lessonId}`, {
+      method: "PUT",
       body: JSON.stringify(lessonDto),
     });
   }

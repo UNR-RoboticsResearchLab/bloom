@@ -13,7 +13,7 @@ LessonPoller::LessonPoller(
 	const std::string &node_name
 
 )
-	: rclcpp::Node(node_name),
+	: rclcpp::Node(node_name, rclcpp::NodeOptions().use_global_arguments(false)),
 	  web_client_(web_client),
 	  lesson_coord_(lesson_coord),
 	  session_id_(session_id),

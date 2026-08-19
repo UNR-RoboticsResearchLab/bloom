@@ -2,7 +2,28 @@
 
 Senior Projects 25-26 - Team 24
 
-Bloom is a speech-therapy platform for children built around a physical robot companion. It has three parts:
+Bloom is an open source, dual-system platform for pediatric speech-language therapy. It pairs a
+therapist-controlled web dashboard with a socially assistive robot (SAR): the SLP designs and
+assigns the intervention, the robot delivers repetitive practice directly to the student with
+speech and expressive facial feedback, and results are recorded automatically. The goal is
+supervised autonomy — offloading the repetitive parts of a session to the robot while keeping the
+clinician in control of the plan and pacing.
+
+## Repository Structure
+
+```
+bloom/
+|-- backend/     # .NET API - accounts, lessons, notes, RSR assessments
+|-- frontend/    # React web dashboard for SLPs, teachers, and admins
+|-- robot/       # Robot-side software: ROS2 stack + standalone conversation demo
+`-- tests/       # Backend unit/integration tests (xUnit)
+```
+
+The robot stack (speech, face, lesson delivery) has its own setup docs — see
+[robot/README.md](robot/README.md). Backend test details are in
+[tests/README.md](tests/README.md).
+
+## Setup Dev w/o Docker
 
 - **Web app** — an ASP.NET Core 9 backend + React frontend used by SLPs (speech-language pathologists) and students to manage accounts, lessons, and live robot sessions.
 - **Robot driver** — a ROS 2 (Jazzy) stack that runs on the physical robot: conversation (Azure STT/LLM/TTS), the animated face, and motion (Blossom-style motor rig).
@@ -98,6 +119,9 @@ Backend configuration lives in `backend/appsettings.json` (base) and `backend/ap
 - `AutoRsr:BaseUrl` — where the backend reaches the AutoRSR microservice
 
 The robot driver has its own credentials, kept out of version control: copy `robot/.env.example` to `robot/.env` and fill in Azure OpenAI / Azure Speech keys. See [robot/README.md](robot/README.md).
+
+To bring the physical robot (or the standalone conversation demo) into the loop, see
+[robot/README.md](robot/README.md) — it runs separately from the web/backend stack above.
 
 ## API Documentation
 

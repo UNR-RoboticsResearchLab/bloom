@@ -214,8 +214,7 @@ export default function SlpDashboard() {
             {lessons.map((lesson) => (
               <LessonCard
                 key={lesson.id || lesson.Id}
-                title={lesson.title}
-                description={lesson.description ?? ""}
+                lesson={lesson}
                 onClick={() => {
                   const lessonId = lesson.id ?? lesson.Id;
                   navigate(`/lesson/${lessonId}`);

@@ -11,7 +11,7 @@ FeedbackPoller::FeedbackPoller(
 	int poll_interval_ms,
 	const std::string &node_name
 )
-	: rclcpp::Node(node_name),
+	: rclcpp::Node(node_name, rclcpp::NodeOptions().use_global_arguments(false)),
 	  web_client_(web_client),
 	  session_id_(session_id),
 	  poll_interval_ms_(poll_interval_ms) {

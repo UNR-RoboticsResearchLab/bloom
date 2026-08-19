@@ -32,7 +32,7 @@ public:
 	using Ptr = std::shared_ptr<StateManager>;
 
 	/// Construct the node. Optionally provide NodeOptions for composition.
-	explicit StateManager(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
+	explicit StateManager(const rclcpp::NodeOptions & options = rclcpp::NodeOptions().use_global_arguments(false));
 
 	~StateManager() override = default;
 

@@ -68,6 +68,9 @@ services:
         condition: service_started
       arsr-db-dev:
         condition: service_started
+    env_file:
+      - path: backend/.env   # AZURE_OPENAI_* secrets — gitignored, not committed
+        required: false
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080

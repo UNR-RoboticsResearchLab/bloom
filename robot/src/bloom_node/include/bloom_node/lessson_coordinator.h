@@ -125,6 +125,10 @@ public:
     // StateManager's behavior loop.
     void set_idle_mode(const std::string &mode);
 
+    // Sets the robot's TTS voice for subsequent speech. Idempotent — no-ops if
+    // the voice hasn't changed. Not gated by lesson state; applies any time.
+    void set_tts_voice(const std::string &voice);
+
 private:
 
     void execute_step(const LessonStep &step);
@@ -194,6 +198,7 @@ private:
 
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr lesson_progress_publisher_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr tts_publisher_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr tts_voice_pub_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr visual_aid_publisher_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr vosk_subscriber_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr llm_mode_pub_;
@@ -212,6 +217,10 @@ private:
     // Current idle mode ("passive" or "conversational"), tracked so
     // set_idle_mode() can no-op on repeated identical polls.
     std::string current_idle_mode_{"passive"};
+
+    // Current TTS voice, tracked so set_tts_voice() can no-op on repeated
+    // identical polls. Empty until the first voice is received.
+    std::string current_tts_voice_{};
 
     std::string robot_state_{"idle"};
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_state_sub_;

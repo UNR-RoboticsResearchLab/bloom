@@ -44,6 +44,8 @@ namespace bloom.Services
                     LessonType = lesson.LessonType,
                     CreatedById = lesson.CreatedById,
                     CreatedBy = account,
+                    IsPublic = lesson.IsPublic,
+                    AdaptedFromLessonId = Guid.TryParse(lesson.AdaptedFromLessonId, out var adaptedFromId) ? adaptedFromId : null,
                     LearningObjectives = objectives?.ToList() ?? [],
                     TotalSteps = steps?.Count ?? 0
                 };
@@ -281,6 +283,7 @@ namespace bloom.Services
                 existing.Title = lesson.Title;
                 existing.Description = lesson.Description;
                 existing.LessonType = lesson.LessonType;
+                existing.IsPublic = lesson.IsPublic;
                 existing.LearningObjectives = objectives?.ToList() ?? [];
                 existing.UpdatedDate = DateTime.UtcNow;
 

@@ -6,6 +6,7 @@ import LessonPreview from "./LessonPreview";
 import { useApiClient } from "../context/ApiClientContext";
 import { useRobotPairing } from "../context/RobotPairingContext";
 import { PairRobotCard } from "../pages/PairRobotCard";
+import { randomId } from "../utils/id";
 
 const LESSON_TYPES = [
   { value: 0, label: "Language" },
@@ -20,7 +21,7 @@ const labelClass = "block text-sm font-medium text-gray-900";
 
 function emptyStep(order) {
   return {
-    _id: crypto.randomUUID(),
+    _id: randomId(),
     stepOrder: order,
     title: "",
     type: "",
@@ -53,15 +54,16 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
   const [title, setTitle] = useState(initialLesson?.title ?? "");
   const [description, setDescription] = useState(initialLesson?.description ?? "");
   const [lessonType, setLessonType] = useState(initialLesson?.lessonType ?? 0);
+  const [isPublic, setIsPublic] = useState(initialLesson?.isPublic ?? initialLesson?.IsPublic ?? true);
   const [objectives, setObjectives] = useState(() =>
     parseObjectives(initialLesson?.learningObjectives).map((text) => ({
-      _id: crypto.randomUUID(),
+      _id: randomId(),
       text,
     }))
   );
   const [steps, setSteps] = useState(() =>
     initialLesson?.steps?.length
-      ? initialLesson.steps.map((s) => ({ ...s, _id: crypto.randomUUID() }))
+      ? initialLesson.steps.map((s) => ({ ...s, _id: randomId() }))
       : [emptyStep(1)]
   );
   const [err, setErr] = useState("");
@@ -80,7 +82,7 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
     setObjectives((prev) => prev.map((o) => (o._id === id ? { ...o, text } : o)));
   }
   function addObjective() {
-    setObjectives((prev) => [...prev, { _id: crypto.randomUUID(), text: "" }]);
+    setObjectives((prev) => [...prev, { _id: randomId(), text: "" }]);
   }
   function removeObjective(id) {
     setObjectives((prev) => prev.filter((o) => o._id !== id));
@@ -115,6 +117,10 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
       title,
       description: description || null,
       lessonType,
+      isPublic,
+      ...(initialLesson?.adaptedFromLessonId ?? initialLesson?.AdaptedFromLessonId
+        ? { adaptedFromLessonId: initialLesson.adaptedFromLessonId ?? initialLesson.AdaptedFromLessonId }
+        : {}),
       learningObjectives: filledObjectives,
       steps: steps.map((s, i) => ({
         ...(s.id ? { id: s.id } : {}),
@@ -137,13 +143,13 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
     setLessonType(lessonDto.lessonType ?? 0);
     setObjectives(
       parseObjectives(lessonDto.learningObjectives).map((text) => ({
-        _id: crypto.randomUUID(),
+        _id: randomId(),
         text,
       }))
     );
     setSteps(
       lessonDto.steps?.length
-        ? lessonDto.steps.map((s) => ({ ...s, _id: crypto.randomUUID() }))
+        ? lessonDto.steps.map((s) => ({ ...s, _id: randomId() }))
         : [emptyStep(1)]
     );
   }
@@ -220,30 +226,52 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
       <div className="flex items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow-sm">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">
-            {initialLesson ? "Edit Lesson" : "New Lesson"}
+            {initialLesson?.id ? "Edit Lesson" : "New Lesson"}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
             Fill in the lesson details, then add and configure each step.
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <span className="text-sm font-medium text-gray-700">AI Assistant</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={aiEnabled}
-            aria-label="Toggle AI Assistant"
-            onClick={() => setAiEnabled((v) => !v)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              aiEnabled ? "bg-indigo-600" : "bg-gray-200"
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                aiEnabled ? "translate-x-6" : "translate-x-1"
+        <div className="flex shrink-0 items-center gap-4">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">Public Lesson</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isPublic}
+              aria-label="Toggle lesson visibility"
+              title="Public lessons are visible to everyone. Private lessons are only visible to you, admins, and students assigned to them."
+              onClick={() => setIsPublic((v) => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-0 p-0 transition-colors ${
+                isPublic ? "bg-indigo-600" : "bg-gray-200"
               }`}
-            />
-          </button>
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  isPublic ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">AI Assistant</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={aiEnabled}
+              aria-label="Toggle AI Assistant"
+              onClick={() => setAiEnabled((v) => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-0 p-0 transition-colors ${
+                aiEnabled ? "bg-indigo-600" : "bg-gray-200"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  aiEnabled ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -409,7 +437,7 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
             disabled={submitting}
             className="flex justify-center rounded-md bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
-            {submitting ? "Saving..." : initialLesson ? "Update Lesson" : "Save Lesson"}
+            {submitting ? "Saving..." : initialLesson?.id ? "Update Lesson" : "Save Lesson"}
           </button>
         </div>
       </form>

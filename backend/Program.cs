@@ -72,6 +72,15 @@ if (build_environmment == "Development")
     //     options.ListenAnyIP(8080);   // HTTP
     //     options.ListenAnyIP(2443, listenOptions => listenOptions.UseHttps()); // HTTPS optional
     // });
+
+    // Unencrypted (no cert needed in dev), but still persisted to the dpkeys volume so
+    // container restarts/rebuilds don't invalidate every logged-in cookie. Without this,
+    // keys default to the container's ephemeral filesystem and every restart forces a
+    // silent re-login (localStorage still says "logged in", every [Authorize] call 401s).
+    var devKeyringPath = builder.Configuration["DataProtection:KeyringPath"] ?? "/var/dpkeys";
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(devKeyringPath))
+        .SetApplicationName("BloomServer");
 }
 else
 {
@@ -202,6 +211,7 @@ builder.Services.AddScoped<IRobotService, RobotService>();
 builder.Services.AddScoped<IRobotProfileService, RobotProfileService>();
 builder.Services.AddScoped<ILessonService, LessonService>();
 builder.Services.AddScoped<ILessonProgressService, LessonProgressService>();
+builder.Services.AddScoped<IAssignmentService, AssignmentService>();
 
 // Lesson AI assistant — calls Azure OpenAI for lesson/step generation
 builder.Services.AddScoped<ILessonAiService, LessonAiService>();
@@ -224,6 +234,7 @@ builder.Services.AddScoped<IRobotStateService, RobotStateService>();
 builder.Services.AddScoped<ISLPClientService, SLPClientService>();
 builder.Services.AddSingleton<IStepControlService, StepControlService>();
 builder.Services.AddSingleton<IIdleModeService, IdleModeService>();
+builder.Services.AddSingleton<IVoiceOverrideService, VoiceOverrideService>();
 builder.Services.AddSingleton<IRsrSpeechService, RsrSpeechService>();
 
 // AutoRSR microservice integration

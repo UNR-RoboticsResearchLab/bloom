@@ -168,6 +168,28 @@ void LessonPoller::on_polling_tick() {
             }
         });
 
+    // Voice polling — unlike idle-mode, this runs unconditionally (even while
+    // a lesson is executing), since the voice should stay in sync at all times.
+    std::ostringstream voice_path;
+    voice_path << "/api/robot-voice/" << current_session_id;
+
+    web_client_->sendGetAsync(
+        voice_path.str(),
+        std::nullopt,
+        std::vector<std::string>{},
+        [this, lesson_coord = lesson_coord_](const std::string &body, long http_code) {
+            if (http_code < 200 || http_code >= 300) {
+                return;
+            }
+            try {
+                json response = json::parse(body);
+                std::string voice = response.value("voice", "");
+                if (!voice.empty() && lesson_coord) lesson_coord->set_tts_voice(voice);
+            } catch (const json::exception &e) {
+                RCLCPP_WARN(this->get_logger(), "Failed to parse voice response: %s", e.what());
+            }
+        });
+
     //Lesson polling
     if (currently_executing_.load()) {
         RCLCPP_DEBUG(this->get_logger(), "Skipping lesson poll: lesson currently executing");

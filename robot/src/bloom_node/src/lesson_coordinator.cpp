@@ -24,6 +24,7 @@ LessonCoordinator::LessonCoordinator(
     
     lesson_progress_publisher_ = this->create_publisher<std_msgs::msg::String>("lesson_progress", 10);
     tts_publisher_ = this->create_publisher<std_msgs::msg::String>("/tts/speak", 10);
+    tts_voice_pub_ = this->create_publisher<std_msgs::msg::String>("/tts/voice", 10);
     visual_aid_publisher_ = this->create_publisher<std_msgs::msg::String>("/face/visual_aid", 10);
     
     vosk_subscriber_ = this->create_subscription<std_msgs::msg::String>(
@@ -1135,6 +1136,18 @@ void LessonCoordinator::set_idle_mode(const std::string &mode) {
     if (state_manager_) state_manager_->set_state("waiting");
 
     RCLCPP_INFO(this->get_logger(), "[IDLE] Idle mode set to %s", mode.c_str());
+}
+
+void LessonCoordinator::set_tts_voice(const std::string &voice) {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    if (voice.empty() || voice == current_tts_voice_) return;  // avoid re-publishing every tick
+    current_tts_voice_ = voice;
+
+    auto msg = std_msgs::msg::String();
+    msg.data = voice;
+    tts_voice_pub_->publish(msg);
+
+    RCLCPP_INFO(this->get_logger(), "[VOICE] TTS voice set to %s", voice.c_str());
 }
 
 bool LessonCoordinator::is_lesson_running() const {

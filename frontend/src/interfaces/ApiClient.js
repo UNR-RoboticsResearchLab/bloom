@@ -447,12 +447,34 @@ export default class ApiClient {
         personalityTrait: payload.personalityTrait,
         catchphrase: payload.catchphrase ?? null,
         colorTheme: payload.colorTheme ?? null,
+        voice: payload.voice ?? null,
       }),
     });
   }
 
   async getRobotPersonalityPresets() {
     return this.request("/api/robotprofile/presets", { method: "GET" });
+  }
+
+  async getRobotVoicePresets() {
+    return this.request("/api/robotprofile/voice-presets", { method: "GET" });
+  }
+
+  // ── Robot Voice — Live Session Override ───────────────────────────────────
+
+  async getRobotVoice(sessionId) {
+    return this.request(`/api/robot-voice/${sessionId}`, { method: "GET" });
+  }
+
+  async setRobotVoice(sessionId, voice) {
+    return this.request(`/api/robot-voice/${sessionId}`, {
+      method: "POST",
+      body: JSON.stringify({ voice }),
+    });
+  }
+
+  async resetRobotVoice(sessionId) {
+    return this.request(`/api/robot-voice/${sessionId}/reset`, { method: "POST" });
   }
 
   // ── Lesson Content — Visual Aid Upload ───────────────────────────────────

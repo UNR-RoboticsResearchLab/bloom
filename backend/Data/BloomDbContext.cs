@@ -65,6 +65,16 @@ namespace bloom.Data
                     .HasForeignKey(s => s.LessonId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                entity.Property(l => l.IsPublic).HasDefaultValue(true);
+
+                // Self-referencing lineage pointer set by "Adapt this lesson" — SetNull so
+                // deleting a source lesson just orphans the pointer on its adapted copies
+                // rather than blocking or cascading the delete.
+                entity.HasOne(l => l.AdaptedFromLesson)
+                    .WithMany()
+                    .HasForeignKey(l => l.AdaptedFromLessonId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
                 // Was previously an unmapped bare field -- stored as JSON text since
                 // MariaDB/Pomelo has no native string-array column type. The value
                 // comparer is required for EF to detect changes to list contents

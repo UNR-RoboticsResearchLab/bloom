@@ -23,6 +23,7 @@ namespace bloom.Controllers
         private readonly ILessonService _lessonService;
         private readonly ILessonProgressService _progressService;
         private readonly ILessonAiService _lessonAiService;
+        private readonly IAssignmentService _assignmentService;
         private readonly IWebHostEnvironment _env;
 
         private static readonly string[] AllowedImageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"];
@@ -31,16 +32,20 @@ namespace bloom.Controllers
             ILessonService lessonService,
             ILessonProgressService progressService,
             ILessonAiService lessonAiService,
+            IAssignmentService assignmentService,
             IWebHostEnvironment env)
         {
             _lessonService = lessonService;
             _progressService = progressService;
             _lessonAiService = lessonAiService;
+            _assignmentService = assignmentService;
             _env = env;
         }
 
         /// <summary>
-        /// Returns metadata for all lessons (no step detail). Public endpoint.
+        /// Returns metadata for all lessons visible to the caller (no step detail): every
+        /// public lesson, plus the caller's own lessons, lessons assigned to the caller,
+        /// and (for Admins) everything. Anonymous callers only see public lessons.
         /// </summary>
         [HttpGet("all")]
         public async Task<IActionResult> GetAllLessons()
@@ -48,7 +53,16 @@ namespace bloom.Controllers
             try
             {
                 var lessons = await _lessonService.GetAllAsync();
-                var lessonDtos = lessons.Select(lesson => new LessonDto
+                var userId = GetCurrentUserId();
+                var isAdmin = User.IsInRole("Admin");
+                var assignedLessonIds = !string.IsNullOrEmpty(userId)
+                    ? await _assignmentService.GetAssignedLessonIdsAsync(userId)
+                    : new HashSet<Guid>();
+
+                var visibleLessons = lessons.Where(l =>
+                    l.IsPublic || isAdmin || l.CreatedById == userId || assignedLessonIds.Contains(l.Id));
+
+                var lessonDtos = visibleLessons.Select(lesson => new LessonDto
                 {
                     Id = lesson.Id.ToString(),
                     Title = lesson.Title,
@@ -57,6 +71,9 @@ namespace bloom.Controllers
                     UpdatedDate = lesson.UpdatedDate,
                     LessonType = lesson.LessonType,
                     CreatedById = lesson.CreatedById,
+                    CreatedByName = lesson.CreatedBy?.FullName ?? lesson.CreatedBy?.UserName,
+                    IsPublic = lesson.IsPublic,
+                    AdaptedFromLessonId = lesson.AdaptedFromLessonId?.ToString(),
                     LearningObjectives = lesson.LearningObjectives
                 });
                 return Ok(lessonDtos);
@@ -69,6 +86,9 @@ namespace bloom.Controllers
 
         /// <summary>
         /// Returns full lesson data including all steps and interaction configs for the specified lesson.
+        /// Private lessons are only visible to their creator, Admins, and students assigned to them --
+        /// everyone else gets the same NotFound as a genuinely missing lesson, so lesson ids can't be
+        /// probed to discover which private lessons exist.
         /// </summary>
         [HttpGet("{lessonId}")]
         public async Task<IActionResult> GetLessonInfo(string lessonId)
@@ -77,6 +97,14 @@ namespace bloom.Controllers
             {
                 var lesson = await _lessonService.GetByIdAsync(lessonId);
                 if (lesson == null)
+                    return NotFound(new { message = "Lesson not found." });
+
+                var userId = GetCurrentUserId();
+                var isAdmin = User.IsInRole("Admin");
+                var isOwner = userId != null && lesson.CreatedById == userId;
+                var isAssigned = userId != null && await _assignmentService.ExistsForStudentAndLessonAsync(userId, lesson.Id);
+
+                if (!lesson.IsPublic && !isOwner && !isAdmin && !isAssigned)
                     return NotFound(new { message = "Lesson not found." });
 
                 return Ok(ToDetailDto(lesson));
@@ -99,6 +127,9 @@ namespace bloom.Controllers
             UpdatedDate = lesson.UpdatedDate,
             LessonType = lesson.LessonType,
             CreatedById = lesson.CreatedById,
+            CreatedByName = lesson.CreatedBy?.FullName ?? lesson.CreatedBy?.UserName,
+            IsPublic = lesson.IsPublic,
+            AdaptedFromLessonId = lesson.AdaptedFromLessonId?.ToString(),
             LearningObjectives = lesson.LearningObjectives,
             Steps = [.. lesson.Steps.Select(s => new LessonStepDto
             {

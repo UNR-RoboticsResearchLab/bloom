@@ -33,6 +33,11 @@ namespace bloom.Models
         public required string CreatedById { get; set; }
         public Account? CreatedBy { get; set; }
 
+        public bool IsPublic { get; set; } = true;
+
+        public Guid? AdaptedFromLessonId { get; set; }
+        public Lesson? AdaptedFromLesson { get; set; }
+
         public LessonType LessonType { get; set; }
 
         // Navigation properties

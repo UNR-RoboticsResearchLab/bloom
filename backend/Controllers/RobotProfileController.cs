@@ -97,5 +97,15 @@ namespace bloom.Controllers
         {
             return Ok(_robotProfileService.GetPersonalityPresets());
         }
+
+        /// <summary>
+        /// Returns the fixed list of selectable TTS voice presets.
+        /// </summary>
+        [Authorize]
+        [HttpGet("voice-presets")]
+        public IActionResult GetVoicePresets()
+        {
+            return Ok(_robotProfileService.GetVoicePresets());
+        }
     }
 }

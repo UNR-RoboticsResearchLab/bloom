@@ -1,36 +1,10 @@
 // src/components/dashboard/DashboardLayout.js
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { getSession, signOut } from "../../utils/auth";
-
-function cls(...xs) {
-  return xs.filter(Boolean).join(" ");
-}
-
-function titleCase(s = "") {
-  return s
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
 
 export default function DashboardLayout({ title, children, actions = null }) {
   const session = getSession();
-  const location = useLocation();
   const navigate = useNavigate();
-
-  const parts = location.pathname.split("/").filter(Boolean);
-  const crumbs = [{ to: "/", label: "Home" }].concat(
-    parts.map((seg, i) => ({
-      to: "/" + parts.slice(0, i + 1).join("/"),
-      label: titleCase(seg),
-    }))
-  );
-
-  const nav = [
-    { to: "/", label: "Home" },
-    { to: "/fetch-data", label: "Fetch Data" },
-    { to: "/counter", label: "Counter" },
-  ];
 
   const role = session?.role?.toUpperCase();
 

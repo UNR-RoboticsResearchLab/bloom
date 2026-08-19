@@ -21,8 +21,6 @@ import BrowseLessons from "./pages/BrowseLessons";
 import Students from "./pages/Students";
 import Student from "./pages/Student";
 
-import ForgotPassword from "./pages/ForgotPassword";
-
 import FetchData from "./pages/FetchData";
 import Counter from "./pages/Counter";
 
@@ -39,10 +37,6 @@ import ArSrResults     from "./pages/ArSr/ArSrResults";
 import ArSrSessionDetail from "./pages/ArSr/ArSrSessionDetail";
 
 export default function App() {
-
-  const apiBase = process.env.REACT_APP_API_BASE_URL ?? "http://localhost:5000";
-
-
   return (
     <Layout>
       <Routes>

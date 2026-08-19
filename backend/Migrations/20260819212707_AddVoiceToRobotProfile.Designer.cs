@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using bloom.Data;
 
@@ -11,9 +12,11 @@ using bloom.Data;
 namespace bloom.Migrations
 {
     [DbContext(typeof(BloomDbContext))]
-    partial class BloomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260819212707_AddVoiceToRobotProfile")]
+    partial class AddVoiceToRobotProfile
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -384,9 +387,6 @@ namespace bloom.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<Guid?>("AdaptedFromLessonId")
-                        .HasColumnType("char(36)");
-
                     b.Property<Guid?>("ClassroomId")
                         .HasColumnType("char(36)");
 
@@ -399,11 +399,6 @@ namespace bloom.Migrations
 
                     b.Property<string>("Description")
                         .HasColumnType("longtext");
-
-                    b.Property<bool>("IsPublic")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
 
                     b.Property<string>("LearningObjectives")
                         .IsRequired()
@@ -423,8 +418,6 @@ namespace bloom.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AdaptedFromLessonId");
 
                     b.HasIndex("ClassroomId");
 
@@ -971,11 +964,6 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("bloom.Models.Lesson", b =>
                 {
-                    b.HasOne("bloom.Models.Lesson", "AdaptedFromLesson")
-                        .WithMany()
-                        .HasForeignKey("AdaptedFromLessonId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("bloom.Models.Classroom", null)
                         .WithMany("Lessons")
                         .HasForeignKey("ClassroomId");
@@ -985,8 +973,6 @@ namespace bloom.Migrations
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("AdaptedFromLesson");
 
                     b.Navigation("CreatedBy");
                 });

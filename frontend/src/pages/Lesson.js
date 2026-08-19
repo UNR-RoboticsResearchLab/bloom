@@ -119,6 +119,7 @@ export default function Lesson() {
     const [students, setStudents] = useState([]);
     const [showSelectStudent, setShowSelectStudent] = useState(false);
     const [showEdit, setShowEdit] = useState(false);
+    const [showAdapt, setShowAdapt] = useState(false);
     const [showPairToTest, setShowPairToTest] = useState(false);
 
     const typeKey = lesson?.lessonType ?? lesson?.LessonType ?? 0;
@@ -130,6 +131,8 @@ export default function Lesson() {
     const totalSteps = lesson?.totalSteps ?? lesson?.TotalSteps ?? steps.length;
     const createdDate = lesson?.createdDate ?? lesson?.CreatedDate;
     const createdById = lesson?.createdById ?? lesson?.CreatedById;
+    const createdByName = lesson?.createdByName ?? lesson?.CreatedByName;
+    const isPublic = lesson?.isPublic ?? lesson?.IsPublic ?? true;
     const session = getSession();
     const isOwner = Boolean(session?.id && createdById && session.id === createdById);
 
@@ -155,6 +158,12 @@ export default function Lesson() {
         const updated = await apiClient.updateLesson(lessonId, dto);
         setLesson(updated);
         setShowEdit(false);
+    }
+
+    async function handleAdaptSubmit(dto) {
+        const result = await apiClient.createLesson(dto);
+        setShowAdapt(false);
+        navigate(`/lesson/${result.lesson.id ?? result.lesson.Id}`);
     }
 
     useEffect(() => {
@@ -200,7 +209,7 @@ export default function Lesson() {
             {/* Breadcrumb */}
             <nav aria-label="Breadcrumb" className="flex items-center justify-between">
                 <button
-                    onClick={() => navigate("/lessons")}
+                    onClick={() => navigate("/browse-lessons")}
                     className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-indigo-600 transition-colors"
                 >
                     ← Back to Lessons
@@ -213,12 +222,23 @@ export default function Lesson() {
                         Edit Lesson
                     </button>
                 )}
+                {!isOwner && session?.id && (
+                    <button
+                        onClick={() => setShowAdapt(true)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                    >
+                        Adapt this Lesson
+                    </button>
+                )}
             </nav>
 
             {/* Hero */}
             <header className={`rounded-2xl ${typeConfig.bg} border border-gray-200 p-8 shadow-sm`}>
                 <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${typeConfig.badge}`}>
                     {typeConfig.label}
+                </span>
+                <span className={`ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${isPublic ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}>
+                    {isPublic ? "Public" : "Private"}
                 </span>
                 <h1 className="mt-3 text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
                     {title}
@@ -238,6 +258,7 @@ export default function Lesson() {
                     {createdDate && (
                         <span>Created {new Date(createdDate).toLocaleDateString()}</span>
                     )}
+                    {createdByName && <span>by {createdByName}</span>}
                 </div>
             </header>
 
@@ -247,7 +268,7 @@ export default function Lesson() {
                     <h2 id="objectives-heading" className="text-lg font-semibold text-gray-900">
                         Learning Objectives
                     </h2>
-                    <ul className="mt-4 space-y-2.5" role="list">
+                    <ul className="mt-4 space-y-2.5">
                         {objectives.map((obj, i) => (
                             <li key={i} className="flex items-start gap-3 text-sm text-gray-700">
                                 <span
@@ -270,7 +291,7 @@ export default function Lesson() {
                         Lesson Steps
                         <span className="ml-2 text-sm font-normal text-gray-400">({steps.length} total)</span>
                     </h2>
-                    <ol className="mt-4 space-y-2" role="list">
+                    <ol className="mt-4 space-y-2">
                         {steps.map((step, i) => (
                             <StepRow key={step.id ?? step.Id ?? i} step={step} index={i} />
                         ))}
@@ -339,6 +360,23 @@ export default function Lesson() {
                             initialLesson={lesson}
                             onSubmit={handleEditSubmit}
                             onCancel={() => setShowEdit(false)}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {showAdapt && (
+                <div
+                    className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 sm:p-8"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Adapt lesson"
+                >
+                    <div className="mx-auto max-w-7xl rounded-2xl bg-gray-50 shadow-xl">
+                        <LessonBuilder
+                            initialLesson={{ ...lesson, id: undefined, adaptedFromLessonId: lesson.id ?? lesson.Id }}
+                            onSubmit={handleAdaptSubmit}
+                            onCancel={() => setShowAdapt(false)}
                         />
                     </div>
                 </div>

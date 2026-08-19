@@ -5,20 +5,9 @@ import { LessonCard } from "../../pages/LessonCard";
 import { StudentCard } from "../../pages/StudentCard";
 import { PairRobotCard } from "../../pages/PairRobotCard";
 import { RobotIdleControlPanel } from "../RobotIdleControlPanel";
+import { RobotVoiceControl } from "../RobotVoiceControl";
 import { useApiClient } from "../../context/ApiClientContext";
 import { useRobotPairing } from "../../context/RobotPairingContext";
-
-// Same mock data as Teacher dashboard
-const mockLessons = [
-  { id: "L1", title: "R sound practice", students: ["S1", "S2"] },
-  { id: "L2", title: "S blends", students: ["S1"] },
-  { id: "L3", title: "Breath control", students: ["S2"] },
-];
-
-const mockStudents = {
-  S1: { name: "Ava Martinez", completed: ["L2"], active: ["L1"] },
-  S2: { name: "Liam Chen", completed: ["L3"], active: ["L1"] },
-};
 
 const mockSTT = {
   L1: { S1: { accuracy: 0.72, success: 12, fail: 4 }, S2: { accuracy: 0.86, success: 18, fail: 2 } },
@@ -52,24 +41,12 @@ function useNotes() {
   return { addNote, getNotes };
 }
 
-function AccuracyBar({ value }) {
-  const pct = Math.max(0, Math.min(1, value));
-  return (
-    <div className="w-full">
-      <div className="h-2 w-full rounded bg-gray-200">
-        <div className="h-2 rounded bg-indigo-600" style={{ width: `${pct * 100}%` }} />
-      </div>
-      <div className="mt-1 text-xs text-gray-600">{Math.round(pct * 100)}%</div>
-    </div>
-  );
-}
-
 export default function SlpDashboard() {
   const navigate = useNavigate();
   const apiClient = useApiClient();
   const [selectedLessonId, setSelectedLessonId] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState("");
-  const { addNote, getNotes } = useNotes();
+  useNotes();
   const [showPairRobotCard, setShowPairRobotCard] = useState(false);
   const { sessionId, isPaired } = useRobotPairing();
   const [lessons, setLessons] = useState([]);
@@ -124,14 +101,8 @@ export default function SlpDashboard() {
     }
   }, [students, selectedStudentId]);
 
-  const selectedLesson = useMemo(
-    () => mockLessons.find((l) => l.id === selectedLessonId),
-    [selectedLessonId]
-  );
-
   const studentsForLesson = students;
 
-  const sttForLesson = mockSTT[selectedLessonId] || {};
   const headerStats = useMemo(() => {
     const totalLessons = lessons.length;
     const totalStudents = students.length;
@@ -144,15 +115,6 @@ export default function SlpDashboard() {
 
     return { totalLessons, totalStudents, avgAcc };
   }, [lessons, students]);
-
-  function handleAddNote(e) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const text = form.note.value.trim();
-    if (!text) return;
-    addNote(selectedStudentId, selectedLessonId, text);
-    form.reset();
-  }
 
   function goToStudent(student) {
       const id = student.id ?? student.Id;
@@ -191,8 +153,9 @@ export default function SlpDashboard() {
       </div>
 
       {isPaired && sessionId && (
-        <div className="mt-6">
+        <div className="mt-6 space-y-4">
           <RobotIdleControlPanel sessionId={sessionId} />
+          <RobotVoiceControl sessionId={sessionId} />
         </div>
       )}
 

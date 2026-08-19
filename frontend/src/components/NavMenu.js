@@ -60,6 +60,13 @@ export default function NavMenu() {
             </NavItem>
 
             {isLoggedIn && (<NavItem>
+              <NavLink tag={Link} to="/browse-lessons" className="text-dark">
+                Lessons
+              </NavLink>
+            </NavItem>
+          )}
+
+            {isLoggedIn && (<NavItem>
               <NavLink tag={Link} to="/rsr-assessment" className="text-dark">
                 RSR
               </NavLink>

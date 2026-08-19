@@ -48,19 +48,6 @@ export default function Student() {
 
                 const backendHistory = Array.isArray(data) ? data : [];
 
-                const testHistory = [
-                    {
-                        sessionId: "a566333f-e0a8-4f31-8426-a4b47ded5c3c",
-                        lessonTitle: "Homophones",
-                        startedAt: new Date().toISOString(),
-                    },
-                    {
-                        sessionId: "test-session-2",
-                        lessonTitle: "Conversation Mode",
-                        startedAt: new Date(Date.now() - 86400000).toISOString(),
-                    },
-                ];
-
                 setLessonHistory(backendHistory);
             } catch (err) {
                 console.error("Failed to load lesson history:", err);

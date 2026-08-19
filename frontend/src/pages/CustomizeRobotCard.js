@@ -6,7 +6,9 @@ export function CustomizeRobotCard({ profile, onCancel, onSaved }) {
   const [personalityTrait, setPersonalityTrait] = useState(profile?.personalityTrait || "");
   const [catchphrase, setCatchphrase] = useState(profile?.catchphrase || "");
   const [colorTheme, setColorTheme] = useState(profile?.colorTheme || "#6366f1");
+  const [voice, setVoice] = useState(profile?.voice || "");
   const [presets, setPresets] = useState([]);
+  const [voicePresets, setVoicePresets] = useState([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -27,6 +29,21 @@ export function CustomizeRobotCard({ profile, onCancel, onSaved }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    async function loadVoicePresets() {
+      try {
+        const data = await api.getRobotVoicePresets();
+        const list = Array.isArray(data) ? data : [];
+        setVoicePresets(list);
+        setVoice((current) => current || list[0]?.id || "");
+      } catch (err) {
+        console.error("Failed to load voice presets:", err);
+      }
+    }
+    loadVoicePresets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!nickname.trim() || !personalityTrait) return;
@@ -40,6 +57,7 @@ export function CustomizeRobotCard({ profile, onCancel, onSaved }) {
         personalityTrait,
         catchphrase: catchphrase.trim() || null,
         colorTheme,
+        voice: voice || null,
       });
 
       if (onSaved) onSaved(saved?.profile ?? saved);
@@ -84,6 +102,21 @@ export function CustomizeRobotCard({ profile, onCancel, onSaved }) {
                 {presets.map((preset) => (
                   <option key={preset} value={preset}>
                     {preset}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700">Voice</label>
+              <select
+                value={voice}
+                onChange={(e) => setVoice(e.target.value)}
+                className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+              >
+                {voicePresets.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label}
                   </option>
                 ))}
               </select>

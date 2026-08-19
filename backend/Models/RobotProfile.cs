@@ -36,6 +36,12 @@ namespace bloom.Models
         /// </summary>
         public string? ColorTheme { get; set; }
 
+        /// <summary>
+        /// One of the presets in <see cref="RobotVoice.All"/>. Null means no
+        /// preference — the robot falls back to its system default voice.
+        /// </summary>
+        public string? Voice { get; set; }
+
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
     }

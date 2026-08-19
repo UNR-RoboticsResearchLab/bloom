@@ -10,7 +10,7 @@ export default function About() {
         <p className="text-lg">Department of Computer Science and Engineering</p>
       </div>
 
-      <div><iframe src="https://www.youtube.com/embed/TyIQ7iCdlII?rel=0" allowfullscreen scrolling="no" allow="accelerometer *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *;" referrerpolicy="strict-origin"></iframe></div>
+      <div><iframe title="Bloom project video" src="https://www.youtube.com/embed/TyIQ7iCdlII?rel=0" allowfullscreen scrolling="no" allow="accelerometer *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *;" referrerpolicy="strict-origin"></iframe></div>
 
       {/* Team */}
       <div className="mb-8 p-6 rounded-lg border border-gray-200 shadow-sm">

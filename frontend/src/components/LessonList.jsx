@@ -20,6 +20,8 @@ function LessonCard({ lesson, onClick }) {
     const stepCount = lesson?.totalSteps ?? lesson?.TotalSteps ?? 0;
     const objectives = lesson?.learningObjectives ?? lesson?.LearningObjectives ?? [];
     const createdDate = lesson?.createdDate ?? lesson?.CreatedDate;
+    const createdByName = lesson?.createdByName ?? lesson?.CreatedByName;
+    const isPublic = lesson?.isPublic ?? lesson?.IsPublic ?? true;
 
     return (
         <button
@@ -36,9 +38,14 @@ function LessonCard({ lesson, onClick }) {
                         <p className="mt-1 text-sm text-gray-500 line-clamp-2">{description}</p>
                     )}
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${config.badge}`}>
-                    {config.label}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                    {!isPublic && (
+                        <span className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">Private</span>
+                    )}
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${config.badge}`}>
+                        {config.label}
+                    </span>
+                </div>
             </div>
 
             {Array.isArray(objectives) && objectives.length > 0 && (
@@ -57,6 +64,7 @@ function LessonCard({ lesson, onClick }) {
                 {Array.isArray(objectives) && objectives.length > 0 && (
                     <span>{objectives.length} objective{objectives.length !== 1 ? "s" : ""}</span>
                 )}
+                {createdByName && <span className={createdDate ? "" : "ml-auto"}>by {createdByName}</span>}
                 {createdDate && (
                     <span className="ml-auto">{new Date(createdDate).toLocaleDateString()}</span>
                 )}

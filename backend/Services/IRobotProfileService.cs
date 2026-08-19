@@ -34,5 +34,12 @@ namespace bloom.Services
          * </summary>
          */
         ICollection<string> GetPersonalityPresets();
+
+        /**
+         * <summary>
+         * GetVoicePresets() returns the fixed list of selectable TTS voice presets.
+         * </summary>
+         */
+        ICollection<RobotVoice.VoicePreset> GetVoicePresets();
     }
 }

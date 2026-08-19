@@ -15,6 +15,14 @@ namespace bloom.Models.dto
         // Set server-side from auth claims — never trusted from the request body
         public string? CreatedById { get; set; }
 
+        // Read-only — populated server-side from CreatedBy.FullName ?? CreatedBy.UserName. Ignored if sent in a request.
+        public string? CreatedByName { get; set; }
+
+        public bool IsPublic { get; set; } = true;
+
+        // Set by the client only when creating via "Adapt this lesson"; immutable after creation.
+        public string? AdaptedFromLessonId { get; set; }
+
         public IEnumerable<string?> LearningObjectives { get; set; } = [];
 
         // Structured steps — populated on response; used for direct creation

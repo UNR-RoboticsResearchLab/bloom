@@ -42,7 +42,7 @@ export default function ArSrResults() {
             </thead>
             <tbody>
               {sessions.map(s => (
-                <tr key={s.id} style={{ borderBottom: "1px solid #f0f0f0" }}
+                <tr key={s.id}
                   onClick={() => navigate(`/arsr/sessions/${s.id}`)}
                   onMouseEnter={e => e.currentTarget.style.background = "#fafaf9"}
                   onMouseLeave={e => e.currentTarget.style.background = ""}

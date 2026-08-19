@@ -16,7 +16,7 @@ export default function ArSrStudy() {
   const [result, setResult]                 = useState(null);
   const [error, setError]                   = useState(null);
   const [isRecording, setIsRecording]       = useState(false);
-  const [sentenceAudio, setSentenceAudio]   = useState(null); // per-sentence stimulus audio
+  const [, setSentenceAudio]                = useState(null); // per-sentence stimulus audio, write-only for now
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef   = useRef([]);

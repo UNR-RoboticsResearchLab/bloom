@@ -31,6 +31,11 @@ namespace bloom.Services
                 throw new ArgumentException($"'{dto.PersonalityTrait}' is not a recognized personality trait.");
             }
 
+            if (dto.Voice != null && !RobotVoice.IsValid(dto.Voice))
+            {
+                throw new ArgumentException($"'{dto.Voice}' is not a recognized voice.");
+            }
+
             var profile = await _dbContext.RobotProfiles.FirstOrDefaultAsync(p => p.AccountId == accountId);
 
             if (profile == null)
@@ -42,6 +47,7 @@ namespace bloom.Services
                     PersonalityTrait = dto.PersonalityTrait,
                     Catchphrase = dto.Catchphrase,
                     ColorTheme = dto.ColorTheme,
+                    Voice = dto.Voice,
                     CreatedDate = DateTime.UtcNow
                 };
                 await _dbContext.RobotProfiles.AddAsync(profile);
@@ -52,6 +58,7 @@ namespace bloom.Services
                 profile.PersonalityTrait = dto.PersonalityTrait;
                 profile.Catchphrase = dto.Catchphrase;
                 profile.ColorTheme = dto.ColorTheme;
+                profile.Voice = dto.Voice;
                 profile.UpdatedDate = DateTime.UtcNow;
             }
 
@@ -62,6 +69,11 @@ namespace bloom.Services
         public ICollection<string> GetPersonalityPresets()
         {
             return RobotPersonality.All;
+        }
+
+        public ICollection<RobotVoice.VoicePreset> GetVoicePresets()
+        {
+            return RobotVoice.All;
         }
     }
 }

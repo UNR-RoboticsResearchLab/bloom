@@ -175,7 +175,7 @@ export default function LessonPreview({ lesson, onClose }) {
           {objectives.length > 0 && (
             <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
               <h2 className="text-base font-semibold text-gray-900">Learning Objectives</h2>
-              <ul className="mt-3 space-y-2" role="list">
+              <ul className="mt-3 space-y-2">
                 {objectives.map((obj, i) => (
                   <li key={i} className="flex items-start gap-3 text-sm text-gray-700">
                     <span
@@ -198,7 +198,7 @@ export default function LessonPreview({ lesson, onClose }) {
             {steps.length === 0 ? (
               <p className="mt-3 text-sm text-gray-400 italic">No steps yet.</p>
             ) : (
-              <ol className="mt-3 space-y-2" role="list">
+              <ol className="mt-3 space-y-2">
                 {steps.map((step, i) => (
                   <PreviewStep key={step.id ?? i} step={step} index={i} />
                 ))}

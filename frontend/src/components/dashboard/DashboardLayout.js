@@ -10,7 +10,7 @@ export default function DashboardLayout({ title, children, actions = null }) {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <div className="mx-auto max-w-6xl px-6 py-10 lg:px-8 mt-[100px]">
+      <div className="mx-auto max-w-6xl px-6 pt-6 pb-10 lg:px-8">
         {/* Header */}
         <header className="mb-6">
           <div className="flex items-start justify-between gap-4">

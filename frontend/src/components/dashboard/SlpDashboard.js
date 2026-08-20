@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "./DashboardLayout";
-import { LessonCard } from "../../pages/LessonCard";
+import LessonCard from "../LessonCard";
 import { StudentCard } from "../../pages/StudentCard";
 import { PairRobotCard } from "../../pages/PairRobotCard";
 import { RobotIdleControlPanel } from "../RobotIdleControlPanel";
 import { RobotVoiceControl } from "../RobotVoiceControl";
 import { useApiClient } from "../../context/ApiClientContext";
 import { useRobotPairing } from "../../context/RobotPairingContext";
+import { getSession } from "../../utils/auth";
 
 const mockSTT = {
   L1: { S1: { accuracy: 0.72, success: 12, fail: 4 }, S2: { accuracy: 0.86, success: 18, fail: 2 } },
@@ -57,7 +58,14 @@ export default function SlpDashboard() {
     async function loadLessons() {
       try {
         const data = await apiClient.getLessons();
-        setLessons(Array.isArray(data) ? data : []);
+        const session = getSession();
+        // The dashboard preview should only surface lessons this user
+        // authored, not every public lesson on the platform.
+        const ownLessons = (Array.isArray(data) ? data : []).filter((lesson) => {
+          const createdById = lesson?.createdById ?? lesson?.CreatedById;
+          return session?.id && createdById && createdById === session.id;
+        });
+        setLessons(ownLessons);
       } catch (error) {
         console.error("Failed to load lessons:", error);
         setLessons([]);
@@ -166,7 +174,7 @@ export default function SlpDashboard() {
 
             <button
               type="button"
-              onClick={() => navigate("/lessons")}
+              onClick={() => navigate("/browse-lessons")}
               className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
             >
               View all

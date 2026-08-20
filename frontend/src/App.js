@@ -1,5 +1,5 @@
 // src/App.js
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import Layout  from "./components/Layout";
 import SignIn from "./pages/SignIn";
@@ -13,7 +13,6 @@ import TeacherDashboard from "./components/dashboard/TeacherDashboard";
 import StudentDashboard from "./components/dashboard/StudentDashboard";
 import SlpDashboard from "./components/dashboard/SlpDashboard";
 
-import Lessons from "./pages/Lessons";
 import Lesson from "./pages/Lesson";
 import LessonHistory from "./pages/LessonHistory";
 import BrowseLessons from "./pages/BrowseLessons";
@@ -48,7 +47,7 @@ export default function App() {
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/about" element={<About />} />
-        <Route path="/lessons" element={<Lessons />} />
+        <Route path="/lessons" element={<Navigate to="/browse-lessons" replace />} />
         <Route path="/browse-lessons" element={<BrowseLessons />} />
         <Route path="/students" element={<Students />} />
         <Route path="/student/:studentId" element={<Student />} />

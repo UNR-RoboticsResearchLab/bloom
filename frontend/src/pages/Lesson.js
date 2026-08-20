@@ -6,11 +6,7 @@ import { getSession } from "../utils/auth";
 import SelectStudentCard from "./SelectStudentCard";
 import LessonBuilder from "../components/LessonBuilder";
 import { PairRobotCard } from "./PairRobotCard";
-
-const TYPE_CONFIG = {
-    0: { label: "Language", bg: "bg-blue-50", badge: "bg-blue-100 text-blue-700", accent: "bg-blue-500" },
-    1: { label: "Speech Therapy", bg: "bg-violet-50", badge: "bg-violet-100 text-violet-700", accent: "bg-violet-500" },
-};
+import { getLessonTypeConfig } from "../utils/lessonTypes";
 
 function StepRow({ step, index }) {
     const [open, setOpen] = useState(false);
@@ -123,7 +119,7 @@ export default function Lesson() {
     const [showPairToTest, setShowPairToTest] = useState(false);
 
     const typeKey = lesson?.lessonType ?? lesson?.LessonType ?? 0;
-    const typeConfig = TYPE_CONFIG[typeKey] ?? TYPE_CONFIG[0];
+    const typeConfig = getLessonTypeConfig(typeKey);
     const title = lesson?.title ?? lesson?.Title;
     const description = lesson?.description ?? lesson?.Description;
     const objectives = lesson?.learningObjectives ?? lesson?.LearningObjectives ?? [];

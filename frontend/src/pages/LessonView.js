@@ -152,7 +152,7 @@ export default function LessonView() {
     useEffect(() => {
         async function startLesson() {
             if (!lesson || !student) {
-                navigate("/lessons");
+                navigate("/browse-lessons");
                 return;
             }
 
@@ -332,20 +332,16 @@ export default function LessonView() {
 
         setIsEndingLesson(true);
         try {
+            // Ends just this lesson run (clears the session's active lesson).
+            // Deliberately does NOT call api.endSession or clear the robot's
+            // pairing state — the robot should stay paired to the web UI so
+            // the SLP can start another lesson without re-pairing.
             await api.stopLesson(activeSessionId);
         } catch (e) {
             console.warn("Failed to stop lesson (may not be active):", e);
         }
-        try {
-            await api.endSession(activeSessionId);
-        } catch (e) {
-            // Demo mode has no cookie auth — server session will be cleaned up by the
-            // robot's inactivity timer. Don't block navigation on a 401 here.
-            console.warn("Failed to end session server-side:", e);
-        }
-        clearLocal();
         setIsEndingLesson(false);
-        navigate("/lessons");
+        navigate("/browse-lessons");
     }
 
     function renderMessage(item) {

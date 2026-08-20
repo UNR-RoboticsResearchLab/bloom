@@ -5,8 +5,7 @@
 // state, so every field is treated as optional.
 
 import React, { useState } from "react";
-
-const TYPE_LABELS = { 0: "Language", 1: "Speech Therapy" };
+import { getLessonTypeConfig } from "../utils/lessonTypes";
 
 const BEHAVIOR_LABELS = {
   behavior: "Behavior",
@@ -29,13 +28,32 @@ function humanizeKey(key) {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Friendly labels for the known StepInteraction fields, mirroring the labels
+// used in the read-only Lesson detail page (pages/Lesson.js) for consistency.
+const INTERACTION_FIELD_LABELS = [
+  ["waitForResponse", "Wait for Response", (v) => String(v)],
+  ["maxWaitSeconds", "Max Wait", (v) => `${v}s`],
+  ["correctAnswer", "Correct Answer", (v) => v],
+  ["correctResponseScript", "Correct Response", (v) => v],
+  ["incorrectResponseScript", "Incorrect Response", (v) => v],
+  ["singleTurnLlm", "AI Answer Judging", (v) => String(v)],
+  ["singleTurnLlmPrompt", "AI Evaluation Instructions", (v) => v],
+  ["llmFollowUp", "AI Follow-Up", (v) => String(v)],
+  ["fallbackScript", "Fallback Script", (v) => v],
+];
+
+function buildInteractionEntries(interaction) {
+  if (!interaction) return [];
+  return INTERACTION_FIELD_LABELS.filter(
+    ([key]) => interaction[key] !== null && interaction[key] !== undefined && interaction[key] !== ""
+  ).map(([key, label, format]) => ({ key, label, value: format(interaction[key]) }));
+}
+
 function PreviewStep({ step, index }) {
   const [open, setOpen] = useState(index === 0);
   const interaction = parseInteraction(step.interaction);
   const behaviorEntries = Object.entries(step.behaviors || {}).filter(([, v]) => v);
-  const interactionEntries = Object.entries(interaction || {}).filter(
-    ([, v]) => v !== null && v !== undefined && v !== ""
-  );
+  const interactionEntries = buildInteractionEntries(interaction);
 
   return (
     <li className="rounded-lg border border-gray-100 overflow-hidden">
@@ -105,10 +123,10 @@ function PreviewStep({ step, index }) {
                 Interaction
               </p>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 rounded-lg bg-gray-50 p-3">
-                {interactionEntries.map(([key, value]) => (
+                {interactionEntries.map(({ key, label, value }) => (
                   <div key={key}>
                     <dt className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                      {humanizeKey(key)}
+                      {label}
                     </dt>
                     <dd className="mt-0.5 text-sm text-gray-800 whitespace-pre-wrap break-words">
                       {String(value)}
@@ -128,6 +146,7 @@ export default function LessonPreview({ lesson, onClose }) {
   const title = lesson.title?.trim() || "Untitled Lesson";
   const objectives = (lesson.learningObjectives || []).filter((o) => o?.trim());
   const steps = lesson.steps || [];
+  const typeConfig = getLessonTypeConfig(lesson.lessonType ?? lesson.LessonType ?? 0);
 
   return (
     <div
@@ -150,9 +169,9 @@ export default function LessonPreview({ lesson, onClose }) {
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-6 p-6">
-          <header className="rounded-2xl bg-blue-50 border border-gray-200 p-6 shadow-sm">
-            <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-              {TYPE_LABELS[lesson.lessonType] ?? "Language"}
+          <header className={`rounded-2xl ${typeConfig.bg} border border-gray-200 p-6 shadow-sm`}>
+            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${typeConfig.badge}`}>
+              {typeConfig.label}
             </span>
             <h1 className="mt-3 text-2xl font-bold text-gray-900 leading-tight">{title}</h1>
             {lesson.description && (

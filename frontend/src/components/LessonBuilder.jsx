@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import LessonStepBuilder from "./LessonStepBuilder";
 import LessonAiPromptPanel from "./LessonAiPromptPanel";
 import LessonPreview from "./LessonPreview";
+import ToggleSwitch from "./ToggleSwitch";
 import { useApiClient } from "../context/ApiClientContext";
 import { useRobotPairing } from "../context/RobotPairingContext";
 import { PairRobotCard } from "../pages/PairRobotCard";
@@ -235,42 +236,16 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
         <div className="flex shrink-0 items-center gap-4">
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-gray-700">Public Lesson</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isPublic}
-              aria-label="Toggle lesson visibility"
+            <ToggleSwitch
+              checked={isPublic}
+              onChange={setIsPublic}
+              ariaLabel="Toggle lesson visibility"
               title="Public lessons are visible to everyone. Private lessons are only visible to you, admins, and students assigned to them."
-              onClick={() => setIsPublic((v) => !v)}
-              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-0 p-0 transition-colors ${
-                isPublic ? "bg-indigo-600" : "bg-gray-200"
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  isPublic ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
+            />
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-gray-700">AI Assistant</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={aiEnabled}
-              aria-label="Toggle AI Assistant"
-              onClick={() => setAiEnabled((v) => !v)}
-              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-0 p-0 transition-colors ${
-                aiEnabled ? "bg-indigo-600" : "bg-gray-200"
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  aiEnabled ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
+            <ToggleSwitch checked={aiEnabled} onChange={setAiEnabled} ariaLabel="Toggle AI Assistant" />
           </div>
         </div>
       </div>

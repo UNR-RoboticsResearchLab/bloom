@@ -1,77 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const TYPE_CONFIG = {
-    0: { label: "Language", badge: "bg-blue-100 text-blue-700", border: "border-l-blue-400" },
-    1: { label: "Speech Therapy", badge: "bg-violet-100 text-violet-700", border: "border-l-violet-400" },
-};
+import LessonCard from "./LessonCard";
 
 const TYPE_FILTERS = [
     { value: "all", label: "All Lessons" },
     { value: "0", label: "Language" },
     { value: "1", label: "Speech Therapy" },
 ];
-
-function LessonCard({ lesson, onClick }) {
-    const typeKey = lesson?.lessonType ?? lesson?.LessonType ?? 0;
-    const config = TYPE_CONFIG[typeKey] ?? TYPE_CONFIG[0];
-    const title = lesson?.title ?? lesson?.Title ?? "Untitled";
-    const description = lesson?.description ?? lesson?.Description ?? "";
-    const stepCount = lesson?.totalSteps ?? lesson?.TotalSteps ?? 0;
-    const objectives = lesson?.learningObjectives ?? lesson?.LearningObjectives ?? [];
-    const createdDate = lesson?.createdDate ?? lesson?.CreatedDate;
-    const createdByName = lesson?.createdByName ?? lesson?.CreatedByName;
-    const isPublic = lesson?.isPublic ?? lesson?.IsPublic ?? true;
-
-    return (
-        <button
-            onClick={onClick}
-            className={`w-full text-left rounded-xl border border-gray-200 border-l-4 ${config.border} bg-white p-5 shadow-sm hover:shadow-md transition-all group focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1`}
-            aria-label={`View lesson: ${title}`}
-        >
-            <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                    <p className="text-base font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
-                        {title}
-                    </p>
-                    {description && (
-                        <p className="mt-1 text-sm text-gray-500 line-clamp-2">{description}</p>
-                    )}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                    {!isPublic && (
-                        <span className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">Private</span>
-                    )}
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${config.badge}`}>
-                        {config.label}
-                    </span>
-                </div>
-            </div>
-
-            {Array.isArray(objectives) && objectives.length > 0 && (
-                <ul className="mt-3 space-y-1" aria-label="Learning objectives">
-                    {objectives.map((obj, i) => (
-                        <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
-                            <span className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold" aria-hidden="true">✓</span>
-                            <span>{obj}</span>
-                        </li>
-                    ))}
-                </ul>
-            )}
-
-            <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
-                {stepCount > 0 && <span>{stepCount} steps</span>}
-                {Array.isArray(objectives) && objectives.length > 0 && (
-                    <span>{objectives.length} objective{objectives.length !== 1 ? "s" : ""}</span>
-                )}
-                {createdByName && <span className={createdDate ? "" : "ml-auto"}>by {createdByName}</span>}
-                {createdDate && (
-                    <span className="ml-auto">{new Date(createdDate).toLocaleDateString()}</span>
-                )}
-            </div>
-        </button>
-    );
-}
 
 export default function LessonList({ lessons = [], loading = false }) {
     const navigate = useNavigate();

@@ -20,9 +20,6 @@ import BrowseLessons from "./pages/BrowseLessons";
 import Students from "./pages/Students";
 import Student from "./pages/Student";
 
-import FetchData from "./pages/FetchData";
-import Counter from "./pages/Counter";
-
 import AddStudentCard from "./pages/AddStudentCard";
 import AddLessonCard from "./pages/AddLessonCard";
 
@@ -41,8 +38,6 @@ export default function App() {
       <Routes>
         {/* Public */}
         <Route path="/" element={<Home />} />
-        <Route path="/counter" element={<Counter />} />
-        <Route path="/fetch-data" element={<FetchData />} />
         {/* <Route path="/forgot-password" element={<ForgotPassword />} /> */}
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />

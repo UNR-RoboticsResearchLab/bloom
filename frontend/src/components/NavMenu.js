@@ -35,8 +35,19 @@ export default function NavMenu() {
   const role = user?.role?.toLowerCase();
   const canPairRobot = isLoggedIn && role !== "student";
 
-  const { isPaired, robotCode } = useRobotPairing();
+  const { isPaired, robotCode, unpair } = useRobotPairing();
   const [showPairRobotCard, setShowPairRobotCard] = useState(false);
+  const [isUnpairing, setIsUnpairing] = useState(false);
+
+  async function handleQuickUnpair(e) {
+    e.stopPropagation();
+    setIsUnpairing(true);
+    try {
+      await unpair();
+    } finally {
+      setIsUnpairing(false);
+    }
+  }
 
   return (
     <header>
@@ -75,20 +86,38 @@ export default function NavMenu() {
 
             {canPairRobot && (
               <NavItem>
-                <button
-                  type="button"
-                  onClick={() => setShowPairRobotCard(true)}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium shadow-sm transition ${
+                <div
+                  className={`inline-flex items-center rounded-full border text-sm font-medium shadow-sm transition ${
                     isPaired
-                      ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
-                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      ? "border-green-300 bg-green-50 text-green-700 py-1 pl-3 pr-1"
+                      : "border-gray-300 bg-white text-gray-700 px-3 py-1.5 hover:bg-gray-50"
                   }`}
                 >
-                  <span
-                    className={`h-2 w-2 rounded-full ${isPaired ? "bg-green-500" : "bg-gray-400"}`}
-                  />
-                  {isPaired ? `Robot · ${robotCode}` : "Pair Robot"}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPairRobotCard(true)}
+                    className={`inline-flex items-center gap-2 border-0 bg-transparent p-0 ${
+                      isPaired ? "hover:opacity-80" : ""
+                    }`}
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${isPaired ? "bg-green-500" : "bg-gray-400"}`}
+                    />
+                    {isPaired ? `Robot · ${robotCode}` : "Pair Robot"}
+                  </button>
+                  {isPaired && (
+                    <button
+                      type="button"
+                      onClick={handleQuickUnpair}
+                      disabled={isUnpairing}
+                      title="Unpair robot"
+                      aria-label="Unpair robot"
+                      className="ml-1 rounded-full border-0 bg-transparent p-1 text-green-600 hover:bg-green-100 hover:text-green-800 disabled:opacity-50"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </NavItem>
             )}
 

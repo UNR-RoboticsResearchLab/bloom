@@ -8,9 +8,7 @@ import LessonBuilder from "../components/LessonBuilder";
 import { PairRobotCard } from "./PairRobotCard";
 import { getLessonTypeConfig } from "../utils/lessonTypes";
 
-function StepRow({ step, index }) {
-    const [open, setOpen] = useState(false);
-
+function StepRow({ step, index, open, onToggle }) {
     const stepTitle = step.title ?? step.Title;
     const stepType  = step.type  ?? step.Type;
     const script    = step.script ?? step.Script;
@@ -50,7 +48,7 @@ function StepRow({ step, index }) {
     return (
         <li key={step.id ?? step.Id ?? index} className="rounded-lg border border-gray-100 overflow-hidden">
             <button
-                onClick={() => setOpen((o) => !o)}
+                onClick={onToggle}
                 aria-expanded={open}
                 className="w-full flex items-center gap-3 bg-gray-50 p-3 hover:bg-gray-100 transition-colors text-left"
             >
@@ -117,6 +115,7 @@ export default function Lesson() {
     const [showEdit, setShowEdit] = useState(false);
     const [showAdapt, setShowAdapt] = useState(false);
     const [showPairToTest, setShowPairToTest] = useState(false);
+    const [openSteps, setOpenSteps] = useState(() => new Set());
 
     const typeKey = lesson?.lessonType ?? lesson?.LessonType ?? 0;
     const typeConfig = getLessonTypeConfig(typeKey);
@@ -131,6 +130,20 @@ export default function Lesson() {
     const isPublic = lesson?.isPublic ?? lesson?.IsPublic ?? true;
     const session = getSession();
     const isOwner = Boolean(session?.id && createdById && session.id === createdById);
+    const allStepsExpanded = steps.length > 0 && steps.every((_, i) => openSteps.has(i));
+
+    function toggleStep(index) {
+        setOpenSteps((prev) => {
+            const next = new Set(prev);
+            if (next.has(index)) next.delete(index);
+            else next.add(index);
+            return next;
+        });
+    }
+
+    function toggleAllSteps() {
+        setOpenSteps(allStepsExpanded ? new Set() : new Set(steps.map((_, i) => i)));
+    }
 
     function handleStudentSelect(student) {
         setShowSelectStudent(false);
@@ -283,13 +296,28 @@ export default function Lesson() {
             {/* Steps Preview */}
             {steps.length > 0 && (
                 <section aria-labelledby="steps-heading" className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <h2 id="steps-heading" className="text-lg font-semibold text-gray-900">
-                        Lesson Steps
-                        <span className="ml-2 text-sm font-normal text-gray-400">({steps.length} total)</span>
-                    </h2>
+                    <div className="flex items-center justify-between gap-4">
+                        <h2 id="steps-heading" className="text-lg font-semibold text-gray-900">
+                            Lesson Steps
+                            <span className="ml-2 text-sm font-normal text-gray-400">({steps.length} total)</span>
+                        </h2>
+                        <button
+                            type="button"
+                            onClick={toggleAllSteps}
+                            className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                        >
+                            {allStepsExpanded ? "Collapse All" : "Expand All"}
+                        </button>
+                    </div>
                     <ol className="mt-4 space-y-2">
                         {steps.map((step, i) => (
-                            <StepRow key={step.id ?? step.Id ?? i} step={step} index={i} />
+                            <StepRow
+                                key={step.id ?? step.Id ?? i}
+                                step={step}
+                                index={i}
+                                open={openSteps.has(i)}
+                                onToggle={() => toggleStep(i)}
+                            />
                         ))}
                     </ol>
                 </section>

@@ -49,8 +49,7 @@ function buildInteractionEntries(interaction) {
   ).map(([key, label, format]) => ({ key, label, value: format(interaction[key]) }));
 }
 
-function PreviewStep({ step, index }) {
-  const [open, setOpen] = useState(index === 0);
+function PreviewStep({ step, index, open, onToggle }) {
   const interaction = parseInteraction(step.interaction);
   const behaviorEntries = Object.entries(step.behaviors || {}).filter(([, v]) => v);
   const interactionEntries = buildInteractionEntries(interaction);
@@ -59,7 +58,7 @@ function PreviewStep({ step, index }) {
     <li className="rounded-lg border border-gray-100 overflow-hidden">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={onToggle}
         aria-expanded={open}
         className="w-full flex items-center gap-3 bg-gray-50 p-3 hover:bg-gray-100 transition-colors text-left"
       >
@@ -147,6 +146,21 @@ export default function LessonPreview({ lesson, onClose }) {
   const objectives = (lesson.learningObjectives || []).filter((o) => o?.trim());
   const steps = lesson.steps || [];
   const typeConfig = getLessonTypeConfig(lesson.lessonType ?? lesson.LessonType ?? 0);
+  const [openSteps, setOpenSteps] = useState(() => new Set(steps.length > 0 ? [0] : []));
+  const allExpanded = steps.length > 0 && steps.every((_, i) => openSteps.has(i));
+
+  function toggleStep(index) {
+    setOpenSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }
+
+  function toggleAllSteps() {
+    setOpenSteps(allExpanded ? new Set() : new Set(steps.map((_, i) => i)));
+  }
 
   return (
     <div
@@ -211,15 +225,32 @@ export default function LessonPreview({ lesson, onClose }) {
           )}
 
           <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-gray-900">
-              Steps <span className="ml-1 text-sm font-normal text-gray-400">({steps.length})</span>
-            </h2>
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-base font-semibold text-gray-900">
+                Steps <span className="ml-1 text-sm font-normal text-gray-400">({steps.length})</span>
+              </h2>
+              {steps.length > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleAllSteps}
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                >
+                  {allExpanded ? "Collapse All" : "Expand All"}
+                </button>
+              )}
+            </div>
             {steps.length === 0 ? (
               <p className="mt-3 text-sm text-gray-400 italic">No steps yet.</p>
             ) : (
               <ol className="mt-3 space-y-2">
                 {steps.map((step, i) => (
-                  <PreviewStep key={step.id ?? i} step={step} index={i} />
+                  <PreviewStep
+                    key={step.id ?? i}
+                    step={step}
+                    index={i}
+                    open={openSteps.has(i)}
+                    onToggle={() => toggleStep(i)}
+                  />
                 ))}
               </ol>
             )}

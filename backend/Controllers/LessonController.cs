@@ -3,6 +3,7 @@
 // Lesson content management and student progress tracking.
 
 using System.Security.Claims;
+using bloom.Models;
 using bloom.Models.dto;
 using bloom.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -21,19 +22,30 @@ namespace bloom.Controllers
     {
         private readonly ILessonService _lessonService;
         private readonly ILessonProgressService _progressService;
+        private readonly ILessonAiService _lessonAiService;
+        private readonly IAssignmentService _assignmentService;
         private readonly IWebHostEnvironment _env;
 
         private static readonly string[] AllowedImageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"];
 
-        public LessonController(ILessonService lessonService, ILessonProgressService progressService, IWebHostEnvironment env)
+        public LessonController(
+            ILessonService lessonService,
+            ILessonProgressService progressService,
+            ILessonAiService lessonAiService,
+            IAssignmentService assignmentService,
+            IWebHostEnvironment env)
         {
             _lessonService = lessonService;
             _progressService = progressService;
+            _lessonAiService = lessonAiService;
+            _assignmentService = assignmentService;
             _env = env;
         }
 
         /// <summary>
-        /// Returns metadata for all lessons (no step detail). Public endpoint.
+        /// Returns metadata for all lessons visible to the caller (no step detail): every
+        /// public lesson, plus the caller's own lessons, lessons assigned to the caller,
+        /// and (for Admins) everything. Anonymous callers only see public lessons.
         /// </summary>
         [HttpGet("all")]
         public async Task<IActionResult> GetAllLessons()
@@ -41,7 +53,16 @@ namespace bloom.Controllers
             try
             {
                 var lessons = await _lessonService.GetAllAsync();
-                var lessonDtos = lessons.Select(lesson => new LessonDto
+                var userId = GetCurrentUserId();
+                var isAdmin = User.IsInRole("Admin");
+                var assignedLessonIds = !string.IsNullOrEmpty(userId)
+                    ? await _assignmentService.GetAssignedLessonIdsAsync(userId)
+                    : new HashSet<Guid>();
+
+                var visibleLessons = lessons.Where(l =>
+                    l.IsPublic || isAdmin || l.CreatedById == userId || assignedLessonIds.Contains(l.Id));
+
+                var lessonDtos = visibleLessons.Select(lesson => new LessonDto
                 {
                     Id = lesson.Id.ToString(),
                     Title = lesson.Title,
@@ -50,6 +71,9 @@ namespace bloom.Controllers
                     UpdatedDate = lesson.UpdatedDate,
                     LessonType = lesson.LessonType,
                     CreatedById = lesson.CreatedById,
+                    CreatedByName = lesson.CreatedBy?.FullName ?? lesson.CreatedBy?.UserName,
+                    IsPublic = lesson.IsPublic,
+                    AdaptedFromLessonId = lesson.AdaptedFromLessonId?.ToString(),
                     LearningObjectives = lesson.LearningObjectives
                 });
                 return Ok(lessonDtos);
@@ -62,6 +86,9 @@ namespace bloom.Controllers
 
         /// <summary>
         /// Returns full lesson data including all steps and interaction configs for the specified lesson.
+        /// Private lessons are only visible to their creator, Admins, and students assigned to them --
+        /// everyone else gets the same NotFound as a genuinely missing lesson, so lesson ids can't be
+        /// probed to discover which private lessons exist.
         /// </summary>
         [HttpGet("{lessonId}")]
         public async Task<IActionResult> GetLessonInfo(string lessonId)
@@ -72,55 +99,71 @@ namespace bloom.Controllers
                 if (lesson == null)
                     return NotFound(new { message = "Lesson not found." });
 
-                return Ok(new LessonDto
-                {
-                    Id = lesson.Id.ToString(),
-                    Title = lesson.Title,
-                    Description = lesson.Description,
-                    CreatedDate = lesson.CreatedDate,
-                    UpdatedDate = lesson.UpdatedDate,
-                    LessonType = lesson.LessonType,
-                    CreatedById = lesson.CreatedById,
-                    LearningObjectives = lesson.LearningObjectives,
-                    Steps = [.. lesson.Steps.Select(s => new LessonStepDto
-                    {
-                        Id = s.Id,
-                        StepOrder = s.StepOrder,
-                        Title = s.Title,
-                        Type = s.Type,
-                        Script = s.Script,
-                        TimingSeconds = s.TimingSeconds,
-                        VisualAid = s.VisualAid,
-                        Behaviors = s.Behaviors != null ? new StepBehaviorsDto
-                        {
-                            Behavior = s.Behaviors.Name,
-                            FacialExpression = s.Behaviors.FacialExpression,
-                            Gaze = s.Behaviors.Gaze,
-                            HeadMovement = s.Behaviors.HeadMovement
-                        } : null,
-                        Interaction = s.Interaction != null ? new StepInteractionDto
-                        {
-                            Id = s.Interaction.Id,
-                            WaitForResponse = s.Interaction.WaitForResponse,
-                            MaxWaitSeconds = s.Interaction.MaxWaitSeconds,
-                            CorrectAnswer = s.Interaction.CorrectAnswer,
-                            CorrectResponseScript = s.Interaction.CorrectResponseScript,
-                            IncorrectResponseScript = s.Interaction.IncorrectResponseScript,
-                            SingleTurnLlm = s.Interaction.SingleTurnLlm,
-                            SingleTurnLlmPrompt = s.Interaction.SingleTurnLlmPrompt,
-                            LlmFollowUp = s.Interaction.LlmFollowUp,
-                            FallbackScript = s.Interaction.FallbackScript,
-                            FallbackVisualAid = s.Interaction.FallbackVisualAid,
-                            FallbackVisualAidLabels = s.Interaction.FallbackVisualAidLabels,
-                        } : null
-                    })]
-                });
+                var userId = GetCurrentUserId();
+                var isAdmin = User.IsInRole("Admin");
+                var isOwner = userId != null && lesson.CreatedById == userId;
+                var isAssigned = userId != null && await _assignmentService.ExistsForStudentAndLessonAsync(userId, lesson.Id);
+
+                if (!lesson.IsPublic && !isOwner && !isAdmin && !isAssigned)
+                    return NotFound(new { message = "Lesson not found." });
+
+                return Ok(ToDetailDto(lesson));
             }
             catch (Exception ex)
             {
                 return BadRequest(new { message = $"Request error: {ex.Message}" });
             }
         }
+
+        // Maps a full Lesson entity (with Steps/Behaviors/Interaction loaded) to the
+        // detail DTO shape. Shared by GetLessonInfo and UpdateLesson so both return
+        // identically-shaped lesson data.
+        private static LessonDto ToDetailDto(Lesson lesson) => new()
+        {
+            Id = lesson.Id.ToString(),
+            Title = lesson.Title,
+            Description = lesson.Description,
+            CreatedDate = lesson.CreatedDate,
+            UpdatedDate = lesson.UpdatedDate,
+            LessonType = lesson.LessonType,
+            CreatedById = lesson.CreatedById,
+            CreatedByName = lesson.CreatedBy?.FullName ?? lesson.CreatedBy?.UserName,
+            IsPublic = lesson.IsPublic,
+            AdaptedFromLessonId = lesson.AdaptedFromLessonId?.ToString(),
+            LearningObjectives = lesson.LearningObjectives,
+            Steps = [.. lesson.Steps.Select(s => new LessonStepDto
+            {
+                Id = s.Id,
+                StepOrder = s.StepOrder,
+                Title = s.Title,
+                Type = s.Type,
+                Script = s.Script,
+                TimingSeconds = s.TimingSeconds,
+                VisualAid = s.VisualAid,
+                Behaviors = s.Behaviors != null ? new StepBehaviorsDto
+                {
+                    Behavior = s.Behaviors.Name,
+                    FacialExpression = s.Behaviors.FacialExpression,
+                    Gaze = s.Behaviors.Gaze,
+                    HeadMovement = s.Behaviors.HeadMovement
+                } : null,
+                Interaction = s.Interaction != null ? new StepInteractionDto
+                {
+                    Id = s.Interaction.Id,
+                    WaitForResponse = s.Interaction.WaitForResponse,
+                    MaxWaitSeconds = s.Interaction.MaxWaitSeconds,
+                    CorrectAnswer = s.Interaction.CorrectAnswer,
+                    CorrectResponseScript = s.Interaction.CorrectResponseScript,
+                    IncorrectResponseScript = s.Interaction.IncorrectResponseScript,
+                    SingleTurnLlm = s.Interaction.SingleTurnLlm,
+                    SingleTurnLlmPrompt = s.Interaction.SingleTurnLlmPrompt,
+                    LlmFollowUp = s.Interaction.LlmFollowUp,
+                    FallbackScript = s.Interaction.FallbackScript,
+                    FallbackVisualAid = s.Interaction.FallbackVisualAid,
+                    FallbackVisualAidLabels = s.Interaction.FallbackVisualAidLabels,
+                } : null
+            })]
+        };
 
         /// <summary>
         /// Creates a new lesson authored by the authenticated user.
@@ -136,16 +179,78 @@ namespace bloom.Controllers
                     return Unauthorized(new { message = "User not authenticated." });
 
                 lesson.CreatedById = userId;
-                var success = await _lessonService.CreateAsync(lesson);
+                var created = await _lessonService.CreateAsync(lesson);
 
-                if (success)
-                    return Ok(new { message = "Lesson created successfully." });
+                if (created != null)
+                    // Keeps the historical `message` field (some older callers check
+                    // response.message for "successfully") while also handing back the
+                    // persisted lesson -- including its new Id -- for callers that need
+                    // to act on it right away, e.g. running it on a robot.
+                    return Ok(new { message = "Lesson created successfully.", lesson = ToDetailDto(created) });
 
                 return BadRequest(new { message = "Failed to create lesson." });
             }
             catch (Exception ex)
             {
                 return BadRequest(new { message = $"Request error: {ex.Message}" });
+            }
+        }
+
+        /// <summary>
+        /// Updates an existing lesson's info and replaces its full step list. Only the
+        /// lesson's creator or an Admin may update it.
+        /// </summary>
+        [Authorize]
+        [HttpPut("{lessonId}")]
+        public async Task<IActionResult> UpdateLesson(string lessonId, [FromBody] LessonDto lesson)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized(new { message = "User not authenticated." });
+
+                if (!Guid.TryParse(lessonId, out _))
+                    return BadRequest(new { message = "Invalid lesson id." });
+
+                var existing = await _lessonService.GetByIdAsync(lessonId);
+                if (existing == null)
+                    return NotFound(new { message = "Lesson not found." });
+
+                if (existing.CreatedById != userId && !User.IsInRole("Admin"))
+                    return Forbid();
+
+                lesson.Id = lessonId;
+                var success = await _lessonService.UpdateAsync(lesson);
+
+                if (!success)
+                    return BadRequest(new { message = "Failed to update lesson." });
+
+                var updated = await _lessonService.GetByIdAsync(lessonId);
+                return Ok(updated != null ? ToDetailDto(updated) : new { message = "Lesson updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Request error: {ex.Message}" });
+            }
+        }
+
+        /// <summary>
+        /// Generates a full lesson (title, objectives, steps) from a free-text prompt via AI.
+        /// Returns a LessonDto for the caller to preview/edit in the builder — never persists directly.
+        /// </summary>
+        [Authorize]
+        [HttpPost("ai/generate")]
+        public async Task<IActionResult> GenerateLessonWithAi([FromBody] LessonAiGenerateRequestDto request)
+        {
+            try
+            {
+                var lesson = await _lessonAiService.GenerateLessonAsync(request);
+                return Ok(lesson);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Lesson generation failed: {ex.Message}" });
             }
         }
 

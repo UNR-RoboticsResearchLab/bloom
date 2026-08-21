@@ -1,5 +1,0 @@
-openai==1.58.1
-sounddevice==0.5.1
-soundfile==0.12.1
-numpy==1.26.4
-azure-cognitiveservices-speech==1.40.0

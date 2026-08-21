@@ -13,7 +13,7 @@ LessonPoller::LessonPoller(
 	const std::string &node_name
 
 )
-	: rclcpp::Node(node_name),
+	: rclcpp::Node(node_name, rclcpp::NodeOptions().use_global_arguments(false)),
 	  web_client_(web_client),
 	  lesson_coord_(lesson_coord),
 	  session_id_(session_id),
@@ -168,6 +168,28 @@ void LessonPoller::on_polling_tick() {
             }
         });
 
+    // Voice polling — unlike idle-mode, this runs unconditionally (even while
+    // a lesson is executing), since the voice should stay in sync at all times.
+    std::ostringstream voice_path;
+    voice_path << "/api/robot-voice/" << current_session_id;
+
+    web_client_->sendGetAsync(
+        voice_path.str(),
+        std::nullopt,
+        std::vector<std::string>{},
+        [this, lesson_coord = lesson_coord_](const std::string &body, long http_code) {
+            if (http_code < 200 || http_code >= 300) {
+                return;
+            }
+            try {
+                json response = json::parse(body);
+                std::string voice = response.value("voice", "");
+                if (!voice.empty() && lesson_coord) lesson_coord->set_tts_voice(voice);
+            } catch (const json::exception &e) {
+                RCLCPP_WARN(this->get_logger(), "Failed to parse voice response: %s", e.what());
+            }
+        });
+
     //Lesson polling
     if (currently_executing_.load()) {
         RCLCPP_DEBUG(this->get_logger(), "Skipping lesson poll: lesson currently executing");
@@ -220,11 +242,37 @@ void LessonPoller::on_polling_tick() {
                 RCLCPP_ERROR(this->get_logger(), "Failed to parse lesson JSON: %s", e.what());
             }
         });
+
+    // Idle-mode polling — only reached when no lesson is executing (see the
+    // early return above). Reuses the 7s tick cadence; if snappier response is
+    // ever needed this can move to its own faster timer like
+    // start_step_control_polling()/on_step_control_tick() (1500ms).
+    std::ostringstream idle_mode_path;
+    idle_mode_path << "/api/robot-idle-mode/" << current_session_id;
+
+    web_client_->sendGetAsync(
+        idle_mode_path.str(),
+        std::nullopt,
+        std::vector<std::string>{},
+        [this, lesson_coord = lesson_coord_](const std::string &body, long http_code) {
+            if (http_code < 200 || http_code >= 300) {
+                return;
+            }
+            try {
+                json response = json::parse(body);
+                std::string mode = response.value("mode", "passive");
+                if (lesson_coord) lesson_coord->set_idle_mode(mode);
+            } catch (const json::exception &e) {
+                RCLCPP_WARN(this->get_logger(), "Failed to parse idle-mode response: %s", e.what());
+            }
+        });
 }
 
 void LessonPoller::handle_pending_lesson(const json &lesson_json, const std::string &lesson_run_id) {
 	try {
-
+		// Tear down any active conversational idle mode before a real lesson
+		// takes over — nothing else resets mic/LLM mode automatically.
+		if (lesson_coord_) lesson_coord_->set_idle_mode("passive");
 
 		// Extract lesson_id for deduplication
 		if (!lesson_json.contains("id")) {
@@ -489,6 +537,10 @@ void LessonPoller::on_step_control_tick() {
                     } else {
                         RCLCPP_WARN(this->get_logger(), "[STEP_CONTROL] set_step missing or invalid targetStep");
                     }
+                } else if (command == "pause") {
+                    if (lesson_coord_) lesson_coord_->pause_lesson();
+                } else if (command == "resume") {
+                    if (lesson_coord_) lesson_coord_->resume_lesson();
 				} else if (command == "stop") {
 					RCLCPP_INFO(this->get_logger(), "[STEP_CONTROL] Stop command received - stopping lesson");
 					if (lesson_coord_) lesson_coord_->stop_lesson();

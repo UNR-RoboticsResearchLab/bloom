@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import LessonStepBuilder from "./LessonStepBuilder";
 import LessonAiPromptPanel from "./LessonAiPromptPanel";
+import LessonPreview from "./LessonPreview";
+import ToggleSwitch from "./ToggleSwitch";
 import { useApiClient } from "../context/ApiClientContext";
+import { useRobotPairing } from "../context/RobotPairingContext";
+import { PairRobotCard } from "../pages/PairRobotCard";
+import { randomId } from "../utils/id";
 
 const LESSON_TYPES = [
   { value: 0, label: "Language" },
@@ -16,7 +22,7 @@ const labelClass = "block text-sm font-medium text-gray-900";
 
 function emptyStep(order) {
   return {
-    _id: crypto.randomUUID(),
+    _id: randomId(),
     stepOrder: order,
     title: "",
     type: "",
@@ -42,25 +48,31 @@ function parseObjectives(objectives) {
 
 export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel }) {
   const api = useApiClient();
+  const navigate = useNavigate();
+  const { isPaired, sessionId } = useRobotPairing();
   const [behaviorOptions, setBehaviorOptions] = useState([]);
   const [motorSequenceOptions, setMotorSequenceOptions] = useState([]);
   const [title, setTitle] = useState(initialLesson?.title ?? "");
   const [description, setDescription] = useState(initialLesson?.description ?? "");
   const [lessonType, setLessonType] = useState(initialLesson?.lessonType ?? 0);
+  const [isPublic, setIsPublic] = useState(initialLesson?.isPublic ?? initialLesson?.IsPublic ?? true);
   const [objectives, setObjectives] = useState(() =>
     parseObjectives(initialLesson?.learningObjectives).map((text) => ({
-      _id: crypto.randomUUID(),
+      _id: randomId(),
       text,
     }))
   );
   const [steps, setSteps] = useState(() =>
     initialLesson?.steps?.length
-      ? initialLesson.steps.map((s) => ({ ...s, _id: crypto.randomUUID() }))
+      ? initialLesson.steps.map((s) => ({ ...s, _id: randomId() }))
       : [emptyStep(1)]
   );
   const [err, setErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showPairToPreview, setShowPairToPreview] = useState(false);
+  const [previewingOnRobot, setPreviewingOnRobot] = useState(false);
 
   useEffect(() => {
     api.getAvailableBehaviors().then(setBehaviorOptions).catch(() => setBehaviorOptions([]));
@@ -71,7 +83,7 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
     setObjectives((prev) => prev.map((o) => (o._id === id ? { ...o, text } : o)));
   }
   function addObjective() {
-    setObjectives((prev) => [...prev, { _id: crypto.randomUUID(), text: "" }]);
+    setObjectives((prev) => [...prev, { _id: randomId(), text: "" }]);
   }
   function removeObjective(id) {
     setObjectives((prev) => prev.filter((o) => o._id !== id));
@@ -106,6 +118,10 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
       title,
       description: description || null,
       lessonType,
+      isPublic,
+      ...(initialLesson?.adaptedFromLessonId ?? initialLesson?.AdaptedFromLessonId
+        ? { adaptedFromLessonId: initialLesson.adaptedFromLessonId ?? initialLesson.AdaptedFromLessonId }
+        : {}),
       learningObjectives: filledObjectives,
       steps: steps.map((s, i) => ({
         ...(s.id ? { id: s.id } : {}),
@@ -128,13 +144,13 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
     setLessonType(lessonDto.lessonType ?? 0);
     setObjectives(
       parseObjectives(lessonDto.learningObjectives).map((text) => ({
-        _id: crypto.randomUUID(),
+        _id: randomId(),
         text,
       }))
     );
     setSteps(
       lessonDto.steps?.length
-        ? lessonDto.steps.map((s) => ({ ...s, _id: crypto.randomUUID() }))
+        ? lessonDto.steps.map((s) => ({ ...s, _id: randomId() }))
         : [emptyStep(1)]
     );
   }
@@ -144,18 +160,20 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
     applyGeneratedLesson(generated);
   }
 
+  function validate() {
+    if (!title.trim()) return "Lesson title is required.";
+    if (steps.some((s) => !s.type || !s.script?.trim())) return "Every step needs a type and a script.";
+    return null;
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
+    const validationError = validate();
+    if (validationError) {
+      setErr(validationError);
+      return;
+    }
     setErr("");
-
-    if (!title.trim()) {
-      setErr("Lesson title is required.");
-      return;
-    }
-    if (steps.some((s) => !s.type || !s.script?.trim())) {
-      setErr("Every step needs a type and a script.");
-      return;
-    }
 
     setSubmitting(true);
     try {
@@ -167,35 +185,68 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
     }
   }
 
+  // Runs the current draft on the paired robot. The robot session runtime only knows
+  // how to play lessons it can look up by Id, so this saves the draft first (creating
+  // or updating, whichever applies) and then launches the same test-run flow the saved
+  // lesson's "Test on Robot" button uses.
+  async function handlePreviewOnRobot() {
+    const validationError = validate();
+    if (validationError) {
+      setErr(validationError);
+      return;
+    }
+    setErr("");
+
+    if (!isPaired) {
+      setShowPairToPreview(true);
+      return;
+    }
+
+    setPreviewingOnRobot(true);
+    try {
+      const payload = buildLessonPayload();
+      const saved = initialLesson?.id
+        ? await api.updateLesson(initialLesson.id, payload)
+        : (await api.createLesson(payload)).lesson;
+
+      navigate("/lesson-view", {
+        state: {
+          lesson: saved,
+          student: { id: sessionId, fullName: "Test Run", name: "Test Run" },
+        },
+      });
+    } catch (error) {
+      setErr(error.message || "Failed to start preview on robot.");
+    } finally {
+      setPreviewingOnRobot(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-5 px-4 py-6">
       <div className="flex items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow-sm">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">
-            {initialLesson ? "Edit Lesson" : "New Lesson"}
+            {initialLesson?.id ? "Edit Lesson" : "New Lesson"}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
             Fill in the lesson details, then add and configure each step.
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <span className="text-sm font-medium text-gray-700">AI Assistant</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={aiEnabled}
-            aria-label="Toggle AI Assistant"
-            onClick={() => setAiEnabled((v) => !v)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              aiEnabled ? "bg-indigo-600" : "bg-gray-200"
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                aiEnabled ? "translate-x-6" : "translate-x-1"
-              }`}
+        <div className="flex shrink-0 items-center gap-4">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">Public Lesson</span>
+            <ToggleSwitch
+              checked={isPublic}
+              onChange={setIsPublic}
+              ariaLabel="Toggle lesson visibility"
+              title="Public lessons are visible to everyone. Private lessons are only visible to you, admins, and students assigned to them."
             />
-          </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">AI Assistant</span>
+            <ToggleSwitch checked={aiEnabled} onChange={setAiEnabled} ariaLabel="Toggle AI Assistant" />
+          </div>
         </div>
       </div>
 
@@ -334,14 +385,56 @@ export default function LessonBuilder({ initialLesson = null, onSubmit, onCancel
             </button>
           )}
           <button
+            type="button"
+            onClick={() => setShowPreview(true)}
+            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50"
+          >
+            Preview
+          </button>
+          <button
+            type="button"
+            onClick={handlePreviewOnRobot}
+            disabled={previewingOnRobot}
+            className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${isPaired ? "bg-green-500" : "bg-gray-400"}`}
+              aria-hidden="true"
+            />
+            {previewingOnRobot
+              ? "Starting..."
+              : isPaired
+              ? "Preview on Robot"
+              : "Pair Robot to Preview"}
+          </button>
+          <button
             type="submit"
             disabled={submitting}
             className="flex justify-center rounded-md bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
-            {submitting ? "Saving..." : initialLesson ? "Update Lesson" : "Save Lesson"}
+            {submitting ? "Saving..." : initialLesson?.id ? "Update Lesson" : "Save Lesson"}
           </button>
         </div>
       </form>
+
+      {showPreview && (
+        <LessonPreview lesson={buildLessonPayload()} onClose={() => setShowPreview(false)} />
+      )}
+
+      {showPairToPreview && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pair a robot to preview this lesson"
+        >
+          <PairRobotCard
+            onCancel={() => setShowPairToPreview(false)}
+            onPaired={() => setShowPairToPreview(false)}
+            onUnpaired={() => setShowPairToPreview(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

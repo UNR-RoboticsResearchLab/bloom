@@ -78,5 +78,15 @@ namespace bloom.Services
             await _dbContext.SaveChangesAsync();
             return true;
         }
+
+        public async Task<bool> ExistsForStudentAndLessonAsync(string studentId, Guid lessonId) =>
+            await _dbContext.Assignments.AnyAsync(a => a.StudentId == studentId && a.LessonId == lessonId);
+
+        public async Task<HashSet<Guid>> GetAssignedLessonIdsAsync(string studentId) =>
+            (await _dbContext.Assignments
+                .Where(a => a.StudentId == studentId)
+                .Select(a => a.LessonId)
+                .ToListAsync())
+                .ToHashSet();
     }
 }

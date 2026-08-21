@@ -56,6 +56,8 @@ class TTSNode(Node):
         self.get_logger().info('TTS node ready - listening on /tts/speak')
         self._interrupted = False
         self.create_subscription(String, '/tts/interrupt', self.on_interrupt, 10)
+        self.voice_sub = self.create_subscription(
+            String, '/tts/voice', self.on_voice_update, 10)
         self.chime_sub = self.create_subscription(
             String, '/audio/chime', self.on_chime, 10)
         chime_path = os.path.join(get_package_share_directory('bloom_speech'), 'sounds', 'chime.wav')
@@ -173,7 +175,13 @@ class TTSNode(Node):
         self.get_logger().info('TTS interrupted')
         self._interrupted = True
         pygame.mixer.music.stop()
-    
+
+    def on_voice_update(self, msg: String):
+        if not msg.data:
+            return
+        self.tts_engine.default_voice = msg.data
+        self.get_logger().info(f'TTS voice set to {msg.data}')
+
     def on_chime(self, msg: String):
         if self.chime_sound:
             self.chime_sound.play()

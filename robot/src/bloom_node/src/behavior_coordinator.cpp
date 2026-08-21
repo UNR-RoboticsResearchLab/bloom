@@ -20,8 +20,14 @@ void BehaviorCoordinator::request_behavior(const std::string &name, int priority
     return;
   }
 
-  // Can execute immediately
-  current_behavior_ = name;
+  // Nothing blocks this from running now, but setting current_behavior_
+  // directly here (as this used to do) never actually gets it played --
+  // bloom_node.cpp's dispatch timer only publishes what get_next_behavior()
+  // pops off pending_behaviors_, so that would silently mark this behavior
+  // "current" while never sending it to play_sequence. current_behavior_ is
+  // empty at this point (that's why we're here), so get_next_behavior()
+  // will pick this straight back up on its next 100ms tick and dispatch it.
+  pending_behaviors_.push({name, priority, std::chrono::system_clock::now(), interrupt});
 }
 
 void BehaviorCoordinator::queue_behavior(const std::string &name) {

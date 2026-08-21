@@ -155,6 +155,43 @@ namespace bloom.Controllers
         }
 
         /// <summary>
+        /// SLP pauses the active lesson in place. Robot freezes on the current step
+        /// on its next poll rather than exiting the lesson.
+        /// </summary>
+        [HttpPost("{sessionId}/pause")]
+        public async Task<IActionResult> PauseLesson(Guid sessionId)
+        {
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            if (session.ActiveLessonId == null)
+                return BadRequest(new { Message = "No active lesson to pause" });
+
+            _stepControlService.SetPendingControl(sessionId, "pause");
+            _logger.LogInformation("Pause command issued for session {SessionId}", sessionId);
+            return Ok(new { Message = "Pause command queued", SessionId = sessionId });
+        }
+
+        /// <summary>
+        /// SLP resumes a paused lesson. Robot re-plays the step it was paused on.
+        /// </summary>
+        [HttpPost("{sessionId}/resume")]
+        public async Task<IActionResult> ResumeLesson(Guid sessionId)
+        {
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { Message = $"Session with ID {sessionId} not found" });
+
+            if (session.ActiveLessonId == null)
+                return BadRequest(new { Message = "No active lesson to resume" });
+
+            _stepControlService.SetPendingControl(sessionId, "resume");
+            _logger.LogInformation("Resume command issued for session {SessionId}", sessionId);
+            return Ok(new { Message = "Resume command queued", SessionId = sessionId });
+        }
+
+        /// <summary>
         /// SLP posts approve or retry feedback for the current lesson step.
         /// </summary>
         [HttpPost("{sessionId}/feedback")]

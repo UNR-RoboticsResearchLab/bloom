@@ -1,42 +1,16 @@
 // src/components/dashboard/DashboardLayout.js
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { getSession, signOut } from "../../utils/auth";
-
-function cls(...xs) {
-  return xs.filter(Boolean).join(" ");
-}
-
-function titleCase(s = "") {
-  return s
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
 
 export default function DashboardLayout({ title, children, actions = null }) {
   const session = getSession();
-  const location = useLocation();
   const navigate = useNavigate();
-
-  const parts = location.pathname.split("/").filter(Boolean);
-  const crumbs = [{ to: "/", label: "Home" }].concat(
-    parts.map((seg, i) => ({
-      to: "/" + parts.slice(0, i + 1).join("/"),
-      label: titleCase(seg),
-    }))
-  );
-
-  const nav = [
-    { to: "/", label: "Home" },
-    { to: "/fetch-data", label: "Fetch Data" },
-    { to: "/counter", label: "Counter" },
-  ];
 
   const role = session?.role?.toUpperCase();
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <div className="mx-auto max-w-6xl px-6 py-10 lg:px-8 mt-[100px]">
+      <div className="mx-auto max-w-6xl px-6 pt-6 pb-10 lg:px-8">
         {/* Header */}
         <header className="mb-6">
           <div className="flex items-start justify-between gap-4">

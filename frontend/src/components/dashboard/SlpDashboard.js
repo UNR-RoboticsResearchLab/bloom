@@ -1,22 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "./DashboardLayout";
-import { LessonCard } from "../../pages/LessonCard";
+import LessonCard from "../LessonCard";
 import { StudentCard } from "../../pages/StudentCard";
 import { PairRobotCard } from "../../pages/PairRobotCard";
+import { RobotIdleControlPanel } from "../RobotIdleControlPanel";
+import { RobotVoiceControl } from "../RobotVoiceControl";
 import { useApiClient } from "../../context/ApiClientContext";
-
-// Same mock data as Teacher dashboard
-const mockLessons = [
-  { id: "L1", title: "R sound practice", students: ["S1", "S2"] },
-  { id: "L2", title: "S blends", students: ["S1"] },
-  { id: "L3", title: "Breath control", students: ["S2"] },
-];
-
-const mockStudents = {
-  S1: { name: "Ava Martinez", completed: ["L2"], active: ["L1"] },
-  S2: { name: "Liam Chen", completed: ["L3"], active: ["L1"] },
-};
+import { useRobotPairing } from "../../context/RobotPairingContext";
+import { getSession } from "../../utils/auth";
 
 const mockSTT = {
   L1: { S1: { accuracy: 0.72, success: 12, fail: 4 }, S2: { accuracy: 0.86, success: 18, fail: 2 } },
@@ -50,28 +42,14 @@ function useNotes() {
   return { addNote, getNotes };
 }
 
-function AccuracyBar({ value }) {
-  const pct = Math.max(0, Math.min(1, value));
-  return (
-    <div className="w-full">
-      <div className="h-2 w-full rounded bg-gray-200">
-        <div className="h-2 rounded bg-indigo-600" style={{ width: `${pct * 100}%` }} />
-      </div>
-      <div className="mt-1 text-xs text-gray-600">{Math.round(pct * 100)}%</div>
-    </div>
-  );
-}
-
 export default function SlpDashboard() {
   const navigate = useNavigate();
   const apiClient = useApiClient();
   const [selectedLessonId, setSelectedLessonId] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState("");
-  const { addNote, getNotes } = useNotes();
+  useNotes();
   const [showPairRobotCard, setShowPairRobotCard] = useState(false);
-  const [isConnected, setIsConnected] = useState(() => {
-    return !!localStorage.getItem("pairedSessionId");
-  });
+  const { sessionId, isPaired } = useRobotPairing();
   const [lessons, setLessons] = useState([]);
 
   const [students, setStudents] = useState([]);
@@ -80,7 +58,14 @@ export default function SlpDashboard() {
     async function loadLessons() {
       try {
         const data = await apiClient.getLessons();
-        setLessons(Array.isArray(data) ? data : []);
+        const session = getSession();
+        // The dashboard preview should only surface lessons this user
+        // authored, not every public lesson on the platform.
+        const ownLessons = (Array.isArray(data) ? data : []).filter((lesson) => {
+          const createdById = lesson?.createdById ?? lesson?.CreatedById;
+          return session?.id && createdById && createdById === session.id;
+        });
+        setLessons(ownLessons);
       } catch (error) {
         console.error("Failed to load lessons:", error);
         setLessons([]);
@@ -124,14 +109,8 @@ export default function SlpDashboard() {
     }
   }, [students, selectedStudentId]);
 
-  const selectedLesson = useMemo(
-    () => mockLessons.find((l) => l.id === selectedLessonId),
-    [selectedLessonId]
-  );
-
   const studentsForLesson = students;
 
-  const sttForLesson = mockSTT[selectedLessonId] || {};
   const headerStats = useMemo(() => {
     const totalLessons = lessons.length;
     const totalStudents = students.length;
@@ -144,15 +123,6 @@ export default function SlpDashboard() {
 
     return { totalLessons, totalStudents, avgAcc };
   }, [lessons, students]);
-
-  function handleAddNote(e) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const text = form.note.value.trim();
-    if (!text) return;
-    addNote(selectedStudentId, selectedLessonId, text);
-    form.reset();
-  }
 
   function goToStudent(student) {
       const id = student.id ?? student.Id;
@@ -178,18 +148,24 @@ export default function SlpDashboard() {
           <div className="mt-1 flex items-center gap-2">
             <span
               className={`h-2.5 w-2.5 rounded-full ${
-                isConnected ? "bg-green-500" : "bg-red-500"
+                isPaired ? "bg-green-500" : "bg-red-500"
               }`}
-              
+
             />
-            
+
             <span className="text-2xl font-semibold">
-              {isConnected ? "Connected" : "Disconnected"}
+              {isPaired ? "Connected" : "Disconnected"}
             </span>
           </div>
         </div>
       </div>
 
+      {isPaired && sessionId && (
+        <div className="mt-6 space-y-4">
+          <RobotIdleControlPanel sessionId={sessionId} />
+          <RobotVoiceControl sessionId={sessionId} />
+        </div>
+      )}
 
       <div className="mt-6">
         <section className="rounded-lg bg-white p-4 shadow">
@@ -198,7 +174,7 @@ export default function SlpDashboard() {
 
             <button
               type="button"
-              onClick={() => navigate("/lessons")}
+              onClick={() => navigate("/browse-lessons")}
               className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
             >
               View all
@@ -209,8 +185,7 @@ export default function SlpDashboard() {
             {lessons.map((lesson) => (
               <LessonCard
                 key={lesson.id || lesson.Id}
-                title={lesson.title}
-                description={lesson.description ?? ""}
+                lesson={lesson}
                 onClick={() => {
                   const lessonId = lesson.id ?? lesson.Id;
                   navigate(`/lesson/${lessonId}`);
@@ -324,17 +299,9 @@ export default function SlpDashboard() {
       
                           <div className="relative z-10 w-full max-w-xl px-4">
                               <PairRobotCard
-                                isConnected={isConnected}
                                 onCancel={() => setShowPairRobotCard(false)}
-                                onPaired={(sessionId) => {
-                                  localStorage.setItem("pairedSessionId", sessionId);
-                                  setIsConnected(true);
-                                  setShowPairRobotCard(false);
-                                }}
-                                onUnpaired={() => {
-                                  setIsConnected(false);
-                                  setShowPairRobotCard(false);
-                                }}
+                                onPaired={() => setShowPairRobotCard(false)}
+                                onUnpaired={() => setShowPairRobotCard(false)}
                               />
                           </div>
                       </div>

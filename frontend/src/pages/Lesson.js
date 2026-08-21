@@ -1,18 +1,14 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useApiClient } from "../context/ApiClientContext";
+import { useRobotPairing } from "../context/RobotPairingContext";
 import { getSession } from "../utils/auth";
 import SelectStudentCard from "./SelectStudentCard";
 import LessonBuilder from "../components/LessonBuilder";
+import { PairRobotCard } from "./PairRobotCard";
+import { getLessonTypeConfig } from "../utils/lessonTypes";
 
-const TYPE_CONFIG = {
-    0: { label: "Language", bg: "bg-blue-50", badge: "bg-blue-100 text-blue-700", accent: "bg-blue-500" },
-    1: { label: "Speech Therapy", bg: "bg-violet-50", badge: "bg-violet-100 text-violet-700", accent: "bg-violet-500" },
-};
-
-function StepRow({ step, index }) {
-    const [open, setOpen] = useState(false);
-
+function StepRow({ step, index, open, onToggle }) {
     const stepTitle = step.title ?? step.Title;
     const stepType  = step.type  ?? step.Type;
     const script    = step.script ?? step.Script;
@@ -52,7 +48,7 @@ function StepRow({ step, index }) {
     return (
         <li key={step.id ?? step.Id ?? index} className="rounded-lg border border-gray-100 overflow-hidden">
             <button
-                onClick={() => setOpen((o) => !o)}
+                onClick={onToggle}
                 aria-expanded={open}
                 className="w-full flex items-center gap-3 bg-gray-50 p-3 hover:bg-gray-100 transition-colors text-left"
             >
@@ -111,13 +107,18 @@ export default function Lesson() {
     const apiClient = useApiClient();
     const navigate = useNavigate();
 
+    const { isPaired, sessionId } = useRobotPairing();
+
     const [lesson, setLesson] = useState(null);
     const [students, setStudents] = useState([]);
     const [showSelectStudent, setShowSelectStudent] = useState(false);
     const [showEdit, setShowEdit] = useState(false);
+    const [showAdapt, setShowAdapt] = useState(false);
+    const [showPairToTest, setShowPairToTest] = useState(false);
+    const [openSteps, setOpenSteps] = useState(() => new Set());
 
     const typeKey = lesson?.lessonType ?? lesson?.LessonType ?? 0;
-    const typeConfig = TYPE_CONFIG[typeKey] ?? TYPE_CONFIG[0];
+    const typeConfig = getLessonTypeConfig(typeKey);
     const title = lesson?.title ?? lesson?.Title;
     const description = lesson?.description ?? lesson?.Description;
     const objectives = lesson?.learningObjectives ?? lesson?.LearningObjectives ?? [];
@@ -125,17 +126,53 @@ export default function Lesson() {
     const totalSteps = lesson?.totalSteps ?? lesson?.TotalSteps ?? steps.length;
     const createdDate = lesson?.createdDate ?? lesson?.CreatedDate;
     const createdById = lesson?.createdById ?? lesson?.CreatedById;
+    const createdByName = lesson?.createdByName ?? lesson?.CreatedByName;
+    const isPublic = lesson?.isPublic ?? lesson?.IsPublic ?? true;
     const session = getSession();
     const isOwner = Boolean(session?.id && createdById && session.id === createdById);
+    const allStepsExpanded = steps.length > 0 && steps.every((_, i) => openSteps.has(i));
+
+    function toggleStep(index) {
+        setOpenSteps((prev) => {
+            const next = new Set(prev);
+            if (next.has(index)) next.delete(index);
+            else next.add(index);
+            return next;
+        });
+    }
+
+    function toggleAllSteps() {
+        setOpenSteps(allStepsExpanded ? new Set() : new Set(steps.map((_, i) => i)));
+    }
 
     function handleStudentSelect(student) {
         setShowSelectStudent(false);
         navigate("/lesson-view", { state: { lesson, student } });
     }
 
-    function handleEditSubmit() {
-        // TODO: wire up to a lesson update endpoint once the backend supports it.
+    function handleTestOnRobot() {
+        if (!isPaired) {
+            setShowPairToTest(true);
+            return;
+        }
+        navigate("/lesson-view", {
+            state: {
+                lesson,
+                student: { id: sessionId, fullName: "Test Run", name: "Test Run" },
+            },
+        });
+    }
+
+    async function handleEditSubmit(dto) {
+        const updated = await apiClient.updateLesson(lessonId, dto);
+        setLesson(updated);
         setShowEdit(false);
+    }
+
+    async function handleAdaptSubmit(dto) {
+        const result = await apiClient.createLesson(dto);
+        setShowAdapt(false);
+        navigate(`/lesson/${result.lesson.id ?? result.lesson.Id}`);
     }
 
     useEffect(() => {
@@ -181,7 +218,7 @@ export default function Lesson() {
             {/* Breadcrumb */}
             <nav aria-label="Breadcrumb" className="flex items-center justify-between">
                 <button
-                    onClick={() => navigate("/lessons")}
+                    onClick={() => navigate("/browse-lessons")}
                     className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-indigo-600 transition-colors"
                 >
                     ← Back to Lessons
@@ -194,12 +231,23 @@ export default function Lesson() {
                         Edit Lesson
                     </button>
                 )}
+                {!isOwner && session?.id && (
+                    <button
+                        onClick={() => setShowAdapt(true)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                    >
+                        Adapt this Lesson
+                    </button>
+                )}
             </nav>
 
             {/* Hero */}
             <header className={`rounded-2xl ${typeConfig.bg} border border-gray-200 p-8 shadow-sm`}>
                 <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${typeConfig.badge}`}>
                     {typeConfig.label}
+                </span>
+                <span className={`ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${isPublic ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}>
+                    {isPublic ? "Public" : "Private"}
                 </span>
                 <h1 className="mt-3 text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
                     {title}
@@ -219,6 +267,7 @@ export default function Lesson() {
                     {createdDate && (
                         <span>Created {new Date(createdDate).toLocaleDateString()}</span>
                     )}
+                    {createdByName && <span>by {createdByName}</span>}
                 </div>
             </header>
 
@@ -228,7 +277,7 @@ export default function Lesson() {
                     <h2 id="objectives-heading" className="text-lg font-semibold text-gray-900">
                         Learning Objectives
                     </h2>
-                    <ul className="mt-4 space-y-2.5" role="list">
+                    <ul className="mt-4 space-y-2.5">
                         {objectives.map((obj, i) => (
                             <li key={i} className="flex items-start gap-3 text-sm text-gray-700">
                                 <span
@@ -247,25 +296,49 @@ export default function Lesson() {
             {/* Steps Preview */}
             {steps.length > 0 && (
                 <section aria-labelledby="steps-heading" className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <h2 id="steps-heading" className="text-lg font-semibold text-gray-900">
-                        Lesson Steps
-                        <span className="ml-2 text-sm font-normal text-gray-400">({steps.length} total)</span>
-                    </h2>
-                    <ol className="mt-4 space-y-2" role="list">
+                    <div className="flex items-center justify-between gap-4">
+                        <h2 id="steps-heading" className="text-lg font-semibold text-gray-900">
+                            Lesson Steps
+                            <span className="ml-2 text-sm font-normal text-gray-400">({steps.length} total)</span>
+                        </h2>
+                        <button
+                            type="button"
+                            onClick={toggleAllSteps}
+                            className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                        >
+                            {allStepsExpanded ? "Collapse All" : "Expand All"}
+                        </button>
+                    </div>
+                    <ol className="mt-4 space-y-2">
                         {steps.map((step, i) => (
-                            <StepRow key={step.id ?? step.Id ?? i} step={step} index={i} />
+                            <StepRow
+                                key={step.id ?? step.Id ?? i}
+                                step={step}
+                                index={i}
+                                open={openSteps.has(i)}
+                                onToggle={() => toggleStep(i)}
+                            />
                         ))}
                     </ol>
                 </section>
             )}
 
             {/* CTA */}
-            <div className="flex justify-center pt-2">
+            <div className="flex flex-wrap justify-center gap-3 pt-2">
                 <button
                     onClick={() => setShowSelectStudent(true)}
                     className="rounded-xl bg-indigo-600 px-10 py-4 text-base font-semibold text-white shadow-md hover:bg-indigo-500 active:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                     Start Lesson
+                </button>
+                <button
+                    onClick={handleTestOnRobot}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-10 py-4 text-base font-semibold text-gray-700 shadow-md transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                    <span
+                        className={`h-2 w-2 rounded-full ${isPaired ? "bg-green-500" : "bg-gray-400"}`}
+                    />
+                    {isPaired ? "Test on Robot" : "Pair Robot to Test"}
                 </button>
             </div>
 
@@ -284,6 +357,21 @@ export default function Lesson() {
                 </div>
             )}
 
+            {showPairToTest && (
+                <div
+                    className="fixed inset-0 flex items-center justify-center bg-black/40 z-50"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Pair a robot to test this lesson"
+                >
+                    <PairRobotCard
+                        onCancel={() => setShowPairToTest(false)}
+                        onPaired={() => setShowPairToTest(false)}
+                        onUnpaired={() => setShowPairToTest(false)}
+                    />
+                </div>
+            )}
+
             {showEdit && (
                 <div
                     className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 sm:p-8"
@@ -296,6 +384,23 @@ export default function Lesson() {
                             initialLesson={lesson}
                             onSubmit={handleEditSubmit}
                             onCancel={() => setShowEdit(false)}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {showAdapt && (
+                <div
+                    className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 sm:p-8"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Adapt lesson"
+                >
+                    <div className="mx-auto max-w-7xl rounded-2xl bg-gray-50 shadow-xl">
+                        <LessonBuilder
+                            initialLesson={{ ...lesson, id: undefined, adaptedFromLessonId: lesson.id ?? lesson.Id }}
+                            onSubmit={handleAdaptSubmit}
+                            onCancel={() => setShowAdapt(false)}
                         />
                     </div>
                 </div>

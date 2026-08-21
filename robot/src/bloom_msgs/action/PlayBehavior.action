@@ -1,0 +1,8 @@
+string behavior_name
+float32 speed_scale 1.0
+string params_json "{}"
+---
+bool success
+string message
+---
+float32 progress

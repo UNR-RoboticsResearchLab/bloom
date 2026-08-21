@@ -4,6 +4,8 @@
 
 import React, { useMemo, useState } from "react";
 import { useApiClient } from "../context/ApiClientContext";
+import ToggleSwitch from "./ToggleSwitch";
+import VisualAidField from "./VisualAidField";
 
 export const STEP_TYPES = [
   "instruction",
@@ -24,23 +26,48 @@ const BEHAVIOR_FIELDS = [
   { key: "head_movement", label: "Head Movement", optionField: "headMovement", defaultOptions: ["nod", "shake", "tilt_left", "tilt_right", "still"] },
 ];
 
-// Seed interaction fields when a type is selected
-const INTERACTION_TEMPLATES = {
-  wait_for_response: [
-    { key: "wait_for_response", value: "true" },
-    { key: "timeout_seconds", value: "10" },
-  ],
-  question: [
-    { key: "wait_for_response", value: "true" },
-    { key: "correct_answer", value: "" },
-    { key: "repeat_count", value: "3" },
-  ],
-  feedback: [
-    { key: "feedback_type", value: "" },
-    { key: "message", value: "" },
-  ],
-  transition: [{ key: "delay_seconds", value: "0" }],
-};
+// Step types that usually expect a student response, used to auto-enable
+// "Wait for a response" the first time one of these types is picked.
+const AUTO_WAIT_TYPES = new Set(["question", "wait_for_response"]);
+const DEFAULT_MAX_WAIT_SECONDS = 10;
+
+// The full, known field set for a step's interaction config — mirrors the
+// backend's StepInteractionDto field-for-field (camelCase).
+const INTERACTION_KEYS = [
+  "waitForResponse",
+  "maxWaitSeconds",
+  "correctAnswer",
+  "correctResponseScript",
+  "incorrectResponseScript",
+  "singleTurnLlm",
+  "singleTurnLlmPrompt",
+  "llmFollowUp",
+  "fallbackScript",
+  "fallbackVisualAid",
+  "fallbackVisualAidLabels",
+];
+
+function emptyInteraction() {
+  return {
+    waitForResponse: false,
+    maxWaitSeconds: null,
+    correctAnswer: "",
+    correctResponseScript: "",
+    incorrectResponseScript: "",
+    singleTurnLlm: false,
+    singleTurnLlmPrompt: "",
+    llmFollowUp: false,
+    fallbackScript: "",
+    fallbackVisualAid: "",
+    fallbackVisualAidLabels: "",
+  };
+}
+
+const PRISTINE_INTERACTION_JSON = JSON.stringify(emptyInteraction());
+
+function isPristineInteraction(interaction) {
+  return JSON.stringify(interaction) === PRISTINE_INTERACTION_JSON;
+}
 
 function parseBehaviors(value) {
   const defaults = { behavior: "", facial_expression: "", gaze: "", head_movement: "" };
@@ -52,48 +79,72 @@ function parseBehaviors(value) {
   return { ...defaults, ...value };
 }
 
-// visualAid may hold a single filename/URL string or a JSON array of them
-function parseVisualAidList(value) {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [String(parsed)];
-  } catch {
-    return [value];
+// Accepts the interaction as the API returns it (a plain object), a legacy
+// JSON string, or nothing at all — and always returns a fully-populated,
+// typed object. Unknown/legacy keys (e.g. from the old free-form editor) are
+// silently dropped rather than crashing or leaking into the saved DTO.
+function parseInteraction(value) {
+  const defaults = emptyInteraction();
+  if (!value) return defaults;
+
+  let obj = value;
+  if (typeof value === "string") {
+    try { obj = JSON.parse(value); }
+    catch { return defaults; }
   }
-}
+  if (typeof obj !== "object" || obj === null) return defaults;
 
-function serializeVisualAidList(list) {
-  if (list.length === 0) return "";
-  if (list.length === 1) return list[0];
-  return JSON.stringify(list);
-}
-
-function parseInteraction(jsonStr) {
-  if (!jsonStr) return [];
-  try {
-    return Object.entries(JSON.parse(jsonStr)).map(([key, value]) => ({
-      key,
-      value: String(value),
-    }));
-  } catch {
-    return [];
+  const result = { ...defaults };
+  for (const key of INTERACTION_KEYS) {
+    if (obj[key] !== undefined && obj[key] !== null) result[key] = obj[key];
   }
+  result.waitForResponse = Boolean(result.waitForResponse);
+  result.singleTurnLlm = Boolean(result.singleTurnLlm);
+  result.llmFollowUp = Boolean(result.llmFollowUp);
+  result.maxWaitSeconds =
+    result.maxWaitSeconds === "" || result.maxWaitSeconds == null ? null : Number(result.maxWaitSeconds);
+  return result;
 }
 
-export function buildStepDto(stepOrder, core, behaviors, interactionFields, existingId) {
+// Builds the StepInteractionDto payload, or null when there's nothing worth saving.
+function buildInteractionDto(interaction) {
+  const hasContent =
+    interaction.waitForResponse ||
+    interaction.maxWaitSeconds != null ||
+    interaction.correctAnswer.trim() !== "" ||
+    interaction.correctResponseScript.trim() !== "" ||
+    interaction.incorrectResponseScript.trim() !== "" ||
+    interaction.singleTurnLlm ||
+    interaction.singleTurnLlmPrompt.trim() !== "" ||
+    interaction.llmFollowUp ||
+    interaction.fallbackScript.trim() !== "" ||
+    interaction.fallbackVisualAid !== "" ||
+    interaction.fallbackVisualAidLabels !== "";
+
+  if (!hasContent) return null;
+
+  return {
+    waitForResponse: Boolean(interaction.waitForResponse),
+    maxWaitSeconds:
+      interaction.maxWaitSeconds === "" || interaction.maxWaitSeconds == null
+        ? null
+        : Number(interaction.maxWaitSeconds),
+    correctAnswer: interaction.correctAnswer.trim() || null,
+    correctResponseScript: interaction.correctResponseScript.trim() || null,
+    incorrectResponseScript: interaction.incorrectResponseScript.trim() || null,
+    singleTurnLlm: Boolean(interaction.singleTurnLlm),
+    singleTurnLlmPrompt: interaction.singleTurnLlmPrompt.trim() || null,
+    llmFollowUp: Boolean(interaction.llmFollowUp),
+    fallbackScript: interaction.fallbackScript.trim() || null,
+    fallbackVisualAid: interaction.fallbackVisualAid || null,
+    fallbackVisualAidLabels: interaction.fallbackVisualAidLabels || null,
+  };
+}
+
+export function buildStepDto(stepOrder, core, behaviors, interaction, existingId) {
   const behaviorsObj = Object.fromEntries(
     Object.entries(behaviors).filter(([, v]) => v.trim() !== "")
   );
-
-  const interactionObj = {};
-  for (const { key, value } of interactionFields) {
-    if (!key.trim()) continue;
-    if (value === "true") interactionObj[key] = true;
-    else if (value === "false") interactionObj[key] = false;
-    else if (value !== "" && !isNaN(Number(value))) interactionObj[key] = Number(value);
-    else interactionObj[key] = value;
-  }
 
   return {
     ...(existingId ? { id: existingId } : {}),
@@ -105,7 +156,7 @@ export function buildStepDto(stepOrder, core, behaviors, interactionFields, exis
     visualAid: core.visualAid || null,
     motorSequence: core.motorSequence || null,
     behaviors: Object.keys(behaviorsObj).length > 0 ? behaviorsObj : null,
-    interaction: Object.keys(interactionObj).length > 0 ? JSON.stringify(interactionObj) : null,
+    interaction: buildInteractionDto(interaction),
   };
 }
 
@@ -134,9 +185,7 @@ export default function LessonStepBuilder({
   });
 
   const [behaviors, setBehaviors] = useState(() => parseBehaviors(step.behaviors));
-  const [interactionFields, setInteractionFields] = useState(() => parseInteraction(step.interaction));
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
+  const [interaction, setInteraction] = useState(() => parseInteraction(step.interaction));
 
   const behaviorFieldOptions = useMemo(() => {
     const result = {};
@@ -156,79 +205,35 @@ export default function LessonStepBuilder({
     const next = { ...core, [field]: value };
     setCore(next);
 
-    if (field === "type" && INTERACTION_TEMPLATES[value]) {
-      const seeded = INTERACTION_TEMPLATES[value];
-      setInteractionFields(seeded);
+    if (field === "type" && AUTO_WAIT_TYPES.has(value) && isPristineInteraction(interaction)) {
+      const seeded = { ...interaction, waitForResponse: true, maxWaitSeconds: DEFAULT_MAX_WAIT_SECONDS };
+      setInteraction(seeded);
       emit(next, behaviors, seeded);
     } else {
-      emit(next, behaviors, interactionFields);
+      emit(next, behaviors, interaction);
     }
   }
 
   function handleBehaviorChange(key, value) {
     const next = { ...behaviors, [key]: value };
     setBehaviors(next);
-    emit(core, next, interactionFields);
+    emit(core, next, interaction);
+  }
+
+  function handleInteractionChange(field, value) {
+    const next = { ...interaction, [field]: value };
+    setInteraction(next);
+    emit(core, behaviors, next);
   }
 
   const MAX_VISUAL_AIDS = 4;
 
-  async function handleImageUpload(e) {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = "";
-    if (files.length === 0) return;
-
-    const existing = parseVisualAidList(core.visualAid);
-    const room = MAX_VISUAL_AIDS - existing.length;
-    if (room <= 0) {
-      setUploadError(`Visual aid already has the maximum of ${MAX_VISUAL_AIDS} images.`);
-      return;
-    }
-    const toUpload = files.slice(0, room);
-    if (files.length > toUpload.length) {
-      setUploadError(`Only ${MAX_VISUAL_AIDS} images allowed — uploaded the first ${toUpload.length}.`);
-    } else {
-      setUploadError("");
-    }
-
-    setUploading(true);
-    try {
-      const uploaded = await Promise.all(toUpload.map((file) => api.uploadVisualAid(file)));
-      const nextList = [...existing, ...uploaded.map((r) => r.url)];
-      handleCoreChange("visualAid", serializeVisualAidList(nextList));
-    } catch (error) {
-      setUploadError(error.message || "Upload failed.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  function removeVisualAidEntry(index) {
-    const nextList = parseVisualAidList(core.visualAid).filter((_, i) => i !== index);
-    handleCoreChange("visualAid", serializeVisualAidList(nextList));
-  }
-
-  function addInteractionField() {
-    const next = [...interactionFields, { key: "", value: "" }];
-    setInteractionFields(next);
-    emit(core, behaviors, next);
-  }
-
-  function removeInteractionField(index) {
-    const next = interactionFields.filter((_, i) => i !== index);
-    setInteractionFields(next);
-    emit(core, behaviors, next);
-  }
-
-  function updateInteractionField(index, part, value) {
-    const next = interactionFields.map((f, i) => (i === index ? { ...f, [part]: value } : f));
-    setInteractionFields(next);
-    emit(core, behaviors, next);
-  }
-
   const inputClass =
     "block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm";
+  const textareaClass =
+    "block w-full rounded-md bg-white px-3 py-2 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600";
   const labelClass = "block text-sm font-medium text-gray-700";
+  const helperClass = "text-xs text-gray-400";
 
   const summary = core.title
     ? core.title
@@ -354,7 +359,7 @@ export default function LessonStepBuilder({
                 value={core.script}
                 onChange={(e) => handleCoreChange("script", e.target.value)}
                 placeholder="What the robot will say or do..."
-                className="block w-full rounded-md bg-white px-3 py-2 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600"
+                className={textareaClass}
               />
             </div>
           </div>
@@ -362,38 +367,12 @@ export default function LessonStepBuilder({
           {/* Visual Aid */}
           <div>
             <label className={labelClass}>Visual Aid</label>
-            <div className="mt-2 space-y-2">
-              {parseVisualAidList(core.visualAid).map((url, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="flex-1 truncate rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700">
-                    {url}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeVisualAidEntry(i)}
-                    className="text-xs text-red-400 hover:text-red-600"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-              {parseVisualAidList(core.visualAid).length < MAX_VISUAL_AIDS && (
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-indigo-300 px-3 py-1.5 text-sm text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50">
-                  {uploading ? "Uploading…" : "+ Upload image"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="sr-only"
-                    onChange={handleImageUpload}
-                    disabled={uploading}
-                  />
-                </label>
-              )}
-              {uploadError && (
-                <p className="text-xs text-red-500">{uploadError}</p>
-              )}
-            </div>
+            <VisualAidField
+              value={core.visualAid}
+              onChange={(v) => handleCoreChange("visualAid", v)}
+              max={MAX_VISUAL_AIDS}
+              api={api}
+            />
           </div>
 
           {/* Behaviors */}
@@ -440,41 +419,148 @@ export default function LessonStepBuilder({
             <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
               Interaction
             </legend>
-            <div className="mt-2 space-y-2">
-              {interactionFields.map((field, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={field.key}
-                    onChange={(e) => updateInteractionField(index, "key", e.target.value)}
-                    placeholder="key"
-                    className="w-40 rounded-md bg-white px-2 py-1 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600"
-                  />
-                  <span className="text-gray-400 text-sm">:</span>
-                  <input
-                    type="text"
-                    value={field.value}
-                    onChange={(e) => updateInteractionField(index, "value", e.target.value)}
-                    placeholder="value"
-                    className="flex-1 rounded-md bg-white px-2 py-1 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeInteractionField(index)}
-                    className="text-xs text-red-400 hover:text-red-600"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addInteractionField}
-                className="text-sm text-indigo-600 hover:text-indigo-500"
-              >
-                + Add field
-              </button>
+
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <div>
+                <label className={labelClass}>Wait for a response</label>
+                <p className={helperClass}>Pause after the script and listen before moving on.</p>
+              </div>
+              <ToggleSwitch
+                checked={interaction.waitForResponse}
+                onChange={(v) => handleInteractionChange("waitForResponse", v)}
+                ariaLabel="Toggle wait for response"
+              />
             </div>
+
+            {interaction.waitForResponse && (
+              <div className="mt-4 space-y-4 border-t border-gray-100 pt-4">
+                <div>
+                  <label className={labelClass}>Max wait time (seconds)</label>
+                  <p className={`${helperClass} mb-1`}>How long to wait before giving up.</p>
+                  <input
+                    type="number"
+                    min={0}
+                    value={interaction.maxWaitSeconds ?? ""}
+                    onChange={(e) =>
+                      handleInteractionChange(
+                        "maxWaitSeconds",
+                        e.target.value === "" ? null : e.target.value
+                      )
+                    }
+                    placeholder="Optional"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}>Expected answer</label>
+                  <p className={`${helperClass} mb-1`}>
+                    Text the robot compares against what the student says.
+                  </p>
+                  <input
+                    type="text"
+                    value={interaction.correctAnswer}
+                    onChange={(e) => handleInteractionChange("correctAnswer", e.target.value)}
+                    placeholder="e.g. blue"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}>If correct, robot says…</label>
+                  <textarea
+                    rows={2}
+                    value={interaction.correctResponseScript}
+                    onChange={(e) => handleInteractionChange("correctResponseScript", e.target.value)}
+                    className={textareaClass}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}>If incorrect, robot says…</label>
+                  <textarea
+                    rows={2}
+                    value={interaction.incorrectResponseScript}
+                    onChange={(e) => handleInteractionChange("incorrectResponseScript", e.target.value)}
+                    className={textareaClass}
+                  />
+                </div>
+
+                <div className="rounded-md bg-gray-50 p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <label className={labelClass}>Use AI to judge the answer</label>
+                      <p className={helperClass}>
+                        Instead of an exact text match, let AI decide if the student's spoken
+                        answer means the same thing as the expected answer.
+                      </p>
+                    </div>
+                    <ToggleSwitch
+                      checked={interaction.singleTurnLlm}
+                      onChange={(v) => handleInteractionChange("singleTurnLlm", v)}
+                      ariaLabel="Toggle AI answer judging"
+                    />
+                  </div>
+
+                  {interaction.singleTurnLlm && (
+                    <div>
+                      <label className={labelClass}>AI evaluation instructions</label>
+                      <p className={`${helperClass} mb-1`}>Optional — leave blank to use the default.</p>
+                      <textarea
+                        rows={2}
+                        value={interaction.singleTurnLlmPrompt}
+                        onChange={(e) => handleInteractionChange("singleTurnLlmPrompt", e.target.value)}
+                        className={textareaClass}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <label className={labelClass}>Allow a follow-up exchange</label>
+                      <p className={helperClass}>
+                        Let the robot ask one more clarifying question instead of stopping after a
+                        single reply.
+                      </p>
+                    </div>
+                    <ToggleSwitch
+                      checked={interaction.llmFollowUp}
+                      onChange={(v) => handleInteractionChange("llmFollowUp", v)}
+                      ariaLabel="Toggle AI follow-up"
+                    />
+                  </div>
+                </div>
+
+                <fieldset className="rounded-md border border-gray-100 p-3">
+                  <legend className="px-1 text-xs font-semibold text-gray-500">
+                    If there's no response
+                  </legend>
+                  <div className="mt-2 space-y-3">
+                    <div>
+                      <label className={labelClass}>Fallback script</label>
+                      <p className={`${helperClass} mb-1`}>
+                        What the robot says if the student doesn't answer in time.
+                      </p>
+                      <textarea
+                        rows={2}
+                        value={interaction.fallbackScript}
+                        onChange={(e) => handleInteractionChange("fallbackScript", e.target.value)}
+                        className={textareaClass}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Fallback image</label>
+                      <VisualAidField
+                        value={interaction.fallbackVisualAid}
+                        onChange={(v) => handleInteractionChange("fallbackVisualAid", v)}
+                        max={1}
+                        api={api}
+                      />
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
+            )}
           </fieldset>
         </div>
       )}

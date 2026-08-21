@@ -8,6 +8,8 @@ import {
 import { useMouseGaze } from "./hooks/useMouseGaze";
 import { usePoseHotkeys, POSE_HOTKEY_ORDER } from "./hooks/usePoseHotkeys";
 import { useRsrPolling } from "./hooks/useRsrPolling";
+import { useFaceBridge } from "./hooks/useFaceBridge";
+import { VisualAid } from "./components/VisualAid";
 import "./styles.css";
 
 const faceAssetUrl = "/assets/hugo_rigged.glb";
@@ -36,6 +38,16 @@ function VizijRuntimeHud() {
   );
 }
 
+function MicIndicator({ active }: { active: boolean }) {
+  if (!active) return null;
+  return <div className="mic-indicator" aria-label="Microphone active" />;
+}
+
+function PairingCodeOverlay({ code }: { code: string | null }) {
+  if (!code) return null;
+  return <div className="pairing-code">Pairing Code: {code}</div>;
+}
+
 function FaceRuntime() {
   const { ready, loading, error, stagePoseNeutral, assetBundle } =
     useVizijRuntime();
@@ -43,6 +55,7 @@ function FaceRuntime() {
   const gazeRef = useMouseGaze(ready);
   usePoseHotkeys(poseConfig, ready);
   const { activeText } = useRsrPolling();
+  const { visualAid, micActive, pairingCode } = useFaceBridge(poseConfig, ready);
   const [hintsVisible, setHintsVisible] = useState(false);
 
   const handlePointerMove = useCallback(() => {
@@ -96,6 +109,9 @@ function FaceRuntime() {
       <div ref={gazeRef} className="canvas-wrapper">
         <VizijRuntimeFace className="face-canvas" showSafeArea={false} />
       </div>
+      <VisualAid aid={visualAid} />
+      <MicIndicator active={micActive} />
+      <PairingCodeOverlay code={pairingCode} />
       {activeText && <div className="subtitle">{activeText}</div>}
       {hintsVisible && !activeText && (
         <div className="hint">

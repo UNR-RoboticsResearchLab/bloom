@@ -2,6 +2,8 @@
 #define BLOOM_NODE_LESSON_COORDINATOR_H
 
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
+#include "bloom_msgs/action/play_behavior.hpp"
 #include "bloom_node/behavior_coordinator.h"
 #include "bloom_node/web_service_client.h"
 #include "bloom_node/state_manager.h"
@@ -16,6 +18,7 @@
 #include <chrono>
 #include <algorithm>
 #include <optional>
+#include <atomic>
 #include <std_msgs/msg/string.hpp>
 
 namespace bloom_node {
@@ -109,6 +112,23 @@ public:
     void replay_step();
     void set_step(int target_step_order);
 
+    // Pause execution in place (interrupts immediately, keeps current_step_index_
+    // intact) and resume by re-playing the current step from its beginning.
+    // Called by LessonPoller when SLP issues pause/resume commands.
+    void pause_lesson();
+    void resume_lesson();
+
+    // Idle-mode control (no lesson active). "conversational" turns on free-form
+    // STT/LLM/TTS chat; "passive" (default) is plain breathing/idle with mic off.
+    // No-ops while a lesson is active. Idempotent — no-ops if mode is already
+    // applied, so LessonPoller can call this every poll tick without restarting
+    // StateManager's behavior loop.
+    void set_idle_mode(const std::string &mode);
+
+    // Sets the robot's TTS voice for subsequent speech. Idempotent — no-ops if
+    // the voice hasn't changed. Not gated by lesson state; applies any time.
+    void set_tts_voice(const std::string &voice);
+
 private:
 
     void execute_step(const LessonStep &step);
@@ -120,6 +140,19 @@ private:
 
     void schedule_next_step(int delay_seconds);
     void advance_to_next_step();
+
+    // Visual aid download pipeline: resolves each entry to a local cache filename
+    // (bare filenames pass through unchanged for pre-bundled content; "http(s)://"
+    // URLs and backend-relative paths are downloaded via web_client_ into the same
+    // share directory bloom_face already resolves local filenames against), then
+    // publishes once every image in the step is ready (downloaded or failed).
+    std::string resolve_visual_aid_cache_dir();
+    std::string visual_aid_cache_filename(const std::string &entry) const;
+    void publish_visual_aid_message(
+        const std::vector<std::string> &filenames,
+        const std::vector<std::string> &labels,
+        const std::vector<std::string> &footers);
+    void resolve_and_publish_visual_aids(const LessonStep &step, uint64_t generation);
 
     void update_progress_with_backend();
     void log_interaction_to_backend(int step_order, const std::string &response, bool is_correct);
@@ -139,6 +172,17 @@ private:
     LessonStep* current_interaction_step_;
     bool waiting_for_response_;
 
+    // True while paused: lesson_active_ stays true, current_step_index_ is
+    // preserved, execution is frozen until resume_lesson() re-plays the step.
+    bool lesson_paused_{false};
+
+    // Visual aid download pipeline state. Bumped once per execute_step() call so a
+    // slow/in-flight download's completion can detect it's been superseded by a
+    // later step (skip/replay/set_step/pause/stop) and discard its result instead
+    // of publishing a stale image.
+    std::atomic<uint64_t> visual_aid_generation_{0};
+    std::string visual_aids_cache_dir_;
+
     std::shared_ptr<BehaviorCoordinator> behavior_coordinator_;
     std::shared_ptr<bloom_node::WebServiceClient> web_client_;
     std::shared_ptr<StateManager> state_manager_;
@@ -154,13 +198,14 @@ private:
 
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr lesson_progress_publisher_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr tts_publisher_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr tts_voice_pub_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr visual_aid_publisher_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr vosk_subscriber_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr llm_mode_pub_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr llm_context_pub_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr tts_done_sub_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr wrap_up_sub_;
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr motor_pub_;
+    rclcpp_action::Client<bloom_msgs::action::PlayBehavior>::SharedPtr motor_action_client_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr stt_enable_pub_;
     bool waiting_for_tts_done_{false};
     bool waiting_for_wrap_up_{false};
@@ -168,6 +213,14 @@ private:
     bool waiting_for_single_turn_{false};
     bool waiting_for_llm_tts_done_{false};
     bool conversation_mode_{false};
+
+    // Current idle mode ("passive" or "conversational"), tracked so
+    // set_idle_mode() can no-op on repeated identical polls.
+    std::string current_idle_mode_{"passive"};
+
+    // Current TTS voice, tracked so set_tts_voice() can no-op on repeated
+    // identical polls. Empty until the first voice is received.
+    std::string current_tts_voice_{};
 
     std::string robot_state_{"idle"};
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_state_sub_;

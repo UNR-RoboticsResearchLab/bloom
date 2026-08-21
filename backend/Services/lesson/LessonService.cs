@@ -15,7 +15,7 @@ namespace bloom.Services
             _context = dbContext;
         }
 
-        public async Task<bool> CreateAsync(LessonDto lesson)
+        public async Task<Lesson?> CreateAsync(LessonDto lesson)
         {
             try
             {
@@ -44,91 +44,101 @@ namespace bloom.Services
                     LessonType = lesson.LessonType,
                     CreatedById = lesson.CreatedById,
                     CreatedBy = account,
-                    LearningObjectives = objectives,
+                    IsPublic = lesson.IsPublic,
+                    AdaptedFromLessonId = Guid.TryParse(lesson.AdaptedFromLessonId, out var adaptedFromId) ? adaptedFromId : null,
+                    LearningObjectives = objectives?.ToList() ?? [],
                     TotalSteps = steps?.Count ?? 0
                 };
 
                 if (steps != null && steps.Count > 0)
                 {
-                    var behaviorCache = new Dictionary<string, Behavior>(StringComparer.OrdinalIgnoreCase);
-                    var resolvedSteps = new List<LessonStep>();
-
-                    for (int i = 0; i < steps.Count; i++)
-                    {
-                        var s = steps[i];
-
-                        Behavior? behavior = null;
-                        if (s.Behaviors != null && !string.IsNullOrWhiteSpace(s.Behaviors.Behavior))
-                        {
-                            var cacheKey = $"{s.Behaviors.Behavior}|{s.Behaviors.FacialExpression}";
-                            if (!behaviorCache.TryGetValue(cacheKey, out behavior))
-                            {
-                                behavior = await _context.Behaviors.FirstOrDefaultAsync(b =>
-                                    b.Name == s.Behaviors.Behavior && b.FacialExpression == s.Behaviors.FacialExpression);
-                                if (behavior == null)
-                                {
-                                    behavior = new Behavior
-                                    {
-                                        Name = s.Behaviors.Behavior,
-                                        FacialExpression = s.Behaviors.FacialExpression,
-                                        Gaze = s.Behaviors.Gaze,
-                                        HeadMovement = s.Behaviors.HeadMovement,
-                                        CreatedDate = DateTime.UtcNow
-                                    };
-                                    _context.Behaviors.Add(behavior);
-                                }
-                                behaviorCache[cacheKey] = behavior;
-                            }
-                        }
-
-                        var step = new LessonStep
-                        {
-                            LessonId = newLesson.Id,
-                            StepOrder = s.StepOrder > 0 ? s.StepOrder : i + 1,
-                            Title = s.Title,
-                            Type = s.Type,
-                            Script = s.Script,
-                            TimingSeconds = s.TimingSeconds,
-                            VisualAid = s.VisualAid,
-                            VisualAidLabels = s.VisualAidLabels,
-                            VisualAidFooters = s.VisualAidFooters,
-                            MotorSequence = s.MotorSequence,
-                            Behaviors = behavior,
-                        };
-
-                        if (s.Interaction != null)
-                        {
-                            step.Interaction = new StepInteraction
-                            {
-                                WaitForResponse = s.Interaction.WaitForResponse,
-                                MaxWaitSeconds = s.Interaction.MaxWaitSeconds,
-                                CorrectAnswer = s.Interaction.CorrectAnswer,
-                                CorrectResponseScript = s.Interaction.CorrectResponseScript,
-                                IncorrectResponseScript = s.Interaction.IncorrectResponseScript,
-                                SingleTurnLlm = s.Interaction.SingleTurnLlm,
-                                SingleTurnLlmPrompt = s.Interaction.SingleTurnLlmPrompt,
-                                LlmFollowUp = s.Interaction.LlmFollowUp,
-                                FallbackScript = s.Interaction.FallbackScript,
-                                FallbackVisualAid = s.Interaction.FallbackVisualAid,
-                                FallbackVisualAidLabels = s.Interaction.FallbackVisualAidLabels,
-                            };
-                        }
-
-                        resolvedSteps.Add(step);
-                    }
-
-                    newLesson.Steps = resolvedSteps;
+                    newLesson.Steps = await ResolveStepsAsync(steps);
                 }
 
                 _context.Lessons.Add(newLesson);
                 await _context.SaveChangesAsync();
-                return true;
+                return newLesson;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error creating lesson: {ex.Message}");
-                return false;
+                return null;
             }
+        }
+
+        // Builds LessonStep entities from step DTOs, resolving/creating shared Behavior rows
+        // as it goes (matched by name + facial expression). Shared by CreateAsync and
+        // UpdateAsync so the two don't drift. Returned steps have no LessonId set -- assign
+        // the result to a Lesson's Steps navigation and EF fixes up the foreign key.
+        private async Task<List<LessonStep>> ResolveStepsAsync(List<LessonStepDto> steps)
+        {
+            var behaviorCache = new Dictionary<string, Behavior>(StringComparer.OrdinalIgnoreCase);
+            var resolvedSteps = new List<LessonStep>();
+
+            for (int i = 0; i < steps.Count; i++)
+            {
+                var s = steps[i];
+
+                Behavior? behavior = null;
+                if (s.Behaviors != null && !string.IsNullOrWhiteSpace(s.Behaviors.Behavior))
+                {
+                    var cacheKey = $"{s.Behaviors.Behavior}|{s.Behaviors.FacialExpression}";
+                    if (!behaviorCache.TryGetValue(cacheKey, out behavior))
+                    {
+                        behavior = await _context.Behaviors.FirstOrDefaultAsync(b =>
+                            b.Name == s.Behaviors.Behavior && b.FacialExpression == s.Behaviors.FacialExpression);
+                        if (behavior == null)
+                        {
+                            behavior = new Behavior
+                            {
+                                Name = s.Behaviors.Behavior,
+                                FacialExpression = s.Behaviors.FacialExpression,
+                                Gaze = s.Behaviors.Gaze,
+                                HeadMovement = s.Behaviors.HeadMovement,
+                                CreatedDate = DateTime.UtcNow
+                            };
+                            _context.Behaviors.Add(behavior);
+                        }
+                        behaviorCache[cacheKey] = behavior;
+                    }
+                }
+
+                var step = new LessonStep
+                {
+                    StepOrder = s.StepOrder > 0 ? s.StepOrder : i + 1,
+                    Title = s.Title,
+                    Type = s.Type,
+                    Script = s.Script,
+                    TimingSeconds = s.TimingSeconds,
+                    VisualAid = s.VisualAid,
+                    VisualAidLabels = s.VisualAidLabels,
+                    VisualAidFooters = s.VisualAidFooters,
+                    MotorSequence = s.MotorSequence,
+                    Behaviors = behavior,
+                };
+
+                if (s.Interaction != null)
+                {
+                    step.Interaction = new StepInteraction
+                    {
+                        WaitForResponse = s.Interaction.WaitForResponse,
+                        MaxWaitSeconds = s.Interaction.MaxWaitSeconds,
+                        CorrectAnswer = s.Interaction.CorrectAnswer,
+                        CorrectResponseScript = s.Interaction.CorrectResponseScript,
+                        IncorrectResponseScript = s.Interaction.IncorrectResponseScript,
+                        SingleTurnLlm = s.Interaction.SingleTurnLlm,
+                        SingleTurnLlmPrompt = s.Interaction.SingleTurnLlmPrompt,
+                        LlmFollowUp = s.Interaction.LlmFollowUp,
+                        FallbackScript = s.Interaction.FallbackScript,
+                        FallbackVisualAid = s.Interaction.FallbackVisualAid,
+                        FallbackVisualAidLabels = s.Interaction.FallbackVisualAidLabels,
+                    };
+                }
+
+                resolvedSteps.Add(step);
+            }
+
+            return resolvedSteps;
         }
 
         public async Task<Lesson?> GetByIdAsync(string id)
@@ -240,6 +250,64 @@ namespace bloom.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Error modifying lesson: {ex.Message}");
+                return false;
+            }
+        }
+
+        // Replaces title/description/type/objectives and the entire step list. Steps are
+        // fully replaced rather than diffed against existing ones -- the lesson builder
+        // always submits its complete current draft, so there's no partial-update case to
+        // support, and replacing avoids having to reconcile step identity across edits.
+        public async Task<bool> UpdateAsync(LessonDto lesson)
+        {
+            try
+            {
+                ArgumentNullException.ThrowIfNull(lesson);
+
+                if (string.IsNullOrEmpty(lesson.Id) || !Guid.TryParse(lesson.Id, out var lessonId))
+                    throw new ArgumentException("A valid lesson Id is required.");
+
+                var existing = await _context.Lessons
+                    .Include(l => l.Steps)
+                    .FirstOrDefaultAsync(l => l.Id == lessonId)
+                    ?? throw new KeyNotFoundException($"Lesson with id {lesson.Id} not found");
+
+                var steps = lesson.Steps;
+                IEnumerable<string?> objectives = lesson.LearningObjectives;
+
+                if ((steps == null || steps.Count == 0) && !string.IsNullOrEmpty(lesson.LessonDescription))
+                {
+                    (steps, objectives) = ParseLessonJson(lesson.LessonDescription);
+                }
+
+                existing.Title = lesson.Title;
+                existing.Description = lesson.Description;
+                existing.LessonType = lesson.LessonType;
+                existing.IsPublic = lesson.IsPublic;
+                existing.LearningObjectives = objectives?.ToList() ?? [];
+                existing.UpdatedDate = DateTime.UtcNow;
+
+                // Snapshot before removing -- RemoveRange'ing existing.Steps directly would
+                // mutate that same navigation collection while iterating it (each removal's
+                // relationship fixup drops the item from .Steps mid-enumeration), which
+                // corrupts the change tracker and produces spurious concurrency exceptions.
+                var oldSteps = existing.Steps.ToList();
+                _context.LessonSteps.RemoveRange(oldSteps);
+                existing.Steps.Clear();
+
+                var resolvedSteps = steps != null && steps.Count > 0
+                    ? await ResolveStepsAsync(steps)
+                    : [];
+                foreach (var step in resolvedSteps)
+                    existing.Steps.Add(step);
+                existing.TotalSteps = resolvedSteps.Count;
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating lesson: {ex.Message}");
                 return false;
             }
         }

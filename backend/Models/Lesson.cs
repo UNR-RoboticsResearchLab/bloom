@@ -23,11 +23,20 @@ namespace bloom.Models
 
         public int TotalSteps { get; set; }
 
-        public IEnumerable<string?> LearningObjectives = new List<string?>();
+        // Was previously a bare field (not a property), which EF Core silently never
+        // mapped -- objectives were accepted on create/update requests and echoed back
+        // in that same response, but never actually persisted. Stored as JSON via the
+        // value converter configured in BloomDbContext.
+        public List<string?> LearningObjectives { get; set; } = [];
 
         [Required]
         public required string CreatedById { get; set; }
         public Account? CreatedBy { get; set; }
+
+        public bool IsPublic { get; set; } = true;
+
+        public Guid? AdaptedFromLessonId { get; set; }
+        public Lesson? AdaptedFromLesson { get; set; }
 
         public LessonType LessonType { get; set; }
 

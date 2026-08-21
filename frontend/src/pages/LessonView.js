@@ -1,4 +1,5 @@
 import { useApiClient } from "../context/ApiClientContext";
+import { useRobotPairing } from "../context/RobotPairingContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -6,14 +7,13 @@ export default function LessonView() {
     const location = useLocation();
     const navigate = useNavigate();
     const api = useApiClient();
+    const { sessionId: pairedSessionId, clearLocal } = useRobotPairing();
     const hasStartedRef = useRef(false);
 
     const { lesson, student } = location.state || {};
     const lessonId = lesson?.id ?? lesson?.Id;
 
-    const [activeSessionId, setActiveSessionId] = useState(
-        localStorage.getItem("pairedSessionId")
-    );
+    const [activeSessionId, setActiveSessionId] = useState(pairedSessionId);
 
     const [noteText, setNoteText] = useState("");
     const [stepInput, setStepInput] = useState("");
@@ -22,6 +22,8 @@ export default function LessonView() {
     const [isLoadingSteps, setIsLoadingSteps] = useState(false);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [isEndingLesson, setIsEndingLesson] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
+    const [isTogglingPause, setIsTogglingPause] = useState(false);
 
     const [conversation, setConversation] = useState([]);
 
@@ -139,19 +141,18 @@ export default function LessonView() {
     }, [activeSessionId, api]);
 
     const getValidSessionId = useCallback(() => {
-        const savedSessionId = localStorage.getItem("pairedSessionId");
-        if (!savedSessionId) {
+        if (!pairedSessionId) {
             setActiveSessionId(null);
             return null;
         }
-        setActiveSessionId(savedSessionId);
-        return savedSessionId;
-    }, []);
+        setActiveSessionId(pairedSessionId);
+        return pairedSessionId;
+    }, [pairedSessionId]);
 
     useEffect(() => {
         async function startLesson() {
             if (!lesson || !student) {
-                navigate("/lessons");
+                navigate("/browse-lessons");
                 return;
             }
 
@@ -187,7 +188,7 @@ export default function LessonView() {
                 await loadSessionHistory(sessionIdToUse);
             } catch (error) {
                 console.error("Failed to start lesson session:", error);
-                localStorage.removeItem("pairedSessionId");
+                clearLocal();
                 setActiveSessionId(null);
             }
         }
@@ -199,6 +200,7 @@ export default function LessonView() {
         lessonId,
         navigate,
         api,
+        clearLocal,
         getValidSessionId,
         loadLessonSteps,
         loadSessionHistory,
@@ -239,7 +241,7 @@ export default function LessonView() {
     }
 
     async function handleBackStep() {
-        if (!activeSessionId || isSendingStepCommand) return;
+        if (!activeSessionId || isSendingStepCommand || isPaused) return;
         try {
             setIsSendingStepCommand(true);
             await api.replayStep(activeSessionId);
@@ -251,7 +253,7 @@ export default function LessonView() {
     }
 
     async function handleForwardStep() {
-        if (!activeSessionId || isSendingStepCommand) return;
+        if (!activeSessionId || isSendingStepCommand || isPaused) return;
         try {
             setIsSendingStepCommand(true);
             await api.skipStep(activeSessionId);
@@ -264,7 +266,7 @@ export default function LessonView() {
 
     async function handleSkipToStep() {
         const trimmed = stepInput.trim();
-        if (!trimmed || !activeSessionId || isSendingStepCommand) return;
+        if (!trimmed || !activeSessionId || isSendingStepCommand || isPaused) return;
 
         const targetStep = Number(trimmed);
         if (!Number.isInteger(targetStep) || targetStep < 1) {
@@ -284,7 +286,7 @@ export default function LessonView() {
     }
 
     async function handleStepClick(stepNumber) {
-        if (!activeSessionId || isSendingStepCommand) return;
+        if (!activeSessionId || isSendingStepCommand || isPaused) return;
         try {
             setIsSendingStepCommand(true);
             await api.setStep(activeSessionId, stepNumber);
@@ -296,7 +298,7 @@ export default function LessonView() {
     }
 
     async function handleRestart() {
-        if (!activeSessionId || isSendingStepCommand) return;
+        if (!activeSessionId || isSendingStepCommand || isPaused) return;
         try {
             setIsSendingStepCommand(true);
             await api.setStep(activeSessionId, 1);
@@ -307,25 +309,39 @@ export default function LessonView() {
         }
     }
 
+    async function handleTogglePause() {
+        if (!activeSessionId || isTogglingPause) return;
+        try {
+            setIsTogglingPause(true);
+            if (isPaused) {
+                await api.resumeLesson(activeSessionId);
+                setIsPaused(false);
+            } else {
+                await api.pauseLesson(activeSessionId);
+                setIsPaused(true);
+            }
+        } catch (error) {
+            console.error(`Failed to ${isPaused ? "resume" : "pause"} lesson:`, error);
+        } finally {
+            setIsTogglingPause(false);
+        }
+    }
+
     async function handleEndLesson() {
         if (!activeSessionId || isEndingLesson) return;
 
         setIsEndingLesson(true);
         try {
+            // Ends just this lesson run (clears the session's active lesson).
+            // Deliberately does NOT call api.endSession or clear the robot's
+            // pairing state — the robot should stay paired to the web UI so
+            // the SLP can start another lesson without re-pairing.
             await api.stopLesson(activeSessionId);
         } catch (e) {
             console.warn("Failed to stop lesson (may not be active):", e);
         }
-        try {
-            await api.endSession(activeSessionId);
-        } catch (e) {
-            // Demo mode has no cookie auth — server session will be cleaned up by the
-            // robot's inactivity timer. Don't block navigation on a 401 here.
-            console.warn("Failed to end session server-side:", e);
-        }
-        localStorage.removeItem("pairedSessionId");
         setIsEndingLesson(false);
-        navigate("/lessons");
+        navigate("/browse-lessons");
     }
 
     function renderMessage(item) {
@@ -437,15 +453,35 @@ export default function LessonView() {
 
             <div className="rounded-lg border p-6 shadow-sm">
                 <div className="rounded-lg border p-4 shadow-sm">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                         <h2 className="text-lg font-semibold text-gray-900">
                             Lesson Controls
+                            {isPaused && (
+                                <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 align-middle">
+                                    Paused
+                                </span>
+                            )}
                         </h2>
 
                         <button
                             type="button"
+                            onClick={handleTogglePause}
+                            disabled={isTogglingPause}
+                            className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+                                isPaused
+                                    ? "bg-green-100 text-green-800 hover:bg-green-200"
+                                    : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                            }`}
+                        >
+                            {isTogglingPause
+                                ? (isPaused ? "Resuming..." : "Pausing...")
+                                : (isPaused ? "Resume" : "Pause")}
+                        </button>
+
+                        <button
+                            type="button"
                             onClick={handleRestart}
-                            disabled={isSendingStepCommand}
+                            disabled={isSendingStepCommand || isPaused}
                             className="flex items-center justify-center gap-2 rounded-xl bg-yellow-100 px-4 py-2 text-sm font-semibold text-yellow-800 shadow-sm transition hover:bg-yellow-200 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             <span className="text-lg">&#10226;</span>
@@ -480,8 +516,8 @@ export default function LessonView() {
                                 step.map((item) => (
                                     <div
                                         key={item.id}
-                                        onClick={() => !isSendingStepCommand && handleStepClick(item.order)}
-                                        className= {`min-w-[180px] max-w-[220px] flex-shrink-0 h-full rounded-lg bg-gray-100 border border-gray-300 p-3 shadow-sm flex flex-col justify-start ${isSendingStepCommand ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-blue-100"}`}
+                                        onClick={() => !isSendingStepCommand && !isPaused && handleStepClick(item.order)}
+                                        className= {`min-w-[180px] max-w-[220px] flex-shrink-0 h-full rounded-lg bg-gray-100 border border-gray-300 p-3 shadow-sm flex flex-col justify-start ${isSendingStepCommand || isPaused ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-blue-100"}`}
                                     >
                                         <p className="text-sm font-semibold text-gray-900 leading-tight">
                                             {item.title}
@@ -500,7 +536,7 @@ export default function LessonView() {
                         <button
                             type="button"
                             onClick={handleBackStep}
-                            disabled={isSendingStepCommand}
+                            disabled={isSendingStepCommand || isPaused}
                             className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 hover:bg-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             <span className="text-lg">{"<"}</span>
@@ -517,14 +553,14 @@ export default function LessonView() {
                                 value={stepInput}
                                 onChange={(e) => setStepInput(e.target.value)}
                                 placeholder="Step #"
-                                disabled={isSendingStepCommand}
+                                disabled={isSendingStepCommand || isPaused}
                                 className="w-full rounded-xl border border-gray-300 p-3 text-center text-sm font-medium shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:opacity-60"
                             />
 
                             <button
                                 type="button"
                                 onClick={handleSkipToStep}
-                                disabled={isSendingStepCommand}
+                                disabled={isSendingStepCommand || isPaused}
                                 className="mt-3 w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isSendingStepCommand ? "Sending..." : "Go"}
@@ -534,7 +570,7 @@ export default function LessonView() {
                         <button
                             type="button"
                             onClick={handleForwardStep}
-                            disabled={isSendingStepCommand}
+                            disabled={isSendingStepCommand || isPaused}
                             className="flex h-full items-center justify-center gap-2 rounded-2xl border border-gray-200 hover:bg-blue-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             Forward

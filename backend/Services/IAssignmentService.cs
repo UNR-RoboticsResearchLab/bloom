@@ -22,7 +22,10 @@ namespace bloom.Services
         Task<bool> AssignToStudent(Guid lessonId, string studentId, string assignedById);
         Task<bool> Modify(Assignment assignment);
 
-
+        // Visibility checks -- used to let assigned students see private lessons they
+        // wouldn't otherwise have access to.
+        Task<bool> ExistsForStudentAndLessonAsync(string studentId, Guid lessonId);
+        Task<HashSet<Guid>> GetAssignedLessonIdsAsync(string studentId);
 
         // Remove
         Task DeleteById(Guid id);

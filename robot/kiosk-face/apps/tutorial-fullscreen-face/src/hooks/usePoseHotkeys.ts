@@ -1,9 +1,6 @@
 import { useEffect, useMemo } from "react";
-import {
-  useVizijRuntime,
-  type PoseRigConfig,
-  type PoseDefinition,
-} from "@vizij/runtime-react";
+import { useVizijRuntime, type PoseRigConfig } from "@vizij/runtime-react";
+import { createPosePathMap, type PosePathBinding } from "./posePaths";
 
 export const POSE_HOTKEY_ORDER = [
   "Digit1",
@@ -12,60 +9,6 @@ export const POSE_HOTKEY_ORDER = [
   "Digit4",
   "Digit5",
 ] as const;
-
-type PosePathBinding = {
-  pose: PoseDefinition;
-  path: string;
-};
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
-
-function normalizeGroup(group?: string | null): string {
-  const normalized = slugify(group ?? "poses");
-  if (!normalized) {
-    return "poses";
-  }
-  if (normalized.startsWith("emotion")) {
-    return "emotions";
-  }
-  if (normalized.startsWith("viseme")) {
-    return "visemes";
-  }
-  return normalized;
-}
-
-function createPosePathMap(
-  faceId: string,
-  poseConfig: PoseRigConfig,
-): Map<string, string> {
-  const map = new Map<string, string>();
-  const counters = new Map<string, Map<string, number>>();
-  const poses = poseConfig.poses ?? [];
-
-  poses.forEach((pose, index) => {
-    const group = normalizeGroup(pose.group);
-    let slug = slugify(pose.name ?? "") || slugify(pose.id ?? "");
-    if (!slug) {
-      slug = `pose_${index + 1}`;
-    }
-
-    const groupCounts = counters.get(group) ?? new Map<string, number>();
-    const seen = groupCounts.get(slug) ?? 0;
-    groupCounts.set(slug, seen + 1);
-    counters.set(group, groupCounts);
-    const uniqueSlug = seen === 0 ? slug : `${slug}_${seen + 1}`;
-
-    map.set(pose.id, `rig/${faceId}/${group}/${uniqueSlug}.weight`);
-  });
-
-  return map;
-}
 
 export function usePoseHotkeys(
   poseConfig: PoseRigConfig | null,

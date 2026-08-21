@@ -13,8 +13,13 @@ services:
       - ./frontend/public:/app/public # Live update for public assets
       - /app/node_modules    # Keep container node_modules isolated
     environment:
+      # Leave unset: ApiClientContext falls back to the page's own hostname,
+      # so the SPA and API stay same-site (SameSite=Lax cookie survives) no
+      # matter which machine/IP the browser is pointed at. A hardcoded IP
+      # here only works from that one address -- everywhere else, the login
+      # cookie gets set for a different site than the page's origin and every
+      # authenticated fetch right after sign-in comes back 401.
       # - REACT_APP_API_BASE_URL=http://192.168.1.190:5000
-      - REACT_APP_API_BASE_URL=http://localhost:8080
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
       - WATCHPACK_POLLING_INTERVAL=1000
@@ -68,6 +73,9 @@ services:
         condition: service_started
       arsr-db-dev:
         condition: service_started
+    env_file:
+      - path: backend/.env   # AZURE_OPENAI_* secrets — gitignored, not committed
+        required: false
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080

@@ -1,5 +1,5 @@
 // src/App.js
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import Layout  from "./components/Layout";
 import SignIn from "./pages/SignIn";
@@ -13,20 +13,12 @@ import TeacherDashboard from "./components/dashboard/TeacherDashboard";
 import StudentDashboard from "./components/dashboard/StudentDashboard";
 import SlpDashboard from "./components/dashboard/SlpDashboard";
 
-import Lessons from "./pages/Lessons";
 import Lesson from "./pages/Lesson";
 import LessonHistory from "./pages/LessonHistory";
 import BrowseLessons from "./pages/BrowseLessons";
 
 import Students from "./pages/Students";
 import Student from "./pages/Student";
-
-import ForgotPassword from "./pages/ForgotPassword";
-
-import FetchData from "./pages/FetchData";
-import Counter from "./pages/Counter";
-
-// import "./custom.css";
 
 import AddStudentCard from "./pages/AddStudentCard";
 import AddLessonCard from "./pages/AddLessonCard";
@@ -41,22 +33,16 @@ import ArSrResults     from "./pages/ArSr/ArSrResults";
 import ArSrSessionDetail from "./pages/ArSr/ArSrSessionDetail";
 
 export default function App() {
-
-  const apiBase = process.env.REACT_APP_API_BASE_URL ?? "http://localhost:5000";
-
-
   return (
     <Layout>
       <Routes>
         {/* Public */}
         <Route path="/" element={<Home />} />
-        <Route path="/counter" element={<Counter />} />
-        <Route path="/fetch-data" element={<FetchData />} />
         {/* <Route path="/forgot-password" element={<ForgotPassword />} /> */}
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/about" element={<About />} />
-        <Route path="/lessons" element={<Lessons />} />
+        <Route path="/lessons" element={<Navigate to="/browse-lessons" replace />} />
         <Route path="/browse-lessons" element={<BrowseLessons />} />
         <Route path="/students" element={<Students />} />
         <Route path="/student/:studentId" element={<Student />} />

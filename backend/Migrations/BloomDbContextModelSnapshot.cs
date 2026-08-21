@@ -384,6 +384,9 @@ namespace bloom.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<Guid?>("AdaptedFromLessonId")
+                        .HasColumnType("char(36)");
+
                     b.Property<Guid?>("ClassroomId")
                         .HasColumnType("char(36)");
 
@@ -396,6 +399,15 @@ namespace bloom.Migrations
 
                     b.Property<string>("Description")
                         .HasColumnType("longtext");
+
+                    b.Property<bool>("IsPublic")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("LearningObjectives")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("LessonType")
                         .HasColumnType("int");
@@ -411,6 +423,8 @@ namespace bloom.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AdaptedFromLessonId");
 
                     b.HasIndex("ClassroomId");
 
@@ -544,7 +558,6 @@ namespace bloom.Migrations
             modelBuilder.Entity("bloom.Models.LessonStep", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
                     b.Property<int?>("BehaviorId")
@@ -627,6 +640,49 @@ namespace bloom.Migrations
                     b.HasIndex("RegisteredUserId");
 
                     b.ToTable("Robots", (string)null);
+                });
+
+            modelBuilder.Entity("bloom.Models.RobotProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AccountId")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Catchphrase")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("ColorTheme")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Nickname")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("PersonalityTrait")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Voice")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique();
+
+                    b.ToTable("RobotProfiles", (string)null);
                 });
 
             modelBuilder.Entity("bloom.Models.RobotSession", b =>
@@ -757,7 +813,6 @@ namespace bloom.Migrations
             modelBuilder.Entity("bloom.Models.StepInteraction", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
                     b.Property<string>("CorrectAnswer")
@@ -916,6 +971,11 @@ namespace bloom.Migrations
 
             modelBuilder.Entity("bloom.Models.Lesson", b =>
                 {
+                    b.HasOne("bloom.Models.Lesson", "AdaptedFromLesson")
+                        .WithMany()
+                        .HasForeignKey("AdaptedFromLessonId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("bloom.Models.Classroom", null)
                         .WithMany("Lessons")
                         .HasForeignKey("ClassroomId");
@@ -925,6 +985,8 @@ namespace bloom.Migrations
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("AdaptedFromLesson");
 
                     b.Navigation("CreatedBy");
                 });
@@ -1024,6 +1086,17 @@ namespace bloom.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("RegisteredUser");
+                });
+
+            modelBuilder.Entity("bloom.Models.RobotProfile", b =>
+                {
+                    b.HasOne("bloom.Models.Account", "Account")
+                        .WithOne("RobotProfile")
+                        .HasForeignKey("bloom.Models.RobotProfile", "AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
                 });
 
             modelBuilder.Entity("bloom.Models.RobotSession", b =>
@@ -1134,6 +1207,8 @@ namespace bloom.Migrations
                     b.Navigation("CreatedLessons");
 
                     b.Navigation("RegisteredRobots");
+
+                    b.Navigation("RobotProfile");
                 });
 
             modelBuilder.Entity("bloom.Models.Classroom", b =>

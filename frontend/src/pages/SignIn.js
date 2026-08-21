@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { EyeSlashIcon, EyeIcon } from "@heroicons/react/24/solid";
 import { useApiClient } from "../context/ApiClientContext";
 import { signInSession, dashboardPathForRole } from "../utils/auth";
@@ -11,7 +11,6 @@ export default function SignIn() {
   const [err, setErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const navigate = useNavigate();
   const api = useApiClient();
 
   async function handleSubmit(e) {

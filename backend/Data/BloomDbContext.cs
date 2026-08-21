@@ -5,9 +5,11 @@
 
 using bloom.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using System.Text.Json;
+using System.Linq;
 
 namespace bloom.Data
 {
@@ -18,6 +20,7 @@ namespace bloom.Data
         public DbSet<Assignment> Assignments { get; set; }
         public DbSet<Classroom> Classrooms { get; set; }
         public DbSet<Robot> Robots { get; set; }
+        public DbSet<RobotProfile> RobotProfiles { get; set; }
         public DbSet<RobotSession> RobotSessions { get; set; }
         public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
         public DbSet<LessonStep> LessonSteps { get; set; }
@@ -61,11 +64,47 @@ namespace bloom.Data
                     .WithOne(s => s.Lesson)
                     .HasForeignKey(s => s.LessonId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.Property(l => l.IsPublic).HasDefaultValue(true);
+
+                // Self-referencing lineage pointer set by "Adapt this lesson" — SetNull so
+                // deleting a source lesson just orphans the pointer on its adapted copies
+                // rather than blocking or cascading the delete.
+                entity.HasOne(l => l.AdaptedFromLesson)
+                    .WithMany()
+                    .HasForeignKey(l => l.AdaptedFromLessonId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                // Was previously an unmapped bare field -- stored as JSON text since
+                // MariaDB/Pomelo has no native string-array column type. The value
+                // comparer is required for EF to detect changes to list contents
+                // correctly (without it, change tracking compares list references, so
+                // in-place mutations of an otherwise-unchanged list would go unnoticed).
+                entity.Property(l => l.LearningObjectives)
+                    .HasColumnType("TEXT")
+                    .HasConversion(
+                        v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                        v => string.IsNullOrWhiteSpace(v)
+                            ? new List<string?>()
+                            : JsonSerializer.Deserialize<List<string?>>(v, (JsonSerializerOptions?)null) ?? new List<string?>())
+                    .Metadata.SetValueComparer(new ValueComparer<List<string?>>(
+                        (a, b) => (a ?? new()).SequenceEqual(b ?? new()),
+                        v => v.Aggregate(0, (hash, s) => HashCode.Combine(hash, s)),
+                        v => v.ToList()));
             });
 
             builder.Entity<LessonStep>(entity =>
             {
                 entity.ToTable("LessonSteps");
+
+                // Id is always assigned client-side (property initializer), never by the
+                // DB/EF. Without this, EF's default convention still treats Guid keys as
+                // store-generated, so an entity discovered only via a collection .Add()
+                // (as opposed to DbSet.Add() on a root, which force-cascades Added to the
+                // whole graph) gets misread as an existing row being modified -- since its
+                // key is already non-default -- producing an UPDATE for a row that was
+                // never there and a spurious DbUpdateConcurrencyException.
+                entity.Property(s => s.Id).ValueGeneratedNever();
 
                 entity.HasOne(s => s.Interaction)
                     .WithOne(i => i.LessonStep)
@@ -81,6 +120,8 @@ namespace bloom.Data
             builder.Entity<StepInteraction>(entity =>
             {
                 entity.ToTable("StepInteractions");
+                // Same client-generated-key reasoning as LessonStep.Id above.
+                entity.Property(i => i.Id).ValueGeneratedNever();
             });
 
             builder.Entity<Assignment>(entity =>
@@ -192,6 +233,18 @@ namespace bloom.Data
             {
                 entity.ToTable("RsrAssessments");
                 entity.HasIndex(a => a.Pid).IsUnique();
+            });
+
+            builder.Entity<RobotProfile>(entity =>
+            {
+                entity.ToTable("RobotProfiles");
+
+                entity.HasOne(p => p.Account)
+                    .WithOne(a => a.RobotProfile)
+                    .HasForeignKey<RobotProfile>(p => p.AccountId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(p => p.AccountId).IsUnique();
             });
 
         }

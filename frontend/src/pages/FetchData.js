@@ -4,13 +4,9 @@ import { useApiClient } from "../context/ApiClientContext";
 
 export default function FetchData() {
   const apiClient = useApiClient();
-  const [forecasts, setForecasts] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState("");
-  const [loading, setLoading] = useState(true);
   const [loadingSessions, setLoadingSessions] = useState(true);
-
-
 
   useEffect(() => {
     let active = true;

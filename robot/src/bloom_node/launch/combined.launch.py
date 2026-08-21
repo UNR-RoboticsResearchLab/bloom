@@ -96,6 +96,21 @@ def generate_launch_description():
         additional_env={'DISPLAY': os.environ.get('DISPLAY', ':0')},
     )
 
+    # Bridges the same face-related topics to the vizij browser face over a
+    # local WebSocket/HTTP server. Runs alongside face_node (not instead of
+    # it) until the vizij face is validated on real hardware; the browser
+    # kiosk itself is started separately via robot/scripts/launch_face_kiosk.sh,
+    # not from this launch file, since it's a GUI process rather than a ROS node.
+    face_bridge_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('bloom_face_bridge'),
+                'launch',
+                'bridge.launch.py'
+            ])
+        )
+    )
+
     motor_config_arg = DeclareLaunchArgument(
         'motor_config',
         default_value=PathJoinSubstitution([
@@ -117,4 +132,5 @@ def generate_launch_description():
         bloom_launch,
         speech_launch,
         face_launch,
+        face_bridge_launch,
     ])

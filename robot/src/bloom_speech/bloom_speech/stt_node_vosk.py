@@ -10,6 +10,8 @@ from std_msgs.msg import String
 from vosk import Model, KaldiRecognizer
 from ament_index_python.packages import get_package_share_directory
 
+from bloom_speech.mic_utils import find_sounddevice_input
+
 
 class STTNode(Node):
     def __init__(self):
@@ -26,6 +28,12 @@ class STTNode(Node):
         self.recognizer = KaldiRecognizer(self.model, self.sample_rate)
         self.audio_queue = queue.Queue()
         self.current_state = 'waiting'
+
+        self.mic_device, _ = find_sounddevice_input(logger=self.get_logger())
+        if self.mic_device is None:
+            self.get_logger().warn(
+                '[STT] ReSpeaker Lite not found - falling back to PortAudio '
+                'default input device (set BLOOM_MIC_DEVICE to override)')
 
         self.result_pub = self.create_publisher(String, '/vosk/result', 10)
         self.state_sub = self.create_subscription(
@@ -50,6 +58,7 @@ class STTNode(Node):
             blocksize=8000,
             dtype='int16',
             channels=1,
+            device=self.mic_device,
             callback=self.audio_callback
         ):
             self.get_logger().info('Microphone stream opened')

@@ -35,7 +35,13 @@ int main(int argc, char ** argv)
 
     // ====== declare node and init configuration params ======
     auto node = std::make_shared<rclcpp::Node>("bloom_node");
-	
+
+    // Declare the ROS2 parameters bloom.launch.py passes on the command line
+    // (e.g. `base_url:=http://...`) so they can actually be read below.
+    // Default is empty so an unset parameter never clobbers the value loaded
+    // from a config file -- ConfigurationManager::import_from_node() only
+    // overrides a key when the parameter was given a non-empty value.
+    node->declare_parameter<std::string>("base_url", "");
 
 
 	// ====== Create nodes ======
@@ -134,6 +140,11 @@ int main(int argc, char ** argv)
 			RCLCPP_WARN(node->get_logger(), "Could not detect local IP - using value from config");
 		}
 	}
+
+	// Pull declared ROS2 parameters (e.g. base_url:=... from bloom.launch.py)
+	// into the config store, overriding whatever the config files set. Must
+	// run after the load_from_file() calls above so the launch param wins.
+	config_mgr->import_from_node();
 
 	auto state_mgr = std::make_shared<bloom_node::StateManager>(
 		rclcpp::NodeOptions().use_global_arguments(false));

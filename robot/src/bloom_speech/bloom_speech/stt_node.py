@@ -8,6 +8,8 @@ from std_msgs.msg import String
 from ament_index_python.packages import get_package_share_directory
 import azure.cognitiveservices.speech as speechsdk
 
+from bloom_speech.mic_utils import find_alsa_capture_device
+
 
 class STTNode(Node):
     def __init__(self):
@@ -23,7 +25,14 @@ class STTNode(Node):
         speech_config = speechsdk.SpeechConfig(subscription=stt_key, region=stt_region)
         speech_config.speech_recognition_language = 'en-US'
 
-        self.audio_config = speechsdk.audio.AudioConfig(use_default_microphone=True)
+        mic_device = find_alsa_capture_device(logger=self.get_logger())
+        if mic_device:
+            self.audio_config = speechsdk.audio.AudioConfig(device_name=mic_device)
+        else:
+            self.get_logger().warn(
+                '[STT] ReSpeaker Lite not found - falling back to system '
+                'default microphone (set BLOOM_MIC_DEVICE to override)')
+            self.audio_config = speechsdk.audio.AudioConfig(use_default_microphone=True)
         self.speech_config = speech_config
 
         self.current_state = 'idle'

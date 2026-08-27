@@ -6,9 +6,9 @@ timelines, using the same Azure TTS engine the robot uses for lessons.
 Run from anywhere:
     python robot/scripts/generate_rsr_audio.py [--output-dir DIR] [--recordings-dir DIR]
 
-Requires robot/tts_module/config.py (copy from config_example.py and fill
-in AZURE_SUBSCRIPTION_KEY / AZURE_REGION) — same credentials used elsewhere
-in robot/.
+Requires robot/.env (copy from robot/.env.example and fill in
+AZURE_TTS_KEY / AZURE_TTS_REGION) — the same Azure TTS credentials and
+env-var names used by the lesson TTS pipeline (bloom_speech/tts_node.py).
 
 To use your own recorded audio instead of Azure TTS for a sentence, drop a
 file named sentence_NN.<ext> (matching the sentence's id in rsr_sentences.json,
@@ -33,12 +33,28 @@ ROBOT_DIR = os.path.dirname(SCRIPT_DIR)
 DEFAULT_OUTPUT_DIR = os.path.join(ROBOT_DIR, "..", "backend", "wwwroot", "rsr-audio")
 DEFAULT_RECORDINGS_DIR = os.path.join(SCRIPT_DIR, "recordings")
 SENTENCES_PATH = os.path.join(SCRIPT_DIR, "rsr_sentences.json")
+ENV_PATH = os.path.join(ROBOT_DIR, ".env")
 RECORDING_EXTENSIONS = [".wav", ".flac", ".ogg"]
 
 sys.path.insert(0, ROBOT_DIR)
 
-from tts_module.config import AZURE_SUBSCRIPTION_KEY, AZURE_REGION  # noqa: E402
 from tts_module.engine_azure import AzureTTSEngine  # noqa: E402
+
+
+def load_env_file(env_path):
+    """Loads robot/.env the same way bloom_speech's ROS nodes do (e.g.
+    tts_node.py), so this script picks up the same AZURE_TTS_* credentials
+    used by the live lesson TTS pipeline instead of a separate config file."""
+    if not os.path.exists(env_path):
+        print(f"WARNING: .env not found at {env_path}")
+        print("Copy robot/.env.example to robot/.env and fill in your credentials")
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                os.environ.setdefault(key.strip(), value.strip())
 
 
 def find_recording(recordings_dir, sentence_id):
@@ -104,7 +120,14 @@ def main():
     with open(SENTENCES_PATH) as f:
         sentences = json.load(f)
 
-    engine = AzureTTSEngine(subscription_key=AZURE_SUBSCRIPTION_KEY, region=AZURE_REGION)
+    load_env_file(ENV_PATH)
+    tts_key = os.environ.get("AZURE_TTS_KEY", "")
+    tts_region = os.environ.get("AZURE_TTS_REGION", "westus2")
+    tts_voice = os.environ.get("AZURE_TTS_VOICE", "en-US-AvaNeural")
+    if not tts_key:
+        raise RuntimeError("AZURE_TTS_KEY not set - check robot/.env")
+
+    engine = AzureTTSEngine(subscription_key=tts_key, region=tts_region, default_voice=tts_voice)
 
     manifest = []
     for sentence in sentences:

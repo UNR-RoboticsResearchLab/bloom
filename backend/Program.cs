@@ -233,6 +233,7 @@ builder.Services.AddScoped<IRobotSessionService, RobotSessionService>();
 builder.Services.AddScoped<IRobotStateService, RobotStateService>();
 builder.Services.AddScoped<ISLPClientService, SLPClientService>();
 builder.Services.AddSingleton<IStepControlService, StepControlService>();
+builder.Services.AddSingleton<IRepeatRequestDetector, RepeatRequestDetector>();
 builder.Services.AddSingleton<IIdleModeService, IdleModeService>();
 builder.Services.AddSingleton<IVoiceOverrideService, VoiceOverrideService>();
 builder.Services.AddSingleton<IRsrSpeechService, RsrSpeechService>();
@@ -323,7 +324,17 @@ app.UseAuthorization();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
-    db.Database.Migrate();
+
+    // WebApplicationFactory-based integration tests (tests/Integration/BloomWebApplicationFactory.cs)
+    // swap this DbContext to an in-memory SQLite connection. The checked-in EF Core migrations
+    // were generated against MySQL/Pomelo and contain MySQL-specific SQL, so Migrate() throws
+    // under SQLite. EnsureCreated() builds the schema directly from the current model instead
+    // (no migration history involved) -- provider-agnostic and sufficient for tests. Real
+    // deployments (MySQL) are unaffected: this branch is purely additive to the test path.
+    if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        db.Database.EnsureCreated();
+    else
+        db.Database.Migrate();
 
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     await BloomDbContext.SeedDatabaseRoles(roleManager);

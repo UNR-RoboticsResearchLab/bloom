@@ -9,11 +9,13 @@ export default function LessonView() {
     const api = useApiClient();
     const { sessionId: pairedSessionId, clearLocal } = useRobotPairing();
     const hasStartedRef = useRef(false);
+    const lessonEndedRef = useRef(false);
 
     const { lesson, student } = location.state || {};
     const lessonId = lesson?.id ?? lesson?.Id;
 
     const [activeSessionId, setActiveSessionId] = useState(pairedSessionId);
+    const activeSessionIdRef = useRef(activeSessionId);
 
     const [noteText, setNoteText] = useState("");
     const [stepInput, setStepInput] = useState("");
@@ -121,7 +123,7 @@ export default function LessonView() {
                     return {
                         id: item.id ?? `interaction-${index}`,
                         type:
-                            interactionType === "response"
+                            interactionType === "student" || interactionType === "response"
                                 ? "student"
                                 : interactionType === "note" || interactionType === "slpfeedback"
                                 ? "note"
@@ -215,6 +217,28 @@ export default function LessonView() {
 
         return () => clearInterval(intervalId);
     }, [activeSessionId, loadSessionHistory]);
+
+    useEffect(() => {
+        activeSessionIdRef.current = activeSessionId;
+    }, [activeSessionId]);
+
+    // The robot keeps polling for step-control commands (skip/replay/set-step/
+    // restart) for as long as the session's lesson is active — finishing all
+    // steps no longer implicitly ends it (see backend UpdateLessonProgressAsync),
+    // so the robot only stops when the SLP explicitly ends the lesson. If the
+    // SLP navigates away from this page instead of clicking "End Lesson", stop
+    // it here so the robot isn't left polling for a controls page nobody is
+    // looking at anymore.
+    useEffect(() => {
+        return () => {
+            const sessionId = activeSessionIdRef.current;
+            if (sessionId && hasStartedRef.current && !lessonEndedRef.current) {
+                api.stopLesson(sessionId).catch((error) => {
+                    console.error("Failed to stop lesson on unmount:", error);
+                });
+            }
+        };
+    }, [api]);
 
     async function addNote(e) {
         e.preventDefault();
@@ -336,6 +360,7 @@ export default function LessonView() {
             // Deliberately does NOT call api.endSession or clear the robot's
             // pairing state — the robot should stay paired to the web UI so
             // the SLP can start another lesson without re-pairing.
+            lessonEndedRef.current = true;
             await api.stopLesson(activeSessionId);
         } catch (e) {
             console.warn("Failed to stop lesson (may not be active):", e);

@@ -832,7 +832,7 @@ void LessonCoordinator::log_interaction_to_backend(int step_order, const std::st
             payload["lessonRunId"] = lesson_run_id_;
         }
 
-        std::string interaction_endpoint = "/api/lessoninteraction/" + session_id_;
+        std::string interaction_endpoint = "/api/lesson-runtime/" + session_id_ + "/interactions";
 
         web_client_->sendRequestAsync(
             "POST",

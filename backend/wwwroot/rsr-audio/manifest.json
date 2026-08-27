@@ -1,0 +1,98 @@
+[
+  {
+    "id": 1,
+    "text": "The big football player washed the car with the hose.",
+    "audioUrl": "/rsr-audio/sentence_01.wav",
+    "visemeUrl": "/rsr-audio/sentence_01.visemes.json"
+  },
+  {
+    "id": 2,
+    "text": "All of the pictures were colored by his little sister.",
+    "audioUrl": "/rsr-audio/sentence_02.wav",
+    "visemeUrl": "/rsr-audio/sentence_02.visemes.json"
+  },
+  {
+    "id": 3,
+    "text": "The rose bushes were planted yesterday by the girl scouts.",
+    "audioUrl": "/rsr-audio/sentence_03.wav",
+    "visemeUrl": "/rsr-audio/sentence_03.visemes.json"
+  },
+  {
+    "id": 4,
+    "text": "The happy little girl kicked the ball over the fence.",
+    "audioUrl": "/rsr-audio/sentence_04.wav",
+    "visemeUrl": "/rsr-audio/sentence_04.visemes.json"
+  },
+  {
+    "id": 5,
+    "text": "His little brother cleaned the dirty dishes and cups.",
+    "audioUrl": "/rsr-audio/sentence_05.wav",
+    "visemeUrl": "/rsr-audio/sentence_05.visemes.json"
+  },
+  {
+    "id": 6,
+    "text": "A special cage was made to hold the dangerous animals.",
+    "audioUrl": "/rsr-audio/sentence_06.wav",
+    "visemeUrl": "/rsr-audio/sentence_06.visemes.json"
+  },
+  {
+    "id": 7,
+    "text": "Everybody in my school colored Easter eggs for the picnic.",
+    "audioUrl": "/rsr-audio/sentence_07.wav",
+    "visemeUrl": "/rsr-audio/sentence_07.visemes.json"
+  },
+  {
+    "id": 8,
+    "text": "A new hole was dug for the kid's swimming pool.",
+    "audioUrl": "/rsr-audio/sentence_08.wav",
+    "visemeUrl": "/rsr-audio/sentence_08.visemes.json"
+  },
+  {
+    "id": 9,
+    "text": "Only the first graders made a birdhouse for their parents.",
+    "audioUrl": "/rsr-audio/sentence_09.wav",
+    "visemeUrl": "/rsr-audio/sentence_09.visemes.json"
+  },
+  {
+    "id": 10,
+    "text": "My little sister's dog caught the ball on the first bounce.",
+    "audioUrl": "/rsr-audio/sentence_10.wav",
+    "visemeUrl": "/rsr-audio/sentence_10.visemes.json"
+  },
+  {
+    "id": 11,
+    "text": "The soccer ball was kicked into the school's parking lot.",
+    "audioUrl": "/rsr-audio/sentence_11.wav",
+    "visemeUrl": "/rsr-audio/sentence_11.visemes.json"
+  },
+  {
+    "id": 12,
+    "text": "The lion's teeth were cleaned with a giant toothbrush.",
+    "audioUrl": "/rsr-audio/sentence_12.wav",
+    "visemeUrl": "/rsr-audio/sentence_12.visemes.json"
+  },
+  {
+    "id": 13,
+    "text": "Some of the kids dug holes in the sand two feet deep.",
+    "audioUrl": "/rsr-audio/sentence_13.wav",
+    "visemeUrl": "/rsr-audio/sentence_13.visemes.json"
+  },
+  {
+    "id": 14,
+    "text": "The little white mouse was caught by our neighbor's cat.",
+    "audioUrl": "/rsr-audio/sentence_14.wav",
+    "visemeUrl": "/rsr-audio/sentence_14.visemes.json"
+  },
+  {
+    "id": 15,
+    "text": "The second grade students planted coconuts in the garden.",
+    "audioUrl": "/rsr-audio/sentence_15.wav",
+    "visemeUrl": "/rsr-audio/sentence_15.visemes.json"
+  },
+  {
+    "id": 16,
+    "text": "The dirty clothes were washed with soap one more time.",
+    "audioUrl": "/rsr-audio/sentence_16.wav",
+    "visemeUrl": "/rsr-audio/sentence_16.visemes.json"
+  }
+]

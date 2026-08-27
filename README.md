@@ -1,5 +1,8 @@
 # Bloom
 
+[![CI (main)](https://github.com/UNR-RoboticsResearchLab/bloom/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/UNR-RoboticsResearchLab/bloom/actions/workflows/ci.yml?query=branch%3Amain)
+[![CI (development)](https://github.com/UNR-RoboticsResearchLab/bloom/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/UNR-RoboticsResearchLab/bloom/actions/workflows/ci.yml?query=branch%3Adevelopment)
+
 Senior Projects 25-26 - Team 24
 
 Bloom is an open source, dual-system platform for pediatric speech-language therapy. It pairs a

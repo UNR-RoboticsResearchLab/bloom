@@ -41,8 +41,10 @@ def generate_launch_description():
 
     base_url_arg = DeclareLaunchArgument(
         'base_url',
-        default_value='http://localhost:5000',
-        description='Web service base URL'
+        default_value='',
+        description='Web service base URL. Leave empty (default) to use '
+                     'the value from the config file; pass base_url:=... '
+                     'on the command line to override it.'
     )
 
     # Include OpenHMI Blossom launch file with arguments

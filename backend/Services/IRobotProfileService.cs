@@ -24,7 +24,7 @@ namespace bloom.Services
          * <summary>
          * UpsertAsync() creates or updates the robot profile for the given account.
          * </summary>
-         * <exception cref="ArgumentException">Thrown when PersonalityTrait is not a recognized preset.</exception>
+         * <exception cref="ArgumentException">Thrown when PersonalityTrait is set but not a recognized preset.</exception>
          */
         Task<RobotProfile> UpsertAsync(string accountId, RobotProfileDto dto);
 

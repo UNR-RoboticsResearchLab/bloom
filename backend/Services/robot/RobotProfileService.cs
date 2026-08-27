@@ -26,7 +26,7 @@ namespace bloom.Services
 
         public async Task<RobotProfile> UpsertAsync(string accountId, RobotProfileDto dto)
         {
-            if (!RobotPersonality.All.Contains(dto.PersonalityTrait))
+            if (dto.PersonalityTrait != null && !RobotPersonality.All.Contains(dto.PersonalityTrait))
             {
                 throw new ArgumentException($"'{dto.PersonalityTrait}' is not a recognized personality trait.");
             }

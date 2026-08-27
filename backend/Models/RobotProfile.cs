@@ -19,14 +19,17 @@ namespace bloom.Models
         /// <summary>
         /// The name the student has given their robot. Purely cosmetic — distinct
         /// from Robot.Name, which doubles as the physical device's login identifier.
+        /// Null means the field hasn't been filled in yet — every field on the
+        /// profile is optional so a partial save is always allowed.
         /// </summary>
         [MaxLength(50)]
-        public required string Nickname { get; set; }
+        public string? Nickname { get; set; }
 
         /// <summary>
-        /// One of the presets in <see cref="RobotPersonality.All"/>.
+        /// One of the presets in <see cref="RobotPersonality.All"/>. Null means no
+        /// preference has been set.
         /// </summary>
-        public required string PersonalityTrait { get; set; }
+        public string? PersonalityTrait { get; set; }
 
         [MaxLength(200)]
         public string? Catchphrase { get; set; }

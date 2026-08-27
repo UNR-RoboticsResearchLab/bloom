@@ -81,9 +81,8 @@ export default function StudentDashboard() {
                   style={{ backgroundColor: robotProfile.colorTheme || "#6366f1" }}
                 />
                 <span>
-                  <span className="font-medium">{robotProfile.nickname}</span>
-                  {" — "}
-                  {robotProfile.personalityTrait}
+                  <span className="font-medium">{robotProfile.nickname || "Unnamed robot"}</span>
+                  {robotProfile.personalityTrait ? ` — ${robotProfile.personalityTrait}` : ""}
                   {robotProfile.catchphrase ? ` · "${robotProfile.catchphrase}"` : ""}
                 </span>
               </div>

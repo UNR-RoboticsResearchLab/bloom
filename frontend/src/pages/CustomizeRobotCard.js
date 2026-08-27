@@ -46,15 +46,14 @@ export function CustomizeRobotCard({ profile, onCancel, onSaved }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!nickname.trim() || !personalityTrait) return;
 
     try {
       setIsLoading(true);
       setError("");
 
       const saved = await api.updateMyRobotProfile({
-        nickname: nickname.trim(),
-        personalityTrait,
+        nickname: nickname.trim() || null,
+        personalityTrait: personalityTrait || null,
         catchphrase: catchphrase.trim() || null,
         colorTheme,
         voice: voice || null,
@@ -160,7 +159,7 @@ export function CustomizeRobotCard({ profile, onCancel, onSaved }) {
             </button>
             <button
               type="submit"
-              disabled={isLoading || !nickname.trim() || !personalityTrait}
+              disabled={isLoading}
               className="rounded-md border border-gray-900 bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-400 disabled:opacity-60"
             >
               {isLoading ? "Saving..." : "Save"}

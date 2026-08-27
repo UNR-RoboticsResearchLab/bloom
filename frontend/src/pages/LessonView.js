@@ -121,7 +121,7 @@ export default function LessonView() {
                     return {
                         id: item.id ?? `interaction-${index}`,
                         type:
-                            interactionType === "response"
+                            interactionType === "student" || interactionType === "response"
                                 ? "student"
                                 : interactionType === "note" || interactionType === "slpfeedback"
                                 ? "note"

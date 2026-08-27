@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useApiClient } from "../context/ApiClientContext";
+import { useRobotPairing } from "../context/RobotPairingContext";
+import { PairRobotCard } from "./PairRobotCard";
 
 // Fallback sentence text, used only if the backend manifest (with pre-generated
 // audio URLs) can't be fetched — keeps the page usable for the no-audio flow.
@@ -26,6 +28,7 @@ const PHASE = { SETUP: "setup", ASSESSMENT: "assessment", SUBMITTING: "submittin
 
 export default function RsrAssessment() {
   const api = useApiClient();
+  const { isPaired, sessionId } = useRobotPairing();
 
   const [phase, setPhase] = useState(PHASE.SETUP);
   const [ageMonths, setAgeMonths] = useState("");
@@ -45,9 +48,8 @@ export default function RsrAssessment() {
     SENTENCES.map((text, i) => ({ id: i + 1, text, audioUrl: null, visemeUrl: null }))
   );
   const [playMode, setPlayMode] = useState("browser"); // "browser" | "robot"
-  const [pairingCode, setPairingCode] = useState("");
+  const [showPairCard, setShowPairCard] = useState(false);
   const [robotId, setRobotId] = useState(null);
-  const [pairing, setPairing] = useState(false);
   const [pairError, setPairError] = useState(null);
   const [playError, setPlayError] = useState(null);
   const [sentToRobotId, setSentToRobotId] = useState(null);
@@ -75,23 +77,33 @@ export default function RsrAssessment() {
     return types.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
   }
 
-  async function handleConnectRobot() {
-    if (!pairingCode.trim()) {
-      setPairError("Enter a pairing code.");
+  // Mirror how lessons resolve a robot: pairing (RobotPairingContext) claims a
+  // session, then the robot actually attached to that session is looked up
+  // from the session's robot membership.
+  useEffect(() => {
+    if (!isPaired || !sessionId) {
+      setRobotId(null);
       return;
     }
-    setPairing(true);
-    setPairError(null);
-    try {
-      const id = await api.getRobotIdFromCode(pairingCode.trim());
-      setRobotId(id);
-    } catch (e) {
-      setRobotId(null);
-      setPairError(e.message || "Could not connect to robot.");
-    } finally {
-      setPairing(false);
-    }
-  }
+    let cancelled = false;
+    api.getSessionRobots(sessionId)
+      .then(({ robotIds }) => {
+        if (cancelled) return;
+        if (!robotIds || robotIds.length === 0) {
+          setRobotId(null);
+          setPairError("No robot is paired with that session.");
+          return;
+        }
+        setRobotId(robotIds[0]);
+        setPairError(null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setRobotId(null);
+        setPairError(e.message || "Could not find a robot for this session.");
+      });
+    return () => { cancelled = true; };
+  }, [api, isPaired, sessionId]);
 
   async function handlePlaySentence() {
     const sentence = sentences[currentIdx];
@@ -112,8 +124,8 @@ export default function RsrAssessment() {
         setPlayError("Could not play audio in this browser.");
       }
     } else {
-      if (!robotId) {
-        setPlayError("Connect a robot with a pairing code first.");
+      if (!isPaired || !robotId) {
+        setPlayError("Pair a robot first.");
         return;
       }
       try {
@@ -308,24 +320,16 @@ export default function RsrAssessment() {
 
             {playMode === "robot" && (
               <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={pairingCode}
-                  onChange={(e) => setPairingCode(e.target.value)}
-                  placeholder="Robot pairing code"
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
                 <button
                   type="button"
-                  onClick={handleConnectRobot}
-                  disabled={pairing}
-                  className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-40 transition-colors"
+                  onClick={() => setShowPairCard(true)}
+                  className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 transition-colors"
                 >
-                  {pairing ? "Connecting…" : robotId ? "Reconnect" : "Connect"}
+                  {isPaired ? "Manage Pairing" : "Pair Robot"}
                 </button>
               </div>
             )}
-            {playMode === "robot" && robotId && (
+            {playMode === "robot" && isPaired && robotId && (
               <p className="mt-2 text-sm text-green-600">Robot connected.</p>
             )}
             {playMode === "robot" && pairError && (
@@ -339,6 +343,21 @@ export default function RsrAssessment() {
           >
             Start Assessment
           </button>
+        </div>
+      )}
+
+      {showPairCard && (
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black/40 z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pair a robot for this assessment"
+        >
+          <PairRobotCard
+            onCancel={() => setShowPairCard(false)}
+            onPaired={() => setShowPairCard(false)}
+            onUnpaired={() => setShowPairCard(false)}
+          />
         </div>
       )}
 

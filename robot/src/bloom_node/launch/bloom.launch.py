@@ -12,7 +12,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'base_url',
-            default_value='http://localhost:5000',
+            default_value='https://bloom.unr.dev/',
             description='Web service base URL'
         ),
         Node(

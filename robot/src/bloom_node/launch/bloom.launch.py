@@ -12,8 +12,10 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'base_url',
-            default_value='https://bloom.unr.dev/',
-            description='Web service base URL'
+            default_value='',
+            description='Web service base URL. Leave empty (default) to use '
+                         'the value from the config file; pass base_url:=... '
+                         'on the command line to override it.'
         ),
         Node(
             package='bloom_node',

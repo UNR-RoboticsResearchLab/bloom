@@ -22,15 +22,18 @@ namespace bloom.Controllers
         private readonly ILogger<LessonRuntimeController> _logger;
         private readonly IRobotSessionService _sessionService;
         private readonly IStepControlService _stepControlService;
+        private readonly IRepeatRequestDetector _repeatRequestDetector;
 
         public LessonRuntimeController(
             ILogger<LessonRuntimeController> logger,
             IRobotSessionService sessionService,
-            IStepControlService stepControlService)
+            IStepControlService stepControlService,
+            IRepeatRequestDetector repeatRequestDetector)
         {
             _logger = logger;
             _sessionService = sessionService;
             _stepControlService = stepControlService;
+            _repeatRequestDetector = repeatRequestDetector;
         }
 
         #region SLP Commands — lesson lifecycle
@@ -148,6 +151,10 @@ namespace bloom.Controllers
 
             if (session.ActiveLessonId == null)
                 return BadRequest(new { Message = "No active lesson to set step on" });
+
+            var totalSteps = await _sessionService.GetActiveLessonTotalStepsAsync(sessionId);
+            if (dto.TargetStep < 1 || (totalSteps is int max && dto.TargetStep > max))
+                return BadRequest(new { Message = $"TargetStep must be between 1 and {totalSteps ?? dto.TargetStep}" });
 
             _stepControlService.SetPendingControl(sessionId, "set_step", dto.TargetStep);
             _logger.LogInformation("Set step {TargetStep} command issued for session {SessionId}", dto.TargetStep, sessionId);
@@ -374,7 +381,32 @@ namespace bloom.Controllers
             try
             {
                 var id = await _sessionService.LogLessonInteractionAsync(sessionId, interaction);
-                return Ok(new { Message = "Interaction recorded.", InteractionId = id });
+
+                // A student can ask the robot to repeat itself at any point in a
+                // step, independent of whatever that step is actually waiting on
+                // (an answer, a timeout, etc.) — so this is checked for every
+                // interaction the robot reports, not just ones flagged as a
+                // "Question"/"Response". Detected requests are handled exactly
+                // like the SLP's manual Replay button: queue a "replay" command
+                // for the robot to pick up on its next step-control poll.
+                var repeatRequested = _repeatRequestDetector.IsRepeatRequest(interaction.StudentResponse);
+                if (repeatRequested)
+                {
+                    var session = await _sessionService.GetSessionAsync(sessionId);
+                    if (session?.ActiveLessonId != null)
+                    {
+                        _stepControlService.SetPendingControl(sessionId, "replay");
+                        _logger.LogInformation(
+                            "Detected repeat request in session {SessionId} (\"{StudentResponse}\"); queuing replay",
+                            sessionId, interaction.StudentResponse);
+                    }
+                    else
+                    {
+                        repeatRequested = false;
+                    }
+                }
+
+                return Ok(new { Message = "Interaction recorded.", InteractionId = id, RepeatRequested = repeatRequested });
             }
             catch (KeyNotFoundException ex)
             {

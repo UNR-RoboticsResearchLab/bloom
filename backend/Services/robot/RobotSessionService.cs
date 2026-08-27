@@ -18,17 +18,20 @@ namespace bloom.Services
         private readonly IRobotSessionRepository _sessionRepository;
         private readonly IRobotStateRepository _stateRepository;
         private readonly ISessionCodeService _sessionCodeService;
+        private readonly IStepControlService _stepControlService;
 
         public RobotSessionService(
             BloomDbContext dbContext,
             IRobotSessionRepository sessionRepository,
             IRobotStateRepository stateRepository,
-            ISessionCodeService sessionCodeService)
+            ISessionCodeService sessionCodeService,
+            IStepControlService stepControlService)
         {
             _dbContext = dbContext;
             _sessionRepository = sessionRepository;
             _stateRepository = stateRepository;
             _sessionCodeService = sessionCodeService;
+            _stepControlService = stepControlService;
         }
 
         public async Task<RobotSession> StartSessionAsync(Guid robotId, string? userId = null, bool anon = false)
@@ -68,6 +71,11 @@ namespace bloom.Services
 
             // Clear in-memory states
             _stateRepository.ClearSession(sessionId.ToString());
+
+            // Drop any queued step-control command — nothing will ever poll for it
+            // again once the session ends, and leaving it behind risks it being
+            // picked up by an unrelated future session that reuses this ID.
+            _stepControlService.ClearControl(sessionId);
 
             // Close any still-active lesson run so it doesn't dangle as "active" forever.
             if (session.ActiveLessonRunId is Guid runId)
@@ -264,6 +272,14 @@ namespace bloom.Services
 
             if (dto.Status == "Completed")
             {
+                // Close out the run for history, but deliberately leave
+                // session.ActiveLessonId/ActiveLessonRunId set. Finishing the last
+                // step is not the same as the SLP ending the lesson: the Controls
+                // page stays open and lets them replay/jump/restart, so the robot
+                // needs to keep polling step-control for this session until the
+                // SLP explicitly stops the lesson (StopLessonAsync) or starts a
+                // new one. Closing the run here is idempotent — a duplicate
+                // "Completed" report just no-ops on the second call.
                 if (session.ActiveLessonRunId is Guid runId)
                 {
                     var run = await _dbContext.LessonRuns.FindAsync(runId);
@@ -275,8 +291,18 @@ namespace bloom.Services
                     }
                 }
 
-                session.ActiveLessonId = null;
-                session.ActiveLessonRunId = null;
+                if (!string.IsNullOrEmpty(session.UserId))
+                {
+                    var assignment = await _dbContext.Assignments
+                        .FirstOrDefaultAsync(a => a.StudentId == session.UserId && a.LessonId == session.ActiveLessonId);
+                    if (assignment != null)
+                    {
+                        assignment.IsCompleted = true;
+                        _dbContext.Assignments.Update(assignment);
+                    }
+                }
+
+                session.LastUpdatedAt = DateTime.UtcNow;
                 _dbContext.RobotSessions.Update(session);
                 await _dbContext.SaveChangesAsync();
                 return;
@@ -313,17 +339,6 @@ namespace bloom.Services
                 progress.ProgressPercentage = percentage;
                 progress.LastUpdated = DateTime.UtcNow;
                 _dbContext.LessonProgresses.Update(progress);
-            }
-
-            if (dto.Status == "Completed")
-            {
-                var assignment = await _dbContext.Assignments
-                    .FirstOrDefaultAsync(a => a.StudentId == studentId && a.LessonId == lessonId);
-                if (assignment != null)
-                {
-                    assignment.IsCompleted = true;
-                    _dbContext.Assignments.Update(assignment);
-                }
             }
 
             await _dbContext.SaveChangesAsync();
@@ -447,6 +462,12 @@ namespace bloom.Services
                     _dbContext.LessonRuns.Update(prior);
                 }
             }
+
+            // Drop any leftover step-control command from the prior run (e.g. a
+            // set-step/skip queued right as the last run finished and never
+            // acknowledged). Otherwise the robot's first poll of this new run
+            // would pick up a stale command meant for a lesson that's already over.
+            _stepControlService.ClearControl(sessionId);
 
             var run = new LessonRun
             {
@@ -736,6 +757,18 @@ namespace bloom.Services
             session.ActiveLessonRunId = null;
             _dbContext.RobotSessions.Update(session);
             await _dbContext.SaveChangesAsync();
+        }
+
+        public async Task<int?> GetActiveLessonTotalStepsAsync(Guid sessionId)
+        {
+            var session = await _sessionRepository.GetAsync(sessionId)
+                ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
+
+            if (session.ActiveLessonId == null)
+                return null;
+
+            var lesson = await _dbContext.Lessons.FindAsync(session.ActiveLessonId.Value);
+            return lesson?.TotalSteps;
         }
 
     }

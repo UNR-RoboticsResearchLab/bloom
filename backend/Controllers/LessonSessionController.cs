@@ -233,6 +233,10 @@ namespace bloom.Controllers
             if (session.ActiveLessonId == null)
                 return BadRequest(new { Message = "No active lesson to set step on" });
 
+            var totalSteps = await _sessionService.GetActiveLessonTotalStepsAsync(sessionId);
+            if (dto.TargetStep < 1 || (totalSteps is int max && dto.TargetStep > max))
+                return BadRequest(new { Message = $"TargetStep must be between 1 and {totalSteps ?? dto.TargetStep}" });
+
             _stepControlService.SetPendingControl(sessionId, "set_step", dto.TargetStep);
             _logger.LogInformation("Set step {TargetStep} command issued for session {SessionId}", dto.TargetStep, sessionId);
             return Ok(new { Message = "Set step command queued", SessionId = sessionId, dto.TargetStep });

@@ -176,5 +176,13 @@ namespace bloom.Services
         /// </summary>
         /// <param name="studentId">Account ID of the student</param>
         Task<List<StudentLessonHistoryDto>> GetStudentLessonHistoryAsync(string studentId);
+
+        /// <summary>
+        /// Gets the TotalSteps of the session's active lesson, for bounds-checking
+        /// step-control commands (e.g. set-step) before they're queued for the robot.
+        /// </summary>
+        /// <param name="sessionId">ID of the active robot session</param>
+        /// <returns>TotalSteps of the active lesson, or null if there is no active lesson</returns>
+        Task<int?> GetActiveLessonTotalStepsAsync(Guid sessionId);
     }
 }

@@ -1,27 +1,43 @@
 using Xunit;
 using Moq;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using bloom.Data;
 using bloom.Models;
 using bloom.Models.dto;
-using System.Threading.Tasks;
-using IdentitySignInResult = Microsoft.AspNetCore.Identity.SignInResult;
+using bloom.Services;
 
 namespace bloom.Tests.Services
 {
     /// <summary>
-    /// Unit tests for AccountService authentication and registration methods.
-    /// Note: Full service testing requires database setup. These tests demonstrate
-    /// the testing approach using mocked UserManager and SignInManager.
+    /// Unit tests for AccountService. Exercises the real AccountService instance (constructed
+    /// with mocked UserManager/SignInManager and a real SQLite in-memory BloomDbContext, since
+    /// SignInAsync/GetByEmailAsync/GetByIdAsync/DeleteAsync all query the DbContext directly
+    /// rather than going through UserManager) -- earlier versions of this file called the
+    /// mocked UserManager/SignInManager methods directly, which exercised Moq's own behavior
+    /// rather than any logic in AccountService itself.
     /// </summary>
-    public class AccountServiceAuthTests
+    public class AccountServiceTests : IDisposable
     {
+        private readonly SqliteConnection _connection;
+        private readonly BloomDbContext _db;
         private readonly Mock<UserManager<Account>> _mockUserManager;
         private readonly Mock<SignInManager<Account>> _mockSignInManager;
+        private readonly AccountService _accountService;
 
-        public AccountServiceAuthTests()
+        public AccountServiceTests()
         {
+            _connection = new SqliteConnection("DataSource=:memory:");
+            _connection.Open();
+            var options = new DbContextOptionsBuilder<BloomDbContext>().UseSqlite(_connection).Options;
+            _db = new BloomDbContext(options);
+            _db.Database.EnsureCreated();
+
             var userStore = new Mock<IUserStore<Account>>();
             _mockUserManager = new Mock<UserManager<Account>>(
                 userStore.Object, null!, null!, null!, null!, null!, null!, null!, null!);
@@ -33,290 +49,237 @@ namespace bloom.Tests.Services
                 contextAccessor.Object,
                 userPrincipalFactory.Object,
                 null!, null!, null!, null!);
+
+            _accountService = new AccountService(_db, _mockUserManager.Object, _mockSignInManager.Object);
         }
 
-        #region SignInAsync Tests
+        public void Dispose()
+        {
+            _db.Dispose();
+            _connection.Dispose();
+        }
+
+        private Account SeedAccount(string email, string role = "Student")
+        {
+            var account = new Account
+            {
+                Email = email,
+                UserName = email,
+                FullName = "Test Account",
+                Role = role,
+                CreatedDate = DateTime.UtcNow
+            };
+            _db.Accounts.Add(account);
+            _db.SaveChanges();
+            return account;
+        }
+
+        private static CreateAccountDto NewCreateAccountDto(string email = "newuser@example.com") => new()
+        {
+            FullName = "New User",
+            Email = email,
+            Password = "NewPassword123!",
+            SelectedRole = "Student",
+            UserName = email
+        };
+
+        #region SignInAsync
 
         [Fact]
-        public async Task SignInAsync_WithValidCredentials_ShouldSucceed()
+        public async Task SignInAsync_WithValidCredentials_Succeeds()
         {
-            // Arrange
-            var email = "user@example.com";
-            var password = "ValidPassword123!";
-
+            var account = SeedAccount("user@example.com");
             _mockSignInManager
-                .Setup(s => s.PasswordSignInAsync(
-                    email,
-                    password,
-                    false,
-                    false))
+                .Setup(s => s.PasswordSignInAsync(account.UserName!, "ValidPassword123!", false, false))
                 .ReturnsAsync(SignInResult.Success);
 
-            // Act
-            var result = await _mockSignInManager.Object.PasswordSignInAsync(
-                email, password, false, false);
+            var result = await _accountService.SignInAsync("user@example.com", "ValidPassword123!");
 
-            // Assert
             Assert.True(result.Succeeded);
         }
 
         [Fact]
-        public async Task SignInAsync_WithInvalidPassword_ShouldFail()
+        public async Task SignInAsync_WithInvalidPassword_Fails()
         {
-            // Arrange
-            var email = "user@example.com";
-            var password = "InvalidPassword";
-
+            var account = SeedAccount("user2@example.com");
             _mockSignInManager
-                .Setup(s => s.PasswordSignInAsync(
-                    email,
-                    password,
-                    false,
-                    false))
+                .Setup(s => s.PasswordSignInAsync(account.UserName!, "WrongPassword", false, false))
                 .ReturnsAsync(SignInResult.Failed);
 
-            // Act
-            var result = await _mockSignInManager.Object.PasswordSignInAsync(
-                email, password, false, false);
+            var result = await _accountService.SignInAsync("user2@example.com", "WrongPassword");
 
-            // Assert
             Assert.False(result.Succeeded);
+        }
+
+        [Fact]
+        public async Task SignInAsync_UnknownEmail_ReturnsFailedWithoutCallingSignInManager()
+        {
+            var result = await _accountService.SignInAsync("nobody@example.com", "whatever");
+
+            Assert.False(result.Succeeded);
+            _mockSignInManager.Verify(
+                s => s.PasswordSignInAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<bool>()),
+                Times.Never);
         }
 
         #endregion
 
-        #region User Creation Tests
+        #region RegisterStudentAsync / RegisterWithRoleAsync
 
         [Fact]
-        public async Task CreateAsync_WithValidUser_ShouldSucceed()
+        public async Task RegisterStudentAsync_WithValidUser_SucceedsAndAddsStudentRole()
         {
-            // Arrange
-            var newUser = new Account
-            {
-                Email = "newuser@example.com",
-                UserName = "newuser@example.com",
-                FullName = "New User",
-                EmailConfirmed = false,
-                CreatedDate = DateTime.UtcNow,
-                Role = "STUDENT"
-            };
-
-            var password = "NewPassword123!";
-
             _mockUserManager
-                .Setup(u => u.CreateAsync(newUser, password))
+                .Setup(u => u.CreateAsync(It.IsAny<Account>(), "NewPassword123!"))
+                .ReturnsAsync(IdentityResult.Success);
+            _mockUserManager
+                .Setup(u => u.AddToRoleAsync(It.IsAny<Account>(), "Student"))
                 .ReturnsAsync(IdentityResult.Success);
 
-            // Act
-            var result = await _mockUserManager.Object.CreateAsync(newUser, password);
+            var result = await _accountService.RegisterStudentAsync(NewCreateAccountDto());
 
-            // Assert
             Assert.True(result.Succeeded);
+            _mockUserManager.Verify(u => u.AddToRoleAsync(It.IsAny<Account>(), "Student"), Times.Once);
         }
 
         [Fact]
-        public async Task CreateAsync_WithWeakPassword_ShouldFail()
+        public async Task RegisterStudentAsync_WithWeakPassword_FailsAndDoesNotAddRole()
         {
-            // Arrange
-            var newUser = new Account
-            {
-                Email = "user@example.com",
-                UserName = "user",
-                FullName = "User Name",
-                Role = "STUDENT"
-            };
-
-            var weakPassword = "weak";
-            var error = new IdentityError
-            {
-                Code = "PasswordTooShort",
-                Description = "Passwords must be at least 8 characters."
-            };
-
+            var error = new IdentityError { Code = "PasswordTooShort", Description = "Too short." };
             _mockUserManager
-                .Setup(u => u.CreateAsync(newUser, weakPassword))
+                .Setup(u => u.CreateAsync(It.IsAny<Account>(), It.IsAny<string>()))
                 .ReturnsAsync(IdentityResult.Failed(error));
 
-            // Act
-            var result = await _mockUserManager.Object.CreateAsync(newUser, weakPassword);
+            var result = await _accountService.RegisterStudentAsync(NewCreateAccountDto());
 
-            // Assert
             Assert.False(result.Succeeded);
-            Assert.Single(result.Errors);
             Assert.Equal("PasswordTooShort", result.Errors.First().Code);
+            _mockUserManager.Verify(u => u.AddToRoleAsync(It.IsAny<Account>(), It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task RegisterStudentAsync_BuildsAccountWithStudentRoleAndUnconfirmedEmail()
+        {
+            // The one piece of real logic in RegisterWithRoleAsync: it builds the Account object
+            // itself (role, EmailConfirmed=false, etc.) before delegating to UserManager.
+            Account? createdAccount = null;
+            _mockUserManager
+                .Setup(u => u.CreateAsync(It.IsAny<Account>(), It.IsAny<string>()))
+                .Callback<Account, string>((a, _) => createdAccount = a)
+                .ReturnsAsync(IdentityResult.Success);
+            _mockUserManager
+                .Setup(u => u.AddToRoleAsync(It.IsAny<Account>(), It.IsAny<string>()))
+                .ReturnsAsync(IdentityResult.Success);
+
+            var dto = NewCreateAccountDto("student-role-check@example.com");
+            await _accountService.RegisterStudentAsync(dto);
+
+            Assert.NotNull(createdAccount);
+            Assert.Equal("Student", createdAccount!.Role);
+            Assert.False(createdAccount.EmailConfirmed);
+            Assert.Equal(dto.Email, createdAccount.Email);
+            Assert.Equal(dto.UserName, createdAccount.UserName);
+            Assert.Equal(dto.FullName, createdAccount.FullName);
         }
 
         #endregion
 
-        #region User Lookup Tests
+        #region GetByEmailAsync / GetByIdAsync
 
         [Fact]
-        public async Task FindByEmailAsync_WithExistingEmail_ReturnsUser()
+        public async Task GetByEmailAsync_WithExistingEmail_ReturnsAccount()
         {
-            // Arrange
-            var email = "existing@example.com";
-            var existingUser = new Account
-            {
-                Id = "user-123",
-                Email = email,
-                UserName = "existinguser",
-                FullName = "Existing User",
-                Role = "STUDENT"
-            };
+            var seeded = SeedAccount("existing@example.com");
 
-            _mockUserManager
-                .Setup(u => u.FindByEmailAsync(email))
-                .ReturnsAsync(existingUser);
+            var result = await _accountService.GetByEmailAsync("existing@example.com");
 
-            // Act
-            var result = await _mockUserManager.Object.FindByEmailAsync(email);
-
-            // Assert
             Assert.NotNull(result);
-            Assert.Equal(email, result.Email);
-            Assert.Equal("user-123", result.Id);
+            Assert.Equal(seeded.Id, result!.Id);
         }
 
         [Fact]
-        public async Task FindByIdAsync_WithExistingId_ReturnsUser()
+        public async Task GetByEmailAsync_WithNonexistentEmail_ThrowsKeyNotFoundException()
         {
-            // Arrange
-            var userId = "user-123";
-            var user = new Account
-            {
-                Id = userId,
-                Email = "user@example.com",
-                UserName = "testuser",
-                FullName = "Test User",
-                Role = "STUDENT"
-            };
-
-            _mockUserManager
-                .Setup(u => u.FindByIdAsync(userId))
-                .ReturnsAsync(user);
-
-            // Act
-            var result = await _mockUserManager.Object.FindByIdAsync(userId);
-
-            // Assert
-            Assert.NotNull(result);
-            Assert.Equal(userId, result.Id);
+            await Assert.ThrowsAsync<KeyNotFoundException>(
+                () => _accountService.GetByEmailAsync("nonexistent@example.com"));
         }
 
         [Fact]
-        public async Task FindByEmailAsync_WithNonexistentEmail_ReturnsNull()
+        public async Task GetByIdAsync_WithExistingId_ReturnsAccount()
         {
-            // Arrange
-            var email = "nonexistent@example.com";
+            var seeded = SeedAccount("byid@example.com");
 
-            _mockUserManager
-                .Setup(u => u.FindByEmailAsync(email))
-                .ReturnsAsync((Account)null);
+            var result = await _accountService.GetByIdAsync(seeded.Id);
 
-            // Act
-            var result = await _mockUserManager.Object.FindByEmailAsync(email);
-
-            // Assert
-            Assert.Null(result);
+            Assert.NotNull(result);
+            Assert.Equal("byid@example.com", result!.Email);
         }
 
         #endregion
 
-        #region Role Tests
+        #region IsInRoleAsync
 
         [Fact]
         public async Task IsInRoleAsync_WhenUserInRole_ReturnsTrue()
         {
-            // Arrange
-            var user = new Account
-            {
-                Id = "user-123",
-                Email = "user@example.com"
-            };
-            var role = "ADMIN";
+            var account = SeedAccount("admin@example.com", role: "Admin");
+            _mockUserManager.Setup(u => u.IsInRoleAsync(account, "Admin")).ReturnsAsync(true);
 
-            _mockUserManager
-                .Setup(u => u.IsInRoleAsync(user, role))
-                .ReturnsAsync(true);
-
-            // Act
-            var result = await _mockUserManager.Object.IsInRoleAsync(user, role);
-
-            // Assert
-            Assert.True(result);
+            Assert.True(await _accountService.IsInRoleAsync(account, "Admin"));
         }
 
         [Fact]
         public async Task IsInRoleAsync_WhenUserNotInRole_ReturnsFalse()
         {
-            // Arrange
-            var user = new Account
-            {
-                Id = "user-123",
-                Email = "user@example.com"
-            };
-            var role = "ADMIN";
+            var account = SeedAccount("nonadmin@example.com", role: "Student");
+            _mockUserManager.Setup(u => u.IsInRoleAsync(account, "Admin")).ReturnsAsync(false);
 
-            _mockUserManager
-                .Setup(u => u.IsInRoleAsync(user, role))
-                .ReturnsAsync(false);
-
-            // Act
-            var result = await _mockUserManager.Object.IsInRoleAsync(user, role);
-
-            // Assert
-            Assert.False(result);
+            Assert.False(await _accountService.IsInRoleAsync(account, "Admin"));
         }
 
         #endregion
 
-        #region User Deletion Tests
+        #region DeleteAsync
 
         [Fact]
-        public async Task DeleteAsync_WithValidUser_Succeeds()
+        public async Task DeleteAsync_WithNoDependents_DelegatesToUserManager()
         {
-            // Arrange
-            var user = new Account
-            {
-                Id = "user-123",
-                Email = "user@example.com"
-            };
+            var account = SeedAccount("delete-me@example.com");
+            _mockUserManager.Setup(u => u.DeleteAsync(account)).ReturnsAsync(IdentityResult.Success);
 
-            _mockUserManager
-                .Setup(u => u.DeleteAsync(user))
-                .ReturnsAsync(IdentityResult.Success);
+            var result = await _accountService.DeleteAsync(account);
 
-            // Act
-            var result = await _mockUserManager.Object.DeleteAsync(user);
-
-            // Assert
             Assert.True(result.Succeeded);
-            _mockUserManager.Verify(u => u.DeleteAsync(user), Times.Once);
+            _mockUserManager.Verify(u => u.DeleteAsync(account), Times.Once);
         }
 
         [Fact]
-        public async Task DeleteAsync_WhenFails_ReturnsFailed()
+        public async Task DeleteAsync_RemovesDependentSlpClientRelationshipsFirst()
         {
-            // Arrange
-            var user = new Account
-            {
-                Id = "user-123",
-                Email = "user@example.com"
-            };
-            var error = new IdentityError
-            {
-                Code = "ConcurrencyFailure",
-                Description = "Concurrency failure while deleting."
-            };
+            // The one piece of real logic in DeleteAsync: before delegating to UserManager, it
+            // cleans up any SLPClient rows that reference this account as either the SLP or the
+            // student side of the relationship, so deleting an account never leaves a dangling FK.
+            var slp = SeedAccount("slp@example.com", role: "SLP");
+            var student = SeedAccount("student@example.com", role: "Student");
+            _db.SLPClients.Add(new SLPClient { Name = "link", SlpId = slp.Id, StudentId = student.Id });
+            _db.SaveChanges();
+            _mockUserManager.Setup(u => u.DeleteAsync(slp)).ReturnsAsync(IdentityResult.Success);
 
-            _mockUserManager
-                .Setup(u => u.DeleteAsync(user))
-                .ReturnsAsync(IdentityResult.Failed(error));
+            var result = await _accountService.DeleteAsync(slp);
 
-            // Act
-            var result = await _mockUserManager.Object.DeleteAsync(user);
+            Assert.True(result.Succeeded);
+            Assert.Empty(_db.SLPClients.Where(c => c.SlpId == slp.Id));
+        }
 
-            // Assert
+        [Fact]
+        public async Task DeleteAsync_WhenUserManagerFails_ReturnsFailed()
+        {
+            var account = SeedAccount("delete-fail@example.com");
+            var error = new IdentityError { Code = "ConcurrencyFailure", Description = "Concurrency failure." };
+            _mockUserManager.Setup(u => u.DeleteAsync(account)).ReturnsAsync(IdentityResult.Failed(error));
+
+            var result = await _accountService.DeleteAsync(account);
+
             Assert.False(result.Succeeded);
             Assert.Single(result.Errors);
         }

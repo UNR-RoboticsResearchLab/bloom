@@ -274,7 +274,7 @@ namespace bloom.Tests.Integration
             var poll = await f.Client.GetAsync($"api/lesson-runtime/{f.Session.Id}/step-control");
             Assert.Equal(HttpStatusCode.OK, poll.StatusCode);
             var control = await poll.Content.ReadFromJsonAsync<PendingStepControlDto>(TestJson.Options);
-            Assert.Equal("replay", control!.Command);
+            Assert.Equal("repeat_last", control!.Command);
         }
 
         [Fact]

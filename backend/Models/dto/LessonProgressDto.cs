@@ -130,7 +130,16 @@ namespace bloom.Models.dto
     /// </summary>
     public class PendingStepControlDto
     {
-        public string Command { get; set; } = string.Empty;  // "skip" | "replay" | "set_step" | "pause" | "resume" | "stop"
+        // "skip" | "replay" | "repeat_last" | "set_step" | "pause" | "resume" | "stop"
+        //
+        // "replay" vs "repeat_last": both re-speak the current step's script, but
+        // "replay" restarts the step's full execution (motor sequence, visual aid
+        // entrance, any lead-in delay, then script) — it's the SLP's "redo this
+        // whole step" command (Back/Restart on the Controls page). "repeat_last"
+        // is the lighter-weight case for a student mid-prompt saying "can you
+        // repeat that?": re-speak the script only, without re-running the rest of
+        // the step's setup.
+        public string Command { get; set; } = string.Empty;
         public int? TargetStep { get; set; }                 // Only set for "set_step"
     }
 

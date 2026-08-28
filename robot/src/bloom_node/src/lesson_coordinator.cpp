@@ -109,6 +109,7 @@ void LessonCoordinator::stop_lesson() {
     waiting_for_response_ = false;
     current_interaction_step_ = nullptr;
     conversation_mode_ = false;
+    last_spoken_script_.clear();
 
     auto stt_msg = std_msgs::msg::String();
     stt_msg.data = "false";
@@ -531,6 +532,8 @@ void LessonCoordinator::queue_behavior(const LessonStep &step) {
 }
 
 void LessonCoordinator::speak_script(const std::string &script) {
+    last_spoken_script_ = script;
+
     auto message = std_msgs::msg::String();
     message.data = script;
     tts_publisher_->publish(message);
@@ -959,6 +962,63 @@ void LessonCoordinator::replay_step() {
             step_timer_ = nullptr;
             advance_to_next_step();
         });
+}
+
+void LessonCoordinator::repeat_last_step() {
+    std::lock_guard<std::mutex> lock(lesson_mutex_);
+    if (!lesson_active_) {
+        RCLCPP_WARN(this->get_logger(), "repeat_last_step called but no lesson active");
+        return;
+    }
+    if (lesson_paused_) {
+        RCLCPP_WARN(this->get_logger(), "repeat_last_step called while paused - ignoring");
+        return;
+    }
+    if (last_spoken_script_.empty()) {
+        RCLCPP_WARN(this->get_logger(), "repeat_last_step called but nothing has been spoken yet");
+        return;
+    }
+
+    RCLCPP_INFO(this->get_logger(), "[REPEAT_LAST] Re-speaking last line, step index %zu unchanged",
+        current_step_index_);
+
+    // Unlike skip/replay/set_step, this deliberately does NOT touch
+    // current_step_index_, current_interaction_step_, queue_behavior(),
+    // the motor sequence, or the visual aid — none of the step's setup is
+    // re-run, only the audio.
+    if (step_timer_) {
+        step_timer_->cancel();
+        step_timer_ = nullptr;
+    }
+
+    bool was_listening = waiting_for_response_;
+    if (was_listening) {
+        waiting_for_response_ = false;
+        auto stt_msg = std_msgs::msg::String();
+        stt_msg.data = "false";
+        stt_enable_pub_->publish(stt_msg);
+    }
+
+    auto interrupt_msg = std_msgs::msg::String();
+    interrupt_msg.data = "interrupt";
+    tts_interrupt_pub_->publish(interrupt_msg);
+
+    if (was_listening && current_interaction_step_) {
+        // We were listening for a response to the current interaction step —
+        // re-arm exactly the way execute_step() originally did: on_tts_done()'s
+        // waiting_for_interaction_tts_ branch re-opens the mic and restarts the
+        // response timeout once the repeated line finishes.
+        waiting_for_interaction_tts_ = true;
+    } else {
+        // Mid-narration (non-interactive step, or between steps) — just
+        // re-speak; don't re-trigger advance_to_next_step() a second time.
+        waiting_for_tts_done_ = false;
+        waiting_for_interaction_tts_ = false;
+        waiting_for_llm_tts_done_ = false;
+    }
+
+    std::string script = last_spoken_script_;
+    speak_script(script);
 }
 
 void LessonCoordinator::set_step(int target_step_order) {

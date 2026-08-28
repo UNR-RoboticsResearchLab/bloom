@@ -112,6 +112,16 @@ public:
     void replay_step();
     void set_step(int target_step_order);
 
+    // Re-speaks the last line the robot said (last_spoken_script_) without
+    // restarting the step it belongs to: no re-run of the motor sequence,
+    // no re-publish of the visual aid, no LLM context reset — just the audio,
+    // and (if we were listening for a response) a fresh listen/timeout window
+    // afterward. This is what a student's "can you repeat that?" should
+    // trigger, as opposed to replay_step()/the SLP's Replay button, which
+    // deliberately re-runs the whole step from its beginning. Called by
+    // LessonPoller on a "repeat_last" step-control command.
+    void repeat_last_step();
+
     // Pause execution in place (interrupts immediately, keeps current_step_index_
     // intact) and resume by re-playing the current step from its beginning.
     // Called by LessonPoller when SLP issues pause/resume commands.
@@ -171,6 +181,12 @@ private:
     // For interaction handling
     LessonStep* current_interaction_step_;
     bool waiting_for_response_;
+
+    // The most recent script text passed to speak_script() — a step's prompt,
+    // a correct/incorrect/fallback response, an interaction re-prompt, etc.
+    // repeat_last_step() re-speaks exactly this, so "repeat that" always means
+    // the actual last thing said, regardless of which branch said it.
+    std::string last_spoken_script_;
 
     // True while paused: lesson_active_ stays true, current_step_index_ is
     // preserved, execution is frozen until resume_lesson() re-plays the step.

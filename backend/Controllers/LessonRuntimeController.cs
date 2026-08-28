@@ -386,18 +386,22 @@ namespace bloom.Controllers
                 // step, independent of whatever that step is actually waiting on
                 // (an answer, a timeout, etc.) — so this is checked for every
                 // interaction the robot reports, not just ones flagged as a
-                // "Question"/"Response". Detected requests are handled exactly
-                // like the SLP's manual Replay button: queue a "replay" command
-                // for the robot to pick up on its next step-control poll.
+                // "Question"/"Response". This queues "repeat_last", NOT "replay":
+                // "replay" is the SLP's deliberate "redo this whole step" command
+                // (motor sequence, visual aid entrance, lead-in delay, then
+                // script — see Back/Restart on the Controls page) and re-running
+                // all of that for a simple "say that again" mid-prompt reads to
+                // the student as the robot resetting rather than just repeating
+                // itself. "repeat_last" re-speaks the current step's script only.
                 var repeatRequested = _repeatRequestDetector.IsRepeatRequest(interaction.StudentResponse);
                 if (repeatRequested)
                 {
                     var session = await _sessionService.GetSessionAsync(sessionId);
                     if (session?.ActiveLessonId != null)
                     {
-                        _stepControlService.SetPendingControl(sessionId, "replay");
+                        _stepControlService.SetPendingControl(sessionId, "repeat_last");
                         _logger.LogInformation(
-                            "Detected repeat request in session {SessionId} (\"{StudentResponse}\"); queuing replay",
+                            "Detected repeat request in session {SessionId} (\"{StudentResponse}\"); queuing repeat_last",
                             sessionId, interaction.StudentResponse);
                     }
                     else

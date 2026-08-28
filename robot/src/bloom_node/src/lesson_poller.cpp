@@ -530,6 +530,8 @@ void LessonPoller::on_step_control_tick() {
                     if (lesson_coord_) lesson_coord_->skip_step();
                 } else if (command == "replay") {
                     if (lesson_coord_) lesson_coord_->replay_step();
+                } else if (command == "repeat_last") {
+                    if (lesson_coord_) lesson_coord_->repeat_last_step();
                 } else if (command == "set_step") {
                     int target = j.value("targetStep", -1);
                     if (target >= 0 && lesson_coord_) {

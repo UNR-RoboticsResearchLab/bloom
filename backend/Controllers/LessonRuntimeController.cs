@@ -393,7 +393,18 @@ namespace bloom.Controllers
                 // all of that for a simple "say that again" mid-prompt reads to
                 // the student as the robot resetting rather than just repeating
                 // itself. "repeat_last" re-speaks the current step's script only.
-                var repeatRequested = _repeatRequestDetector.IsRepeatRequest(interaction.StudentResponse);
+                //
+                // Every line the robot itself speaks is also logged here (see
+                // LessonCoordinator::speak_script on the robot side), with its
+                // own script text sitting in the same StudentResponse field and
+                // InteractionType "robot". If a lesson script legitimately
+                // contains a phrase like "repeat that" (e.g. asking the student
+                // to repeat something back), running the detector over those too
+                // would misread the robot's own line as the student asking for a
+                // repeat. Only interactions that actually carry student speech
+                // should be checked.
+                var isRobotAuthored = string.Equals(interaction.InteractionType, "robot", StringComparison.OrdinalIgnoreCase);
+                var repeatRequested = !isRobotAuthored && _repeatRequestDetector.IsRepeatRequest(interaction.StudentResponse);
                 if (repeatRequested)
                 {
                     var session = await _sessionService.GetSessionAsync(sessionId);

@@ -309,6 +309,29 @@ namespace bloom.Tests.Integration
         }
 
         [Fact]
+        public async Task RecordInteraction_RepeatPhraseInRobotDialogue_DoesNotTriggerReplay()
+        {
+            // The robot logs its own spoken lines back to this same endpoint (see
+            // LessonCoordinator::speak_script), with InteractionType "robot" and
+            // the script text sitting in StudentResponse. A lesson script that
+            // itself contains a phrase like "repeat that" (e.g. asking the
+            // student to repeat something back) must not be misread as the
+            // student requesting a repeat.
+            var f = await SeedAsync();
+            await StartLessonAsync(f);
+
+            var resp = await f.Client.PostAsJsonAsync($"api/lesson-runtime/{f.Session.Id}/interactions",
+                new LogLessonInteractionDto { StepId = 1, InteractionType = "robot", StudentResponse = "Can you repeat that back to me?" });
+            Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+            var body = await resp.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(TestJson.Options);
+            Assert.False(body.GetProperty("repeatRequested").GetBoolean());
+
+            var poll = await f.Client.GetAsync($"api/lesson-runtime/{f.Session.Id}/step-control");
+            Assert.Equal(HttpStatusCode.NoContent, poll.StatusCode);
+        }
+
+        [Fact]
         public async Task RecordInteraction_UnknownSession_ReturnsNotFound()
         {
             var f = await SeedAsync();

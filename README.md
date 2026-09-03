@@ -1,7 +1,7 @@
 # Bloom
 
-[![CI (main)](https://github.com/UNR-RoboticsResearchLab/bloom/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/UNR-RoboticsResearchLab/bloom/actions/workflows/ci.yml?query=branch%3Amain)
-[![CI (development)](https://github.com/UNR-RoboticsResearchLab/bloom/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/UNR-RoboticsResearchLab/bloom/actions/workflows/ci.yml?query=branch%3Adevelopment)
+[![main (stable)](https://img.shields.io/github/actions/workflow/status/UNR-RoboticsResearchLab/bloom/ci.yml?branch=main&label=main%20%28stable%29)](https://github.com/UNR-RoboticsResearchLab/bloom/actions/workflows/ci.yml?query=branch%3Amain)
+[![development (active)](https://img.shields.io/github/actions/workflow/status/UNR-RoboticsResearchLab/bloom/ci.yml?branch=development&label=development%20%28active%29)](https://github.com/UNR-RoboticsResearchLab/bloom/actions/workflows/ci.yml?query=branch%3Adevelopment)
 
 Senior Projects 25-26 - Team 24
 

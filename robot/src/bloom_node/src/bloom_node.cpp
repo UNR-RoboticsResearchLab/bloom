@@ -595,8 +595,41 @@ int main(int argc, char ** argv)
 			auto elapsed = std::chrono::steady_clock::now() - *last_lesson_active_time;
 			if (elapsed < std::chrono::minutes(5)) return;
 
+			// Don't rotate a session a website has actually paired to -- a paired
+			// SLP/student sitting idle between lessons (browsing the dashboard,
+			// reviewing notes, etc.) is a normal state, not an abandoned session.
+			// Only reclaim sessions nobody ever claimed (e.g. the robot booted,
+			// displayed a code, and nobody used it) by checking userId server-side
+			// before deciding to reset.
+			bool session_is_claimed = false;
+			web_client->sendRequestAsync(
+				"GET",
+				"/api/robotsession/" + session_id,
+				std::nullopt, std::nullopt, {},
+				[&session_is_claimed, web_client](const std::string &body, long http_code) {
+					if (http_code < 200 || http_code >= 300) return;
+					try {
+						auto response = nlohmann::json::parse(body);
+						if (response.contains("userId") && !response["userId"].is_null()) {
+							session_is_claimed = true;
+						}
+					} catch (const std::exception &e) {
+						RCLCPP_WARN(web_client->get_logger(), "Failed to parse session status: %s", e.what());
+					}
+				}
+			).get();
+
+			if (session_is_claimed) {
+				RCLCPP_INFO(node->get_logger(),
+					"Session %s idle for 5 minutes but still paired to a user — leaving it alone", session_id.c_str());
+				// Avoid re-checking every 60s while a paired-but-idle session sits
+				// there; wait out another full interval before checking again.
+				*last_lesson_active_time = std::chrono::steady_clock::now();
+				return;
+			}
+
 			RCLCPP_INFO(node->get_logger(),
-				"Session %s idle for 5 minutes — resetting session", session_id.c_str());
+				"Session %s idle for 5 minutes and never paired — resetting session", session_id.c_str());
 
 			// End the stale session.
 			web_client->sendRequestAsync(

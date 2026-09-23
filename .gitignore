@@ -247,3 +247,6 @@ cookies.txt
 
 # Environment variables
 .env
+
+# Claude Code project guidance (local-only)
+CLAUDE.md

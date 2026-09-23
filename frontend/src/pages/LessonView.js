@@ -73,14 +73,19 @@ export default function LessonView() {
     //     };
     // }, []);
 
-    const loadLessonSteps = useCallback(async () => {
-        if (!lessonId) return;
+    const loadLessonSteps = useCallback(async (sessionIdToUse) => {
+        if (!lessonId || !sessionIdToUse) return;
 
         try {
             setIsLoadingSteps(true);
 
-            const lessonData = await api.getLesson(lessonId);
-            console.log("Lesson details:", lessonData);
+            // Sourced from the session-scoped pending-lesson endpoint (not the generic
+            // per-lesson-id fetch) so the returned script text is already personalized
+            // with the student's name — the same substitution the robot's TTS poll uses.
+            const pendingLesson = await api.getPendingLesson(sessionIdToUse);
+            console.log("Pending lesson:", pendingLesson);
+
+            const lessonData = pendingLesson?.lesson ?? pendingLesson?.Lesson;
 
             const mappedSteps = (lessonData?.steps ?? lessonData?.Steps ?? [])
                 .sort(
@@ -183,10 +188,15 @@ export default function LessonView() {
                     student,
                 });
 
-                const res = await api.startLessonSession(sessionIdToUse, lessonId, student?.id ?? student?.studentId ?? sessionIdToUse);
+                const res = await api.startLessonSession(
+                    sessionIdToUse,
+                    lessonId,
+                    student?.id ?? student?.studentId ?? sessionIdToUse,
+                    student?.fullName ?? student?.name
+                );
                 console.log("Lesson session started:", res);
 
-                await loadLessonSteps();
+                await loadLessonSteps(sessionIdToUse);
                 await loadSessionHistory(sessionIdToUse);
             } catch (error) {
                 console.error("Failed to start lesson session:", error);

@@ -371,6 +371,91 @@ namespace bloom.Tests.Integration
             Assert.Equal("active", secondRun.Status);
         }
 
+        // ---- name personalization ({name} token substitution) -------------------------------
+
+        private static Lesson CreateLessonWithNameToken(BloomDbContext db, string createdById)
+        {
+            var lesson = new Lesson
+            {
+                Title = $"Personalized Lesson {Guid.NewGuid():N}",
+                CreatedById = createdById,
+                CreatedDate = DateTime.UtcNow,
+                TotalSteps = 1,
+                LessonType = LessonType.Speech
+            };
+
+            lesson.Steps.Add(new LessonStep
+            {
+                Id = Guid.NewGuid(),
+                LessonId = lesson.Id,
+                StepOrder = 1,
+                Type = "Speech",
+                Script = "Hi {name}, let's practice!"
+            });
+
+            db.Lessons.Add(lesson);
+            db.SaveChanges();
+            return lesson;
+        }
+
+        [Fact]
+        public async Task PendingLesson_SubstitutesResolvedAccountName_ForRealStudentAccount()
+        {
+            var f = await SeedAsync();
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
+            var lesson = CreateLessonWithNameToken(db, f.Slp.Id);
+
+            // StartLessonAsync uses f.Slp.Id as StudentId, which is a real seeded Account.
+            await StartLessonAsync(f, lesson.Id);
+
+            var pending = await f.Client.GetAsync($"api/lesson-runtime/{f.Session.Id}/pending-lesson");
+            Assert.Equal(HttpStatusCode.OK, pending.StatusCode);
+            var body = await pending.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(TestJson.Options);
+            var script = body.GetProperty("lesson").GetProperty("steps")[0].GetProperty("script").GetString();
+
+            Assert.Contains(f.Slp.FullName!, script);
+            Assert.DoesNotContain("{name}", script, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public async Task PendingLesson_FallsBackToDtoStudentName_WhenStudentIdIsNotARealAccount()
+        {
+            var f = await SeedAsync();
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
+            var lesson = CreateLessonWithNameToken(db, f.Slp.Id);
+
+            var startResp = await f.Client.PostAsJsonAsync($"api/lesson-runtime/{f.Session.Id}/start",
+                new StartLessonDto { LessonId = lesson.Id, StudentId = Guid.NewGuid().ToString(), StudentName = "Milo" });
+            Assert.Equal(HttpStatusCode.OK, startResp.StatusCode);
+
+            var pending = await f.Client.GetAsync($"api/lesson-runtime/{f.Session.Id}/pending-lesson");
+            var body = await pending.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(TestJson.Options);
+            var script = body.GetProperty("lesson").GetProperty("steps")[0].GetProperty("script").GetString();
+
+            Assert.Contains("Milo", script);
+        }
+
+        [Fact]
+        public async Task PendingLesson_UsesNeutralFallback_WhenNoNameResolvable()
+        {
+            var f = await SeedAsync();
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<BloomDbContext>();
+            var lesson = CreateLessonWithNameToken(db, f.Slp.Id);
+
+            var startResp = await f.Client.PostAsJsonAsync($"api/lesson-runtime/{f.Session.Id}/start",
+                new StartLessonDto { LessonId = lesson.Id, StudentId = Guid.NewGuid().ToString() });
+            Assert.Equal(HttpStatusCode.OK, startResp.StatusCode);
+
+            var pending = await f.Client.GetAsync($"api/lesson-runtime/{f.Session.Id}/pending-lesson");
+            var body = await pending.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(TestJson.Options);
+            var script = body.GetProperty("lesson").GetProperty("steps")[0].GetProperty("script").GetString();
+
+            Assert.Contains("friend", script);
+        }
+
         // ---- baseline smoke coverage ----------------------------------------------------------
 
         [Fact]

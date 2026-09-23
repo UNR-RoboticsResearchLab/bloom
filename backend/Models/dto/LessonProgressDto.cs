@@ -17,6 +17,13 @@ namespace bloom.Models.dto
         /// Required so the run can be retrieved by student history queries.
         /// </summary>
         public required string StudentId { get; set; }
+
+        /// <summary>
+        /// Freely-typed student name, used to personalize lesson scripts only when
+        /// StudentId doesn't resolve to a real Account (e.g. the anonymous Demo flow).
+        /// Ignored when a real Account is found — its FullName takes precedence.
+        /// </summary>
+        public string? StudentName { get; set; }
     }
 
     /// <summary>

@@ -346,15 +346,35 @@ namespace bloom.Services
 
         public async Task<dynamic?> GetPendingLessonAsync(Guid sessionId)
         {
+            // AsNoTracking is required here: the steps below mutate Script/response-script
+            // text in place to personalize it. On a tracked query, that mutation would be
+            // picked up by EF's change tracker and persisted back into the shared
+            // LessonStep/StepInteraction rows on the next SaveChanges in this scope,
+            // corrupting the reusable lesson template for every future run.
             var session = await _dbContext.RobotSessions
+                .AsNoTracking()
                 .Include(s => s.ActiveLesson)
                     .ThenInclude(l => l!.Steps.OrderBy(step => step.StepOrder))
                         .ThenInclude(s => s.Interaction)
+                .Include(s => s.ActiveLessonRun)
                 .FirstOrDefaultAsync(s => s.Id == sessionId)
                 ?? throw new KeyNotFoundException($"RobotSession with ID {sessionId} not found");
 
             if (session.ActiveLessonId == null || session.ActiveLesson == null)
                 return null;
+
+            var studentName = session.ActiveLessonRun?.StudentName;
+            foreach (var step in session.ActiveLesson.Steps)
+            {
+                step.Script = ScriptPersonalizer.Apply(step.Script, studentName) ?? step.Script;
+
+                if (step.Interaction != null)
+                {
+                    step.Interaction.CorrectResponseScript = ScriptPersonalizer.Apply(step.Interaction.CorrectResponseScript, studentName);
+                    step.Interaction.IncorrectResponseScript = ScriptPersonalizer.Apply(step.Interaction.IncorrectResponseScript, studentName);
+                    step.Interaction.FallbackScript = ScriptPersonalizer.Apply(step.Interaction.FallbackScript, studentName);
+                }
+            }
 
             return new
             {
@@ -469,12 +489,19 @@ namespace bloom.Services
             // would pick up a stale command meant for a lesson that's already over.
             _stepControlService.ClearControl(sessionId);
 
+            // Resolve the name to personalize scripts with: prefer a real assigned
+            // student's Account.FullName, falling back to the freely-typed name from
+            // the anonymous Demo flow (where StudentId doesn't resolve to an Account).
+            var studentAccount = await _dbContext.Accounts.FindAsync(dto.StudentId);
+            var studentName = studentAccount?.FullName ?? dto.StudentName;
+
             var run = new LessonRun
             {
                 RobotSessionId = sessionId,
                 LessonId = dto.LessonId,
                 SlpId = session.UserId,
                 StudentId = dto.StudentId,
+                StudentName = studentName,
                 StartedAt = DateTime.UtcNow,
                 Status = "active",
             };

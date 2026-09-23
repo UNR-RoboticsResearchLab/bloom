@@ -273,10 +273,10 @@ export default class ApiClient {
 
   // ── Lesson Runtime — SLP Commands ─────────────────────────────────────────
 
-  async startLessonSession(sessionId, lessonId, studentId) {
+  async startLessonSession(sessionId, lessonId, studentId, studentName) {
     return this.request(`/api/lesson-runtime/${sessionId}/start`, {
       method: "POST",
-      body: JSON.stringify({ lessonId, studentId }),
+      body: JSON.stringify({ lessonId, studentId, studentName }),
     });
   }
 

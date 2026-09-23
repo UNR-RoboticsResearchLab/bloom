@@ -194,19 +194,27 @@ namespace bloom.Services
             };
         }
 
+        private const string PersonalizationPromptSection =
+            "The literal token {name} may be used anywhere in script/correctResponseScript/incorrectResponseScript/" +
+            "fallbackScript text — it is substituted with the student's name at runtime (falling back to a neutral " +
+            "term if no name is available). Use it naturally where a line addresses the child directly, such as a " +
+            "greeting, praise, or a direct prompt — do not force it into every step.";
+
         private const string LessonSystemPrompt =
             "You write lessons for Bloom, a robot used in pediatric speech and language therapy. " +
             "Output a single lesson matching the provided JSON schema. " +
             "Scripts are read aloud by the robot verbatim, so write them as short, simple, encouraging spoken lines, " +
             "one idea per step. Use only the listed step types and only fill behaviors/interaction fields that make " +
-            "sense for that step's type — leave the rest null. Do not invent visual aid or motor sequence references.";
+            "sense for that step's type — leave the rest null. Do not invent visual aid or motor sequence references. " +
+            PersonalizationPromptSection;
 
         private const string StepSystemPrompt =
             "You write a single step for an existing Bloom robot lesson (pediatric speech/language therapy), " +
             "matching the provided JSON schema. The script is read aloud by the robot verbatim — keep it short, " +
             "simple, and encouraging. Keep the step consistent with the lesson's title, objectives, and neighboring " +
             "steps. Use only the listed step types and only fill behaviors/interaction fields relevant to this " +
-            "step's type. Do not invent visual aid or motor sequence references.";
+            "step's type. Do not invent visual aid or motor sequence references. " +
+            PersonalizationPromptSection;
 
         // Behavior options are curated per-deployment and change over time, so they're fetched
         // fresh on every call rather than baked into the static system prompt.

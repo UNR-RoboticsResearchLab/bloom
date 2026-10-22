@@ -258,6 +258,7 @@ backend/App_Data/
 docs/_build/
 docs/.venv/
 docs/_catalog.rst
+docs/_releases.rst
 
 # Claude Code project guidance (local-only)
 CLAUDE.md

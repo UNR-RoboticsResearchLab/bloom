@@ -18,12 +18,12 @@ html_theme = "shibuya"
 html_title = "Bloom documentation"
 html_static_path = []
 myst_heading_anchors = 3
+html_theme_options = {"globaltoc_expand_depth": 1, "toctree_maxdepth": 3}
 
 
 def setup(app):
-    # Include every repository Markdown guide in the documentation tree, including
-    # newly added guides. Agent instructions and generated/dependency files are
-    # excluded above and are not product documentation.
+    # Keep references and release notes discoverable without flattening the
+    # curated study, development, and robot guides into one repository file list.
     app.connect("builder-inited", generate_catalog)
     app.connect("source-read", provide_missing_titles)
 
@@ -41,14 +41,52 @@ def generate_catalog(app):
         for filename in filenames:
             path = parent / filename
             relative = path.relative_to(root).as_posix()
-            if path.suffix == ".md" and not excluded(relative) and relative != "docs/rsr-study.md":
+            if path.suffix == ".md" and not excluded(relative):
                 pages.append(path.relative_to(root).with_suffix("").as_posix())
     pages.sort()
-    catalog = root / "docs" / "_catalog.rst"
-    catalog.write_text(
-        "Repository guides\n=================\n\n"
-        ".. toctree::\n   :maxdepth: 1\n\n"
-        + "".join(f"   /{page}\n" for page in pages),
+    curated = {
+        "README", "docs/rsr-study", "backend/BACKEND", "frontend/README",
+        "tests/README", "robot/README", "robot/src/bloom_node/README",
+        "robot/src/bloom_node/lesson", "robot/kiosk-face/README",
+        "robot/llm_module/README", "robot/tts_module/README",
+    }
+    libraries = {
+        "runtime-react": "Face runtime and loading",
+        "render": "Rendering",
+        "orchestrator-react": "Behavior orchestration",
+        "node-graph-authoring": "Node graph authoring",
+        "utils": "Shared utilities",
+    }
+    references, releases, additional = [], [], []
+    for page in pages:
+        if page in curated:
+            continue
+        path = Path(page)
+        package = path.parent.name
+        if path.name == "CHANGELOG":
+            releases.append((f"{package} release notes", page))
+        elif page.startswith("robot/kiosk-face/packages/"):
+            references.append((libraries.get(package, package), page))
+        else:
+            label = "Robot interface (placeholder)" if page == "robot/src/bloom_interface/README" else page
+            additional.append((label, page))
+
+    def tree(title, entries):
+        if not entries:
+            return ""
+        return (f"{title}\n{'-' * len(title)}\n\n.. toctree::\n   :maxdepth: 1\n\n"
+                + "".join(f"   {label} </{page}>\n" for label, page in entries) + "\n")
+
+    (root / "docs" / "_catalog.rst").write_text(
+        'Face libraries and additional guides\n====================================\n\n'
+        + tree("Face libraries", references) + tree("Additional guides", additional),
+        encoding="utf-8",
+    )
+    (root / "docs" / "_releases.rst").write_text(
+        "Package release notes\n=====================\n\n"
+        "Historical changes to the libraries used by the robot face.\n\n"
+        + ".. toctree::\n   :maxdepth: 1\n\n"
+        + "".join(f"   {label} </{page}>\n" for label, page in releases),
         encoding="utf-8",
     )
 

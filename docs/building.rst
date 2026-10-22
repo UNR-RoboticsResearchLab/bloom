@@ -10,10 +10,12 @@ Run these commands from the Bloom repository root with Python 3.11 or newer::
 Open ``docs/_build/html/docs/index.html`` to browse the generated documentation.
 The RSR study guide is at ``docs/_build/html/docs/rsr-study.html``.
 The HTML output, Python environment, and generated navigation catalog are ignored
-by Git. Rebuild after editing documentation sources.
+by Git. Rebuild after editing documentation sources. The generated reference and release
+indexes are also ignored by Git.
 
-Sphinx's MyST parser turns Markdown guides into HTML pages. Repository Markdown
-files are discovered automatically and listed under Repository guides. Sphinx
+Sphinx's MyST parser turns Markdown guides into HTML pages. Study administration, development, and robot guides have curated navigation.
+Remaining Markdown files are discovered automatically and grouped under Reference
+and release notes. Sphinx
 reStructuredText pages live in ``docs/``. Agent instructions, dependency trees,
 private study archives, and generated files are excluded.
 

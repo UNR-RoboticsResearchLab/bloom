@@ -247,3 +247,14 @@ cookies.txt
 
 # Environment variables
 .env
+
+# Private RSR study recordings (outside the public static-file directory)
+backend/App_Data/
+# Local verification tooling
+.test-tools/
+.pnpm-store/
+
+# Generated Sphinx documentation and local documentation environment
+docs/_build/
+docs/.venv/
+docs/_catalog.rst

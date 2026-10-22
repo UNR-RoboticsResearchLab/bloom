@@ -175,3 +175,19 @@ This path assumes `bloom.service` and the target directories already exist on th
 ## Robot
 
 The physical robot runs a separate ROS 2 workspace under `robot/`, independent of the Docker/web-app stack above. See [robot/README.md](robot/README.md) for build instructions, and note that `robot/src/blsm_unr` is a git submodule that needs `git submodule update --init --recursive` before it will build.
+
+## RSR study administration
+
+The `/rsr-study` workspace provides separate examiner and child windows,
+continuous session audio, robot/browser/examiner delivery, scoring review and
+reasoned overrides, and private recording archives. See [RSR study setup and
+administration](docs/rsr-study.md) for protocol configuration, recording recovery,
+storage, and verification.
+
+## Generated documentation
+
+Documentation pages are generated with Sphinx and MyST from the repository's
+Markdown guides. Build with `python -m sphinx -b html -c docs . docs/_build/html`
+after installing `docs/requirements.txt`. Open `docs/_build/html/docs/index.html`
+for the documentation site, including the RSR study guide. Full setup is in
+[the documentation build guide](docs/building.rst).

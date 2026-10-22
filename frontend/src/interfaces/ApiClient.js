@@ -496,6 +496,24 @@ export default class ApiClient {
     return response.json();
   }
 
+  // Issued researcher accounts use the existing Identity cookie, verified by the server.
+  async studySignIn(login, password) {
+    return this.request("/api/rsr-study/auth/login", {
+      method: "POST", body: JSON.stringify({ login, password }),
+    });
+  }
+  async getStudySession() {
+    return this.request("/api/rsr-study/auth/session", { method: "GET" });
+  }
+  async studySignOut() {
+    return this.request("/api/rsr-study/auth/logout", { method: "POST" });
+  }
+  async createStudyResearcher(account) {
+    return this.request("/api/rsr-study/auth/researchers", {
+      method: "POST", body: JSON.stringify(account),
+    });
+  }
+
   // ── RSR Assessment ────────────────────────────────────────────────────────
 
   async analyzeRsr(formData) {

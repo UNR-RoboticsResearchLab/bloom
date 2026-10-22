@@ -6,6 +6,7 @@ describe("dashboardPathForRole", () => {
     expect(dashboardPathForRole("admin")).toBe("/dashboard/admin");
     expect(dashboardPathForRole("teacher")).toBe("/dashboard/teacher");
     expect(dashboardPathForRole("student")).toBe("/dashboard/student");
+    expect(dashboardPathForRole("researcher")).toBe("/rsr-study");
     expect(dashboardPathForRole("slp")).toBe("/dashboard/slp");
   });
 

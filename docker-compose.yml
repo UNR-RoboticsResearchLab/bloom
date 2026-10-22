@@ -79,10 +79,12 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
+      - RsrStudy__ArchivePath=/var/rsr-study
       # - ASPNETCORE_HTTPS_PORT=2443
     restart: always
     volumes:
       - dpkeys:/var/dpkeys
+      - rsr_study_archives:/var/rsr-study
     networks:
       - bloom-network
 
@@ -139,3 +141,4 @@ volumes:
   arsr_db_data:
   arsr_recordings:
   rsr_recordings:
+  rsr_study_archives:

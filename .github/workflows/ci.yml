@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, development]
+    branches: [main, development, rsr-study-dashboard]
   pull_request:
     branches: [main, development]
 

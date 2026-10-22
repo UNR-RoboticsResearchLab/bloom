@@ -58,6 +58,7 @@ export default function NavMenu() {
           </NavbarBrand>
 
           <Nav className="d-flex flex-row gap-3 align-items-center">
+            {["admin", "researcher"].includes(role) && <NavItem><NavLink tag={Link} to="/rsr-study">RSR Study</NavLink></NavItem>}
             <NavItem>
               <NavLink tag={Link} to={homePath} className="text-dark">
                 Home

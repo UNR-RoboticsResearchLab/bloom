@@ -93,6 +93,12 @@ namespace bloom.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            // Administrator accounts can issue study credentials; do not allow
+            // anonymous signup to create that privilege.
+            if (string.Equals(account?.SelectedRole, "Admin", StringComparison.OrdinalIgnoreCase)
+                && !User.IsInRole("Admin") && !User.IsInRole("admin"))
+                return Forbid();
+
             var result = account?.SelectedRole.ToUpper() switch
             {
                 "ADMIN" => await _accountService.RegisterAdminAsync(account),

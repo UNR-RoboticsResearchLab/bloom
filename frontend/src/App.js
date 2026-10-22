@@ -27,6 +27,11 @@ import LessonView from "./pages/LessonView";
 import EditAccount from "./pages/EditAccount";
 import Demo from "./pages/Demo";
 import RsrAssessment from "./pages/RsrAssessment";
+import RsrStudyAdmin from "./pages/RsrStudy/RsrStudyAdmin";
+import RsrStudyChild from "./pages/RsrStudy/RsrStudyChild";
+import RsrStudyLogin from "./pages/RsrStudy/RsrStudyLogin";
+import RsrResearcherAccounts from "./pages/RsrStudy/RsrResearcherAccounts";
+import StudyAccess from "./pages/RsrStudy/StudyAccess";
 
 import ArSrStudy       from "./pages/ArSr/ArSrStudy";
 import ArSrResults     from "./pages/ArSr/ArSrResults";
@@ -36,6 +41,14 @@ export default function App() {
   return (
     <Layout>
       <Routes>
+        <Route path="/rsr-study/child/:studyId" element={<RsrStudyChild />} />
+        <Route path="/rsr-study/login" element={<RsrStudyLogin />} />
+        <Route element={<StudyAccess />}>
+          <Route path="/rsr-study" element={<RsrStudyAdmin />} />
+        </Route>
+        <Route element={<StudyAccess adminOnly />}>
+          <Route path="/rsr-study/accounts" element={<RsrResearcherAccounts />} />
+        </Route>
         {/* Public */}
         <Route path="/" element={<Home />} />
         {/* <Route path="/forgot-password" element={<ForgotPassword />} /> */}

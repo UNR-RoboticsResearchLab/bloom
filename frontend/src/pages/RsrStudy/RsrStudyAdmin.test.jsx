@@ -1,0 +1,105 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { act as legacyAct, Simulate } from 'react-dom/test-utils';
+import RsrStudyAdmin from './RsrStudyAdmin';
+import { saveChunk, saveSession, readSessions } from './studyStorage';
+
+const mockApi = {
+  baseUrl: 'http://localhost:8080',
+  getRsrSentenceManifest: jest.fn(), analyzeRsr: jest.fn(),
+};
+jest.mock('../../context/ApiClientContext', () => ({ useApiClient: () => mockApi }));
+jest.mock('../../context/RobotPairingContext', () => ({ useRobotPairing: () => ({ isPaired: false }) }));
+jest.mock('./studyStorage', () => ({
+  saveSession: jest.fn(() => Promise.resolve()), saveChunk: jest.fn(() => Promise.resolve()),
+  readSessions: jest.fn(() => Promise.resolve([])), readAudio: jest.fn(), download: jest.fn(), replaceAudio: jest.fn(),
+}));
+
+const act = React.act || legacyAct;
+let instances;
+class Recorder {
+  static isTypeSupported() { return true; }
+  constructor() { this.state = 'inactive'; this.mimeType = 'audio/webm'; this.listeners = []; instances.push(this); }
+  start() { this.state = 'recording'; }
+  addEventListener(type, fn) { if (type === 'stop') this.listeners.push(fn); }
+  stop() {
+    this.state = 'inactive';
+    // The last chunk arrives asynchronously with stop, as in a real browser.
+    setTimeout(() => {
+      this.ondataavailable({ data: new Blob(['tail']) });
+      this.onstop(); this.listeners.forEach(fn => fn());
+    }, 25);
+  }
+}
+let root, host, stopTrack;
+function button(text) { return [...host.querySelectorAll('button')].find(b => b.textContent === text); }
+async function click(text) { await act(async () => { Simulate.click(button(text)); }); }
+async function setup() {
+  const inputs = host.querySelectorAll('input');
+  await act(async () => { Simulate.change(inputs[0], { target: {value: 'P-001'} }); Simulate.change(inputs[1], { target: { value: '72' } }); });
+  await click('Create session');
+}
+beforeEach(async () => {
+  global.IS_REACT_ACT_ENVIRONMENT = true;
+  instances = [];
+  global.MediaRecorder = Recorder;
+  global.BroadcastChannel = class { postMessage() {} close() {} };
+  Object.defineProperty(window, 'crypto', { configurable: true, value: { randomUUID: () => `id-${Math.random()}` } });
+  stopTrack = jest.fn();
+  const track = { stop: stopTrack };
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
+    getUserMedia: jest.fn(() => Promise.resolve({ getTracks: () => [track], getAudioTracks: () => [track] })),
+  } });
+  URL.createObjectURL = jest.fn(() => 'blob:session'); URL.revokeObjectURL = jest.fn();
+  mockApi.getRsrSentenceManifest.mockResolvedValue(Array.from({length:16}, (_,i) => ({ id:i+1, text:`Item ${i+1}` })));
+  mockApi.analyzeRsr.mockResolvedValue({ sentences: [], totalScore: 0, decision: 'N/A' });
+  jest.clearAllMocks();
+  saveSession.mockResolvedValue(); saveChunk.mockResolvedValue(); readSessions.mockResolvedValue([]);
+  host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
+  await act(async () => { root.render(<RsrStudyAdmin />); });
+});
+afterEach(async () => { await act(async () => { root.unmount(); await new Promise(resolve => setTimeout(resolve, 35)); }); host.remove(); });
+
+it('requires recording before prompts and keeps recording across prompts, responses, and breaks', async () => {
+  await setup();
+  expect(button('Cue examiner prompt').disabled).toBe(true);
+  await click('Start continuous recording');
+  const mr = instances[0];
+  // An utterance before any prompt is saved immediately.
+  await act(async () => { mr.ondataavailable({ data: new Blob(['early speech']) }); });
+  expect(saveChunk).toHaveBeenCalledTimes(1);
+  await click('Cue examiner prompt');
+  await click('Prompt ended / start response window');
+  await click('End attempt');
+  await click('Break (keep recording)');
+  expect(mr.state).toBe('recording');
+  expect(button('Cue examiner prompt').disabled).toBe(true);
+  await click('Resume');
+  expect(mr.state).toBe('recording');
+  expect(instances).toHaveLength(1);
+  await click('Finish recording');
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 40)); });
+  expect(saveChunk).toHaveBeenCalledTimes(2);
+  expect(stopTrack).toHaveBeenCalled();
+  expect(host.textContent).toContain('Session finished');
+});
+
+it('reports microphone denial and never enables prompt delivery', async () => {
+  await setup();
+  navigator.mediaDevices.getUserMedia.mockRejectedValue(new Error('Microphone denied'));
+  await click('Start continuous recording');
+  expect(host.querySelector('[role="alert"]').textContent).toContain('Microphone denied');
+  expect(button('Cue examiner prompt').disabled).toBe(true);
+  expect(instances).toHaveLength(0);
+});
+
+it('releases a late microphone grant when the examiner has left the page', async () => {
+  await setup();
+  let grant;
+  navigator.mediaDevices.getUserMedia.mockImplementation(() => new Promise(resolve => { grant = resolve; }));
+  await click('Start continuous recording');
+  await act(async () => { root.unmount(); });
+  await act(async () => { grant({ getTracks: () => [{stop: stopTrack}] }); });
+  expect(stopTrack).toHaveBeenCalledTimes(1);
+  expect(instances).toHaveLength(0);
+});

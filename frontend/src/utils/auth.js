@@ -70,6 +70,8 @@ export function dashboardPathForRole(role) {
 
   // Map each role to its corresponding dashboard route
   switch (normalized) {
+    case "researcher":
+      return "/rsr-study";
     case "admin":
       return "/dashboard/admin";
     case "teacher":

@@ -1,0 +1,27 @@
+.rsr-study { max-width: 1120px; margin: 24px auto 64px; color: #173b43; }
+.rsr-study h1 { font-size: 2rem; font-weight: 750; }
+.rsr-study h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 16px; }
+.rsr-study label { display: grid; gap: 6px; font-size: .9rem; margin: 12px 0; }
+.rsr-study input, .rsr-study select, .rsr-study textarea { border: 1px solid #a5bec3; border-radius: 7px; padding: 9px; background: white; color: #173b43; width: 100%; }
+.rsr-study button, .rsr-study .rsr-link { border: 1px solid #9bb6bb; border-radius: 8px; padding: 10px 15px; background: white; color: #173b43; font-weight: 600; }
+.rsr-study button:disabled { opacity: .45; cursor: not-allowed; }
+.rsr-study .primary { background: #126b67; color: white; border-color: #126b67; }
+.rsr-study .danger { color: #a82d36; border-color: #a82d36; }
+.rsr-card { background: #fff; border: 1px solid #d0dfe1; border-radius: 14px; padding: 24px; margin: 18px 0; }
+.rsr-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 22px; }
+.rsr-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; align-items: center; }
+.rsr-status { border-radius: 8px; background: #e7f3f0; padding: 14px 18px; }
+.rsr-error { background: #fff0f0; color: #9b202d; padding: 16px; border-radius: 8px; margin: 12px 0; }
+.rsr-stimulus { font-size: 1.6rem; line-height: 1.65; padding: 20px 0; }
+.rsr-items { display: flex; flex-wrap: wrap; gap: 7px; }
+.rsr-items button[aria-current="true"] { background: #126b67; color: white; }
+.rsr-study table { width: 100%; font-size: .9rem; }
+.rsr-study td, .rsr-study th { padding: 10px; border-bottom: 1px solid #d0dfe1; text-align: left; }
+.rsr-study small { color: #55757b; }
+.rsr-events { max-height: 250px; overflow: auto; font-size: .85rem; }
+.rsr-child { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #eff8f5; color: #173b43; text-align: center; padding: 32px; }
+.rsr-child h1 { font-size: clamp(2rem, 5vw, 4rem); }
+.rsr-child p { font-size: 1.4rem; }
+.rsr-orb { width: 180px; height: 180px; border-radius: 50%; background: #126b67; color: #f6df94; font-size: 110px; margin-bottom: 35px; }
+@media(max-width: 760px) { .rsr-grid { grid-template-columns: 1fr; } }
+.rsr-login { max-width: 520px; padding: 32px 20px; }

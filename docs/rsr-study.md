@@ -1,5 +1,9 @@
 # RSR study workspace
 
+New researchers: complete [researcher training](training/index.rst) for
+manual-based administration, scoring, adult rehearsal, and readiness review.
+This page is the software and operations reference.
+
 Open `/rsr-study` to enter the study. Without a verified researcher session,
 Bloom redirects to `/rsr-study/login`. Researchers enter the **assigned login and
 password provided by the study administrator**, then go directly to the study
@@ -69,7 +73,7 @@ establish that its speech software is running.
    Browser playback must finish before the response-start control is available.
    Robot and examiner response timing is explicitly confirmed by the administrator:
    a successful queue request is not treated as audible playback completion.
-6. Select another item, or repeat the item by starting a new attempt. All attempts
+6. Select another item, or use a manual-authorized repeat by starting a new attempt. All attempts
    remain in the log. The latest completed, non-excluded response window per item
    is used for automatic analysis. Record a reason before excluding an attempt.
 7. Break/resume controls change the child display while **keeping audio recording**.

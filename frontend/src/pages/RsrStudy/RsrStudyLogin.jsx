@@ -27,6 +27,7 @@ export default function RsrStudyLogin() {
     <p>Bloom · Redmond Sentence Recall</p>
     <h1>Researcher sign in</h1>
     <p>Use the login and password provided by your study administrator.</p>
+    <p><a href="https://unr-roboticsresearchlab.github.io/bloom/docs/training/index.html" target="_blank" rel="noopener noreferrer">Open researcher training</a></p>
     <form className="rsr-card" onSubmit={submit}>
       {error && <div className="rsr-error" role="alert">{error}</div>}
       <label htmlFor="researcher-login">Researcher login</label>

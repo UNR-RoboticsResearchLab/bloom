@@ -7,8 +7,8 @@ with the M robot. Choose a guide based on what you need to do.
 Run an RSR study
 ----------------
 
-Start with :doc:`the RSR study guide <rsr-study>` for researcher login, robot
-pairing, continuous recording, scoring, and reviewing study sessions.
+Use :doc:`the administration reference <rsr-study>` for researcher login,
+robot pairing, recording, scoring, and archive details.
 
 Set up or develop Bloom
 -----------------------
@@ -21,8 +21,8 @@ Use :doc:`platform setup </README>` to install and run Bloom,
    :caption: Start here
    :maxdepth: 1
 
+   RSR administration reference <rsr-study>
    Platform setup </README>
-   RSR study administration <rsr-study>
 
 .. toctree::
    :caption: Technical guides
@@ -31,3 +31,9 @@ Use :doc:`platform setup </README>` to install and run Bloom,
    development
    robot-guide
    reference
+
+.. toctree::
+   :caption: Researcher training
+   :maxdepth: 1
+
+   Training, rehearsal, and readiness <training/index>

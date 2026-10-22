@@ -287,7 +287,7 @@ export default function RsrStudyAdmin() {
 
   return <main className="rsr-study">
     <h1>RSR study control room</h1>
-    <div className="rsr-actions"><span>Researcher: {getSession()?.fullName || getSession()?.userName}</span>
+    <div className="rsr-actions"><a className="rsr-link" href="https://unr-roboticsresearchlab.github.io/bloom/docs/training/index.html" target="_blank" rel="noopener noreferrer">Researcher training</a><span>Researcher: {getSession()?.fullName || getSession()?.userName}</span>
       {getSession()?.role?.toLowerCase() === 'admin' && <Link className="rsr-link" to="/rsr-study/accounts">Issue researcher login</Link>}
       <button disabled={busy || recording || study?.phase === 'recording'} onClick={() => run(async () => {
         await writes.current; await api.studySignOut(); signOut(); window.location.assign('/rsr-study/login');

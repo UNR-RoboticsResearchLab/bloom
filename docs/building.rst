@@ -17,6 +17,28 @@ files are discovered automatically and listed under Repository guides. Sphinx
 reStructuredText pages live in ``docs/``. Agent instructions, dependency trees,
 private study archives, and generated files are excluded.
 
-The documentation workflow builds the site on pushes and pull requests, then
-uploads the HTML as a downloadable ``bloom-documentation`` artifact. It does not
-publish a public site or include participant recordings.
+Publishing with GitHub Pages
+----------------------------
+
+The documentation workflow builds on pushes and pull requests and uploads a
+``bloom-documentation`` artifact. It also publishes the selected branch to:
+
+https://unr-roboticsresearchlab.github.io/bloom/
+
+The site root opens the Sphinx documentation home page. Existing page paths,
+including ``backend/BACKEND.html`` and ``docs/rsr-study.html``, remain available.
+Only documentation and the static assets required by those pages are deployed;
+participant recordings, local test credentials, and private study archives are
+excluded from Sphinx sources.
+
+In repository Settings, Pages must use **GitHub Actions** as its build source.
+The repository Actions variable ``DOCS_PUBLISH_BRANCH`` selects the publishing
+branch. It is initially set to ``rsr-study-dashboard`` for feature testing. After
+merging, change it to ``main`` or delete it to use the repository default branch.
+Pull requests build documentation but never deploy it. A push to any other branch
+also builds without replacing the published site.
+
+To trigger publication, push to the selected branch or use the Documentation
+workflow's manual dispatch on that branch. GitHub's ``github-pages`` environment
+must permit deployments from the selected branch. The deployment job grants
+``pages: write`` and ``id-token: write`` only for publishing.

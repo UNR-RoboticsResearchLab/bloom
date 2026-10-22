@@ -12,6 +12,8 @@ exclude_patterns = [
     "**/install/**", "**/log/**", "**/__pycache__/**", "**/AGENTS.md",
     "docs/_build/**", "docs/.venv/**", "backend/App_Data/**",
 ]
+templates_path = ["_templates"]
+html_additional_pages = {"index": "landing.html"}
 html_theme = "shibuya"
 html_title = "Bloom documentation"
 html_static_path = []

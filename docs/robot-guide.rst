@@ -7,6 +7,7 @@ administration workflow, see :doc:`RSR study administration <rsr-study>`.
 .. toctree::
    :maxdepth: 1
 
+   Localhost and LAN testing <testing-on-lan>
    Robot installation and operation </robot/README>
    Robot–Bloom integration </robot/src/bloom_node/README>
    Face and RSR playback testing </robot/kiosk-face/README>

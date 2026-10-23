@@ -1,0 +1,8 @@
+# Local/LAN RSR testing. Layer on docker-compose.yml; see docs/testing-on-lan.rst.
+services:
+  bloom-server-dev:
+    environment:
+      AutoRsr__BaseUrl: ${RSR_ANALYSIS_URL:-http://auto_rsr:5050}
+  auto_rsr:
+    build:
+      context: ${AUTO_RSR_SOURCE:-../AutoRsr-NoBert-SARG}

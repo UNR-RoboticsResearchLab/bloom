@@ -1,5 +1,5 @@
 Run the RSR study with M over direct Ethernet
-============================================
+=============================================
 
 This guide describes the setup verified on the lab Pi: Bloom runs in Docker on
 the researcher's Mac, M connects directly to that Mac by Ethernet, and the Pi
@@ -8,7 +8,7 @@ Automatic analysis still requires the CUDA service described in
 :doc:`testing-on-lan`.
 
 Addresses and cables
--------------------
+--------------------
 
 Connect the Ethernet cable directly between M and the Mac's Ethernet adapter.
 Wi-Fi can remain connected for internet access.
@@ -92,7 +92,7 @@ For remote administration from the Mac::
 Use the Pi account's issued credentials; passwords are not included here.
 
 Launch the robot on M
---------------------
+---------------------
 
 Stop any existing robot launch before starting another copy. In
 ``~/.bloom/robot.cfg`` on the Pi, change only the existing backend entry::
@@ -136,7 +136,7 @@ An older M-SARG package installed inside Bloom overrides a newer separate
 workspace when Bloom is sourced last.
 
 Show the face and pair the study
--------------------------------
+--------------------------------
 
 On **M's browser**, open ``http://localhost:8765/`` and use **Ctrl+Shift+R** after
 updates. The face is served by M, not by the Mac's Bloom backend.

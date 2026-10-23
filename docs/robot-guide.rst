@@ -8,6 +8,7 @@ administration workflow, see :doc:`RSR study administration <rsr-study>`.
    :maxdepth: 1
 
    Localhost and LAN testing <testing-on-lan>
+   Direct Ethernet: run M and pair the study <m-direct-ethernet>
    Robot installation and operation </robot/README>
    Robot–Bloom integration </robot/src/bloom_node/README>
    Face and RSR playback testing </robot/kiosk-face/README>

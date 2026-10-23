@@ -181,10 +181,24 @@ On M, update/build the appropriate checkout using your normal robot deployment
 procedure. From the robot workspace, a standard source build is::
 
    source /opt/ros/jazzy/setup.bash
+   cd /path/to/m-sarg
+   colcon build
+   source install/setup.bash
    cd /path/to/bloom/robot
    colcon build
    source install/local_setup.bash
-   ros2 launch bloom_node combined.launch.py base_url:=http://192.168.1.100:8080
+   ros2 pkg prefix m_sarg
+   ros2 launch bloom_node m_sarg_combined.launch.py base_url:=http://192.168.1.100:8080
+
+Use the actual M-SARG workspace path on the robot. Source its
+``install/setup.bash`` in each new terminal before sourcing Bloom's workspace.
+If M-SARG is already built, its build step can be skipped.
+
+``combined.launch.py`` is for Blossom hardware and requires the external
+``openhmi_blossom`` package. For M, use ``m_sarg_combined.launch.py`` instead.
+An ``openhmi_blossom not found`` error means the Blossom launch was selected;
+an ``m_sarg not found`` error means the M-SARG workspace needs to be built or
+sourced.
 
 Use the robot's existing hardware/serial launch arguments where needed. Do not
 start a second copy if its service is already running. Watch for successful

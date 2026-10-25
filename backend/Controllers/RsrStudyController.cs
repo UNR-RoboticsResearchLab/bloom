@@ -115,4 +115,25 @@ public class RsrStudyController : ControllerBase
         if (!System.IO.File.Exists(path)) return NotFound();
         return PhysicalFile(path, "application/octet-stream", $"{studyId}-audio", enableRangeProcessing: true);
     }
+
+    [HttpPost("{studyId:guid}/{revision:guid}/box")]
+    public async Task<IActionResult> UploadToBox(Guid studyId, Guid revision,
+        [FromServices] bloom.Services.StudyBoxUploader uploader, CancellationToken cancellationToken)
+    {
+        var owner = OwnerDirectory();
+        if (owner == null) return Unauthorized();
+        var directory = Path.Combine(owner, studyId.ToString(), revision.ToString());
+        if (!System.IO.File.Exists(Path.Combine(directory, "audio"))) return NotFound();
+        try
+        {
+            using var metadata = JsonDocument.Parse(await System.IO.File.ReadAllTextAsync(Path.Combine(directory, "metadata.json"), cancellationToken));
+            var mime = metadata.RootElement.TryGetProperty("mimeType", out var value) ? value.GetString()?.Split(';')[0] : null;
+            var extension = mime switch { "audio/webm" => "webm", "audio/ogg" => "ogg", "audio/mp4" => "m4a", "audio/wav" => "wav", _ => "bin" };
+            // No participant labels or names in the exported filename.
+            var name = $"rsr-{Path.GetFileName(owner)}-{studyId}-{revision}.{extension}";
+            return Ok(await uploader.Upload(directory, name, cancellationToken));
+        }
+        catch (InvalidOperationException ex) { return StatusCode(503, new { message = ex.Message }); }
+        catch (HttpRequestException ex) { return StatusCode(502, new { message = ex.Message }); }
+    }
 }

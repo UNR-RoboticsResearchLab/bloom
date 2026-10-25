@@ -22,6 +22,7 @@ Use :doc:`platform setup </README>` to install and run Bloom,
    :maxdepth: 1
 
    RSR administration reference <rsr-study>
+   Upload recordings to Box <box-recordings>
    Platform setup </README>
 
 .. toctree::

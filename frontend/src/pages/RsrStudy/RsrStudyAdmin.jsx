@@ -20,6 +20,8 @@ export default function RsrStudyAdmin() {
   const [study, setStudy] = useState(null);
   const [history, setHistory] = useState([]);
   const [archives, setArchives] = useState([]);
+  const [lastArchive, setLastArchive] = useState(null);
+  const [boxStatus, setBoxStatus] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -270,7 +272,18 @@ export default function RsrStudyAdmin() {
     const response = await fetch(`${api.baseUrl}/api/rsr-study/archives/${s.id}`, { method: 'POST', credentials: 'include', body: form });
     if (!response.ok) throw new Error(`Archive failed (${response.status}). Your local recording is retained; retry or download it.`);
     const result = await response.json();
+    setLastArchive({ studyId: s.id, revision: result.revision });
+    setBoxStatus(null);
     update('archive_saved', { revision: result.revision });
+  }
+  async function uploadToBox(saved) {
+    setBoxStatus(null);
+    const response = await fetch(`${api.baseUrl}/api/rsr-study/archives/${saved.studyId}/${saved.revision}/box`, {
+      method: 'POST', credentials: 'include',
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || 'Box upload failed. Your Bloom archive is retained; you can retry.');
+    setBoxStatus(result);
   }
   async function openSaved(s) {
     chunks.current = []; savingError.current = null;
@@ -295,6 +308,7 @@ export default function RsrStudyAdmin() {
     </div>
     <p>Redmond Sentence Recall · Examiner controls and review</p>
     {error && <div className="rsr-error" role="alert">{error}</div>}
+    {boxStatus && <p role="status">Recording uploaded to Box. <a href={boxStatus.url} target="_blank" rel="noreferrer">Open uploaded recording</a></p>}
     {!study ? <>
       <section className="rsr-card">
         <h2>Set up a session</h2>
@@ -335,6 +349,7 @@ export default function RsrStudyAdmin() {
             chunks.current = [blob]; savingError.current = null; persist(a.metadata);
             setAudioUrl(URL.createObjectURL(blob));
           })}>Open archive</button>
+          <button disabled={busy} onClick={() => run(() => uploadToBox(a))}>Upload to Box</button>
         </div>)}
       </section>
     </> : <>
@@ -386,7 +401,9 @@ export default function RsrStudyAdmin() {
           <small>Unscored items are not zeroes. Overrides do not change the automated screening decision.</small>
           <label>Session notes<textarea value={study.notes} onChange={e => update('notes_updated', {}, { notes: e.target.value })} /></label>
           {stopped && <><div className="rsr-actions"><button disabled={busy || !!study.results} onClick={() => run(analyze)}>{study.results ? 'Automatic scoring complete' : 'Analyze response windows'}</button>
-            <button disabled={busy} onClick={() => run(archive)}>Save archive to Bloom</button></div>
+            <button disabled={busy} onClick={() => run(archive)}>Save archive to Bloom</button>
+            <button disabled={busy || lastArchive?.studyId !== study.id} onClick={() => run(() => uploadToBox(lastArchive))}>Upload saved recording to Box</button></div>
+            <small>Save an archive first. Box uploads copy that saved revision; save again to include a newer recording.</small>
             {audioUrl && <audio controls src={audioUrl} style={{ width: '100%' }} />}
             <div className="rsr-actions"><button disabled={busy} onClick={() => run(async () => download(await audioBlob(), `${study.id}.${extension(study.mimeType)}`))}>Download full audio</button>
               <button disabled={busy} onClick={() => download(new Blob([JSON.stringify({ ...study, reviewedScores: scores }, null, 2)], { type: 'application/json' }), `${study.id}.json`)}>Download session log</button></div>

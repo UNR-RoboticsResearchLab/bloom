@@ -240,6 +240,9 @@ builder.Services.AddSingleton<IRsrSpeechService, RsrSpeechService>();
 
 // AutoRSR microservice integration
 var autoRsrBaseUrl = builder.Configuration["AutoRsr:BaseUrl"] ?? "http://localhost:5050";
+builder.Services.AddHttpClient("StudyBox", client => client.Timeout = TimeSpan.FromMinutes(15));
+builder.Services.AddSingleton<bloom.Services.StudyBoxUploader>();
+
 builder.Services.AddHttpClient("AutoRsr", client =>
 {
     client.BaseAddress = new Uri(autoRsrBaseUrl);

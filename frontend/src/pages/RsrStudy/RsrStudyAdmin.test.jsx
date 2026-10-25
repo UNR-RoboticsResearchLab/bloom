@@ -60,6 +60,24 @@ beforeEach(async () => {
 });
 afterEach(async () => { await act(async () => { root.unmount(); await new Promise(resolve => setTimeout(resolve, 35)); }); host.remove(); });
 
+it('uploads a saved revision only after a click and shows its Box link', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = jest.fn()
+    .mockResolvedValueOnce({ ok: true, json: async () => [{ studyId: 'study', revision: 'revision', metadata: {
+      participant: 'TEST', condition: { label: 'Rehearsal' }, createdAt: new Date().toISOString(),
+    } }] })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ url: 'https://app.box.com/file/987' }) });
+  try {
+    await click('Load saved archives');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    await click('Upload to Box');
+    expect(global.fetch).toHaveBeenLastCalledWith('http://localhost:8080/api/rsr-study/archives/study/revision/box', {
+      method: 'POST', credentials: 'include',
+    });
+    expect(host.querySelector('a[href="https://app.box.com/file/987"]')).not.toBeNull();
+  } finally { global.fetch = originalFetch; }
+});
+
 it('requires recording before prompts and keeps recording across prompts, responses, and breaks', async () => {
   await setup();
   expect(button('Cue examiner prompt').disabled).toBe(true);

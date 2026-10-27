@@ -38,6 +38,7 @@ export default function RsrStudyAdmin() {
   const stream = useRef(null);
   const stopCompletion = useRef(Promise.resolve());
   const player = useRef(null);
+  const completionChime = useRef(null);
   const channel = useRef(null);
   const childSeen = useRef(0);
   const clock = useRef(0);
@@ -112,6 +113,7 @@ export default function RsrStudyAdmin() {
     mounted.current = true;
     return () => {
     mounted.current = false;
+    completionChime.current?.pause();
     player.current?.pause();
     if (recorder.current?.state === 'recording') recorder.current.stop();
     stream.current?.getTracks().forEach(t => t.stop());
@@ -187,6 +189,20 @@ export default function RsrStudyAdmin() {
   }
 
   const activeAttempt = () => current.current.attempts.find(a => a.end == null);
+  function notifyPromptFinished(attemptId) {
+    if (!mounted.current || !current.current?.attempts.some(a => a.id === attemptId && a.end == null)) return;
+    completionChime.current?.pause();
+    const cue = new Audio('/sounds/prompt-complete.wav');
+    completionChime.current = cue;
+    cue.volume = 0.5;
+    cue.onended = () => { if (completionChime.current === cue) completionChime.current = null; };
+    Promise.resolve(cue.play()).then(() => {
+      if (mounted.current && current.current?.attempts.some(a => a.id === attemptId))
+        update('prompt_completion_chime', { attemptId });
+    }).catch(() => {
+      if (mounted.current) setError('The sentence finished, but its notification chime could not play. Check browser audio permissions.');
+    });
+  }
   async function playPrompt() {
     const s = current.current;
     if (recorder.current?.state !== 'recording' || s.childStatus === 'paused')
@@ -206,7 +222,7 @@ export default function RsrStudyAdmin() {
         const audio = new Audio(new URL(sentence.audioUrl, `${api.baseUrl.replace(/\/$/, '')}/`).href);
         player.current = audio;
         audio.onplaying = () => update('browser_playback_started', { attemptId: attempt.id });
-        audio.onended = () => { update('browser_playback_ended', { attemptId: attempt.id }); player.current = null; };
+        audio.onended = () => { update('browser_playback_ended', { attemptId: attempt.id }); player.current = null; notifyPromptFinished(attempt.id); };
         audio.onerror = () => { player.current = null; update('playback_error', { attemptId: attempt.id }); setError('Playback failed. End this attempt, exclude it with a reason, then replay.'); };
         await audio.play();
       } else update('examiner_prompt_cued', { attemptId: attempt.id });
@@ -221,6 +237,7 @@ export default function RsrStudyAdmin() {
   function markResponse() {
     const a = activeAttempt();
     if (!a || a.responseStart != null || player.current) return;
+    if (current.current.condition.delivery === 'examiner') notifyPromptFinished(a.id);
     update('response_window_started', { attemptId: a.id, source: 'administrator' }, {
       attempts: current.current.attempts.map(t => t.id === a.id ? { ...t, responseStart: elapsed() } : t), childStatus: 'responding',
     });
@@ -365,7 +382,7 @@ export default function RsrStudyAdmin() {
         <div className="rsr-actions"><button className="primary" disabled={busy || !recording || !!active || study.childStatus === 'paused'} onClick={() => run(playPrompt)}>{study.condition.delivery === 'examiner' ? 'Cue examiner prompt' : 'Play prompt'}</button>
           <button disabled={busy || !recording || !active || active.responseStart != null || !!player.current} onClick={markResponse}>Prompt ended / start response window</button>
           <button disabled={busy || !recording || !active} onClick={endAttempt}>End attempt</button></div>
-        <small>{study.condition.delivery === 'robot' ? 'Robot playback is queued. Confirm the audible prompt has finished before marking the response.' : 'Mark the response window after the audible prompt ends.'} Early speech remains in the full recording.</small>
+        <small>{study.condition.delivery === 'examiner' ? 'Click Prompt ended when you finish reading; a short chime signals the response cue.' : 'A short chime signals the end of the sentence. Mark the response window after the chime.'} Early speech remains in the full recording.</small>
         <div className="rsr-items" style={{ marginTop: 20 }}>{study.sentences.map((s,i) => <button key={s.id} disabled={busy || !!active} aria-current={i === study.currentIdx} onClick={() => update('item_selected', { sentenceId: s.id }, { currentIdx: i })}>{s.id}</button>)}</div>
         <label>Reason for override or exclusion<textarea value={reason} onChange={e => setReason(e.target.value)} /></label>
         <div className="rsr-actions"><label>Reviewed score<select value={overrideScore} onChange={e => setOverrideScore(e.target.value)}><option value="">Select</option>{[0,1,2].map(n => <option key={n}>{n}</option>)}</select></label>

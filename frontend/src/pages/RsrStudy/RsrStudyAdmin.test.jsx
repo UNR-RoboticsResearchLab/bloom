@@ -16,7 +16,8 @@ jest.mock('./studyStorage', () => ({
 }));
 
 const act = React.act || legacyAct;
-let instances;
+let instances, audioInstances;
+const originalAudio = global.Audio;
 class Recorder {
   static isTypeSupported() { return true; }
   constructor() { this.state = 'inactive'; this.mimeType = 'audio/webm'; this.listeners = []; instances.push(this); }
@@ -42,6 +43,11 @@ async function setup() {
 beforeEach(async () => {
   global.IS_REACT_ACT_ENVIRONMENT = true;
   instances = [];
+  audioInstances = [];
+  global.Audio = jest.fn(src => {
+    const audio = { src, play: jest.fn(() => Promise.resolve()), pause: jest.fn() };
+    audioInstances.push(audio); return audio;
+  });
   global.MediaRecorder = Recorder;
   global.BroadcastChannel = class { postMessage() {} close() {} };
   Object.defineProperty(window, 'crypto', { configurable: true, value: { randomUUID: () => `id-${Math.random()}` } });
@@ -58,7 +64,7 @@ beforeEach(async () => {
   host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
   await act(async () => { root.render(<RsrStudyAdmin />); });
 });
-afterEach(async () => { await act(async () => { root.unmount(); await new Promise(resolve => setTimeout(resolve, 35)); }); host.remove(); });
+afterEach(async () => { await act(async () => { root.unmount(); await new Promise(resolve => setTimeout(resolve, 35)); }); host.remove(); global.Audio = originalAudio; });
 
 it('uploads a saved revision only after a click and shows its Box link', async () => {
   const originalFetch = global.fetch;
@@ -120,4 +126,28 @@ it('releases a late microphone grant when the examiner has left the page', async
   await act(async () => { grant({ getTracks: () => [{stop: stopTrack}] }); });
   expect(stopTrack).toHaveBeenCalledTimes(1);
   expect(instances).toHaveLength(0);
+});
+
+it('chimes only after a browser sentence ends and keeps response marking manual', async () => {
+  mockApi.getRsrSentenceManifest.mockResolvedValue(Array.from({length:16}, (_,i) => ({id:i+1,text:`Item ${i+1}`,audioUrl:`/rsr-audio/sentence_${i+1}.wav`})));
+  await act(async () => { root.unmount(); root = createRoot(host); root.render(<RsrStudyAdmin />); });
+  await act(async () => { Simulate.change(host.querySelectorAll('select')[1], {target:{value:'condition-2'}}); });
+  await setup(); await click('Start continuous recording'); await click('Play prompt');
+  expect(audioInstances).toHaveLength(1);
+  expect(audioInstances[0].src).toContain('/rsr-audio/');
+  await act(async () => { audioInstances[0].onended(); });
+  expect(audioInstances).toHaveLength(2);
+  expect(audioInstances[1].src).toBe('/sounds/prompt-complete.wav');
+  expect(button('Prompt ended / start response window').disabled).toBe(false);
+  expect(saveSession.mock.calls.some(([s]) => s.events.some(e => e.type === 'response_window_started'))).toBe(false);
+});
+
+it('does not chime when browser playback fails', async () => {
+  mockApi.getRsrSentenceManifest.mockResolvedValue(Array.from({length:16}, (_,i) => ({id:i+1,text:`Item ${i+1}`,audioUrl:`/rsr-audio/sentence_${i+1}.wav`})));
+  await act(async () => { root.unmount(); root = createRoot(host); root.render(<RsrStudyAdmin />); });
+  await act(async () => { Simulate.change(host.querySelectorAll('select')[1], {target:{value:'condition-2'}}); });
+  await setup(); await click('Start continuous recording'); await click('Play prompt');
+  await act(async () => { audioInstances[0].onerror(); });
+  expect(audioInstances).toHaveLength(1);
+  expect(host.textContent).toContain('Playback failed');
 });

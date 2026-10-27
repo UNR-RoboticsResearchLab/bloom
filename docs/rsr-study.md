@@ -136,6 +136,23 @@ examiner; it is not a substitute for saving the server archive.
 Microphone access requires HTTPS or localhost. Opening Bloom over plain HTTP at a
 LAN IP will not provide recording APIs in normal browser configurations.
 
+## Sentence completion chime
+
+A short chime sounds after each successfully played sentence. Browser-delivered
+sentences chime through the researcher's browser; M-delivered sentences chime
+through the robot using Bloom's existing audio cue. For examiner-read sentences,
+the chime sounds when the researcher selects **Prompt ended / start response
+window**. Failed or interrupted playback does not produce a completion chime.
+
+The chime does not advance the item or automatically mark response windows for
+browser or M delivery. Keep the continuous recording running and mark the
+response window after the cue. The full recording includes the chime and any
+early speech; researcher scoring overrides remain available.
+
+After deploying the web update, update and rebuild the robot's ``bloom_speech``
+package and restart its RSR speech node to enable M's completion cue. Browser
+prompts use the web update immediately after reloading the study page.
+
 ## Verification
 
 - Frontend: `cd frontend && npm test -- --watchAll=false --runInBand`

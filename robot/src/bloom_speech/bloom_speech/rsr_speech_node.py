@@ -36,6 +36,7 @@ class RsrSpeechNode(Node):
         self.robot_id = None
         self.base_url = None
 
+        self.chime_pub = self.create_publisher(String, '/audio/chime', 10)
         self.visemes_pub = self.create_publisher(String, '/face/visemes', 10)
         self.face_cmd_pub = self.create_publisher(String, '/face/command', 10)
 
@@ -122,6 +123,10 @@ class RsrSpeechNode(Node):
             self.stop_audio_sync()
             self.set_face_mode('emotion')
             pygame.mixer.music.unload()
+            # Signal completion only after successful playback, never on failure.
+            chime = String()
+            chime.data = 'prompt_complete'
+            self.chime_pub.publish(chime)
         finally:
             if os.path.exists(audio_path):
                 os.remove(audio_path)

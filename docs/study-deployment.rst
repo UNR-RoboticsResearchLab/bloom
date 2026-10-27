@@ -6,10 +6,17 @@ The tunnel should forward ``https://dev-bloom.unr.dev`` to
 the React pages, API, robot endpoints, and prompt audio through that one port.
 No additional webserver route or browser-facing API port is needed.
 
-On the LX host, Jenkins already occupies 8081. Set ``STUDY_PORT=8082`` in
-``.env.study`` (the example file uses this value), and change the tunnel origin
-to ``http://localhost:8082``. Substitute 8082 in the local checks below. Keep
-Jenkins and the existing Bloom service running.
+Use ``STUDY_PORT=8081`` in ``.env.study``. On the LX host, Jenkins initially
+occupied this port. The requested deployment replaces its listener with the
+study server; stop Jenkins only when authorized by the server owner, preserve
+its data, and prevent automatic restart from reclaiming the port. Keep the
+existing Bloom service running. If Jenkins must remain available, choose a
+different study port and have the tunnel administrator update the origin.
+
+If the tunnel is managed outside the LX environment, set
+``STUDY_BIND_ADDRESS`` to the server's LAN address. Its origin is then
+``http://<server-LAN-IP>:8081``;
+use that address for host-side checks too. Database ports are not published.
 
 Prepare and start
 -----------------

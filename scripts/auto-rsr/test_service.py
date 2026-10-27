@@ -7,6 +7,7 @@ import tempfile
 import types
 import unittest
 from unittest.mock import patch
+from unittest.mock import Mock
 
 spec = importlib.util.spec_from_file_location('study_autorsr', Path(__file__).with_name('service.py'))
 service = importlib.util.module_from_spec(spec)
@@ -67,6 +68,15 @@ class ScorerTests(unittest.TestCase):
             self.assertEqual(503, self.post(client).status_code)
         finally:
             service._analysis_lock.release()
+
+    def test_p4_uses_supported_precision_and_compatible_decoding_options(self):
+        whisper = types.SimpleNamespace(load_model=Mock(return_value=object()))
+        ct2 = types.SimpleNamespace(get_supported_compute_types=lambda device: {'float32', 'int8_float32'})
+        with patch.dict('sys.modules', whisperx=whisper, ctranslate2=ct2), patch.object(service, '_model', None), patch.dict(os.environ, ARSR_COMPUTE_TYPE='auto'):
+            service.get_model()
+        options = whisper.load_model.call_args.kwargs
+        self.assertEqual('int8_float32', options['compute_type'])
+        self.assertEqual({'max_new_tokens', 'clip_timestamps', 'hallucination_silence_threshold', 'hotwords'}, set(options['asr_options']))
 
 
 if __name__ == '__main__':

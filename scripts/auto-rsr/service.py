@@ -27,7 +27,11 @@ def get_model():
         if _compute_type not in supported:
             raise RuntimeError('The requested CUDA compute type is unsupported.')
         print(f'Loading WhisperX {MODEL} on CUDA, compute_type={_compute_type}, batch_size=1', flush=True)
-        _model = whisperx.load_model(MODEL, 'cuda', compute_type=_compute_type, language='en')
+        # WhisperX 3.1.1 predates these faster-whisper 1.0.3 option fields.
+        # Supply their normal defaults explicitly rather than changing decoding.
+        _model = whisperx.load_model(MODEL, 'cuda', compute_type=_compute_type, language='en',
+            asr_options={'max_new_tokens': None, 'clip_timestamps': '0',
+                         'hallucination_silence_threshold': None, 'hotwords': None})
     return _model
 
 

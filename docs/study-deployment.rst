@@ -119,3 +119,28 @@ Back up the study volumes according to the study's storage procedure.
 The stack currently uses Bloom's Development environment, matching its existing
 container setup and persistent-key behavior. This is separate from the normal
 demo; it is not a migration of that server's data.
+
+LX build networking workaround
+-----------------------------
+
+The LX deployment was verified on port 8081 on October 27, 2026. Jenkins was
+stopped and disabled with the owner's authorization, preserving its data. The
+main Bloom site remained available.
+
+NuGet requests timed out inside Docker's build network while the host could
+reach NuGet. The owner approved host networking **for builds only**. A private,
+Git-ignored ``.study-build-host.local.yml`` file in the server checkout configures
+``services.study-web.build.network: host`` and the ``network.host`` build
+entitlement. The running app and databases still use their isolated Compose
+network. Keep that distinction when rebuilding.
+
+On that existing server checkout, update with::
+
+   git pull --ff-only
+   sudo docker compose --env-file .env.study -p bloom-study \
+     -f docker-compose.study.yml -f .study-build-host.local.yml up -d --build
+
+For a restart that does not rebuild the image, the ordinary Compose command
+with ``up -d --no-build`` suffices. Preserve ``.env.study`` and all study volumes.
+The local override is not part of the public repository; other installations
+should first check whether normal isolated builds work.

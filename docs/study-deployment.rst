@@ -121,7 +121,7 @@ container setup and persistent-key behavior. This is separate from the normal
 demo; it is not a migration of that server's data.
 
 LX build networking workaround
------------------------------
+------------------------------
 
 The LX deployment was verified on port 8081 on October 27, 2026. Jenkins was
 stopped and disabled with the owner's authorization, preserving its data. The

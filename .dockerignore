@@ -12,3 +12,5 @@ docs/_build
 .git
 .env.study
 backend/.env
+
+.runtime/

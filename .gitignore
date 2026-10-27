@@ -263,3 +263,6 @@ docs/_releases.rst
 
 # Claude Code project guidance (local-only)
 CLAUDE.md
+
+# Isolated AutoRSR environment, model cache, and private recordings
+.runtime/

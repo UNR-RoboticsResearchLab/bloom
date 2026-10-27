@@ -182,3 +182,46 @@ administrators and new researchers must choose a personal password of at least
 as the personal password.
 Researchers can administer study sessions; only administrators can issue logins.
 Public registration cannot grant either study role.
+
+AutoRSR on the study server's GPU
+--------------------------------
+
+The study can run a private AutoRSR service on the Linux host without changing
+Docker's GPU runtime or the main Bloom deployment. The supported host setup uses
+Python 3.11, an NVIDIA driver, ``python3-venv``, ``ffmpeg``, and ``libsndfile1``.
+Run from the study checkout as its owning user::
+
+   sudo apt-get install -y python3-venv ffmpeg libsndfile1
+   bash scripts/auto-rsr/setup.sh
+   bash scripts/auto-rsr/install-service.sh
+   sudo journalctl -u bloom-study-autorsr -n 40 --no-pager
+
+The first start downloads and warms WhisperX ``large-v3`` before opening its
+HTTP port. Keep ``.runtime/autorsr`` private: it contains the isolated Python
+environment, model cache, and uploaded recordings. It is excluded from Git and
+the Bloom Docker build context. The scoring and normalization functions are
+pinned to AutoRSR revision ``bd83acdcf8ff4940538a7864c10142a9845e334a``.
+
+The service binds to the Docker bridge gateway on port 5050; it is not published
+through the web tunnel. The study backend's default
+``AutoRsr__BaseUrl=http://host.docker.internal:5050`` reaches it. Verify from the
+backend container::
+
+   sudo docker exec bloom-study-study-web-1 bash -c \
+     'exec 3<>/dev/tcp/host.docker.internal/5050; printf "GET /health HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3; cat <&3'
+
+Only one assessment uses the GPU at a time. Batch size is one. Compute precision
+is selected from the GPU's reported capabilities: float16 where supported,
+otherwise int8 with float32 computation, then float32. The Tesla P4 uses the
+supported fallback; this changes inference precision, not the model or the
+AutoRSR edit-count scoring rules. The health response and service log report
+the selected configuration.
+
+After finishing a recording, select **Analyze response windows**. The complete
+audio is retained; analysis uses the latest eligible marked window for each
+item, including the original service's two-second pre-roll. AutoRSR scores and
+transcripts appear beside reviewed scores. **Apply score override** remains
+available with a reason, and an override never replaces the original automatic
+score. Save the archive again after scoring or overriding to preserve that
+review revision. A service or transcription failure returns an error and keeps
+the recording and overrides available; it does not generate zero scores.

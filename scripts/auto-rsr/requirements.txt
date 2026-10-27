@@ -1,0 +1,20 @@
+# Python 3.11; install torch/torchaudio from the cu121 index first (see setup.sh).
+numpy==1.26.4
+torch==2.1.2
+torchaudio==2.1.2
+whisperx==3.1.1
+faster-whisper==1.0.3
+ctranslate2==4.4.0
+transformers==4.39.3
+huggingface-hub==0.23.5
+pyannote.audio==3.1.1
+pyannote.core==5.0.0
+pyannote.database==5.1.3
+pyannote.metrics==3.2.1
+pyannote.pipeline==3.0.1
+torchmetrics==1.3.2
+pytorch-lightning==2.2.5
+speechbrain==1.0.3
+Flask==3.0.3
+waitress==3.0.2
+ftfy==6.3.1

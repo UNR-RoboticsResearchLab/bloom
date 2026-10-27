@@ -16,6 +16,7 @@ afterEach(async () => { await act(async () => root.unmount()); host.remove(); lo
 async function render() {
   await act(async () => root.render(<MemoryRouter initialEntries={['/rsr-study']} future={{v7_startTransition:true,v7_relativeSplatPath:true}}><Routes>
     <Route element={<StudyAccess />}><Route path="/rsr-study" element={<p>Study controls</p>} /></Route>
+    <Route path="/rsr-study/password" element={<p>Set personal password</p>} />
     <Route path="/rsr-study/login" element={<p>Researcher sign in</p>} />
   </Routes></MemoryRouter>));
 }
@@ -35,5 +36,11 @@ it('opens controls only after server verification and replaces stale identity', 
 it('keeps study controls closed if verification is unavailable', async () => {
   mockApi.getStudySession.mockRejectedValue(new Error('Network offline'));
   await render(); expect(host.textContent).toContain('Could not verify study access');
+  expect(host.textContent).not.toContain('Study controls');
+});
+
+it('requires a personal password before showing study controls', async () => {
+  mockApi.getStudySession.mockResolvedValue({id:'temporary',role:'Admin',mustChangePassword:true});
+  await render(); expect(host.textContent).toContain('Set personal password');
   expect(host.textContent).not.toContain('Study controls');
 });

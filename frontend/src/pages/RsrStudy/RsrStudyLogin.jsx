@@ -16,7 +16,7 @@ export default function RsrStudyLogin() {
     try {
       const data = await api.studySignIn(login.trim(), password);
       signInSession(data.user);
-      window.location.assign('/rsr-study');
+      window.location.assign(data.user.mustChangePassword ? '/rsr-study/password' : '/rsr-study');
     } catch(e) {
       setError(/HTTP (400|401|403)/.test(e.message)
         ? 'The researcher login or password is incorrect. Use the credentials provided by your study administrator.'

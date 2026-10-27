@@ -508,6 +508,11 @@ export default class ApiClient {
   async studySignOut() {
     return this.request("/api/rsr-study/auth/logout", { method: "POST" });
   }
+  async changeStudyPassword(currentPassword, newPassword) {
+    return this.request("/api/rsr-study/auth/password", {
+      method: "POST", body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  }
   async createStudyResearcher(account) {
     return this.request("/api/rsr-study/auth/researchers", {
       method: "POST", body: JSON.stringify(account),

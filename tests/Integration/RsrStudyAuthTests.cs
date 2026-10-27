@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 using bloom.Models;
+using bloom.Services;
 using bloom.Tests.TestHelpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,24 @@ public class RsrStudyAuthTests : IClassFixture<BloomWebApplicationFactory>
 {
     private readonly BloomWebApplicationFactory _factory;
     public RsrStudyAuthTests(BloomWebApplicationFactory factory) { _factory = factory; }
+    [Fact]
+    public async Task ServerProvisioningCreatesAdminWithoutPromotingExistingResearcher()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
+        var login = "study-admin-" + Guid.NewGuid().ToString("N");
+        await StudyAccountProvisioner.CreateAsync(users, login, TestDataSeeder.DefaultPassword, "Admin");
+        var admin = await users.FindByNameAsync(login);
+        Assert.True(await users.IsInRoleAsync(admin!, "Admin"));
+        using var client = _factory.CreateClient();
+        Assert.Equal(HttpStatusCode.OK, (await Login(client, admin!)).StatusCode);
+        var researcher = await Account("Researcher");
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            StudyAccountProvisioner.CreateAsync(users, researcher.UserName!, TestDataSeeder.DefaultPassword, "Admin"));
+        Assert.False(await users.IsInRoleAsync(researcher, "Admin"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            StudyAccountProvisioner.CreateAsync(users, "invalid-role", TestDataSeeder.DefaultPassword, "Owner"));
+    }
     private async Task<Account> Account(string role, bool membership = true)
     {
         using var scope = _factory.Services.CreateScope();
@@ -71,6 +90,36 @@ public class RsrStudyAuthTests : IClassFixture<BloomWebApplicationFactory>
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/rsr-study/auth/researchers", assigned)).StatusCode);
         using var issuedClient = _factory.CreateClient();
         Assert.Equal(HttpStatusCode.OK, (await issuedClient.PostAsJsonAsync("/api/rsr-study/auth/login", new { login = assigned.login, password = assigned.password })).StatusCode);
+    }
+    [Fact]
+    public async Task GeneratedPasswordRequiresChangeBeforeStudyAccess()
+    {
+        var admin = await Account("Admin");
+        using var adminClient = _factory.CreateClient();
+        await Login(adminClient, admin);
+        var login = "generated-" + Guid.NewGuid().ToString("N");
+        var created = await adminClient.PostAsJsonAsync("/api/rsr-study/auth/researchers", new { login });
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var payload = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var temporaryPassword = payload.GetProperty("temporaryPassword").GetString();
+        using var researcherClient = _factory.CreateClient();
+        var signedIn = await researcherClient.PostAsJsonAsync("/api/rsr-study/auth/login", new { login, password = temporaryPassword });
+        Assert.True((await signedIn.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("user").GetProperty("mustChangePassword").GetBoolean());
+        Assert.Equal(HttpStatusCode.Forbidden, (await researcherClient.GetAsync("/api/rsr-speech/sentences")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await researcherClient.PostAsJsonAsync("/api/rsr-study/auth/password",
+            new { currentPassword = temporaryPassword, newPassword = temporaryPassword })).StatusCode);
+        const string personalPassword = "Personal-Password@123";
+        Assert.Equal(HttpStatusCode.BadRequest, (await researcherClient.PostAsJsonAsync("/api/rsr-study/auth/password",
+            new { currentPassword = "wrong", newPassword = personalPassword })).StatusCode);
+        var changed = await researcherClient.PostAsJsonAsync("/api/rsr-study/auth/password",
+            new { currentPassword = temporaryPassword, newPassword = personalPassword });
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        Assert.False((await changed.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("user").GetProperty("mustChangePassword").GetBoolean());
+        Assert.Equal(HttpStatusCode.OK, (await researcherClient.GetAsync("/api/rsr-speech/sentences")).StatusCode);
+        using var freshClient = _factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await freshClient.PostAsJsonAsync("/api/rsr-study/auth/login", new { login, password = temporaryPassword })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await freshClient.PostAsJsonAsync("/api/rsr-study/auth/login", new { login, password = personalPassword })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await freshClient.PostAsJsonAsync("/api/rsr-study/auth/researchers", new { login = "no-access" })).StatusCode);
     }
     [Fact]
     public async Task PublicSignupCannotGrantAdministrativeOrResearcherAccess()

@@ -144,3 +144,41 @@ For a restart that does not rebuild the image, the ordinary Compose command
 with ``up -d --no-build`` suffices. Preserve ``.env.study`` and all study volumes.
 The local override is not part of the public repository; other installations
 should first check whether normal isolated builds work.
+
+Study administrator and researcher accounts
+------------------------------------------
+
+Study accounts belong to this deployment's database. Accounts created on a
+laptop or the main Bloom deployment do not automatically appear here.
+
+Bootstrap a dedicated administrator once from the server checkout. This uses
+ASP.NET Identity password validation and hashing. It refuses existing logins
+rather than changing their password or granting them additional permissions.
+The password is read without displaying it or putting it in shell history::
+
+   read -r -p 'New administrator login: ' STUDY_ACCOUNT_LOGIN
+   read -r -s -p 'New administrator password: ' STUDY_ACCOUNT_PASSWORD
+   echo
+   export STUDY_ACCOUNT_LOGIN STUDY_ACCOUNT_PASSWORD
+   sudo --preserve-env=STUDY_ACCOUNT_LOGIN,STUDY_ACCOUNT_PASSWORD docker compose \
+     --env-file .env.study -p bloom-study -f docker-compose.study.yml \
+     exec -T -e STUDY_ACCOUNT_LOGIN -e STUDY_ACCOUNT_PASSWORD \
+     -e STUDY_ACCOUNT_ROLE=Admin study-web \
+     dotnet bloom.dll --ProvisionStudyAccount=true
+   unset STUDY_ACCOUNT_LOGIN STUDY_ACCOUNT_PASSWORD
+
+Use a unique password stored in your password manager. Do not use the example
+administrator credentials seeded by older installations for a deployed study.
+Existing installations must also retire those example credentials through their
+administrator's account maintenance process.
+
+Sign in at ``https://dev-bloom.unr.dev/rsr-study/login`` with the new
+administrator login. Open ``/rsr-study/accounts`` to issue researcher logins.
+Enter the researcher's name and assigned login, then select
+**Create researcher login**. A random temporary password appears once; save it
+and share it directly with that researcher. On first sign in, both provisioned
+administrators and new researchers must choose a personal password of at least
+12 characters before accessing study data. Temporary passwords cannot be reused
+as the personal password.
+Researchers can administer study sessions; only administrators can issue logins.
+Public registration cannot grant either study role.

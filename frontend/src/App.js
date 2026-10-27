@@ -31,6 +31,7 @@ import RsrStudyAdmin from "./pages/RsrStudy/RsrStudyAdmin";
 import RsrStudyChild from "./pages/RsrStudy/RsrStudyChild";
 import RsrStudyLogin from "./pages/RsrStudy/RsrStudyLogin";
 import RsrResearcherAccounts from "./pages/RsrStudy/RsrResearcherAccounts";
+import RsrStudyPassword from "./pages/RsrStudy/RsrStudyPassword";
 import StudyAccess from "./pages/RsrStudy/StudyAccess";
 
 import ArSrStudy       from "./pages/ArSr/ArSrStudy";
@@ -43,6 +44,9 @@ export default function App() {
       <Routes>
         <Route path="/rsr-study/child/:studyId" element={<RsrStudyChild />} />
         <Route path="/rsr-study/login" element={<RsrStudyLogin />} />
+        <Route element={<StudyAccess passwordSetup />}>
+          <Route path="/rsr-study/password" element={<RsrStudyPassword />} />
+        </Route>
         <Route element={<StudyAccess />}>
           <Route path="/rsr-study" element={<RsrStudyAdmin />} />
         </Route>

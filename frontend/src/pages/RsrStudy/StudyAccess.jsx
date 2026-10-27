@@ -3,7 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useApiClient } from '../../context/ApiClientContext';
 import { signInSession, signOut } from '../../utils/auth';
 
-export default function StudyAccess({ adminOnly = false }) {
+export default function StudyAccess({ adminOnly = false, passwordSetup = false }) {
   const api = useApiClient();
   const [access, setAccess] = useState('checking');
   const [attempt, setAttempt] = useState(0);
@@ -17,6 +17,7 @@ export default function StudyAccess({ adminOnly = false }) {
         signOut(); setAccess('login'); return;
       }
       signInSession(user);
+      if (user.mustChangePassword && !passwordSetup) { setAccess("password"); return; }
       setAccess(adminOnly && user.role?.toLowerCase() !== 'admin' ? 'researcher' : 'allowed');
     }).catch(error => {
       if (cancelled) return;
@@ -24,7 +25,8 @@ export default function StudyAccess({ adminOnly = false }) {
       else setAccess('error');
     });
     return () => { cancelled = true; };
-  }, [api, adminOnly, attempt]);
+  }, [api, adminOnly, passwordSetup, attempt]);
+  if (access === "password") return <Navigate to="/rsr-study/password" replace />;
   if (access === 'login') return <Navigate to="/rsr-study/login" replace />;
   if (access === 'researcher') return <Navigate to="/rsr-study" replace />;
   if (access === 'checking') return <p role="status">Checking researcher access…</p>;

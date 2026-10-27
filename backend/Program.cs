@@ -320,6 +320,23 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
+// Temporary credentials can establish a session only to complete password setup.
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? "";
+    var passwordSetup = path.Equals("/api/rsr-study/auth/password", StringComparison.OrdinalIgnoreCase) ||
+        path.Equals("/api/rsr-study/auth/session", StringComparison.OrdinalIgnoreCase) ||
+        path.Equals("/api/rsr-study/auth/logout", StringComparison.OrdinalIgnoreCase);
+    if (context.User.Identity?.IsAuthenticated == true &&
+        context.User.HasClaim(c => c.Type == StudyAccountProvisioner.PasswordChangeClaim) &&
+        path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase) && !passwordSetup)
+    {
+        context.Response.StatusCode = 403;
+        await context.Response.WriteAsJsonAsync(new { message = "Set your personal password before accessing the study.", mustChangePassword = true });
+        return;
+    }
+    await next();
+});
 app.UseAuthorization();
 
 
@@ -343,6 +360,16 @@ using (var scope = app.Services.CreateScope())
     await BloomDbContext.SeedDatabaseRoles(roleManager);
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
+    // One-shot provisioning uses Identity validation and never starts the web listener.
+    if (builder.Configuration.GetValue<bool>("ProvisionStudyAccount"))
+    {
+        await StudyAccountProvisioner.CreateAsync(userManager,
+            Environment.GetEnvironmentVariable("STUDY_ACCOUNT_LOGIN") ?? "",
+            Environment.GetEnvironmentVariable("STUDY_ACCOUNT_PASSWORD") ?? "",
+            Environment.GetEnvironmentVariable("STUDY_ACCOUNT_ROLE") ?? "Researcher");
+        Console.WriteLine("Study account created.");
+        return;
+    }
     // Check if admin account exists, if not create one
     await BloomDbContext.SeedDatabaseAdminUser(userManager);
 

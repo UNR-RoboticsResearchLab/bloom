@@ -146,7 +146,7 @@ The local override is not part of the public repository; other installations
 should first check whether normal isolated builds work.
 
 Study administrator and researcher accounts
-------------------------------------------
+-------------------------------------------
 
 Study accounts belong to this deployment's database. Accounts created on a
 laptop or the main Bloom deployment do not automatically appear here.
@@ -184,7 +184,7 @@ Researchers can administer study sessions; only administrators can issue logins.
 Public registration cannot grant either study role.
 
 AutoRSR on the study server's GPU
---------------------------------
+---------------------------------
 
 The study can run a private AutoRSR service on the Linux host without changing
 Docker's GPU runtime or the main Bloom deployment. The supported host setup uses

@@ -9,8 +9,9 @@ namespace bloom.Models.dto
         public string Id { get; set; } = string.Empty;
         public string GroundTruth { get; set; } = string.Empty;
         public string Response { get; set; } = string.Empty;
-        public int Errors { get; set; }
-        public int Score { get; set; }
+        public int? Errors { get; set; }
+        public int? Score { get; set; }
+        public string? AnalysisError { get; set; }
     }
 
     public class RsrAssessmentResultDto

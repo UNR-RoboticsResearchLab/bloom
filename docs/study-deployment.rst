@@ -225,3 +225,9 @@ available with a reason, and an override never replaces the original automatic
 score. Save the archive again after scoring or overriding to preserve that
 review revision. A service or transcription failure returns an error and keeps
 the recording and overrides available; it does not generate zero scores.
+
+The original edit-search algorithm runs in a separate process with a three-second
+CPU limit and 512 MiB memory limit per item. A response that exceeds those limits
+retains its transcript and has an unscored (null) automatic score. The assessment
+is labeled incomplete and lists the items requiring manual review. Other items
+continue, and researchers may apply their usual documented overrides.

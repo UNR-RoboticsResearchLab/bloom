@@ -60,8 +60,9 @@ namespace bloom.Services
                     Id = s.GetProperty("id").GetString() ?? "",
                     GroundTruth = s.GetProperty("groundTruth").GetString() ?? "",
                     Response = s.GetProperty("response").GetString() ?? "",
-                    Errors = s.GetProperty("errors").GetInt32(),
-                    Score = s.GetProperty("score").GetInt32(),
+                    Errors = s.GetProperty("errors").ValueKind == JsonValueKind.Null ? null : s.GetProperty("errors").GetInt32(),
+                    Score = s.GetProperty("score").ValueKind == JsonValueKind.Null ? null : s.GetProperty("score").GetInt32(),
+                    AnalysisError = s.TryGetProperty("analysisError", out var error) ? error.GetString() : null,
                 })
                 .ToList();
 
@@ -140,8 +141,9 @@ namespace bloom.Services
                     Id = s.GetProperty("id").GetString() ?? "",
                     GroundTruth = s.GetProperty("groundTruth").GetString() ?? "",
                     Response = s.GetProperty("response").GetString() ?? "",
-                    Errors = s.GetProperty("errors").GetInt32(),
-                    Score = s.GetProperty("score").GetInt32(),
+                    Errors = s.GetProperty("errors").ValueKind == JsonValueKind.Null ? null : s.GetProperty("errors").GetInt32(),
+                    Score = s.GetProperty("score").ValueKind == JsonValueKind.Null ? null : s.GetProperty("score").GetInt32(),
+                    AnalysisError = s.TryGetProperty("analysisError", out var error) ? error.GetString() : null,
                 })
                 .ToList();
 

@@ -41,6 +41,13 @@ def transcribe(path):
     return ' '.join(s['text'].strip() for s in result.get('segments', []) if 'text' in s)
 
 
+def bounded_score(response, target):
+    result = subprocess.run([sys.executable, str(Path(__file__).with_name('score_worker.py')),
+        str(RUNTIME / 'source/auto_rsr.py')], input=json.dumps({'response': response, 'target': target}),
+        text=True, capture_output=True, check=True, timeout=4)
+    return json.loads(result.stdout)
+
+
 def validate_markers(markers):
     if not isinstance(markers, list) or not markers or len(markers) > 16:
         raise ValueError('Provide 1 to 16 response windows.')
@@ -58,6 +65,7 @@ def validate_markers(markers):
 
 def create_app(scorer=None, transcriber=transcribe):
     from flask import Flask, request, jsonify
+    isolated_scoring = scorer is None
     if scorer is None:
         sys.path.insert(0, str(RUNTIME / 'source'))
         import auto_rsr as scorer
@@ -102,13 +110,24 @@ def create_app(scorer=None, transcriber=transcribe):
                     '-to', str(marker['end_ms'] / 1000), str(clip)],
                     check=True, capture_output=True, timeout=120)
                 response = scorer.standarize(transcriber(clip))
-                edits = scorer.score_rsr_errors(response.split(), scorer.standarize(gt).split())
-                errors = sum(len(v) for v in edits.values())
-                sentences.append(dict(id=str(item_id), groundTruth=gt, response=response,
-                    errors=errors, score=scorer.score_rsr([errors]), editScript=edits))
+                try:
+                    target = scorer.standarize(gt).split()
+                    if isolated_scoring:
+                        scored = bounded_score(response.split(), target)
+                    else:
+                        edits = scorer.score_rsr_errors(response.split(), target)
+                        errors = sum(len(v) for v in edits.values())
+                        scored = dict(errors=errors, score=scorer.score_rsr([errors]), editScript=edits)
+                    sentences.append(dict(id=str(item_id), groundTruth=gt, response=response, **scored))
+                except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+                    sentences.append(dict(id=str(item_id), groundTruth=gt, response=response,
+                        errors=None, score=None, editScript=None,
+                        analysisError='Edit search exceeded its resource limit. Review this item manually.'))
                 paths[str(item_id)] = str(clip)
-            total = sum(s['score'] for s in sentences)
-            return jsonify(totalScore=total, result=scorer.evaluate_rsr_result(total, age, percentile),
+            total = sum(s['score'] for s in sentences if s['score'] is not None)
+            incomplete = [s['id'] for s in sentences if s['score'] is None]
+            decision = ('Incomplete — manual review required for items ' + ', '.join(incomplete)) if incomplete else scorer.evaluate_rsr_result(total, age, percentile)
+            return jsonify(totalScore=total, result=decision,
                 sentences=sentences, sessionFolder=str(folder), recordingPaths=paths)
         except Exception:
             app.logger.exception('AutoRSR analysis failed')

@@ -78,6 +78,17 @@ class ScorerTests(unittest.TestCase):
         self.assertEqual('int8_float32', options['compute_type'])
         self.assertEqual({'max_new_tokens', 'clip_timestamps', 'hallucination_silence_threshold', 'hotwords'}, set(options['asr_options']))
 
+    @patch.object(service.subprocess, 'run')
+    def test_edit_search_timeout_preserves_transcript_and_marks_item_unscored(self, ffmpeg):
+        with patch.dict('sys.modules', auto_rsr=self.scorer), patch.object(service, 'bounded_score', side_effect=service.subprocess.TimeoutExpired('scorer', 4)):
+            client = service.create_app(None, lambda path: 'Recognized response').test_client()
+            result = self.post(client)
+        self.assertEqual(200, result.status_code)
+        self.assertIsNone(result.json['sentences'][0]['score'])
+        self.assertEqual('recognized response', result.json['sentences'][0]['response'])
+        self.assertIn('Incomplete', result.json['result'])
+        self.assertIn('analysisError', result.json['sentences'][0])
+
 
 if __name__ == '__main__':
     unittest.main()

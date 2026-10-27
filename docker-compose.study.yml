@@ -1,0 +1,66 @@
+# Standalone stack for the tunnel at https://dev-bloom.unr.dev -> localhost:8081.
+# Start with --env-file .env.study -p bloom-study -f docker-compose.study.yml.
+services:
+  study-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.study
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:8080"
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "server=study-db;port=3306;database=bloomdb;user=bloom;password=${STUDY_DB_PASSWORD:?Set STUDY_DB_PASSWORD in .env.study};"
+      ConnectionStrings__DevArsrConnection: "server=study-arsr-db;port=3306;database=arsrdbl;user=arsr;password=${STUDY_ARSR_DB_PASSWORD:?Set STUDY_ARSR_DB_PASSWORD in .env.study};"
+      RsrStudy__ArchivePath: /var/rsr-study
+      DataProtection__KeyringPath: /var/dpkeys
+      AutoRsr__BaseUrl: ${STUDY_ANALYSIS_URL:-http://host.docker.internal:5050}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      study-db:
+        condition: service_healthy
+      study-arsr-db:
+        condition: service_healthy
+    volumes:
+      - study_keys:/var/dpkeys
+      - study_archives:/var/rsr-study
+  study-db:
+    image: mariadb:11.7
+    restart: unless-stopped
+    environment:
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+      MARIADB_DATABASE: bloomdb
+      MARIADB_USER: bloom
+      MARIADB_PASSWORD: ${STUDY_DB_PASSWORD:?Set STUDY_DB_PASSWORD in .env.study}
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - study_db:/var/lib/mysql
+  study-arsr-db:
+    image: mariadb:11.7
+    restart: unless-stopped
+    environment:
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+      MARIADB_DATABASE: arsrdbl
+      MARIADB_USER: arsr
+      MARIADB_PASSWORD: ${STUDY_ARSR_DB_PASSWORD:?Set STUDY_ARSR_DB_PASSWORD in .env.study}
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - study_arsr_db:/var/lib/mysql
+volumes:
+  study_db:
+  study_arsr_db:
+  study_keys:
+  study_archives:

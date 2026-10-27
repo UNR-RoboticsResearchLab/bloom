@@ -23,6 +23,7 @@ Use :doc:`platform setup </README>` to install and run Bloom,
 
    RSR administration reference <rsr-study>
    Upload recordings to Box <box-recordings>
+   Deploy the study server <study-deployment>
    Platform setup </README>
 
 .. toctree::

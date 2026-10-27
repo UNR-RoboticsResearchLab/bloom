@@ -1,9 +1,14 @@
 .ClientApp/
 bin
 obj
+**/bin
+**/obj
 **/node_modules
 **/build
 .test-tools
 docs/.venv
 docs/_build
 **/.DS_Store
+.git
+.env.study
+backend/.env

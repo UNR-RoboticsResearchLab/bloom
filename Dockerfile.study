@@ -1,0 +1,23 @@
+FROM node:20-alpine AS frontend
+WORKDIR /src
+COPY frontend/package*.json ./
+RUN npm install --silent
+COPY frontend/ ./
+# The tunnel serves the SPA and API together. Never send browser requests to :8080.
+ENV REACT_APP_API_BASE_URL=same-origin
+RUN npm run build
+
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS backend
+WORKDIR /src
+COPY backend/*.csproj ./
+RUN dotnet restore
+COPY backend/ ./
+RUN dotnet publish -c Release -o /out --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+WORKDIR /app
+COPY --from=backend /out ./
+COPY --from=frontend /src/build ./wwwroot
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "bloom.dll"]

@@ -252,6 +252,7 @@ cookies.txt
 backend/App_Data/
 # Local verification tooling
 .test-tools/
+.env.study
 .pnpm-store/
 
 # Generated Sphinx documentation and local documentation environment

@@ -23,6 +23,8 @@ Environment=TOKENIZERS_PARALLELISM=false
 ExecStart=/bin/bash $study_root/scripts/auto-rsr/start.sh
 Restart=on-failure
 RestartSec=30
+TimeoutStopSec=10
+MemoryMax=4G
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true

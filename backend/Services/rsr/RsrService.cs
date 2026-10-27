@@ -33,8 +33,10 @@ namespace bloom.Services
             using var form = new MultipartFormDataContent();
             using var audioStream = sessionAudio.OpenReadStream();
             var audioContent = new StreamContent(audioStream);
-            audioContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
-                sessionAudio.ContentType ?? "audio/webm");
+            // MediaRecorder includes parameters such as codecs=opus. The constructor
+            // accepts only a bare media type; Parse handles the complete header.
+            audioContent.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse(
+                string.IsNullOrWhiteSpace(sessionAudio.ContentType) ? "audio/webm" : sessionAudio.ContentType);
 
             form.Add(audioContent, "session_audio", sessionAudio.FileName);
             form.Add(new StringContent(age.ToString()), "age");

@@ -4,6 +4,8 @@ import LessonBuilder from "../LessonBuilder";
 import RobotFleetCard from "./RobotFleetCard";
 import RobotTerminal from "./RobotTerminal";
 import AddRobotDialog from "./AddRobotDialog";
+import RobotCredentialsDialog from "./RobotCredentialsDialog";
+import DeleteRobotDialog from "./DeleteRobotDialog";
 import { useApiClient } from "../../context/ApiClientContext";
 
 // function Stat({ label, value, unit = "", percent = null }) {
@@ -49,6 +51,9 @@ export default function AdminDashboard() {
   const [fleetError, setFleetError] = useState("");
   const [terminalRobot, setTerminalRobot] = useState(null);
   const [addRobotOpen, setAddRobotOpen] = useState(false);
+  const [credentialsRobot, setCredentialsRobot] = useState(null);
+  const [deleteRobot, setDeleteRobot] = useState(null);
+  const [fleetNotice, setFleetNotice] = useState("");
   const [fleetRefresh, setFleetRefresh] = useState(0);
   // const api = null;
   const [lessonPaneOpen, setLessonPaneOpen] = useState(false);
@@ -377,7 +382,13 @@ export default function AdminDashboard() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {fleet.map((robot) => (
-              <RobotFleetCard key={robot.id} robot={robot} onConnect={setTerminalRobot} />
+              <RobotFleetCard
+                key={robot.id}
+                robot={robot}
+                onConnect={setTerminalRobot}
+                onCredentials={setCredentialsRobot}
+                onDelete={setDeleteRobot}
+              />
             ))}
           </div>
         )}
@@ -574,6 +585,36 @@ export default function AdminDashboard() {
           onClose={() => setAddRobotOpen(false)}
           onCreated={() => setFleetRefresh((n) => n + 1)}
         />
+      )}
+
+      {credentialsRobot && (
+        <RobotCredentialsDialog
+          // Keyed so the dialog starts fresh per robot; reads the polled copy so online status is current.
+          key={credentialsRobot.id}
+          robot={fleet.find((r) => r.id === credentialsRobot.id) || credentialsRobot}
+          onClose={() => setCredentialsRobot(null)}
+          onChanged={() => setFleetRefresh((n) => n + 1)}
+        />
+      )}
+
+      {deleteRobot && (
+        <DeleteRobotDialog
+          key={deleteRobot.id}
+          robot={fleet.find((r) => r.id === deleteRobot.id) || deleteRobot}
+          onClose={() => setDeleteRobot(null)}
+          onDeleted={(robot) => {
+            setFleet((current) => current.filter((r) => r.id !== robot.id));
+            setFleetRefresh((n) => n + 1);
+            setFleetNotice(`Deleted ${robot.name}.`);
+            setTimeout(() => setFleetNotice(""), 5000);
+          }}
+        />
+      )}
+
+      {fleetNotice && (
+        <div role="status" className="fixed bottom-4 left-4 z-50 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow">
+          {fleetNotice}
+        </div>
       )}
 
       {terminalRobot && (

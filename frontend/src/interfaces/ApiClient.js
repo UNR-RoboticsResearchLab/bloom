@@ -436,6 +436,24 @@ export default class ApiClient {
     return this.request(`/api/robot/${robotId}/revoke`, { method: "POST" });
   }
 
+  // Replaces the secret immediately and returns the new one (shown once). The old secret, the
+  // robot's tokens and its live connection stop working. Resolves { robotId, secret }.
+  async rotateRobotCredentials(robotId) {
+    return this.request(`/api/robot/${robotId}/credentials`, { method: "POST" });
+  }
+
+  // Delivers a new secret to an online robot through its agent. Never returns the secret; the old
+  // one keeps working until the robot uses the new one. Rejects with 409 (offline), 502 (the agent
+  // refused) or 504 (no confirmation).
+  async pushRobotCredentials(robotId) {
+    return this.request(`/api/robot/${robotId}/credentials/push`, { method: "POST" });
+  }
+
+  // The origin a robot should use to reach the backend, for provisioning files.
+  publicBaseUrl() {
+    return new URL(this.baseUrl || window.location.origin, window.location.href).origin;
+  }
+
   // WebSocket URL for one remote shell session. Same host as the REST API (so the auth cookie
   // goes with it); an empty baseUrl means same-origin, e.g. behind the CRA dev proxy.
   shellSocketUrl(robotId, cols, rows, force = false) {

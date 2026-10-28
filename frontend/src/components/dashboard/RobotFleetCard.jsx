@@ -55,7 +55,7 @@ function relativeTime(iso) {
   return new Date(iso).toLocaleDateString();
 }
 
-export default function RobotFleetCard({ robot, releases = {}, onUpdate, onConnect }) {
+export default function RobotFleetCard({ robot, releases = {}, onUpdate, onConnect, onCredentials, onDelete }) {
   // The agent's self-reported SemVer; bloom_node's firmwareVersion for robots without an agent yet.
   const currentVersion = robot.agentVersion || robot.firmwareVersion || null;
   const model = robot.model || "Unknown model";
@@ -222,6 +222,31 @@ export default function RobotFleetCard({ robot, releases = {}, onUpdate, onConne
           <button type="button" onClick={() => setConfirming(false)} className="text-gray-500 hover:text-gray-700">
             Cancel
           </button>
+        </div>
+      )}
+
+      {(onCredentials || onDelete) && (
+        <div className="flex gap-2">
+          {onCredentials && (
+            <button
+              type="button"
+              onClick={() => onCredentials(robot)}
+              aria-label={`Credentials for ${name}`}
+              className="flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              Credentials
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(robot)}
+              aria-label={`Delete ${name}`}
+              className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              Delete
+            </button>
+          )}
         </div>
       )}
 

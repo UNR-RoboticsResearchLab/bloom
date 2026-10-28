@@ -28,6 +28,9 @@ services:
   bloom-server:
     build:
       context: .
+      # BUILD_VERSION=$(nbgv get-version -v SemVer2) docker compose -f docker-compose.prod.yml build
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-0.0.0-local}
     image: bloom-server:latest
     container_name: bloom-server
     ports:

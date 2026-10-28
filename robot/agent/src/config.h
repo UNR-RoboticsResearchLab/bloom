@@ -35,11 +35,17 @@ struct AgentConfig {
   std::vector<std::string> expected_issuers;  // doctor: substrings expected in the server cert's issuer
   std::string captive_check_url = "http://connectivity-check.ubuntu.com/";
   std::string shell;                      // default: the agent user's login shell
+  // Run (via sudo, unless root) with the new secret on stdin when the backend pushes one. Writes
+  // the agent's secret file and bloom_node's .env.
+  std::string apply_secret_command = "/opt/bloom-agent/current/provision.sh";
   std::string config_path;
 };
 
 constexpr const char* kDefaultConfigPath = "/etc/bloom-agent/agent.json";
 constexpr const char* kDefaultSecretPath = "/etc/bloom-agent/secret";
+
+// True when the secret comes from systemd's $CREDENTIALS_DIRECTORY, which the agent can't replace.
+bool secret_is_externally_managed();
 
 // Reads the secret from the first source that has one (see top of file); empty if none. Called
 // before every login, so installing a rotated secret doesn't need an agent restart.

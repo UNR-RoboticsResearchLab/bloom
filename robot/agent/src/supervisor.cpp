@@ -10,6 +10,7 @@ const char* to_string(TunnelEnd end) {
     case TunnelEnd::AuthRejected: return "auth_rejected";
     case TunnelEnd::Closed: return "closed";
     case TunnelEnd::TokenExpired: return "token_expired";
+    case TunnelEnd::CredentialsRotated: return "credentials_rotated";
     case TunnelEnd::Revoked: return "revoked";
     case TunnelEnd::Dead: return "dead";
     case TunnelEnd::Stopped: return "stopped";
@@ -32,6 +33,12 @@ std::chrono::milliseconds Supervisor::step() {
   const auto result = backend_.run_tunnel(login.token);
   const auto up_for = std::chrono::duration_cast<std::chrono::seconds>(result.connected_for);
   if (result.end == TunnelEnd::Stopped) return std::chrono::milliseconds(0);
+
+  if (result.end == TunnelEnd::CredentialsRotated) {
+    backoff_.reset();
+    log::info("credentials rotated; reconnecting with the new secret");
+    return std::chrono::milliseconds(0);
+  }
 
   if (result.end == TunnelEnd::TokenExpired) {
     // Routine: the backend ends every tunnel at token expiry. Reconnect straight away.

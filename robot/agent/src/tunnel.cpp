@@ -60,10 +60,11 @@ class TunnelSession {
  public:
   using Ws = websocket::stream<TlsStream>;
 
-  TunnelSession(asio::io_context& io, Ws& ws, PtyFactory factory, std::function<bool()> stopping)
+  TunnelSession(asio::io_context& io, Ws& ws, PtyFactory factory, SecretApplier applier, std::function<bool()> stopping)
       : io_(io),
         ws_(ws),
         sessions_(std::move(factory)),
+        secret_applier_(std::move(applier)),
         stopping_(std::move(stopping)),
         liveness_(kPingInterval, kDeadAfter, clock::now()),
         timer_(io) {}
@@ -102,6 +103,8 @@ class TunnelSession {
         const auto reason = std::string(ws_.reason().reason.c_str());
         if (reason == "token_expired")
           finish(TunnelEnd::TokenExpired, reason);
+        else if (reason == "credentials_rotated")
+          finish(TunnelEnd::CredentialsRotated, reason);
         else if (reason == "revoked")
           finish(TunnelEnd::Revoked, reason);
         else
@@ -161,6 +164,10 @@ class TunnelSession {
     }
     const auto type = msg.value("type", "");
     if (type == "pong") return;
+    if (type == "set_secret") {
+      on_set_secret(data);  // pass the raw text: `msg` holds the secret and isn't kept around
+      return;
+    }
 
     const auto id = parse_uuid(msg.value("sessionId", ""));
     if (!id) return;
@@ -174,6 +181,30 @@ class TunnelSession {
       readers_.erase(*id);
       sessions_.close(*id);
     }
+  }
+
+  // The backend pushes a rotated secret. Apply it to disk, confirm, and the backend then drops the
+  // tunnel so we log in again with it. Blocks the loop for the script's runtime (seconds).
+  void on_set_secret(const std::string& raw) {
+    const auto request_id = request_id_of(raw);
+    if (!request_id) {
+      log::warn("ignoring set_secret without a valid requestId");
+      return;
+    }
+    const auto request = parse_set_secret(raw);
+    if (!request) {
+      send(false, secret_applied_message(*request_id, false, "the pushed secret was malformed"));
+      return;
+    }
+    if (secret_is_externally_managed()) {
+      send(false, secret_applied_message(*request_id, false,
+                                         "this robot's secret comes from systemd credentials and can't be replaced remotely"));
+      return;
+    }
+    log::info("applying a pushed secret");
+    const auto result = secret_applier_(request->secret);
+    log::info(result.ok ? "pushed secret applied" : "pushed secret NOT applied: " + result.message);
+    send(false, secret_applied_message(*request_id, result.ok, result.message));
   }
 
   void open_session(const Uuid& id, int cols, int rows) {
@@ -281,6 +312,7 @@ class TunnelSession {
   asio::io_context& io_;
   Ws& ws_;
   SessionManager sessions_;
+  SecretApplier secret_applier_;
   std::function<bool()> stopping_;
   Liveness liveness_;
   asio::steady_timer timer_;
@@ -297,8 +329,13 @@ class TunnelSession {
 
 }  // namespace
 
-HttpBackend::HttpBackend(const AgentConfig& cfg, PtyFactory pty_factory, std::function<bool()> stopping)
-    : cfg_(cfg), tls_(make_tls_context(cfg)), pty_factory_(std::move(pty_factory)), stopping_(std::move(stopping)) {}
+HttpBackend::HttpBackend(const AgentConfig& cfg, PtyFactory pty_factory, SecretApplier secret_applier,
+                         std::function<bool()> stopping)
+    : cfg_(cfg),
+      tls_(make_tls_context(cfg)),
+      pty_factory_(std::move(pty_factory)),
+      secret_applier_(std::move(secret_applier)),
+      stopping_(std::move(stopping)) {}
 
 LoginResult HttpBackend::login() {
   try {
@@ -352,7 +389,7 @@ TunnelResult HttpBackend::run_tunnel(const std::string& token) {
   }
 
   log::info("tunnel up to " + cfg_.backend.authority() + " (agent " + kVersion + ")");
-  TunnelSession session(io, ws, pty_factory_, stopping_);
+  TunnelSession session(io, ws, pty_factory_, secret_applier_, stopping_);
   return session.run();
 }
 

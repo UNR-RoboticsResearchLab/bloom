@@ -1,5 +1,6 @@
 #include "protocol.h"
 
+#include <cctype>
 #include <nlohmann/json.hpp>
 
 namespace bloom_agent {
@@ -67,6 +68,32 @@ std::string ping_message() { return R"({"type":"ping"})"; }
 std::string exited_message(const Uuid& session, std::optional<int> code) {
   nlohmann::json msg{{"type", "exited"}, {"sessionId", format_uuid(session)}};
   msg["code"] = code ? nlohmann::json(*code) : nlohmann::json(nullptr);
+  return msg.dump();
+}
+
+std::optional<std::string> request_id_of(std::string_view json_text) {
+  const auto msg = nlohmann::json::parse(json_text, nullptr, /*allow_exceptions=*/false);
+  if (!msg.is_object() || !msg.contains("requestId") || !msg["requestId"].is_string()) return std::nullopt;
+  auto id = msg["requestId"].get<std::string>();
+  if (!parse_uuid(id)) return std::nullopt;
+  return id;
+}
+
+std::optional<SetSecretRequest> parse_set_secret(std::string_view json_text) {
+  const auto msg = nlohmann::json::parse(json_text, nullptr, /*allow_exceptions=*/false);
+  if (!msg.is_object() || msg.value("type", "") != "set_secret") return std::nullopt;
+  auto id = request_id_of(json_text);
+  if (!id || !msg.contains("secret") || !msg["secret"].is_string()) return std::nullopt;
+  auto secret = msg["secret"].get<std::string>();
+  if (secret.size() < 16 || secret.size() > 512) return std::nullopt;
+  for (char c : secret)
+    if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') return std::nullopt;
+  return SetSecretRequest{*id, std::move(secret)};
+}
+
+std::string secret_applied_message(std::string_view request_id, bool ok, std::string_view message) {
+  nlohmann::json msg{{"type", "secret_applied"}, {"requestId", request_id}, {"ok", ok}};
+  if (!message.empty()) msg["message"] = message;
   return msg.dump();
 }
 

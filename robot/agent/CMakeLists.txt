@@ -53,6 +53,7 @@ add_library(agent_core STATIC
   src/protocol.cpp
   src/proxy.cpp
   src/pty_process.cpp
+  src/secret_apply.cpp
   src/sessions.cpp
   src/supervisor.cpp
   src/tunnel.cpp
@@ -79,6 +80,7 @@ if(AGENT_BUILD_TESTS)
     tests/protocol_test.cpp
     tests/proxy_test.cpp
     tests/pty_test.cpp
+    tests/secret_apply_test.cpp
     tests/semver_test.cpp
     tests/sessions_test.cpp
     tests/supervisor_test.cpp

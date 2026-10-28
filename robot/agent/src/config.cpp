@@ -50,10 +50,18 @@ std::optional<BackendUrl> BackendUrl::parse(const std::string& url) {
   return out;
 }
 
+bool secret_is_externally_managed() {
+  const char* dir = std::getenv("CREDENTIALS_DIRECTORY");
+  if (!dir) return false;
+  auto s = read_trimmed(std::string(dir) + "/secret");
+  return s && !s->empty();
+}
+
 std::string read_secret() {
   if (const char* dir = std::getenv("CREDENTIALS_DIRECTORY"))
     if (auto s = read_trimmed(std::string(dir) + "/secret"); s && !s->empty()) return *s;
-  if (auto s = read_trimmed(kDefaultSecretPath); s && !s->empty()) return *s;
+  // BLOOM_AGENT_SECRET_FILE moves the file (dev/test only), e.g. to run the agent unprivileged.
+  if (auto s = read_trimmed(env_or("BLOOM_AGENT_SECRET_FILE", kDefaultSecretPath)); s && !s->empty()) return *s;
   return env_or("BLOOM_ROBOT_SECRET", "");
 }
 
@@ -77,6 +85,7 @@ AgentConfig load_config(const std::string& path, bool require_credentials) {
   cfg.robot_id = env_or("BLOOM_ROBOT_ID", str("robot_id"));
   cfg.ca_file = str("ca_file");
   cfg.shell = str("shell");
+  if (auto v = str("apply_secret_command"); !v.empty()) cfg.apply_secret_command = v;
   if (auto v = str("captive_check_url"); !v.empty()) cfg.captive_check_url = v;
   if (file.contains("expected_issuers") && file["expected_issuers"].is_array())
     for (const auto& i : file["expected_issuers"])

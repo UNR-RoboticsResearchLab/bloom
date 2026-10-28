@@ -53,7 +53,7 @@ jobs:
           name="robot-agent-${{ steps.version.outputs.semver }}"
           mkdir -p "dist/$name"
           strip -o "dist/$name/robot-agent" build/robot-agent
-          cp robot/agent/deploy/install.sh robot/agent/deploy/bloom-agent.service \
+          cp robot/agent/deploy/install.sh robot/agent/deploy/provision.sh robot/agent/deploy/bloom-agent.service \
              robot/agent/deploy/agent.json.example robot/agent/README.md "dist/$name/"
           "dist/$name/robot-agent" version
           tar -C dist -czf "dist/$name.tar.gz" "$name"

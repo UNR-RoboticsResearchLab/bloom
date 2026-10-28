@@ -22,6 +22,7 @@ enum class TunnelEnd {
   AuthRejected,   // upgrade refused with 401/403
   Closed,         // backend or network closed an established tunnel
   TokenExpired,   // backend closed it at JWT expiry -- expected every Jwt:ExpireMinutes
+  CredentialsRotated,  // backend closed it after we applied a pushed secret: log in again with it
   Revoked,        // backend closed it because the robot was revoked
   Dead,           // nothing received for too long
   Stopped,        // agent is shutting down

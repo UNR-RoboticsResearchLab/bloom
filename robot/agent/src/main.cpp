@@ -12,11 +12,13 @@
 #include <random>
 #include <string>
 #include <thread>
+#include <unistd.h>
 
 #include "config.h"
 #include "doctor.h"
 #include "log.h"
 #include "pty_process.h"
+#include "secret_apply.h"
 #include "supervisor.h"
 #include "tunnel.h"
 #include "version.h"
@@ -75,7 +77,12 @@ int main(int argc, char** argv) {
   log::info(std::string("robot-agent ") + kVersion + " (" + kCommit + ") starting for robot " + cfg.robot_id + " -> " +
             cfg.backend.authority());
 
-  HttpBackend backend(cfg, pty_factory, stopping);
+  ApplyOptions apply_options;
+  apply_options.command = cfg.apply_secret_command;
+  apply_options.use_sudo = geteuid() != 0;
+  SecretApplier secret_applier = [apply_options](const std::string& secret) { return apply_secret(apply_options, secret); };
+
+  HttpBackend backend(cfg, pty_factory, secret_applier, stopping);
   Supervisor supervisor(backend, backoff);
   supervisor.run(stopping, [&](std::chrono::milliseconds delay) {
     // Sleep in slices so SIGTERM is honoured promptly.

@@ -102,6 +102,19 @@ TEST(Supervisor, TokenExpiryReconnectsImmediately) {
   EXPECT_EQ(s.step(), 999ms);  // and the backoff was reset by it
 }
 
+TEST(Supervisor, CredentialsRotatedReconnectsImmediatelyAndResetsBackoff) {
+  FakeBackend backend;
+  backend.logins = {failed(), failed(), ok("a"), failed()};
+  backend.tunnels = {ended(TunnelEnd::CredentialsRotated, 5s)};
+  auto backoff = exact_backoff();
+  Supervisor s(backend, backoff);
+
+  s.step();
+  s.step();
+  EXPECT_EQ(s.step(), 0ms);
+  EXPECT_EQ(s.step(), 999ms);
+}
+
 TEST(Supervisor, RunStopsWhenAsked) {
   FakeBackend backend;
   backend.logins = {failed(), failed(), failed()};

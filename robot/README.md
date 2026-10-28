@@ -220,9 +220,18 @@ Two credential mechanisms exist side by side:
   mode.
 - `.env` (copy from `.env.example`) — Azure OpenAI/TTS credentials loaded
   as environment variables; referenced by `bloom.service` via
-  `EnvironmentFile`.
+  `EnvironmentFile`. It also holds `BLOOM_ROBOT_ID` / `BLOOM_ROBOT_SECRET`,
+  which `bloom_node` uses to log in to the backend. An admin issues them;
+  robots no longer self-register.
 
 Both need to be filled in for the ROS2 stack to talk to Azure.
+
+### Remote shell agent (`agent/`)
+
+`robot/agent/` is `robot-agent`, which gives admins a shell on this robot from the fleet
+dashboard over an outbound TLS tunnel. It's plain CMake rather than a colcon package
+(`COLCON_IGNORE`), so it keeps working when the ROS stack doesn't, and it has its own systemd
+unit (`bloom-agent.service`). See [agent/README.md](agent/README.md).
 
 ### Systemd Service
 

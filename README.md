@@ -120,6 +120,9 @@ Backend configuration lives in `backend/appsettings.json` (base) and `backend/ap
 - `ConnectionStrings:DevArsrConnection` / `ProdArsrConnection` — ArSr DB
 - `Jwt:Key` / `Issuer` / `Audience` / `ExpireMinutes` — auth token settings (change `Jwt:Key` before any real deployment; the checked-in value is a placeholder)
 - `AutoRsr:BaseUrl` — where the backend reaches the AutoRSR microservice
+- `Seed:AdminPassword` — password for the seeded `admin@example.com` account, used only when that account doesn't exist yet. Production refuses to create the account without it; Development falls back to `Admin@123`
+- `Robot:AllowLegacyNameOnlyLogin` — rollout only: lets robots that have no secret yet log in by name (their tokens can't open the remote shell)
+- `RemoteShell:Enabled` / `AllowedOrigins` / `SessionOpensPerMinute` — fleet remote shell (below). Off by default; it won't start with the checked-in `Jwt:Key`
 
 The robot driver has its own credentials, kept out of version control: copy `robot/.env.example` to `robot/.env` and fill in Azure OpenAI / Azure Speech keys. See [robot/README.md](robot/README.md).
 
@@ -175,3 +178,32 @@ This path assumes `bloom.service` and the target directories already exist on th
 ## Robot
 
 The physical robot runs a separate ROS 2 workspace under `robot/`, independent of the Docker/web-app stack above. See [robot/README.md](robot/README.md) for build instructions, and note that `robot/src/blsm_unr` is a git submodule that needs `git submodule update --init --recursive` before it will build.
+
+Robots don't register themselves any more. An admin provisions each one and gets back its id and a secret, which is shown only once:
+
+```bash
+curl -b cookies -H 'Content-Type: application/json' \
+  -d '{"name":"blossom-07","model":"Blossom","ipAddress":"N/A"}' https://<backend>/api/robot/register
+```
+
+Put them in `robot/.env` (`BLOOM_ROBOT_ID`, `BLOOM_ROBOT_SECRET`) for `bloom_node`, and in the robot agent's config (below). For an existing robot, `POST /api/robot/{id}/credentials` issues a new secret.
+
+## Fleet remote shell
+
+Admins can open a shell on any online robot from the **Fleet** section of the admin dashboard. Each robot runs `robot-agent` ([robot/agent/README.md](robot/agent/README.md)), which keeps an outbound TLS WebSocket open to the backend. No inbound port and no sshd are needed, and it works through campus HTTP proxies. The backend relays the browser's xterm.js terminal over that connection.
+
+- **Run locally:**
+  1. Set `RemoteShell__Enabled=true` and a private `Jwt__Key` of at least 32 bytes on the backend.
+  2. The agent needs HTTPS. Serve the backend with `ASPNETCORE_URLS=https://localhost:5443`, export the dev certificate with `dotnet dev-certs https --export-path dev.pem --format PEM --no-password`, and set `"ca_file"` in the agent's config to that file.
+  3. Build and run the agent as described in its README.
+- **Deploy:**
+  1. CI builds `robot-agent-<version>.tar.gz` for arm64 (`.github/workflows/robot-agent.yml`).
+  2. On the robot, `sudo ./install.sh --backend-url ... --robot-id ... --secret-file -` sets up the `bloom-ops` user (passwordless sudo) and the systemd unit.
+  3. If a robot can't connect, run `robot-agent doctor` on it.
+- **Revoke a robot:** `POST /api/robot/{id}/revoke`. This deletes its secret, stops every token it holds from working, and closes its tunnel and any open shell immediately. To restore it, issue new credentials with `POST /api/robot/{id}/credentials`.
+- **Audit:** every session is recorded with who opened it, which robot, start and end times, and the end reason: `GET /api/robot/{id}/shell-sessions`. Keystrokes are never stored.
+- One admin shell per robot at a time. A second admin is shown who has it and can take it over; that ends the first session, and the takeover is audited.
+
+### Versioning
+
+Versions come from [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) and the root `version.json`. Every build gets `1.0.<git height>`; builds off `main` get an extra `-g<commit>` suffix. Release channels (dev/canary/prod) are deliberately not part of the version, because the same artifact is promoted between channels. CI needs full history (`fetch-depth: 0`). Docker builds have no `.git`, so they take the version as a build arg: `BUILD_VERSION=$(nbgv get-version -v SemVer2) docker compose -f docker-compose.prod.yml build`.

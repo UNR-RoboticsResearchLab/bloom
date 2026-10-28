@@ -13,8 +13,9 @@ input. Enter one of these values and press Enter:
    The backend is explicitly ``https://dev-bloom.unr.dev``. Open the researcher
    dashboard there and pair using the robot's session code.
 
-   After a sentence and its completion chime, M's face glows green and smiles
-   to cue the child's turn to respond. The glow and smile clear when the next prompt
+   After a sentence and its completion chime, a soft green outline appears around
+   M's normally colored face, and M smiles to cue the child's turn to respond.
+   The outline and smile clear when the next prompt
    starts (or the robot loses its backend connection). This is a response cue,
    not a microphone-recording light; the full-session recording remains
    continuous. The researcher still marks response windows in the dashboard.

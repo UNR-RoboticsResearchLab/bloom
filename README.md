@@ -179,14 +179,7 @@ This path assumes `bloom.service` and the target directories already exist on th
 
 The physical robot runs a separate ROS 2 workspace under `robot/`, independent of the Docker/web-app stack above. See [robot/README.md](robot/README.md) for build instructions, and note that `robot/src/blsm_unr` is a git submodule that needs `git submodule update --init --recursive` before it will build.
 
-Robots don't register themselves any more. An admin provisions each one and gets back its id and a secret, which is shown only once:
-
-```bash
-curl -b cookies -H 'Content-Type: application/json' \
-  -d '{"name":"blossom-07","model":"Blossom","ipAddress":"N/A"}' https://<backend>/api/robot/register
-```
-
-Put them in `robot/.env` (`BLOOM_ROBOT_ID`, `BLOOM_ROBOT_SECRET`) for `bloom_node`, and in the robot agent's config (below). For an existing robot, `POST /api/robot/{id}/credentials` issues a new secret.
+Robots don't register themselves any more. An admin adds each one in the dashboard (Fleet → **Add robot**) and gets its id and a secret, shown only once, plus a **provisioning file** to carry to the robot. `robot/agent/deploy/provision.sh` (or `install.sh --provision-file`) applies it to both the agent and `bloom_node`'s `robot/.env` (`BLOOM_ROBOT_ID`, `BLOOM_ROBOT_SECRET`), all-or-nothing. For an existing robot, Fleet → **Credentials** either **pushes** a new secret to the robot through its live connection (the old one keeps working until the robot uses the new one, so it can't lock it out) or downloads a provisioning file. **Delete** (type the name to confirm) removes a robot. The same operations exist as `POST /api/robot/register`, `/{id}/credentials`, `/{id}/credentials/push` and `DELETE /api/robot/{id}`, all admin-only. Details: [robot/agent/README.md](robot/agent/README.md).
 
 ## Fleet remote shell
 
@@ -200,7 +193,7 @@ Admins can open a shell on any online robot from the **Fleet** section of the ad
   1. CI builds `robot-agent-<version>.tar.gz` for arm64 (`.github/workflows/robot-agent.yml`).
   2. On the robot, `sudo ./install.sh --backend-url ... --robot-id ... --secret-file -` sets up the `bloom-ops` user (passwordless sudo) and the systemd unit.
   3. If a robot can't connect, run `robot-agent doctor` on it.
-- **Revoke a robot:** `POST /api/robot/{id}/revoke`. This deletes its secret, stops every token it holds from working, and closes its tunnel and any open shell immediately. To restore it, issue new credentials with `POST /api/robot/{id}/credentials`.
+- **Revoke a robot:** `POST /api/robot/{id}/revoke`. This deletes its secret, stops every token it holds from working, and closes its tunnel and any open shell immediately. To restore it, issue a provisioning file from Fleet → **Credentials**.
 - **Audit:** every session is recorded with who opened it, which robot, start and end times, and the end reason: `GET /api/robot/{id}/shell-sessions`. Keystrokes are never stored.
 - One admin shell per robot at a time. A second admin is shown who has it and can take it over; that ends the first session, and the takeover is audited.
 

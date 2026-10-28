@@ -36,28 +36,25 @@ Ubuntu 24.04 specifically, not any arm64 Linux.
 1. **Turn the shell on in the backend** (it's off by default). Set `RemoteShell__Enabled=true`.
    It won't start unless `Jwt__Key` is a private key of at least 32 bytes; the one in
    `appsettings.json` is public. See `backend/.env.example`.
-2. **Register the robot** as an admin. The response contains the robot's `id` and its `secret`.
-   The secret is shown only this once.
+2. **Add the robot** in the dashboard (Fleet → **Add robot**). It shows the robot's ID and secret
+   once and offers a **provisioning file** to download (`<name>.provision.json`: backend URL, robot
+   ID, name, secret; it holds the secret in plain text, so delete it after use). From a shell, the
+   equivalent is `POST /api/robot/register`.
+3. **On the robot**, from the extracted tarball, with the provisioning file copied over (USB stick or
+   scp):
    ```bash
-   curl -b cookies -H 'Content-Type: application/json' \
-     -d '{"name":"blossom-07","model":"Blossom","ipAddress":"N/A"}' https://bloom.example.edu/api/robot/register
-   ```
-   For a robot that already exists, `POST /api/robot/{id}/credentials` issues a new secret.
-3. **On the robot**, from the extracted tarball:
-   ```bash
-   sudo ./install.sh --backend-url https://bloom.example.edu --robot-id <id> --secret-file - <<< '<secret>'
+   sudo ./install.sh --provision-file blossom-07.provision.json
    ```
    The script:
    - creates `bloom-ops`;
    - installs to `/opt/bloom-agent/<version>`, pointed to by a `current` symlink;
-   - writes `/etc/bloom-agent/agent.json` and `/etc/bloom-agent/secret` (0600);
+   - applies the credentials with `provision.sh` (below), which also updates `bloom_node`'s `.env`;
    - enables `bloom-agent.service`;
    - runs `doctor`.
 
-   Re-running it upgrades the agent and keeps the existing config.
-4. `bloom_node` uses the same id and secret. Put them in `robot/.env` as `BLOOM_ROBOT_ID` and
-   `BLOOM_ROBOT_SECRET`.
-5. Once the robot shows as online in the fleet view and a shell works, you can close sshd with
+   Re-running it upgrades the agent and keeps the existing config. Without the file you can pass
+   `--backend-url`, `--robot-id` and `--secret-file -` instead.
+4. Once the robot shows as online in the fleet view and a shell works, you can close sshd with
    `sudo ./install.sh --disable-sshd`. The script refuses while `doctor` is failing, so you can't
    lock yourself out.
 
@@ -105,7 +102,45 @@ If the network inspects TLS and policy requires it, add the inspection CA with `
 - When a tunnel drops, every shell is hung up. Everything on the terminal gets SIGHUP, as with
   ssh, so a job started with `nohup` survives. Stopping the service kills everything it started.
 
+## Changing a robot's credentials
+
+`bloom_node` and the agent share one ID and secret, so changing it means updating both on the robot.
+That is what `deploy/provision.sh` does, **all-or-nothing** (any failure restores every file):
+
+| File | Change |
+|---|---|
+| `/etc/bloom-agent/secret` | the new secret (0600, owned by `bloom-ops`) |
+| `/etc/bloom-agent/agent.json` | `backend_url`, `robot_id` (file mode only) |
+| `bloom_node`'s `.env` | `BLOOM_ROBOT_ID` / `BLOOM_ROBOT_SECRET`, other keys untouched. Found from `EnvironmentFile=` in `/etc/systemd/system/bloom.service`, or pass `--env-file` |
+
+It then restarts `bloom-agent` and `bloom`. There are two ways to run it, both from the dashboard's
+Fleet → robot → **Credentials** button:
+
+- **Push** (robot online). The backend sends the new secret to the agent through its live tunnel; the
+  agent runs `sudo -n /opt/bloom-agent/current/provision.sh --secret-stdin --no-restart-agent` with the
+  secret on stdin and confirms. The backend then drops the tunnel and the agent reconnects with the
+  new secret. The secret never passes through the admin's browser.
+  *Nothing can lock the robot out:* the new secret is stored as **pending** and the old one keeps
+  working until the robot first logs in with the new one. If the push times out or the connection
+  drops, both secrets work. If the agent reports a failure (e.g. `sudo` isn't allowed), the pending
+  secret is discarded and nothing changed. Needs the install.sh setup (`bloom-ops` with passwordless
+  sudo) and **doesn't work if the secret comes from systemd `LoadCredential`**.
+- **Provisioning file** (robot offline, or a push failed). The old secret stops working immediately.
+  Download the file, copy it to the robot, and run:
+  ```bash
+  sudo ./provision.sh blossom-07.provision.json --remove     # --remove deletes the file afterwards
+  ```
+  (`provision.sh` is installed next to the binary, at `/opt/bloom-agent/current/provision.sh`.)
+
+## Deleting a robot
+
+Fleet → robot → **Delete**, and type the robot's name to confirm (`DELETE /api/robot/{id}`, admin
+only). The robot can no longer log in, and if it's online its tunnel and any open shell are closed. Its
+shell audit history is kept.
+
 ## Revoking a robot
+
+Revoking keeps the robot registered but locks it out until you re-issue credentials:
 
 ```bash
 curl -b cookies -X POST https://bloom.example.edu/api/robot/<id>/revoke
@@ -116,16 +151,10 @@ This takes effect immediately:
 - every token it holds stops working on the next request (`TokenVersion` is bumped);
 - the live tunnel and any open shell are closed with reason `revoked`.
 
-After that, the agent and `bloom_node` get `401` on every login and keep backing off. To bring
-the robot back, issue new credentials with `POST /api/robot/<id>/credentials` and write the new
-secret on the robot:
-
-```bash
-sudo tee /etc/bloom-agent/secret >/dev/null <<< '<new secret>'   # the agent picks it up on its next login
-```
-
-Also update `BLOOM_ROBOT_SECRET` in `robot/.env` and restart `bloom.service`. Rotating credentials
-also drops the live tunnel, so it doubles as "kick everyone off this robot".
+After that, the agent and `bloom_node` get `401` on every login and keep backing off. To bring the
+robot back, use **Credentials → Download a provisioning file** (a push can't reach an offline,
+revoked robot) and apply it with `provision.sh`. Issuing a new secret that way also drops the live
+tunnel, so it doubles as "kick everyone off this robot".
 
 ## Wire protocol
 

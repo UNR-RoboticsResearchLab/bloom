@@ -3,6 +3,7 @@ import DashboardLayout from "./DashboardLayout";
 import LessonBuilder from "../LessonBuilder";
 import RobotFleetCard from "./RobotFleetCard";
 import RobotTerminal from "./RobotTerminal";
+import AddRobotDialog from "./AddRobotDialog";
 import { useApiClient } from "../../context/ApiClientContext";
 
 // function Stat({ label, value, unit = "", percent = null }) {
@@ -47,6 +48,8 @@ export default function AdminDashboard() {
   const [fleet, setFleet] = useState([]);
   const [fleetError, setFleetError] = useState("");
   const [terminalRobot, setTerminalRobot] = useState(null);
+  const [addRobotOpen, setAddRobotOpen] = useState(false);
+  const [fleetRefresh, setFleetRefresh] = useState(0);
   // const api = null;
   const [lessonPaneOpen, setLessonPaneOpen] = useState(false);
   const [lessonSuccess, setLessonSuccess] = useState("");
@@ -104,7 +107,7 @@ export default function AdminDashboard() {
       mounted = false;
       clearInterval(intervalId);
     };
-  }, [api]);
+  }, [api, fleetRefresh]);
 
   useEffect(() => {
     async function loadSessions() {
@@ -355,9 +358,18 @@ export default function AdminDashboard() {
               Robots, the agent version each one reports, and remote shell access.
             </p>
           </div>
-          <span className="text-sm text-gray-500">
-            {fleet.filter((r) => r.online).length} of {fleet.length} online
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-500">
+              {fleet.filter((r) => r.online).length} of {fleet.length} online
+            </span>
+            <button
+              type="button"
+              onClick={() => setAddRobotOpen(true)}
+              className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+            >
+              Add robot
+            </button>
+          </div>
         </div>
         {fleetError && <p className="mb-3 text-sm text-red-600">{fleetError}</p>}
         {fleet.length === 0 && !fleetError ? (
@@ -555,6 +567,13 @@ export default function AdminDashboard() {
             />
           </div>
         </div>
+      )}
+
+      {addRobotOpen && (
+        <AddRobotDialog
+          onClose={() => setAddRobotOpen(false)}
+          onCreated={() => setFleetRefresh((n) => n + 1)}
+        />
       )}
 
       {terminalRobot && (

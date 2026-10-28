@@ -382,7 +382,8 @@ export default class ApiClient {
         serialNumber: payload.serialNumber,
         manufactureDate: payload.manufactureDate,
         firmwareVersion: payload.firmwareVersion,
-        ipAddress: payload.ipAddress,
+        // The backend rejects a null IP; the robot reports its real one when it first logs in.
+        ipAddress: payload.ipAddress ?? "N/A",
         registeredUserId: payload.registeredUserId ?? null,
       }),
     });

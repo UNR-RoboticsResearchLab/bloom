@@ -35,6 +35,7 @@ class RsrSpeechNode(Node):
 
         self.robot_id = None
         self.base_url = None
+        self.response_ready = False
 
         self.chime_pub = self.create_publisher(String, '/audio/chime', 10)
         self.visemes_pub = self.create_publisher(String, '/face/visemes', 10)
@@ -68,12 +69,16 @@ class RsrSpeechNode(Node):
             resp = requests.get(
                 f'{self.base_url}/api/rsr-speech/{self.robot_id}/pending', timeout=5)
         except requests.RequestException as e:
+            self.set_listening(False)
             self.get_logger().warn(f'RSR pending poll failed: {e}')
             return
 
         if resp.status_code == 204:
+            # Refresh the cue for a face browser that reconnected mid-response.
+            self.set_listening(self.response_ready)
             return
         if resp.status_code != 200:
+            self.set_listening(False)
             self.get_logger().warn(f'RSR pending poll returned {resp.status_code}')
             return
 
@@ -93,6 +98,7 @@ class RsrSpeechNode(Node):
             self.get_logger().warn(f'Failed to acknowledge RSR command: {e}')
 
     def play_command(self, command: dict):
+        self.set_listening(False)
         audio_url = command['audioUrl']
         viseme_url = command['visemeUrl']
 
@@ -127,6 +133,9 @@ class RsrSpeechNode(Node):
             chime = String()
             chime.data = 'prompt_complete'
             self.chime_pub.publish(chime)
+            # The installed completion chime is 0.36 seconds long.
+            time.sleep(0.36)
+            self.set_listening(True)
         finally:
             if os.path.exists(audio_path):
                 os.remove(audio_path)
@@ -155,6 +164,12 @@ class RsrSpeechNode(Node):
         msg = String()
         msg.data = json.dumps(visemes)
         self.visemes_pub.publish(msg)
+
+    def set_listening(self, listening: bool):
+        self.response_ready = listening
+        msg = String()
+        msg.data = json.dumps({'command': 'set_listening', 'listening': listening})
+        self.face_cmd_pub.publish(msg)
 
     def set_face_mode(self, mode: str):
         msg = String()

@@ -13,6 +13,12 @@ input. Enter one of these values and press Enter:
    The backend is explicitly ``https://dev-bloom.unr.dev``. Open the researcher
    dashboard there and pair using the robot's session code.
 
+   After a sentence and its completion chime, a green **Your turn** indicator
+   appears at the lower right of M's display. It clears when the next prompt
+   starts (or the robot loses its backend connection). This is a response cue,
+   not a microphone-recording light; the full-session recording remains
+   continuous. The researcher still marks response windows in the dashboard.
+
 Cancel selects development mode. There is no timeout or automatic study launch.
 The choice is requested again at each graphical login, including boot. The last
 choice is recorded for diagnostics, not silently reused.

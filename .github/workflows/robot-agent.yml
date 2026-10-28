@@ -1,0 +1,73 @@
+name: Robot agent
+
+on:
+  push:
+    branches: [main, development]
+    paths: ['robot/agent/**', 'version.json', '.github/workflows/robot-agent.yml']
+  pull_request:
+    branches: [main, development]
+    paths: ['robot/agent/**', 'version.json', '.github/workflows/robot-agent.yml']
+
+jobs:
+  build-arm64:
+    name: Build + test (linux-arm64, Ubuntu 24.04)
+    # Native arm64 runner. If it's unavailable for this repo/plan, switch to ubuntu-24.04 and run the
+    # same steps inside an arm64v8/ubuntu:24.04 container with docker/setup-qemu-action (slower).
+    runs-on: ubuntu-24.04-arm
+    steps:
+      # Full history: the version is Nerdbank.GitVersioning's git height, same as the backend.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake g++ libboost-dev libssl-dev libgtest-dev nlohmann-json3-dev
+
+      - name: Setup .NET (for the nbgv CLI)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Compute version
+        id: version
+        run: |
+          dotnet tool install -g nbgv
+          echo "semver=$(nbgv get-version -v SemVer2)" >> "$GITHUB_OUTPUT"
+          echo "commit=$(nbgv get-version -v GitCommitId)" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          cmake -S robot/agent -B build -DCMAKE_BUILD_TYPE=Release \
+            -DAGENT_VERSION="${{ steps.version.outputs.semver }}" \
+            -DAGENT_COMMIT="${{ steps.version.outputs.commit }}"
+          cmake --build build -j"$(nproc)"
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package
+        id: package
+        run: |
+          name="robot-agent-${{ steps.version.outputs.semver }}"
+          mkdir -p "dist/$name"
+          strip -o "dist/$name/robot-agent" build/robot-agent
+          cp robot/agent/deploy/install.sh robot/agent/deploy/bloom-agent.service \
+             robot/agent/deploy/agent.json.example robot/agent/README.md "dist/$name/"
+          "dist/$name/robot-agent" version
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          (cd dist && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      # TODO(Phase 2): sign the tarball, upload it to release storage, and register
+      # (version, commit, sha256, url) with the backend's release registry so it can be promoted
+      # through dev -> canary -> prod. Channels are not part of the version: the same artifact is
+      # promoted between them.
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: |
+            dist/${{ steps.package.outputs.name }}.tar.gz
+            dist/${{ steps.package.outputs.name }}.tar.gz.sha256

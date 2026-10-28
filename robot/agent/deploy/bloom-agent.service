@@ -1,0 +1,29 @@
+# Bloom robot agent: outbound TLS tunnel for the fleet remote shell. Installed by install.sh.
+[Unit]
+Description=Bloom robot agent (fleet remote shell tunnel)
+Documentation=file:///opt/bloom-agent/current/README.md
+After=network-online.target
+Wants=network-online.target
+# Keep retrying forever; the agent has its own jittered backoff for network failures.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=bloom-ops
+Group=bloom-ops
+# System-wide proxy settings (HTTPS_PROXY / NO_PROXY) live here on Ubuntu.
+EnvironmentFile=-/etc/environment
+ExecStart=/opt/bloom-agent/current/robot-agent run --config /etc/bloom-agent/agent.json
+Restart=always
+RestartSec=5
+# 78 = EX_CONFIG: a broken config won't fix itself by restarting. Fix it, then `systemctl restart`.
+RestartPreventExitStatus=78
+# Stopping the agent ends every shell it started, background jobs included.
+KillMode=control-group
+# Deliberately no NoNewPrivileges / ProtectSystem / PrivateTmp: shells are children of this unit,
+# so any sandboxing here would also apply to every admin's sudo session.
+# The secret is read from /etc/bloom-agent/secret directly rather than via LoadCredential, so a
+# rotated secret takes effect on the next login without a restart.
+
+[Install]
+WantedBy=multi-user.target

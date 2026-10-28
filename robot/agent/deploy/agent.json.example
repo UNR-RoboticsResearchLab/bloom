@@ -1,0 +1,8 @@
+{
+  "backend_url": "https://bloom.example.edu",
+  "robot_id": "00000000-0000-0000-0000-000000000000",
+  "ca_file": "",
+  "expected_issuers": [],
+  "captive_check_url": "http://connectivity-check.ubuntu.com/",
+  "shell": ""
+}

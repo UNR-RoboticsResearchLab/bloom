@@ -419,6 +419,32 @@ export default class ApiClient {
     return this.request(`/api/robot/user/${userId}`, { method: "GET" });
   }
 
+  // ── Fleet / Remote Shell (Admin) ─────────────────────────────────────────
+
+  async getFleet() {
+    const res = await this.request("/api/robot/fleet", { method: "GET" });
+    return res || [];
+  }
+
+  async getShellSessions(robotId) {
+    const res = await this.request(`/api/robot/${robotId}/shell-sessions`, { method: "GET" });
+    return res || [];
+  }
+
+  async revokeRobot(robotId) {
+    return this.request(`/api/robot/${robotId}/revoke`, { method: "POST" });
+  }
+
+  // WebSocket URL for one remote shell session. Same host as the REST API (so the auth cookie
+  // goes with it); an empty baseUrl means same-origin, e.g. behind the CRA dev proxy.
+  shellSocketUrl(robotId, cols, rows, force = false) {
+    const base = new URL(this.baseUrl || window.location.origin, window.location.href);
+    base.protocol = base.protocol === "https:" ? "wss:" : "ws:";
+    base.pathname = `${base.pathname.replace(/\/$/, "")}/ws/shell`;
+    base.search = new URLSearchParams({ robotId, cols, rows, force }).toString();
+    return base.toString();
+  }
+
   async getRobotsByFirmwareVersion(firmwareVersion) {
     return this.request(`/api/robot/firmware/${encodeURIComponent(firmwareVersion)}`, {
       method: "GET",

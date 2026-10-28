@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect} from "react";
 import DashboardLayout from "./DashboardLayout";
 import LessonBuilder from "../LessonBuilder";
+import RobotFleetCard from "./RobotFleetCard";
+import RobotTerminal from "./RobotTerminal";
 import { useApiClient } from "../../context/ApiClientContext";
 
 // function Stat({ label, value, unit = "", percent = null }) {
@@ -38,8 +40,13 @@ function SeverityTag({ severity }) {
   );
 }
 
+const FLEET_POLL_MS = 10000;
+
 export default function AdminDashboard() {
   const api = useApiClient();
+  const [fleet, setFleet] = useState([]);
+  const [fleetError, setFleetError] = useState("");
+  const [terminalRobot, setTerminalRobot] = useState(null);
   // const api = null;
   const [lessonPaneOpen, setLessonPaneOpen] = useState(false);
   const [lessonSuccess, setLessonSuccess] = useState("");
@@ -73,6 +80,31 @@ export default function AdminDashboard() {
   // function refresh() {
   //   setTick((t) => t + 1);
   // }
+
+  // Fleet status (online / reported version / who holds a shell) changes underneath us; poll it.
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadFleet() {
+      try {
+        const data = await api.getFleet();
+        if (mounted) {
+          setFleet(data);
+          setFleetError("");
+        }
+      } catch (err) {
+        console.error("failed to load fleet:", err);
+        if (mounted) setFleetError("Couldn't load the fleet.");
+      }
+    }
+
+    loadFleet();
+    const intervalId = setInterval(loadFleet, FLEET_POLL_MS);
+    return () => {
+      mounted = false;
+      clearInterval(intervalId);
+    };
+  }, [api]);
 
   useEffect(() => {
     async function loadSessions() {
@@ -315,6 +347,30 @@ export default function AdminDashboard() {
         </div>
       </div> */}
 
+      <section className="mt-6 rounded-lg bg-white p-4 border border-gray-200">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <div>
+            <h3 className="text-base font-semibold">Fleet</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Robots, the agent version each one reports, and remote shell access.
+            </p>
+          </div>
+          <span className="text-sm text-gray-500">
+            {fleet.filter((r) => r.online).length} of {fleet.length} online
+          </span>
+        </div>
+        {fleetError && <p className="mb-3 text-sm text-red-600">{fleetError}</p>}
+        {fleet.length === 0 && !fleetError ? (
+          <p className="text-sm text-gray-500">No robots registered.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {fleet.map((robot) => (
+              <RobotFleetCard key={robot.id} robot={robot} onConnect={setTerminalRobot} />
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* Placeholder for system events log; replace with real event data from your API */}
       <section className="mt-6 rounded-lg bg-white p-4 border border-gray-200">
         <div className="mb-4 ">
@@ -497,6 +553,17 @@ export default function AdminDashboard() {
               onSubmit={handleLessonSubmit}
               onCancel={() => setLessonPaneOpen(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {terminalRobot && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative z-50 flex h-[80vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+            {/* Keyed by robot so switching robots always starts a fresh session. Clicking the
+                backdrop deliberately doesn't close it -- an admin mid-command shouldn't lose it. */}
+            <RobotTerminal key={terminalRobot.id} robot={terminalRobot} onClose={() => setTerminalRobot(null)} />
           </div>
         </div>
       )}

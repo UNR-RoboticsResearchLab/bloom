@@ -71,9 +71,19 @@ namespace bloom.Services.RemoteShell
                 : Timeout.InfiniteTimeSpan;
             if (untilExpiry != Timeout.InfiniteTimeSpan && untilExpiry < TimeSpan.Zero)
                 untilExpiry = TimeSpan.Zero;
+            // At expiry, send the close frame (with "token_expired", so the agent reconnects at once
+            // rather than backing off) and let the agent's close reply end the receive loop.
+            // Cancelling the receive directly would make Kestrel abort before the frame goes out;
+            // `fallback` does that only if the agent never answers.
             using var expiry = new CancellationTokenSource(untilExpiry, _time);
+            using var fallback = new CancellationTokenSource();
+            using var onExpiry = expiry.Token.Register(() =>
+            {
+                fallback.CancelAfter(TimeSpan.FromSeconds(5));
+                _ = socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, ShellEndReason.TokenExpired);
+            });
             using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(
-                link.Lifetime.Token, context.RequestAborted, expiry.Token);
+                link.Lifetime.Token, context.RequestAborted, fallback.Token);
 
             try
             {
@@ -85,9 +95,7 @@ namespace bloom.Services.RemoteShell
                 var reason = link.DropReason
                     ?? (expired ? ShellEndReason.TokenExpired : ShellEndReason.RobotDisconnected);
                 await _relay.UnregisterAgentAsync(link, reason);
-                if (expired)
-                    await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, ShellEndReason.TokenExpired);
-                else
+                if (!expired)
                     await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, reason);
                 await RecordSeenAsync(robotId, version: null, commit: null);
             }

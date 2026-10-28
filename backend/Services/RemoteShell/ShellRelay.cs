@@ -76,6 +76,8 @@ namespace bloom.Services.RemoteShell
         private readonly TimeProvider _time;
         private readonly ILogger<ShellRelay> _logger;
 
+        private static readonly TimeSpan PeerCloseGrace = TimeSpan.FromSeconds(5);
+
         private readonly ConcurrentDictionary<Guid, AgentLink> _agents = new();
         private readonly ConcurrentDictionary<Guid, ShellSession> _sessions = new();
 
@@ -251,7 +253,10 @@ namespace bloom.Services.RemoteShell
 
             await session.AdminSocket.SendJsonAsync(new AdminClosed(reason));
             await session.AdminSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, reason);
-            session.Lifetime.Cancel();
+            // Not Cancel(): cancelling a pending receive aborts the connection on Kestrel and drops
+            // the close/reason frames just sent. The browser's close reply ends its loop; this is the
+            // fallback for one that never answers.
+            session.Lifetime.CancelAfter(PeerCloseGrace);
 
             try
             {
@@ -273,7 +278,7 @@ namespace bloom.Services.RemoteShell
                 _logger.LogWarning("Robot {RobotId} tunnel dropped ({Reason})", robotId, reason);
                 link.DropReason = reason;
                 await link.Socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, reason);
-                link.Lifetime.Cancel();
+                link.Lifetime.CancelAfter(PeerCloseGrace);  // see EndSessionAsync
             }
         }
 

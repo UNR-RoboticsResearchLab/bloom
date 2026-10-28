@@ -31,6 +31,8 @@ namespace bloom.Tests.Integration
         }
 
         public WebSocketState State => _ws.State;
+        public WebSocketCloseStatus? CloseStatus => _ws.CloseStatus;
+        public string? CloseStatusDescription => _ws.CloseStatusDescription;
 
         public Task SendJsonAsync(object message) =>
             _ws.SendAsync(JsonSerializer.SerializeToUtf8Bytes(message), WebSocketMessageType.Text, true, CancellationToken.None);

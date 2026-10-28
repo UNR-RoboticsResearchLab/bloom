@@ -160,6 +160,31 @@ namespace bloom.Tests.Integration
             Assert.NotNull(stored.LastSeenAt);
         }
 
+        [Fact]
+        public async Task Agent_TunnelIsClosedAtTokenExpiry_WithReason()
+        {
+            var robot = (await RobotWithTokenAsync()).Robot;
+            // JwtBearer's default 5 minute clock skew still accepts this; the relay closes at "exp".
+            var shortLived = AuthTestHelper.MintJwt(_factory, new[]
+            {
+                new Claim("robotId", robot.Id.ToString()),
+                new Claim(ClaimTypes.Role, "Robot"),
+                new Claim(RobotService.CredentialClaim, "secret"),
+                new Claim(RobotService.TokenVersionClaim, "1"),
+            }, expires: DateTime.UtcNow.AddSeconds(2));
+
+            await using var agent = await ShellTestClients.ConnectAgentAsync(_factory, shortLived);
+            await WaitUntilOnlineAsync(robot.Id);
+
+            Assert.Null(await agent.ReceiveUntilClosedAsync(TimeSpan.FromSeconds(10)));
+            Assert.Equal(WebSocketCloseStatus.PolicyViolation, agent.CloseStatus);
+            Assert.Equal(ShellEndReason.TokenExpired, agent.CloseStatusDescription);
+            // Reply to the close like the real agent (Beast does it automatically); the server's
+            // receive loop ends on that reply rather than an abort.
+            await agent.DisposeAsync();
+            await WaitUntilOnlineAsync(robot.Id, online: false);
+        }
+
         // ── Admin endpoint auth ────────────────────────────────────────────────
 
         [Fact]

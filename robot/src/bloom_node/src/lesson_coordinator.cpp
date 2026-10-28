@@ -1,4 +1,5 @@
 #include "bloom_node/lessson_coordinator.h"
+#include "bloom_node/repeat_request_detector.h"
 #include <sstream>
 #include <mutex>
 #include <functional>
@@ -639,6 +640,18 @@ void LessonCoordinator::on_vosk_result(const std_msgs::msg::String::SharedPtr ms
 
         RCLCPP_DEBUG(this->get_logger(), "Received speech input: %s", response.c_str());
 
+        // "Can you repeat that?" must be caught before grading, otherwise it's
+        // scored as a wrong answer, the incorrect-response script plays, and
+        // the step may advance. LLM steps above are left alone — the LLM hears
+        // the same utterance and can answer it conversationally.
+        if (repeat_request::is_repeat_request(response)) {
+            RCLCPP_INFO(this->get_logger(), "Step %s: repeat request '%s' — re-prompting",
+                step.id.c_str(), response.c_str());
+            log_interaction_to_backend(step.step_order, "repeat_request", response, std::nullopt);
+            repeat_last_step();
+            return;
+        }
+
         // Check if response matches correct answer
         // Fuzzy match: normalize both strings and check if correct answer appears in response
         auto normalize = [](std::string s) -> std::string {
@@ -978,6 +991,16 @@ void LessonCoordinator::repeat_last_step() {
         RCLCPP_WARN(this->get_logger(), "repeat_last_step called but nothing has been spoken yet");
         return;
     }
+    // Only meaningful while the mic is open waiting on the student. Any other
+    // time the robot is mid-speech or mid-transition, and the waiting_for_*
+    // flags belong to that in-flight utterance: interrupting it publishes a
+    // /tts/done that would be consumed against the wrong flag, and clearing
+    // the flags instead (as this used to) leaves nothing to advance the
+    // lesson once the repeat finishes — the step freezes.
+    if (!waiting_for_response_ || !current_interaction_step_) {
+        RCLCPP_WARN(this->get_logger(), "repeat_last_step called while not listening for a response - ignoring");
+        return;
+    }
 
     RCLCPP_INFO(this->get_logger(), "[REPEAT_LAST] Re-speaking last line, step index %zu unchanged",
         current_step_index_);
@@ -991,31 +1014,15 @@ void LessonCoordinator::repeat_last_step() {
         step_timer_ = nullptr;
     }
 
-    bool was_listening = waiting_for_response_;
-    if (was_listening) {
-        waiting_for_response_ = false;
-        auto stt_msg = std_msgs::msg::String();
-        stt_msg.data = "false";
-        stt_enable_pub_->publish(stt_msg);
-    }
+    waiting_for_response_ = false;
+    auto stt_msg = std_msgs::msg::String();
+    stt_msg.data = "false";
+    stt_enable_pub_->publish(stt_msg);
 
-    auto interrupt_msg = std_msgs::msg::String();
-    interrupt_msg.data = "interrupt";
-    tts_interrupt_pub_->publish(interrupt_msg);
-
-    if (was_listening && current_interaction_step_) {
-        // We were listening for a response to the current interaction step —
-        // re-arm exactly the way execute_step() originally did: on_tts_done()'s
-        // waiting_for_interaction_tts_ branch re-opens the mic and restarts the
-        // response timeout once the repeated line finishes.
-        waiting_for_interaction_tts_ = true;
-    } else {
-        // Mid-narration (non-interactive step, or between steps) — just
-        // re-speak; don't re-trigger advance_to_next_step() a second time.
-        waiting_for_tts_done_ = false;
-        waiting_for_interaction_tts_ = false;
-        waiting_for_llm_tts_done_ = false;
-    }
+    // Re-arm exactly the way execute_step() originally did: on_tts_done()'s
+    // waiting_for_interaction_tts_ branch re-opens the mic and restarts the
+    // response timeout once the repeated line finishes.
+    waiting_for_interaction_tts_ = true;
 
     std::string script = last_spoken_script_;
     speak_script(script);

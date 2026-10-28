@@ -172,6 +172,11 @@ class TTSNode(Node):
             self._interrupted = False
 
     def on_interrupt(self, msg: String):
+        # Only latch the flag while an utterance is in progress. Latched while
+        # idle, nothing clears it until the *next* utterance's playback loop
+        # sees it and immediately cuts that one off instead.
+        if not self.is_speaking:
+            return
         self.get_logger().info('TTS interrupted')
         self._interrupted = True
         pygame.mixer.music.stop()

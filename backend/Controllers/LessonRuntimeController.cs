@@ -382,44 +382,23 @@ namespace bloom.Controllers
             {
                 var id = await _sessionService.LogLessonInteractionAsync(sessionId, interaction);
 
-                // A student can ask the robot to repeat itself at any point in a
-                // step, independent of whatever that step is actually waiting on
-                // (an answer, a timeout, etc.) — so this is checked for every
-                // interaction the robot reports, not just ones flagged as a
-                // "Question"/"Response". This queues "repeat_last", NOT "replay":
-                // "replay" is the SLP's deliberate "redo this whole step" command
-                // (motor sequence, visual aid entrance, lead-in delay, then
-                // script — see Back/Restart on the Controls page) and re-running
-                // all of that for a simple "say that again" mid-prompt reads to
-                // the student as the robot resetting rather than just repeating
-                // itself. "repeat_last" re-speaks the current step's script only.
+                // Informational only — this does NOT queue a "repeat_last" step
+                // control. Acting on a repeat request has to happen on the robot,
+                // before it grades the utterance (LessonCoordinator::on_vosk_result,
+                // using a C++ port of RepeatRequestDetector — keep the two phrase
+                // lists in sync). By the time the utterance is logged here the
+                // robot has already acted on it, so queuing a command from here
+                // arrived a poll interval too late: the robot had already scored
+                // "repeat that" as a wrong answer and moved on, and re-speaking at
+                // that point repeated the wrong line or stalled the step.
                 //
                 // Every line the robot itself speaks is also logged here (see
-                // LessonCoordinator::speak_script on the robot side), with its
-                // own script text sitting in the same StudentResponse field and
-                // InteractionType "robot". If a lesson script legitimately
-                // contains a phrase like "repeat that" (e.g. asking the student
-                // to repeat something back), running the detector over those too
-                // would misread the robot's own line as the student asking for a
-                // repeat. Only interactions that actually carry student speech
-                // should be checked.
+                // LessonCoordinator::speak_script), with its own script text in
+                // StudentResponse and InteractionType "robot". A lesson script can
+                // legitimately contain "repeat that" (e.g. asking the student to
+                // repeat something back), so robot-authored lines are excluded.
                 var isRobotAuthored = string.Equals(interaction.InteractionType, "robot", StringComparison.OrdinalIgnoreCase);
                 var repeatRequested = !isRobotAuthored && _repeatRequestDetector.IsRepeatRequest(interaction.StudentResponse);
-                if (repeatRequested)
-                {
-                    var session = await _sessionService.GetSessionAsync(sessionId);
-                    if (session?.ActiveLessonId != null)
-                    {
-                        _stepControlService.SetPendingControl(sessionId, "repeat_last");
-                        _logger.LogInformation(
-                            "Detected repeat request in session {SessionId} (\"{StudentResponse}\"); queuing repeat_last",
-                            sessionId, interaction.StudentResponse);
-                    }
-                    else
-                    {
-                        repeatRequested = false;
-                    }
-                }
 
                 return Ok(new { Message = "Interaction recorded.", InteractionId = id, RepeatRequested = repeatRequested });
             }

@@ -256,29 +256,29 @@ namespace bloom.Tests.Integration
             Assert.Equal(HttpStatusCode.InternalServerError, resp.StatusCode);
         }
 
-        // ---- repeat-request triggers auto-replay (new behavior) -----------------------------
+        // ---- repeat-request detection (informational; robot acts on it locally) -----------
 
         [Fact]
-        public async Task RecordInteraction_RepeatPhrase_WithActiveLesson_QueuesReplayAndReturnsTrue()
+        public async Task RecordInteraction_RepeatPhrase_WithActiveLesson_ReturnsTrueAndDoesNotQueue()
         {
+            // The robot re-prompts on its own before grading (LessonCoordinator::on_vosk_result).
+            // Queuing a step control here as well would make it repeat twice / act on stale state.
             var f = await SeedAsync();
             await StartLessonAsync(f);
 
             var resp = await f.Client.PostAsJsonAsync($"api/lesson-runtime/{f.Session.Id}/interactions",
-                new LogLessonInteractionDto { StepId = 1, StudentResponse = "can you repeat that?" });
+                new LogLessonInteractionDto { StepId = 1, InteractionType = "repeat_request", StudentResponse = "can you repeat that?" });
             Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
             var body = await resp.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(TestJson.Options);
             Assert.True(body.GetProperty("repeatRequested").GetBoolean());
 
             var poll = await f.Client.GetAsync($"api/lesson-runtime/{f.Session.Id}/step-control");
-            Assert.Equal(HttpStatusCode.OK, poll.StatusCode);
-            var control = await poll.Content.ReadFromJsonAsync<PendingStepControlDto>(TestJson.Options);
-            Assert.Equal("repeat_last", control!.Command);
+            Assert.Equal(HttpStatusCode.NoContent, poll.StatusCode);
         }
 
         [Fact]
-        public async Task RecordInteraction_RepeatPhrase_NoActiveLesson_ReturnsFalseAndDoesNotQueue()
+        public async Task RecordInteraction_RepeatPhrase_NoActiveLesson_ReturnsTrueAndDoesNotQueue()
         {
             var f = await SeedAsync();
             // Deliberately not starting a lesson.
@@ -288,7 +288,7 @@ namespace bloom.Tests.Integration
             Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
             var body = await resp.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(TestJson.Options);
-            Assert.False(body.GetProperty("repeatRequested").GetBoolean());
+            Assert.True(body.GetProperty("repeatRequested").GetBoolean());
 
             var poll = await f.Client.GetAsync($"api/lesson-runtime/{f.Session.Id}/step-control");
             Assert.Equal(HttpStatusCode.NoContent, poll.StatusCode);

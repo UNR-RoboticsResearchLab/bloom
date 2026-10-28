@@ -115,11 +115,12 @@ public:
     // Re-speaks the last line the robot said (last_spoken_script_) without
     // restarting the step it belongs to: no re-run of the motor sequence,
     // no re-publish of the visual aid, no LLM context reset — just the audio,
-    // and (if we were listening for a response) a fresh listen/timeout window
-    // afterward. This is what a student's "can you repeat that?" should
-    // trigger, as opposed to replay_step()/the SLP's Replay button, which
-    // deliberately re-runs the whole step from its beginning. Called by
-    // LessonPoller on a "repeat_last" step-control command.
+    // then a fresh listen/timeout window afterward. Only acts while listening
+    // for a response to an interaction step; ignored otherwise. This is what a
+    // student's "can you repeat that?" triggers (detected locally in
+    // on_vosk_result, before grading), as opposed to replay_step()/the SLP's
+    // Replay button, which deliberately re-runs the whole step from its
+    // beginning. Also reachable via a "repeat_last" step-control command.
     void repeat_last_step();
 
     // Pause execution in place (interrupts immediately, keeps current_step_index_

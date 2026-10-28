@@ -1,8 +1,10 @@
 // bloom
 // RepeatRequestDetector.cs
-// Stateless phrase matcher for "please repeat that" style student speech,
-// used to auto-queue a replay step-control command regardless of which
-// lesson step is active when the student says it.
+// Stateless phrase matcher for "please repeat that" style student speech.
+// Informational on the backend (flags logged interactions); the robot acts on
+// repeat requests itself using a C++ port of this class —
+// robot/src/bloom_node/include/bloom_node/repeat_request_detector.h — so keep
+// the phrase lists and normalization in sync.
 
 using System.Text.RegularExpressions;
 

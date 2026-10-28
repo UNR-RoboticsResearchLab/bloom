@@ -5,8 +5,8 @@ manual-based administration, scoring, adult rehearsal, and readiness review.
 This page is the software and operations reference.
 
 Open `/rsr-study` to enter the study. Without a verified researcher session,
-Bloom redirects to `/rsr-study/login`. Researchers enter the **assigned login and
-password provided by the study administrator**, then go directly to the study
+Bloom redirects to `/rsr-study/login`. Researchers enter their **assigned login
+or email address and password**, then go directly to the study
 control room. The study login has no public signup option. Identity cookies are
 checked on the server before study controls open; cached browser profile data
 alone does not grant access.
@@ -15,7 +15,13 @@ alone does not grant access.
 
 A Bloom administrator signs in, opens `/rsr-study/accounts` (or selects **Issue
 researcher login** in the study dashboard), and supplies a name, unique login,
-and password. Give those credentials and the study login URL to the researcher.
+and email address. Bloom generates a temporary password, which the administrator
+gives to the researcher along with the assigned login and study login URL.
+The researcher must replace it with a personal password on first login.
+Email is required for newly issued researcher accounts and can also be used to
+sign in. Existing accounts without an email continue to use their assigned login.
+Addresses are stored but are not verified, and no confirmation or password emails
+are sent yet. An address already assigned to another account cannot be reused.
 The account receives the existing `Researcher` Identity role. Passwords use
 Bloom's Identity hashing, validation, and login lockout rules; they are not stored
 in the frontend or documentation. There are no built-in researcher credentials.
@@ -29,11 +35,11 @@ by the study administrator using the deployment's account-management process.
 
 Study authentication endpoints:
 
-- `POST /api/rsr-study/auth/login`: assigned `login` and `password`.
+- `POST /api/rsr-study/auth/login`: assigned login or email in `login`, plus `password`.
 - `GET /api/rsr-study/auth/session`: verifies the authenticated researcher/admin.
 - `POST /api/rsr-study/auth/logout`: clears the Identity authentication cookie.
 - `POST /api/rsr-study/auth/researchers`: administrator-only issuance of a
-  `login`, `password`, and optional `fullName`.
+  `login`, required `email`, and optional `fullName`; returns the generated temporary password.
 
 The child display has no researcher credentials or administrative data. It remains
 a separate window opened by the signed-in researcher.

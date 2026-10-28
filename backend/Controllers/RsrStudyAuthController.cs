@@ -23,7 +23,8 @@ public class RsrStudyAuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login(StudyLoginRequest request)
     {
-        var user = await _users.FindByNameAsync(request.Login.Trim());
+        var login = request.Login.Trim();
+        var user = await _users.FindByNameAsync(login) ?? await _users.FindByEmailAsync(login);
         if (user == null || !await HasAccess(user))
             return Unauthorized(new { message = "Invalid researcher login or password." });
         var signedIn = await _signIn.PasswordSignInAsync(user, request.Password, isPersistent: false, lockoutOnFailure: true);
@@ -55,10 +56,13 @@ public class RsrStudyAuthController : ControllerBase
     public async Task<IActionResult> CreateResearcher(CreateResearcherRequest request)
     {
         var login = request.Login.Trim();
-        if (await _users.FindByNameAsync(login) != null)
+        if (await _users.FindByNameAsync(login) != null || await _users.FindByEmailAsync(login) != null)
             return Conflict(new { message = "This login is already assigned." });
+        var email = request.Email.Trim();
+        if (await _users.FindByEmailAsync(email) != null || await _users.FindByNameAsync(email) != null)
+            return Conflict(new { message = "This email address is already assigned." });
         var user = new Account { UserName = login, FullName = request.FullName?.Trim(),
-            Role = "Researcher", CreatedDate = DateTime.UtcNow };
+            Email = email, Role = "Researcher", CreatedDate = DateTime.UtcNow };
         var temporaryPassword = request.Password ?? ("Aa1!" + Convert.ToBase64String(RandomNumberGenerator.GetBytes(18)));
         var created = await _users.CreateAsync(user, temporaryPassword);
         if (!created.Succeeded) return BadRequest(new { message = string.Join(" ", created.Errors.Select(e => e.Description)) });
@@ -69,7 +73,7 @@ public class RsrStudyAuthController : ControllerBase
             await _users.DeleteAsync(user);
             return BadRequest(new { message = "Could not assign study access. Please try again." });
         }
-        return Ok(new { id = user.Id, login = user.UserName, role = "Researcher", temporaryPassword });
+        return Ok(new { id = user.Id, login = user.UserName, email = user.Email, role = "Researcher", temporaryPassword });
     }
 
     [Authorize(Roles = "Researcher,researcher,Admin,admin")]
@@ -113,6 +117,7 @@ public class StudyPasswordRequest
 public class CreateResearcherRequest
 {
     [Required, StringLength(256)] public string Login { get; set; } = "";
+    [Required, EmailAddress, StringLength(254)] public string Email { get; set; } = "";
     [StringLength(1024)] public string? Password { get; set; }
     [StringLength(256)] public string? FullName { get; set; }
 }

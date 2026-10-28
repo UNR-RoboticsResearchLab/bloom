@@ -8,6 +8,7 @@ export default function RsrResearcherAccounts() {
   const [login, setLogin] = useState('');
   const [temporaryPassword, setTemporaryPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -15,8 +16,8 @@ export default function RsrResearcherAccounts() {
     event.preventDefault(); if (busy) return;
     setBusy(true); setMessage(''); setError(''); setTemporaryPassword('');
     try {
-      const result = await api.createStudyResearcher({ login: login.trim(), fullName });
-      setTemporaryPassword(result.temporaryPassword); setLogin(''); setFullName('');
+      const result = await api.createStudyResearcher({ login: login.trim(), fullName, email: email.trim() });
+      setTemporaryPassword(result.temporaryPassword); setLogin(''); setFullName(''); setEmail('');
       setMessage(`Researcher login “${result.login}” is ready. Give the researcher their assigned login and password and the /rsr-study/login address.`);
     } catch(e) { setError(e.message); }
     finally { setBusy(false); }
@@ -26,9 +27,11 @@ export default function RsrResearcherAccounts() {
     <p>Only Bloom administrators can create study accounts.</p>
     {message && <div className="rsr-status" role="status"><p>{message}</p><p>Temporary password: <code>{temporaryPassword}</code></p><p>Save it now. The researcher must choose a personal password on first sign in.</p></div>}
     <p>A temporary password is generated automatically for each new researcher.</p>
+    <p>Email is stored with the account. Confirmation and password emails are not sent yet.</p>
     <form className="rsr-card" onSubmit={submit}>
       {error && <p className="rsr-error" role="alert">{error}</p>}
       <label>Researcher name<input value={fullName} maxLength={256} onChange={e => setFullName(e.target.value)} /></label>
+      <label>Email address<input type="email" autoComplete="email" required maxLength={254} value={email} onChange={e => setEmail(e.target.value)} /></label>
       <label>Assigned login<input autoComplete="off" required maxLength={256} value={login} onChange={e => setLogin(e.target.value)} /></label>
       <div className="rsr-actions"><button className="primary" disabled={busy}>{busy ? 'Creating…' : 'Create researcher login'}</button></div>
     </form>

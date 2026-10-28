@@ -80,7 +80,7 @@ public class RsrStudyAuthTests : IClassFixture<BloomWebApplicationFactory>
         var admin = await Account("Admin");
         var researcher = await Account("Researcher");
         using var client = _factory.CreateClient();
-        var assigned = new { login = "rsr-" + Guid.NewGuid().ToString("N"), password = "Assigned@456", fullName = "Study Researcher" };
+        var assigned = new { login = "rsr-" + Guid.NewGuid().ToString("N"), email = Guid.NewGuid() + "@test.bloom", password = "Assigned@456", fullName = "Study Researcher" };
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/rsr-study/auth/researchers", assigned)).StatusCode);
         await Login(client, researcher);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/rsr-study/auth/researchers", assigned)).StatusCode);
@@ -98,12 +98,14 @@ public class RsrStudyAuthTests : IClassFixture<BloomWebApplicationFactory>
         using var adminClient = _factory.CreateClient();
         await Login(adminClient, admin);
         var login = "generated-" + Guid.NewGuid().ToString("N");
-        var created = await adminClient.PostAsJsonAsync("/api/rsr-study/auth/researchers", new { login });
+        var email = Guid.NewGuid() + "@test.bloom";
+        var created = await adminClient.PostAsJsonAsync("/api/rsr-study/auth/researchers", new { login, email });
         Assert.Equal(HttpStatusCode.OK, created.StatusCode);
         var payload = await created.Content.ReadFromJsonAsync<JsonElement>();
         var temporaryPassword = payload.GetProperty("temporaryPassword").GetString();
+        Assert.Equal(email, payload.GetProperty("email").GetString());
         using var researcherClient = _factory.CreateClient();
-        var signedIn = await researcherClient.PostAsJsonAsync("/api/rsr-study/auth/login", new { login, password = temporaryPassword });
+        var signedIn = await researcherClient.PostAsJsonAsync("/api/rsr-study/auth/login", new { login = email.ToUpperInvariant(), password = temporaryPassword });
         Assert.True((await signedIn.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("user").GetProperty("mustChangePassword").GetBoolean());
         Assert.Equal(HttpStatusCode.Forbidden, (await researcherClient.GetAsync("/api/rsr-speech/sentences")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await researcherClient.PostAsJsonAsync("/api/rsr-study/auth/password",
@@ -120,6 +122,32 @@ public class RsrStudyAuthTests : IClassFixture<BloomWebApplicationFactory>
         Assert.Equal(HttpStatusCode.Unauthorized, (await freshClient.PostAsJsonAsync("/api/rsr-study/auth/login", new { login, password = temporaryPassword })).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await freshClient.PostAsJsonAsync("/api/rsr-study/auth/login", new { login, password = personalPassword })).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await freshClient.PostAsJsonAsync("/api/rsr-study/auth/researchers", new { login = "no-access" })).StatusCode);
+    }
+    [Fact]
+    public async Task ResearcherEmailIsRequiredValidatedAndCannotBeReassigned()
+    {
+        var admin = await Account("Admin");
+        using var client = _factory.CreateClient();
+        await Login(client, admin);
+        var login = "email-" + Guid.NewGuid().ToString("N");
+        foreach (var email in new[] { "", "not-an-email" })
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
+                "/api/rsr-study/auth/researchers", new { login, email })).StatusCode);
+
+        var address = Guid.NewGuid() + "@test.bloom";
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(
+            "/api/rsr-study/auth/researchers", new { login, email = address })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(
+            "/api/rsr-study/auth/researchers", new { login = login + "-other", email = address.ToUpperInvariant() })).StatusCode);
+        // An assigned login cannot shadow another researcher's email sign-in.
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(
+            "/api/rsr-study/auth/researchers", new { login = address, email = Guid.NewGuid() + "@test.bloom" })).StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
+        var user = await users.FindByNameAsync(login);
+        Assert.Equal(address, user!.Email);
+        Assert.False(user.EmailConfirmed); // Capturing an address does not verify ownership.
     }
     [Fact]
     public async Task PublicSignupCannotGrantAdministrativeOrResearcherAccess()

@@ -32,6 +32,10 @@ def generate_launch_description():
         default_value='false',
         description='Skip real I2C/PCA9685 hardware (for dev-machine testing)'
     )
+    kiosk_arg = DeclareLaunchArgument(
+        'kiosk', default_value='false',
+        description='Open the M face full-screen on the robot display.'
+    )
 
     # Include bloom_node launch file
     bloom_launch = IncludeLaunchDescription(
@@ -59,6 +63,7 @@ def generate_launch_description():
         ),
         launch_arguments={
             'dry_run': LaunchConfiguration('dry_run'),
+            'kiosk': LaunchConfiguration('kiosk'),
         }.items()
     )
 
@@ -78,6 +83,7 @@ def generate_launch_description():
         config_file_arg,
         base_url_arg,
         dry_run_arg,
+        kiosk_arg,
         bloom_launch,
         m_sarg_launch,
         speech_launch,

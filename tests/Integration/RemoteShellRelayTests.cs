@@ -400,6 +400,155 @@ namespace bloom.Tests.Integration
             }
         }
 
+        // ── Credential push ────────────────────────────────────────────────────
+
+        private async Task<System.Net.Http.HttpClient> AdminHttpAsync(bool admin = true)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
+            var account = admin
+                ? await TestDataSeeder.CreateAdminAsync(userManager)
+                : await TestDataSeeder.CreateAccountAsync(userManager, role: "SLP");
+            return await AuthTestHelper.CreateAuthorizedClientAsync(_factory, account);
+        }
+
+        private async Task<(Robot Robot, string Secret, TestShellSocket Agent)> OnlineProvisionedRobotAsync()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var (robot, secret) = await TestDataSeeder.CreateProvisionedRobotAsync(
+                scope.ServiceProvider.GetRequiredService<BloomDbContext>(),
+                scope.ServiceProvider.GetRequiredService<IRobotService>());
+            var agent = await ShellTestClients.ConnectAgentAsync(_factory,
+                await AuthTestHelper.LoginRobotAsync(_factory, robot.Id, secret));
+            await WaitUntilOnlineAsync(robot.Id);
+            return (robot, secret, agent);
+        }
+
+        private async Task<System.Net.Http.HttpResponseMessage> LoginAsync(Guid robotId, string secret) =>
+            await _factory.CreateClient().PostAsJsonAsync("api/robot/login", new { RobotId = robotId, Secret = secret });
+
+        [Fact]
+        public async Task Push_Applied_DeliversSecret_AndRetiresTheOldOneOnFirstUse()
+        {
+            var (robot, oldSecret, agent) = await OnlineProvisionedRobotAsync();
+            var admin = await AdminHttpAsync();
+            await using (agent)
+            {
+                var post = admin.PostAsync($"api/robot/{robot.Id}/credentials/push", null);
+
+                var push = await agent.ReceiveJsonAsync();
+                Assert.Equal("set_secret", push.GetProperty("type").GetString());
+                var newSecret = push.GetProperty("secret").GetString()!;
+                Assert.NotEqual(oldSecret, newSecret);
+                await agent.SendJsonAsync(new { type = "secret_applied", requestId = push.GetProperty("requestId").GetGuid(), ok = true });
+
+                var response = await post;
+                Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+                Assert.DoesNotContain(newSecret, await response.Content.ReadAsStringAsync());
+
+                // The tunnel is dropped so the agent logs in again -- with the new secret.
+                Assert.Null(await agent.ReceiveUntilClosedAsync());
+                Assert.Equal(ShellEndReason.CredentialsRotated, agent.CloseStatusDescription);
+                await WaitUntilOnlineAsync(robot.Id, online: false);
+
+                Assert.Equal(System.Net.HttpStatusCode.OK, (await LoginAsync(robot.Id, oldSecret)).StatusCode);  // not retired yet
+                Assert.Equal(System.Net.HttpStatusCode.OK, (await LoginAsync(robot.Id, newSecret)).StatusCode);  // promotes
+                Assert.Equal(System.Net.HttpStatusCode.Unauthorized, (await LoginAsync(robot.Id, oldSecret)).StatusCode);
+            }
+        }
+
+        [Fact]
+        public async Task Push_Rejected_ChangesNothing()
+        {
+            var (robot, oldSecret, agent) = await OnlineProvisionedRobotAsync();
+            var admin = await AdminHttpAsync();
+            await using (agent)
+            {
+                var post = admin.PostAsync($"api/robot/{robot.Id}/credentials/push", null);
+                var push = await agent.ReceiveJsonAsync();
+                await agent.SendJsonAsync(new { type = "secret_applied", requestId = push.GetProperty("requestId").GetGuid(), ok = false, message = "cannot write /etc/bloom-agent/secret" });
+
+                var response = await post;
+                Assert.Equal(System.Net.HttpStatusCode.BadGateway, response.StatusCode);
+                Assert.Contains("cannot write", await response.Content.ReadAsStringAsync());
+                Assert.True(Relay.IsOnline(robot.Id));  // still connected; nothing was rotated
+
+                Assert.Equal(System.Net.HttpStatusCode.OK, (await LoginAsync(robot.Id, oldSecret)).StatusCode);
+                Assert.Equal(System.Net.HttpStatusCode.Unauthorized,
+                    (await LoginAsync(robot.Id, push.GetProperty("secret").GetString()!)).StatusCode);  // pending was discarded
+            }
+        }
+
+        [Fact]
+        public async Task Push_Unconfirmed_KeepsBothSecretsWorking()
+        {
+            var (robot, oldSecret, agent) = await OnlineProvisionedRobotAsync();
+            var admin = await AdminHttpAsync();
+            await using (agent)
+            {
+                var post = admin.PostAsync($"api/robot/{robot.Id}/credentials/push", null);
+                var push = await agent.ReceiveJsonAsync();   // ...and never answer
+
+                Assert.Equal(System.Net.HttpStatusCode.GatewayTimeout, (await post).StatusCode);
+                Assert.Equal(System.Net.HttpStatusCode.OK, (await LoginAsync(robot.Id, oldSecret)).StatusCode);
+                Assert.Equal(System.Net.HttpStatusCode.OK, (await LoginAsync(robot.Id, push.GetProperty("secret").GetString()!)).StatusCode);
+            }
+        }
+
+        [Fact]
+        public async Task Push_AckFromAnotherRobot_IsIgnored()
+        {
+            var (robot, _, agent) = await OnlineProvisionedRobotAsync();
+            var (other, _, otherAgent) = await OnlineProvisionedRobotAsync();
+            var admin = await AdminHttpAsync();
+            await using (agent)
+            await using (otherAgent)
+            {
+                var post = admin.PostAsync($"api/robot/{robot.Id}/credentials/push", null);
+                var push = await agent.ReceiveJsonAsync();
+                var requestId = push.GetProperty("requestId").GetGuid();
+
+                await otherAgent.SendJsonAsync(new { type = "secret_applied", requestId, ok = true });  // not its push
+                await agent.SendJsonAsync(new { type = "secret_applied", requestId, ok = false, message = "no" });
+
+                Assert.Equal(System.Net.HttpStatusCode.BadGateway, (await post).StatusCode);
+            }
+        }
+
+        [Fact]
+        public async Task Push_OfflineRobot_IsConflict_AndNonAdminIsForbidden()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var (robot, _) = await TestDataSeeder.CreateProvisionedRobotAsync(
+                scope.ServiceProvider.GetRequiredService<BloomDbContext>(),
+                scope.ServiceProvider.GetRequiredService<IRobotService>());
+
+            Assert.Equal(System.Net.HttpStatusCode.Conflict,
+                (await (await AdminHttpAsync()).PostAsync($"api/robot/{robot.Id}/credentials/push", null)).StatusCode);
+            Assert.Equal(System.Net.HttpStatusCode.Forbidden,
+                (await (await AdminHttpAsync(admin: false)).PostAsync($"api/robot/{robot.Id}/credentials/push", null)).StatusCode);
+            Assert.Equal(System.Net.HttpStatusCode.Unauthorized,
+                (await _factory.CreateClient().PostAsync($"api/robot/{robot.Id}/credentials/push", null)).StatusCode);
+        }
+
+        [Fact]
+        public async Task Delete_DropsLiveTunnelAndSession_ButKeepsAuditLog()
+        {
+            var (robot, agent, admin, sessionId) = await OpenSessionAsync();
+            var http = await AdminHttpAsync();
+            await using (agent)
+            await using (admin)
+            {
+                Assert.Equal(System.Net.HttpStatusCode.OK, (await http.DeleteAsync($"api/robot/{robot.Id}")).StatusCode);
+
+                Assert.Null(await agent.ReceiveUntilClosedAsync());
+                var last = await admin.ReceiveUntilClosedAsync();
+                Assert.Equal(ShellEndReason.RobotDeleted, last!.Value.GetProperty("reason").GetString());
+                await WaitUntilOnlineAsync(robot.Id, online: false);
+                await AssertAuditEndedAsync(sessionId, ShellEndReason.RobotDeleted);  // history outlives the robot
+            }
+        }
+
         private async Task AssertAuditEndedAsync(Guid sessionId, string reason)
         {
             ShellSessionAudit? audit = null;

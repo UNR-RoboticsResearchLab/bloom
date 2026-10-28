@@ -6,6 +6,7 @@ using bloom.Models;
 using bloom.Models.dto;
 using bloom.Services;
 using bloom.Services.RemoteShell;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -24,17 +25,20 @@ namespace bloom.Controllers
         private readonly IRobotService _robotService;
         private readonly IShellRelay _shellRelay;
         private readonly IShellAuditService _shellAudit;
+        private readonly IOptions<RemoteShellOptions> _shellOptions;
 
         public RobotController(
             ILogger<RobotController> logger,
             IRobotService robotService,
             IShellRelay shellRelay,
-            IShellAuditService shellAudit)
+            IShellAuditService shellAudit,
+            IOptions<RemoteShellOptions> shellOptions)
         {
             _logger = logger;
             _robotService = robotService;
             _shellRelay = shellRelay;
             _shellAudit = shellAudit;
+            _shellOptions = shellOptions;
         }
 
         /// <summary>
@@ -99,6 +103,66 @@ namespace bloom.Controllers
             _logger.LogWarning("Robot {RobotId} credentials rotated by {UserId}", id, GetCurrentUserId());
             await _shellRelay.DisconnectRobotAsync(id, ShellEndReason.Revoked);
             return Ok(new { RobotId = id, Secret = secret });
+        }
+
+        /// <summary>
+        /// Rotates a robot's secret by pushing it to the robot's agent over its live tunnel, which
+        /// applies it on the robot (agent + bloom_node). The old secret stays valid until the robot
+        /// logs in with the new one, so a failed or lost push never locks it out. The secret is
+        /// never returned. 409: robot offline or a push is already running; 502: the agent refused;
+        /// 504: no confirmation (the robot may or may not have it -- both secrets keep working).
+        /// </summary>
+        [Authorize(Policy = "AdminOnly")]
+        [HttpPost("{id}/credentials/push")]
+        public async Task<ActionResult<string>> PushCredentials(Guid id)
+        {
+            if (await _robotService.GetRobotByIdAsync(id) == null)
+                return NotFound(new { Message = "Robot not found" });
+            if (!_shellRelay.IsOnline(id))
+                return Conflict(new { Message = "The robot is offline. Download a provisioning file instead." });
+
+            var secret = await _robotService.BeginSecretRotationAsync(id);
+            if (secret == null)
+                return Conflict(new { Message = "The robot has no credentials to rotate. Issue credentials first." });
+
+            var result = await _shellRelay.PushSecretAsync(id, secret,
+                TimeSpan.FromSeconds(_shellOptions.Value.SecretPushTimeoutSeconds));
+
+            switch (result.Status)
+            {
+                case SecretPushStatus.Applied:
+                    _logger.LogWarning("Robot {RobotId} credentials pushed by {UserId}", id, GetCurrentUserId());
+                    // Reconnect now so the agent logs in with (and promotes) the new secret.
+                    await _shellRelay.DisconnectRobotAsync(id, ShellEndReason.CredentialsRotated);
+                    return Ok(new { Message = "Credentials delivered; the robot is reconnecting" });
+
+                case SecretPushStatus.TimedOut:
+                case SecretPushStatus.ConnectionLost:
+                    // Unknown whether the robot applied it, so keep the pending secret: whichever
+                    // one the robot ends up holding will work.
+                    _logger.LogWarning("Credential push to robot {RobotId} unconfirmed ({Status})", id, result.Status);
+                    return StatusCode(StatusCodes.Status504GatewayTimeout, new
+                    {
+                        Message = "The robot didn't confirm. It may or may not have the new secret; both the old and new secret keep working, so check the fleet view."
+                    });
+
+                case SecretPushStatus.Rejected:
+                    await _robotService.ClearPendingSecretAsync(id);
+                    _logger.LogWarning("Robot {RobotId} agent refused a credential push: {Message}", id, result.Message);
+                    return StatusCode(StatusCodes.Status502BadGateway, new
+                    {
+                        Message = $"The robot couldn't apply it: {result.Message ?? "unknown error"}. Nothing changed."
+                    });
+
+                default:  // Offline (dropped just now) or Busy
+                    await _robotService.ClearPendingSecretAsync(id);
+                    return Conflict(new
+                    {
+                        Message = result.Status == SecretPushStatus.Busy
+                            ? "A credential push to this robot is already in progress."
+                            : "The robot went offline. Download a provisioning file instead."
+                    });
+            }
         }
 
         /// <summary>
@@ -178,17 +242,22 @@ namespace bloom.Controllers
         }
 
         /// <summary>
-        /// Permanently removes a robot from the registry.
+        /// Permanently removes a robot from the registry (Admin only). Its shell audit log is kept.
         /// </summary>
-        [Authorize(Policy = "JwtOrCookie")]
+        [Authorize(Policy = "AdminOnly")]
         [HttpDelete("{id}")]
         public async Task<ActionResult<string>> DeleteRobot(Guid id)
         {
             try
             {
+                // Close its tunnel and shell first so a deleted robot can't keep a session open.
+                await _shellRelay.DisconnectRobotAsync(id, ShellEndReason.RobotDeleted);
                 var result = await _robotService.DeleteRobotAsync(id);
                 if (result)
+                {
+                    _logger.LogWarning("Robot {RobotId} deleted by {UserId}", id, GetCurrentUserId());
                     return Ok(new { Message = "Robot deleted successfully" });
+                }
 
                 return NotFound(new { Message = "Robot not found" });
             }

@@ -32,6 +32,12 @@ namespace bloom.Models
         // every token issued before, on the next request.
         public int TokenVersion { get; set; }
 
+        // A secret that has been pushed to the robot but not used yet. Until the robot logs in
+        // with it (which promotes it to SecretHash), the old secret stays valid too, so a push
+        // that is lost, times out or half-applies can never lock the robot out.
+        [JsonIgnore]
+        public string? PendingSecretHash { get; set; }
+
         // Reported by the robot agent on every connect (SemVer 2.0 from Nerdbank.GitVersioning,
         // plus the git commit). Distinct from FirmwareVersion, which bloom_node self-reports.
         public string? AgentVersion { get; set; }

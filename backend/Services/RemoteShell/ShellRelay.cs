@@ -48,6 +48,11 @@ namespace bloom.Services.RemoteShell
 
     public record OpenResult(OpenStatus Status, ShellSession? Session = null, string? HeldBy = null, DateTime? Since = null);
 
+    public enum SecretPushStatus { Applied, Offline, Busy, Rejected, TimedOut, ConnectionLost }
+
+    // Message is the agent's own explanation on Rejected; shown to the admin, so it is truncated.
+    public record SecretPushResult(SecretPushStatus Status, string? Message = null);
+
     public record ActiveSessionInfo(Guid SessionId, string AdminUserId, string? AdminEmail, DateTime StartedAt);
 
     public interface IShellRelay
@@ -65,6 +70,14 @@ namespace bloom.Services.RemoteShell
         Task AgentExitedAsync(Guid robotId, Guid sessionId);
         Task EndSessionAsync(Guid sessionId, string reason, bool notifyAgent = true);
 
+        /// <summary>
+        /// Sends a new secret to the robot's agent over its live tunnel and waits for it to confirm
+        /// it has applied it. Applied means the robot now holds the secret; TimedOut and
+        /// ConnectionLost mean it is unknown whether it does.
+        /// </summary>
+        Task<SecretPushResult> PushSecretAsync(Guid robotId, string secret, TimeSpan timeout);
+        void CompleteSecretPush(Guid robotId, Guid requestId, bool ok, string? message);
+
         /// <summary>Drops a robot's tunnel and ends its session, e.g. on revoke.</summary>
         Task DisconnectRobotAsync(Guid robotId, string reason);
     }
@@ -80,6 +93,9 @@ namespace bloom.Services.RemoteShell
 
         private readonly ConcurrentDictionary<Guid, AgentLink> _agents = new();
         private readonly ConcurrentDictionary<Guid, ShellSession> _sessions = new();
+
+        private sealed record PendingPush(Guid RobotId, TaskCompletionSource<SecretPushResult> Completion);
+        private readonly ConcurrentDictionary<Guid, PendingPush> _pushes = new();  // by request id
 
         // Guarded by _gate: the robot -> session lock and the per-admin open history, which both
         // need check-then-act.
@@ -119,6 +135,7 @@ namespace bloom.Services.RemoteShell
                 // tunnel drops, so any session on it is gone too.
                 _logger.LogInformation("Robot {RobotId} agent reconnected; replacing stale link", robotId);
                 await EndRobotSessionAsync(robotId, ShellEndReason.RobotDisconnected, notifyAgent: false);
+                FailPushes(robotId);
                 previous.DropReason = "replaced";
                 previous.Lifetime.Cancel();
             }
@@ -135,6 +152,7 @@ namespace bloom.Services.RemoteShell
                 return;
 
             _logger.LogInformation("Robot {RobotId} agent offline ({Reason})", link.RobotId, reason);
+            FailPushes(link.RobotId);
             await EndRobotSessionAsync(link.RobotId, reason, notifyAgent: false);
         }
 
@@ -268,6 +286,54 @@ namespace bloom.Services.RemoteShell
             {
                 _logger.LogError(ex, "Failed to record end of shell session {SessionId}", sessionId);
             }
+        }
+
+        public async Task<SecretPushResult> PushSecretAsync(Guid robotId, string secret, TimeSpan timeout)
+        {
+            if (GetAgent(robotId) is not { } agent)
+                return new SecretPushResult(SecretPushStatus.Offline);
+
+            var requestId = Guid.NewGuid();
+            var pending = new PendingPush(robotId, new(TaskCreationOptions.RunContinuationsAsynchronously));
+            lock (_gate)
+            {
+                if (_pushes.Values.Any(p => p.RobotId == robotId))
+                    return new SecretPushResult(SecretPushStatus.Busy);
+                _pushes[requestId] = pending;
+            }
+
+            try
+            {
+                await agent.Socket.SendJsonAsync(new AgentSetSecret(requestId, secret));
+                using var cts = new CancellationTokenSource(timeout, _time);
+                using var _ = cts.Token.Register(
+                    () => pending.Completion.TrySetResult(new SecretPushResult(SecretPushStatus.TimedOut)));
+                return await pending.Completion.Task;
+            }
+            finally
+            {
+                _pushes.TryRemove(requestId, out var removed);
+            }
+        }
+
+        public void CompleteSecretPush(Guid robotId, Guid requestId, bool ok, string? message)
+        {
+            // An agent may only answer pushes sent to itself.
+            if (!_pushes.TryGetValue(requestId, out var pending) || pending.RobotId != robotId)
+                return;
+
+            var reason = string.IsNullOrWhiteSpace(message) ? null : message.Trim();
+            if (reason is { Length: > 200 })
+                reason = reason[..200];
+            pending.Completion.TrySetResult(ok
+                ? new SecretPushResult(SecretPushStatus.Applied)
+                : new SecretPushResult(SecretPushStatus.Rejected, reason));
+        }
+
+        private void FailPushes(Guid robotId)
+        {
+            foreach (var pending in _pushes.Values.Where(p => p.RobotId == robotId))
+                pending.Completion.TrySetResult(new SecretPushResult(SecretPushStatus.ConnectionLost));
         }
 
         public async Task DisconnectRobotAsync(Guid robotId, string reason)

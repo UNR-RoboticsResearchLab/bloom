@@ -45,6 +45,7 @@ namespace bloom.Tests.Integration
             // Program.cs also reads these at top level: RemoteShell:Enabled decides whether the
             // /ws endpoints are mapped, and refuses the checked-in default Jwt:Key.
             Environment.SetEnvironmentVariable("RemoteShell__Enabled", "true");
+            Environment.SetEnvironmentVariable("RemoteShell__SecretPushTimeoutSeconds", "2");
             Environment.SetEnvironmentVariable("Jwt__Key", "integration-tests-only-signing-key-0123456789abcdef");
 
             _connection = new SqliteConnection("DataSource=:memory:");

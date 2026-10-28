@@ -147,6 +147,11 @@ namespace bloom.Services.RemoteShell
                 case "ping":
                     await socket.SendJsonAsync(new { type = "pong" });
                     break;
+                case "secret_applied":
+                    var applied = JsonSerializer.Deserialize<AgentSecretApplied>(data, ShellProtocol.Json);
+                    if (applied != null)
+                        _relay.CompleteSecretPush(robotId, applied.RequestId, applied.Ok, applied.Message);
+                    break;
                 case "exited":
                     var exited = JsonSerializer.Deserialize<AgentExited>(data, ShellProtocol.Json);
                     if (exited != null)

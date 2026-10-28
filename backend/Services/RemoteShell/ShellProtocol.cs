@@ -58,6 +58,8 @@ namespace bloom.Services.RemoteShell
         public const string Revoked = "revoked";
         public const string TokenExpired = "token_expired";
         public const string ServerShutdown = "server_shutdown";
+        public const string CredentialsRotated = "credentials_rotated";
+        public const string RobotDeleted = "robot_deleted";
     }
 
     /// <summary>Minimal envelope used to read the "type" field before dispatching.</summary>
@@ -66,11 +68,14 @@ namespace bloom.Services.RemoteShell
     // Agent -> backend
     public record AgentHello(string Type, string? Version, string? Commit);
     public record AgentExited(string Type, Guid SessionId, int? Code);
+    public record AgentSecretApplied(string Type, Guid RequestId, bool Ok, string? Message);
 
     // Backend -> agent
     public record AgentOpen(Guid SessionId, int Cols, int Rows, string Type = "open");
     public record AgentResize(Guid SessionId, int Cols, int Rows, string Type = "resize");
     public record AgentClose(Guid SessionId, string Type = "close");
+    // Carries a secret: never log this object.
+    public record AgentSetSecret(Guid RequestId, string Secret, string Type = "set_secret");
 
     // Admin -> backend
     public record AdminResize(string Type, int Cols, int Rows);

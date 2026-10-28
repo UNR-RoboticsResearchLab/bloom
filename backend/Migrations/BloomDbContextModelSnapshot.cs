@@ -641,6 +641,9 @@ namespace bloom.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("PendingSecretHash")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("RegisteredUserId")
                         .HasColumnType("varchar(255)");
 

@@ -20,5 +20,8 @@ namespace bloom.Services.RemoteShell
 
         // The agent pings every ~25s; a link silent for this long is treated as dead.
         public int AgentIdleTimeoutSeconds { get; set; } = 75;
+
+        // How long to wait for an agent to confirm it applied a pushed secret.
+        public int SecretPushTimeoutSeconds { get; set; } = 30;
     }
 }

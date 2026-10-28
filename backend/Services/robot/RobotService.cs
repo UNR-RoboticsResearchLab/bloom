@@ -158,7 +158,18 @@ namespace bloom.Services
 
                 var verify = _secretHasher.VerifyHashedPassword(robot, robot.SecretHash, loginDto.Secret);
                 if (verify == PasswordVerificationResult.Failed)
-                    return null;
+                {
+                    // A pushed secret is promoted the first time the robot actually uses it. That
+                    // retires the old secret and every token minted from it.
+                    if (robot.PendingSecretHash == null
+                        || _secretHasher.VerifyHashedPassword(robot, robot.PendingSecretHash, loginDto.Secret) == PasswordVerificationResult.Failed)
+                        return null;
+
+                    robot.SecretHash = robot.PendingSecretHash;
+                    robot.PendingSecretHash = null;
+                    robot.TokenVersion++;
+                    await _dbContext.SaveChangesAsync();
+                }
                 viaSecret = true;
             }
             else
@@ -192,11 +203,35 @@ namespace bloom.Services
             if (robot == null)
                 return null;
 
-            var secret = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32));
+            var secret = NewSecret();
             robot.SecretHash = _secretHasher.HashPassword(robot, secret);
+            robot.PendingSecretHash = null;
             robot.TokenVersion++;
             await _dbContext.SaveChangesAsync();
             return secret;
+        }
+
+        private static string NewSecret() => Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32));
+
+        public async Task<string?> BeginSecretRotationAsync(Guid robotId)
+        {
+            var robot = await _dbContext.Robots.FirstOrDefaultAsync(r => r.Id == robotId);
+            if (robot?.SecretHash == null)
+                return null;  // unknown, or revoked/never provisioned: nothing to rotate from
+
+            var secret = NewSecret();
+            robot.PendingSecretHash = _secretHasher.HashPassword(robot, secret);
+            await _dbContext.SaveChangesAsync();
+            return secret;
+        }
+
+        public async Task ClearPendingSecretAsync(Guid robotId)
+        {
+            var robot = await _dbContext.Robots.FirstOrDefaultAsync(r => r.Id == robotId);
+            if (robot?.PendingSecretHash == null)
+                return;
+            robot.PendingSecretHash = null;
+            await _dbContext.SaveChangesAsync();
         }
 
         public async Task<bool> RevokeCredentialsAsync(Guid robotId)
@@ -206,6 +241,7 @@ namespace bloom.Services
                 return false;
 
             robot.SecretHash = null;
+            robot.PendingSecretHash = null;
             robot.TokenVersion++;
             await _dbContext.SaveChangesAsync();
             return true;

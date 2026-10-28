@@ -91,6 +91,24 @@ namespace bloom.Services
 
         /**
          * <summary>
+         * BeginSecretRotationAsync() generates a new secret and stores it as the robot's pending
+         * secret WITHOUT invalidating the current one. The caller delivers it to the robot; the
+         * first login with it promotes it and retires the old one. Pending secrets are what make
+         * pushing a secret to a live robot safe.
+         * </summary>
+         * <returns>The new secret, or null if the robot doesn't exist or has no secret yet</returns>
+         */
+        Task<string?> BeginSecretRotationAsync(Guid robotId);
+
+        /**
+         * <summary>
+         * ClearPendingSecretAsync() discards a pending secret that was never delivered.
+         * </summary>
+         */
+        Task ClearPendingSecretAsync(Guid robotId);
+
+        /**
+         * <summary>
          * RevokeCredentialsAsync() removes a robot's secret and invalidates all its tokens.
          * </summary>
          * <returns>false if the robot doesn't exist</returns>

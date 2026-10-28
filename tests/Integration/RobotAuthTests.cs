@@ -152,6 +152,70 @@ namespace bloom.Tests.Integration
         }
 
         [Fact]
+        public async Task PendingSecret_OldStaysValid_UntilNewIsFirstUsed()
+        {
+            var (robot, oldSecret) = await ProvisionRobotAsync();
+            string newSecret;
+            using (var scope = _factory.Services.CreateScope())
+                newSecret = (await scope.ServiceProvider.GetRequiredService<IRobotService>().BeginSecretRotationAsync(robot.Id))!;
+            var oldToken = await AuthTestHelper.LoginRobotAsync(_factory, robot.Id, oldSecret);
+
+            // Both work while the new one hasn't been used: a push that never arrives can't lock the robot out.
+            Assert.False(string.IsNullOrEmpty(await AuthTestHelper.LoginRobotAsync(_factory, robot.Id, oldSecret)));
+            var newToken = await AuthTestHelper.LoginRobotAsync(_factory, robot.Id, newSecret);
+
+            // First use of the new secret promoted it: the old secret and its tokens are retired.
+            var oldLogin = await _factory.CreateClient().PostAsJsonAsync("api/robot/login", new { RobotId = robot.Id, Secret = oldSecret });
+            Assert.Equal(HttpStatusCode.Unauthorized, oldLogin.StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await AuthTestHelper.CreateBearerClient(_factory, oldToken).GetAsync($"api/robot/{robot.Id}")).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await AuthTestHelper.CreateBearerClient(_factory, newToken).GetAsync($"api/robot/{robot.Id}")).StatusCode);
+            Assert.False(string.IsNullOrEmpty(await AuthTestHelper.LoginRobotAsync(_factory, robot.Id, newSecret)));
+        }
+
+        [Fact]
+        public async Task BeginSecretRotation_RequiresAnExistingSecret()
+        {
+            using var scope = _factory.Services.CreateScope();
+            var robots = scope.ServiceProvider.GetRequiredService<IRobotService>();
+            var unprovisioned = TestDataSeeder.CreateRobot(scope.ServiceProvider.GetRequiredService<BloomDbContext>());
+
+            Assert.Null(await robots.BeginSecretRotationAsync(unprovisioned.Id));
+            Assert.Null(await robots.BeginSecretRotationAsync(Guid.NewGuid()));
+        }
+
+        [Fact]
+        public async Task Revoke_AlsoDiscardsPendingSecret()
+        {
+            var (robot, _) = await ProvisionRobotAsync();
+            string pending;
+            using (var scope = _factory.Services.CreateScope())
+                pending = (await scope.ServiceProvider.GetRequiredService<IRobotService>().BeginSecretRotationAsync(robot.Id))!;
+
+            await (await AdminClientAsync()).PostAsync($"api/robot/{robot.Id}/revoke", null);
+
+            var login = await _factory.CreateClient().PostAsJsonAsync("api/robot/login", new { RobotId = robot.Id, Secret = pending });
+            Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
+        }
+
+        [Fact]
+        public async Task Delete_RequiresAdmin()
+        {
+            var (robot, secret) = await ProvisionRobotAsync();
+            var robotClient = AuthTestHelper.CreateBearerClient(_factory, await AuthTestHelper.LoginRobotAsync(_factory, robot.Id, secret));
+            using var scope = _factory.Services.CreateScope();
+            var slp = await TestDataSeeder.CreateAccountAsync(scope.ServiceProvider.GetRequiredService<UserManager<Account>>(), role: "SLP");
+            var slpClient = await AuthTestHelper.CreateAuthorizedClientAsync(_factory, slp);
+
+            Assert.Equal(HttpStatusCode.Unauthorized, (await _factory.CreateClient().DeleteAsync($"api/robot/{robot.Id}")).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await robotClient.DeleteAsync($"api/robot/{robot.Id}")).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await slpClient.DeleteAsync($"api/robot/{robot.Id}")).StatusCode);
+
+            Assert.Equal(HttpStatusCode.OK, (await (await AdminClientAsync()).DeleteAsync($"api/robot/{robot.Id}")).StatusCode);
+            var login = await _factory.CreateClient().PostAsJsonAsync("api/robot/login", new { RobotId = robot.Id, Secret = secret });
+            Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
+        }
+
+        [Fact]
         public async Task ForgedAdminJwt_IsRejected()
         {
             // Signed with the real key -- what an attacker could do if Jwt:Key ever leaked.

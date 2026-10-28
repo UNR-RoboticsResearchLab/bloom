@@ -32,6 +32,12 @@ namespace bloom.Models
         // every token issued before, on the next request.
         public int TokenVersion { get; set; }
 
+        // Reported by the robot agent on every connect (SemVer 2.0 from Nerdbank.GitVersioning,
+        // plus the git commit). Distinct from FirmwareVersion, which bloom_node self-reports.
+        public string? AgentVersion { get; set; }
+        public string? AgentCommit { get; set; }
+        public DateTime? LastSeenAt { get; set; }
+
         // Navigation properties can be added here
     }
 }

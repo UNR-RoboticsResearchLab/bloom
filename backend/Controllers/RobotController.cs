@@ -5,6 +5,7 @@
 using bloom.Models;
 using bloom.Models.dto;
 using bloom.Services;
+using bloom.Services.RemoteShell;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -21,11 +22,19 @@ namespace bloom.Controllers
     {
         private readonly ILogger<RobotController> _logger;
         private readonly IRobotService _robotService;
+        private readonly IShellRelay _shellRelay;
+        private readonly IShellAuditService _shellAudit;
 
-        public RobotController(ILogger<RobotController> logger, IRobotService robotService)
+        public RobotController(
+            ILogger<RobotController> logger,
+            IRobotService robotService,
+            IShellRelay shellRelay,
+            IShellAuditService shellAudit)
         {
             _logger = logger;
             _robotService = robotService;
+            _shellRelay = shellRelay;
+            _shellAudit = shellAudit;
         }
 
         /// <summary>
@@ -88,6 +97,7 @@ namespace bloom.Controllers
                 return NotFound(new { Message = "Robot not found" });
 
             _logger.LogWarning("Robot {RobotId} credentials rotated by {UserId}", id, GetCurrentUserId());
+            await _shellRelay.DisconnectRobotAsync(id, ShellEndReason.Revoked);
             return Ok(new { RobotId = id, Secret = secret });
         }
 
@@ -103,7 +113,46 @@ namespace bloom.Controllers
                 return NotFound(new { Message = "Robot not found" });
 
             _logger.LogWarning("Robot {RobotId} revoked by {UserId}", id, GetCurrentUserId());
+            await _shellRelay.DisconnectRobotAsync(id, ShellEndReason.Revoked);
             return Ok(new { Message = "Robot revoked" });
+        }
+
+        /// <summary>
+        /// Every robot with its agent status (online, reported version) and current shell holder.
+        /// </summary>
+        [Authorize(Policy = "AdminOnly")]
+        [HttpGet("fleet")]
+        public async Task<ActionResult<IEnumerable<RobotFleetDto>>> GetFleet()
+        {
+            var robots = await _robotService.GetAllRobotsAsync();
+            return Ok(robots.OrderBy(r => r.Name).Select(r =>
+            {
+                var shell = _shellRelay.GetActiveSession(r.Id);
+                return new RobotFleetDto
+                {
+                    Id = r.Id,
+                    Name = r.Name,
+                    Model = r.Model,
+                    FirmwareVersion = r.FirmwareVersion,
+                    Online = _shellRelay.IsOnline(r.Id),
+                    Provisioned = r.SecretHash != null,
+                    AgentVersion = r.AgentVersion,
+                    AgentCommit = r.AgentCommit,
+                    LastSeenAt = r.LastSeenAt,
+                    ShellHeldBy = shell?.AdminEmail ?? shell?.AdminUserId,
+                    ShellSince = shell?.StartedAt,
+                };
+            }));
+        }
+
+        /// <summary>
+        /// Remote shell audit log for one robot, newest first: who, when, and why it ended.
+        /// </summary>
+        [Authorize(Policy = "AdminOnly")]
+        [HttpGet("{id}/shell-sessions")]
+        public async Task<ActionResult<IEnumerable<ShellSessionAudit>>> GetShellSessions(Guid id)
+        {
+            return Ok(await _shellAudit.GetForRobotAsync(id));
         }
 
         /// <summary>

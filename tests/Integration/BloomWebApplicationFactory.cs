@@ -42,6 +42,11 @@ namespace bloom.Tests.Integration
             // "else" branch, would throw on a CI runner with no cert/CertPassword configured).
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
 
+            // Program.cs also reads these at top level: RemoteShell:Enabled decides whether the
+            // /ws endpoints are mapped, and refuses the checked-in default Jwt:Key.
+            Environment.SetEnvironmentVariable("RemoteShell__Enabled", "true");
+            Environment.SetEnvironmentVariable("Jwt__Key", "integration-tests-only-signing-key-0123456789abcdef");
+
             _connection = new SqliteConnection("DataSource=:memory:");
             _connection.Open();
         }

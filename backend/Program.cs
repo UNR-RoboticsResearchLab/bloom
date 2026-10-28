@@ -5,6 +5,8 @@ using bloom.Models;
 using bloom.Services;
 using bloom.Data;
 using bloom.Repositories;
+using bloom.Services.RemoteShell;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -167,7 +169,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 
     options.Events.OnRedirectToLogin = ctx =>
     {
-        if (ctx.Request.Path.StartsWithSegments("/api"))
+        if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/ws"))
         {
             ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return Task.CompletedTask;
@@ -177,7 +179,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
     options.Events.OnRedirectToAccessDenied = ctx =>
     {
-        if (ctx.Request.Path.StartsWithSegments("/api"))
+        if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/ws"))
         {
             ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
             return Task.CompletedTask;
@@ -256,6 +258,27 @@ builder.Services.AddSingleton<IIdleModeService, IdleModeService>();
 builder.Services.AddSingleton<IVoiceOverrideService, VoiceOverrideService>();
 builder.Services.AddSingleton<IRsrSpeechService, RsrSpeechService>();
 
+// Fleet remote shell. ShellRelay is a Singleton (process-wide tunnel/session map, like
+// InMemoryRobotStateRepository); the connection handlers live for one WebSocket request each.
+var remoteShellSection = builder.Configuration.GetSection(RemoteShellOptions.SectionName);
+var remoteShellEnabled = remoteShellSection.Get<RemoteShellOptions>()?.Enabled == true;
+builder.Services.Configure<RemoteShellOptions>(remoteShellSection);
+builder.Services.TryAddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IShellRelay, ShellRelay>();
+builder.Services.AddScoped<IShellAuditService, ShellAuditService>();
+builder.Services.AddScoped<AgentConnection>();
+builder.Services.AddScoped<AdminConnection>();
+
+if (remoteShellEnabled)
+{
+    // The default Jwt:Key is checked into git. With it, anyone can mint a robot token -- fine for
+    // poking at lesson endpoints in dev, not for a sudo shell on every robot.
+    var jwtKey = builder.Configuration["Jwt:Key"] ?? "";
+    if (jwtKey == "ThisIsASecretKeyForJwtTokenGeneration" || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+        throw new InvalidOperationException(
+            "RemoteShell:Enabled requires a private Jwt:Key of at least 32 bytes. Set the Jwt__Key environment variable.");
+}
+
 // AutoRSR microservice integration
 var autoRsrBaseUrl = builder.Configuration["AutoRsr:BaseUrl"] ?? "http://localhost:5050";
 builder.Services.AddHttpClient("AutoRsr", client =>
@@ -314,6 +337,13 @@ builder.Services.AddAuthorization(options =>
     // Fleet administration: provisioning, revocation, fleet view, remote shell. Cookie only on
     // purpose -- the backend only ever mints Robot JWTs, so a JWT claiming Admin is forged by
     // definition and must not be able to satisfy this.
+    // Robot agent tunnel: only tokens from a RobotId + Secret login (never legacy name-only ones).
+    options.AddPolicy("RobotAgent", policy => policy
+        .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+        .RequireRole("Robot")
+        .RequireClaim(RobotService.CredentialClaim, "secret")
+        .RequireClaim(RobotService.TokenVersionClaim));
+
     options.AddPolicy("AdminOnly", policy => policy
         .AddAuthenticationSchemes(IdentityConstants.ApplicationScheme)
         .RequireRole("Admin"));
@@ -336,6 +366,9 @@ else
 
 // app.UseHttpsRedirection();
 app.UseCors();
+// Server-side WebSocket pings keep NATs/proxies from idling out the tunnels; the agent also sends
+// its own app-level pings so it can detect a dead link from its side.
+app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(25) });
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
@@ -373,6 +406,14 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapControllers();
+
+if (remoteShellEnabled)
+{
+    app.Map("/ws/robot-agent", (HttpContext ctx, AgentConnection conn) => conn.RunAsync(ctx))
+        .RequireAuthorization("RobotAgent");
+    app.Map("/ws/shell", (HttpContext ctx, AdminConnection conn) => conn.RunAsync(ctx))
+        .RequireAuthorization("AdminOnly");
+}
 
 app.MapFallbackToFile("index.html");
 

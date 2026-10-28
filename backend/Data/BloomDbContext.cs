@@ -31,6 +31,7 @@ namespace bloom.Data
         public DbSet<SLPClient> SLPClients { get; set; }
         public DbSet<RsrAssessment> RsrAssessments { get; set; }
         public DbSet<Behavior> Behaviors { get; set; }
+        public DbSet<ShellSessionAudit> ShellSessionAudits { get; set; }
 
         public BloomDbContext(DbContextOptions<BloomDbContext> dbContextOptions) : base(dbContextOptions)
         {
@@ -46,6 +47,13 @@ namespace bloom.Data
             builder.Entity<Account>(entity => { entity.ToTable("Accounts"); });
 
             builder.Entity<Robot>(entity => { entity.ToTable("Robots"); });
+
+            builder.Entity<ShellSessionAudit>(entity =>
+            {
+                entity.ToTable("ShellSessionAudits");
+                entity.Property(a => a.Id).ValueGeneratedNever();
+                entity.HasIndex(a => new { a.RobotId, a.StartedAt });
+            });
 
             builder.Entity<Lesson>(entity =>
             {

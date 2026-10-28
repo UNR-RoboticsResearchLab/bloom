@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using bloom.Data;
 using bloom.Models;
+using bloom.Services;
 using Microsoft.AspNetCore.Identity;
 
 namespace bloom.Tests.TestHelpers
@@ -87,6 +88,19 @@ namespace bloom.Tests.TestHelpers
             db.Accounts.Add(account);
             db.SaveChanges();
             return account;
+        }
+
+        /// <summary>
+        /// Creates a robot with a login secret, through the real RobotService so the hash and
+        /// TokenVersion are set exactly as provisioning does it.
+        /// </summary>
+        public static async Task<(Robot Robot, string Secret)> CreateProvisionedRobotAsync(
+            BloomDbContext db, IRobotService robots, string? name = null)
+        {
+            var robot = CreateRobot(db, name);
+            var secret = await robots.IssueSecretAsync(robot.Id)
+                ?? throw new InvalidOperationException("Failed to provision test robot.");
+            return (robot, secret);
         }
 
         public static Robot CreateRobot(BloomDbContext db, string? name = null)

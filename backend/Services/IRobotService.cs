@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using bloom.Models;
 using bloom.Models.dto;
@@ -39,7 +40,7 @@ namespace bloom.Services
 
         /**
          * <summary>
-         * RegisterRobotAsync() registers a new robot in the system. Should be triggered on first boot.
+         * RegisterRobotAsync() registers a new robot in the system. Admin-only; pair with IssueSecretAsync to provision it.
          * </summary>
          * <returns>Guid Id</returns>
          */
@@ -71,11 +72,38 @@ namespace bloom.Services
 
         /**
          * <summary>
-         * LoginRobotAsync() authenticates a robot by Name and IPAddress and returns a signed JWT.
+         * LoginRobotAsync() authenticates a robot by RobotId + Secret and returns a signed JWT.
+         * Name-only login is accepted only while Robot:AllowLegacyNameOnlyLogin is true, and only
+         * for robots that have no secret yet.
          * </summary>
-         * <returns>JWT string, or null if no matching robot is found</returns>
+         * <returns>Token and robot ID, or null if the credentials don't match</returns>
          */
-        Task<string?> LoginRobotAsync(RobotDto robot);
+        Task<RobotLoginResult?> LoginRobotAsync(RobotLoginDto login);
+
+        /**
+         * <summary>
+         * IssueSecretAsync() generates a new login secret for a robot, replacing any previous one
+         * and invalidating every token issued before it. The plaintext is returned once and never stored.
+         * </summary>
+         * <returns>The new secret, or null if the robot doesn't exist</returns>
+         */
+        Task<string?> IssueSecretAsync(Guid robotId);
+
+        /**
+         * <summary>
+         * RevokeCredentialsAsync() removes a robot's secret and invalidates all its tokens.
+         * </summary>
+         * <returns>false if the robot doesn't exist</returns>
+         */
+        Task<bool> RevokeCredentialsAsync(Guid robotId);
+
+        /**
+         * <summary>
+         * IsRobotTokenCurrentAsync() checks a validated robot JWT's "tv" claim against the robot's
+         * current TokenVersion, so rotate/revoke takes effect before the token expires.
+         * </summary>
+         */
+        Task<bool> IsRobotTokenCurrentAsync(ClaimsPrincipal principal);
 
         /**
          * <summary>
@@ -93,4 +121,6 @@ namespace bloom.Services
          */
         Task<ICollection<string>> GetAvailableMotorSequencesAsync();
     }
+
+    public record RobotLoginResult(string Token, Guid RobotId);
 }

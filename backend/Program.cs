@@ -203,6 +203,24 @@ builder.Services.AddAuthentication()
                     ?? throw new InvalidOperationException("Jwt:Key is not configured.")
             ))
         };
+
+        // The backend only mints robot JWTs (RobotService.GenerateRobotJwt), so anything else is
+        // forged. Robot tokens must also carry the robot's current TokenVersion, which is what
+        // makes rotate/revoke take effect immediately instead of at expiry.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async ctx =>
+            {
+                if (ctx.Principal?.IsInRole("Robot") != true)
+                {
+                    ctx.Fail("Unrecognized token.");
+                    return;
+                }
+                var robots = ctx.HttpContext.RequestServices.GetRequiredService<IRobotService>();
+                if (!await robots.IsRobotTokenCurrentAsync(ctx.Principal))
+                    ctx.Fail("Robot token has been revoked.");
+            }
+        };
     });
 
 // =========== Add Custom Services ===========
@@ -293,14 +311,10 @@ builder.Services.AddAuthorization(options =>
         .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, IdentityConstants.ApplicationScheme)
         .RequireAuthenticatedUser());
 
-    // Fleet administration (robot provisioning, revocation, fleet view).
+    // Fleet administration: provisioning, revocation, fleet view, remote shell. Cookie only on
+    // purpose -- the backend only ever mints Robot JWTs, so a JWT claiming Admin is forged by
+    // definition and must not be able to satisfy this.
     options.AddPolicy("AdminOnly", policy => policy
-        .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, IdentityConstants.ApplicationScheme)
-        .RequireRole("Admin"));
-
-    // Remote shell from the browser. Cookie only: robot JWTs carry role "Robot" and must never
-    // satisfy this, and admins don't hold JWTs.
-    options.AddPolicy("AdminCookie", policy => policy
         .AddAuthenticationSchemes(IdentityConstants.ApplicationScheme)
         .RequireRole("Admin"));
 });

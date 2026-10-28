@@ -4,6 +4,7 @@
 // Created: 10/22/2025
 
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace bloom.Models
 {
@@ -21,6 +22,15 @@ namespace bloom.Models
         public string? RegisteredUserId { get; set; }
 
         public Account? RegisteredUser { get; set; }
+
+        // PasswordHasher hash of the robot's login secret. Null means the robot can't log in
+        // (never provisioned, or revoked). Never serialized: Robot is returned directly by the API.
+        [JsonIgnore]
+        public string? SecretHash { get; set; }
+
+        // Embedded in every robot JWT as the "tv" claim. Bumping it (rotate/revoke) invalidates
+        // every token issued before, on the next request.
+        public int TokenVersion { get; set; }
 
         // Navigation properties can be added here
     }

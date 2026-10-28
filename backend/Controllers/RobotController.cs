@@ -29,8 +29,10 @@ namespace bloom.Controllers
         }
 
         /// <summary>
-        /// Registers a new robot device and returns the created record.
+        /// Provisions a new robot device. Returns the created record plus its login secret --
+        /// the only time the secret is ever shown. Put RobotId + Secret in the robot's .env.
         /// </summary>
+        [Authorize(Policy = "AdminOnly")]
         [HttpPost("register")]
         public async Task<ActionResult<string>> RegisterRobot([FromBody] RobotDto robot)
         {
@@ -39,8 +41,9 @@ namespace bloom.Controllers
                 var result = await _robotService.RegisterRobotAsync(robot);
                 if (result != Guid.Empty)
                 {
+                    var secret = await _robotService.IssueSecretAsync(result);
                     var newRobot = await _robotService.GetRobotByIdAsync(result);
-                    return Ok(new { Message = "Robot registered successfully", Robot = newRobot });
+                    return Ok(new { Message = "Robot registered successfully", Robot = newRobot, Secret = secret });
                 }
                 return BadRequest(new { Message = "Failed to register robot" });
             }
@@ -55,13 +58,13 @@ namespace bloom.Controllers
         /// Logs in a registered robot device by validating its credentials and returning jwt token.
         /// </summary>
         [HttpPost("login")]
-        public async Task<ActionResult<string>> LoginRobot([FromBody] RobotDto loginDto)
+        public async Task<ActionResult<string>> LoginRobot([FromBody] RobotLoginDto loginDto)
         {
             try
             {
-                var token = await _robotService.LoginRobotAsync(loginDto);
-                if (token != null)
-                    return Ok(new { Message = "Login successful", Token = token });
+                var result = await _robotService.LoginRobotAsync(loginDto);
+                if (result != null)
+                    return Ok(new { Message = "Login successful", Token = result.Token, RobotId = result.RobotId });
 
                 return Unauthorized(new { Message = "Invalid credentials" });
             }
@@ -70,6 +73,37 @@ namespace bloom.Controllers
                 _logger.LogError(ex, "Error logging in robot");
                 return BadRequest(new { ex.Message });
             }
+        }
+
+        /// <summary>
+        /// Replaces a robot's login secret and invalidates all of its existing tokens. Returns the
+        /// new secret once.
+        /// </summary>
+        [Authorize(Policy = "AdminOnly")]
+        [HttpPost("{id}/credentials")]
+        public async Task<ActionResult<string>> RotateCredentials(Guid id)
+        {
+            var secret = await _robotService.IssueSecretAsync(id);
+            if (secret == null)
+                return NotFound(new { Message = "Robot not found" });
+
+            _logger.LogWarning("Robot {RobotId} credentials rotated by {UserId}", id, GetCurrentUserId());
+            return Ok(new { RobotId = id, Secret = secret });
+        }
+
+        /// <summary>
+        /// Revokes a robot: removes its secret and invalidates all of its tokens. It can't log in
+        /// again until an admin rotates new credentials.
+        /// </summary>
+        [Authorize(Policy = "AdminOnly")]
+        [HttpPost("{id}/revoke")]
+        public async Task<ActionResult<string>> RevokeRobot(Guid id)
+        {
+            if (!await _robotService.RevokeCredentialsAsync(id))
+                return NotFound(new { Message = "Robot not found" });
+
+            _logger.LogWarning("Robot {RobotId} revoked by {UserId}", id, GetCurrentUserId());
+            return Ok(new { Message = "Robot revoked" });
         }
 
         /// <summary>

@@ -635,6 +635,12 @@ namespace bloom.Migrations
                     b.Property<string>("RegisteredUserId")
                         .HasColumnType("varchar(255)");
 
+                    b.Property<string>("SecretHash")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("TokenVersion")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("RegisteredUserId");

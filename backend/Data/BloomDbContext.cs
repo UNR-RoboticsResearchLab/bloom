@@ -260,13 +260,22 @@ namespace bloom.Data
             }
         }
 
-        public static async Task SeedDatabaseAdminUser(UserManager<Account> userMgr)
+        // adminPassword comes from Seed:AdminPassword (env: Seed__AdminPassword). Development falls
+        // back to the old well-known password; Production refuses to create the admin without one,
+        // since Admin grants remote shell on every robot.
+        public static async Task SeedDatabaseAdminUser(UserManager<Account> userMgr, string? adminPassword, bool isProduction)
         {
-            // grab environment variables for admin user
             string adminEmail = "admin@example.com";
-            string adminPassword = "Admin@123";
             if (await userMgr.FindByEmailAsync(adminEmail) == null)
             {
+                if (string.IsNullOrWhiteSpace(adminPassword))
+                {
+                    if (isProduction)
+                        throw new InvalidOperationException(
+                            "Seed:AdminPassword is not configured. Set the Seed__AdminPassword environment variable.");
+                    adminPassword = "Admin@123";
+                }
+
                 var adminUser = new Account
                 {
                     UserName = adminEmail,

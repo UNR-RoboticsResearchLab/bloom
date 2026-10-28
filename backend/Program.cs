@@ -292,6 +292,17 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("JwtOrCookie", policy => policy
         .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, IdentityConstants.ApplicationScheme)
         .RequireAuthenticatedUser());
+
+    // Fleet administration (robot provisioning, revocation, fleet view).
+    options.AddPolicy("AdminOnly", policy => policy
+        .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, IdentityConstants.ApplicationScheme)
+        .RequireRole("Admin"));
+
+    // Remote shell from the browser. Cookie only: robot JWTs carry role "Robot" and must never
+    // satisfy this, and admins don't hold JWTs.
+    options.AddPolicy("AdminCookie", policy => policy
+        .AddAuthenticationSchemes(IdentityConstants.ApplicationScheme)
+        .RequireRole("Admin"));
 });
 
 var app = builder.Build();
@@ -341,7 +352,8 @@ using (var scope = app.Services.CreateScope())
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
     // Check if admin account exists, if not create one
-    await BloomDbContext.SeedDatabaseAdminUser(userManager);
+    await BloomDbContext.SeedDatabaseAdminUser(
+        userManager, app.Configuration["Seed:AdminPassword"], app.Environment.IsProduction());
 
     await LessonSeeder.SeedLessonsFromFilesAsync(db, userManager);
 }

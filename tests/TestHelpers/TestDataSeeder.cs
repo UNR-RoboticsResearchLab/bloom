@@ -57,6 +57,18 @@ namespace bloom.Tests.TestHelpers
         }
 
         /// <summary>
+        /// Like CreateAccountAsync, but also adds the Identity "Admin" role. Account.Role alone is
+        /// just a column -- RequireRole("Admin") checks the role claim, which comes from
+        /// AspNetUserRoles.
+        /// </summary>
+        public static async Task<Account> CreateAdminAsync(UserManager<Account> userManager)
+        {
+            var account = await CreateAccountAsync(userManager, role: "Admin");
+            await userManager.AddToRoleAsync(account, "Admin");
+            return account;
+        }
+
+        /// <summary>
         /// Creates an Account by writing directly to the DbContext, skipping Identity entirely.
         /// Cheaper for pure service-layer unit tests that never touch UserManager --
         /// RobotSessionService only ever treats UserId as an opaque FK string.

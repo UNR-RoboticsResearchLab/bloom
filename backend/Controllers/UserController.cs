@@ -93,6 +93,13 @@ namespace bloom.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            // Public sign-up must never mint an Admin: Admin grants fleet-wide remote shell access.
+            // Only an already-authenticated Admin may create another one.
+            if (string.Equals(account?.SelectedRole, "ADMIN", StringComparison.OrdinalIgnoreCase)
+                && !User.IsInRole("Admin"))
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { Message = "Only an administrator can create administrator accounts." });
+
             var result = account?.SelectedRole.ToUpper() switch
             {
                 "ADMIN" => await _accountService.RegisterAdminAsync(account),

@@ -26,12 +26,11 @@ robot/
 |-- bloom.service                  # systemd unit -> ROS2 combined launch
 |-- robot.json / .env.example      # Robot id / Azure credentials (env form)
 |
-|-- stt_module/                    # Speech-to-text engine (Azure / Whisper)
-|-- tts_module/                    # Text-to-speech engine (Azure)
-|-- llm_module/                    # Language model engine (Azure OpenAI / OpenAI)
+|-- stt_module/                    # DEFUNCT: not in git; the demo still imports it (see below)
 |-- face_display/                  # Standalone demo's browser face (blossom_face.html)
 |
 |-- src/                           # ROS2 workspace packages
+|   |-- bloom_speech_engines/      # TTS + LLM engines (plain Python package, no ROS imports)
 |   |-- bloom_node/                # C++: web service client, state machine, lesson/behavior coordination
 |   |-- bloom_speech/              # Python: STT/TTS/LLM ROS2 nodes + RSR sentence playback
 |   |-- bloom_face/                # Python: pygame face node (emotions, visemes, visual aids)
@@ -46,14 +45,14 @@ Each module/package has its own README with more detail.
 
 ## Shared Speech Engines
 
-`stt_module/`, `tts_module/`, and `llm_module/` are not tied to either run
-mode — they're plain Python libraries with a pluggable engine interface
+The `bloom_speech_engines` package (`src/bloom_speech_engines/`, with `tts` and
+`llm` subpackages) is not tied to either run mode — it's a plain Python library with a pluggable engine interface
 (`engine_interface.py`) and Azure implementations (`engine_azure.py`,
 `engine_azure_openai.py`), plus a Whisper/OpenAI fallback. Both
 `conversation_orchestrator.py` and the ROS2 `bloom_speech` nodes
 (`stt_node.py`, `tts_node.py`, `llm_node.py`) import directly from these
-modules — the ROS2 nodes just add `robot/` to `sys.path` and reuse the same
-engines and `config.py` files. Editing an engine here affects both run
+package — colcon builds it for the ROS2 stack, and `pip install -e` makes it
+importable for the standalone demo. Editing an engine here affects both run
 modes. `bloom_speech` also ships `stt_node_vosk.py`, an offline Vosk-based
 STT alternative that doesn't depend on this module.
 
@@ -62,27 +61,29 @@ STT alternative that doesn't depend on this module.
 ### 1. Install Dependencies
 ```bash
 pip install -r requirements.txt
+pip install -e 'src/bloom_speech_engines[azure,llm]'
 ```
-Installs pygame, the Azure Speech SDK, Azure OpenAI, and audio libraries.
-Each of `stt_module/`, `tts_module/`, `llm_module/` also has its own
-`requirements.txt` if you're using a module in isolation.
+The first installs pygame, the Azure Speech SDK, Azure OpenAI, and audio libraries; the second makes
+`bloom_speech_engines` importable (the `azure`/`llm` extras pull in just the SDKs the engines need).
+
+> **The standalone demo is currently broken.** `conversation_orchestrator.py` imports a
+> `stt_module` that no longer exists (it is defunct and was removed from git). The demo will not
+> start until its speech-to-text step is replaced or removed. The ROS2 stack is unaffected: its
+> `stt_node` calls the Azure SDK directly. Ignore every `stt_module` step below.
 
 ### 2. Configure API Keys
 ```bash
-# STT
-cp stt_module/config_example.py stt_module/config.py
 # TTS
-cp tts_module/config_example.py tts_module/config.py
+cp src/bloom_speech_engines/bloom_speech_engines/tts/config_example.py src/bloom_speech_engines/bloom_speech_engines/tts/config.py
 # LLM
-cp llm_module/config_example.py llm_module/config.py
+cp src/bloom_speech_engines/bloom_speech_engines/llm/config_example.py src/bloom_speech_engines/bloom_speech_engines/llm/config.py
 # Edit each with your Azure credentials
 ```
 See each module's README for where to get API keys.
 
 ### 3. Set Up Microphone (if needed)
 ```bash
-cd stt_module
-python setup_mic.py
+# stt_module/setup_mic.py -- DEFUNCT (stt_module no longer exists)
 ```
 
 ### 4. Run It
@@ -103,7 +104,7 @@ Speech → STT → LLM → TTS → Face
               ↑
          (maintains history)
 ```
-1. **Listen**: Azure STT transcribes your speech
+1. **Listen**: speech-to-text (the defunct `stt_module`; see the note above)
 2. **Think**: GPT generates a response based on conversation history
 3. **Speak**: Azure TTS creates audio + viseme (mouth-shape) data
 4. **Animate**: the face shows emotions and syncs its mouth to the visemes
@@ -117,9 +118,9 @@ and follow-up questions — edit it there to change how Bloom talks.
 
 ### Testing Individual Modules
 ```bash
-cd stt_module && python test_engine.py
-cd tts_module && python test_engine.py
-cd llm_module && python test_engine.py
+python -m bloom_speech_engines.tts.live_check    # real Azure call, needs tts/config.py
+python -m bloom_speech_engines.llm.live_check    # real LLM call, needs llm/config.py
+python -m pytest src/bloom_speech_engines/tests  # offline unit tests
 cd face_display && python test_face.py
 python test_viseme_sync.py
 ```
@@ -214,17 +215,41 @@ assessment end to end against the backend.
 
 ### Configuration
 
-Two credential mechanisms exist side by side:
-- `config.py` files (per `stt_module`/`tts_module`/`llm_module`, copied
-  from `config_example.py`) — used by the shared engines regardless of run
-  mode.
-- `.env` (copy from `.env.example`) — Azure OpenAI/TTS credentials loaded
-  as environment variables; referenced by `bloom.service` via
-  `EnvironmentFile`. It also holds `BLOOM_ROBOT_ID` / `BLOOM_ROBOT_SECRET`,
-  which `bloom_node` uses to log in to the backend. An admin issues them;
-  robots no longer self-register.
+Two credential mechanisms exist side by side. Which one applies depends on the run mode; the
+engines in `bloom_speech_engines` read neither themselves, they take credentials as constructor
+arguments.
 
-Both need to be filled in for the ROS2 stack to talk to Azure.
+**1. `config.py` files: standalone demo and `live_check` scripts only.**
+Each is copied from the `config_example.py` beside it and is git-ignored (`robot/.gitignore`):
+
+| File (under `src/bloom_speech_engines/bloom_speech_engines/`) | Keys |
+|---|---|
+| `tts/config.py` | `AZURE_SUBSCRIPTION_KEY`, `AZURE_REGION`, `AZURE_DEFAULT_VOICE` |
+| `llm/config.py` | `AZURE_OPENAI_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`; optional `OPENAI_API_KEY`, `OPENAI_MODEL` |
+
+Read by `conversation_orchestrator.py` (`from bloom_speech_engines.tts import config`) and by
+`python -m bloom_speech_engines.{tts,llm}.live_check`. Because they live inside the package
+directory, they only work with an editable install (`pip install -e`); never ship them in a built
+package or `.deb`. The ROS2 nodes never read them.
+
+**2. `.env`: the ROS2 stack.** Copy `.env.example` to `robot/.env` on a dev machine; on a robot the file
+is `/etc/bloom/robot.env` (`root:root`, mode `0600`, created at provisioning). systemd loads it via
+`EnvironmentFile=`, so the nodes just see environment variables. Outside systemd, point
+`BLOOM_ENV_FILE` at the file and the `bloom_speech` nodes load it themselves
+(`bloom_speech/envfile.py`; variables already set always win). **No package ships this file**: it is
+not in `bloom_speech`'s install, so `.deb` upgrades and rollbacks never overwrite or restore secrets.
+It maps onto the same settings under different names:
+
+| Setting | `config.py` key | `.env` variable | Read by |
+|---|---|---|---|
+| TTS key | `AZURE_SUBSCRIPTION_KEY` | `AZURE_TTS_KEY` | `tts_node`, and `stt_node` (it reuses the TTS key) |
+| TTS region | `AZURE_REGION` | `AZURE_TTS_REGION` (default `westus2`) | same |
+| TTS voice | `AZURE_DEFAULT_VOICE` | `AZURE_TTS_VOICE` (default `en-US-AvaNeural`) | `tts_node` |
+| LLM key / endpoint | `AZURE_OPENAI_KEY` / `AZURE_OPENAI_ENDPOINT` | same names | `llm_node` |
+| LLM deployment / API version | `AZURE_OPENAI_DEPLOYMENT` / `AZURE_OPENAI_API_VERSION` | same names (defaults `gpt-4.1-mini`, `2024-02-15-preview`) | `llm_node` |
+| Backend login | n/a | `BLOOM_ROBOT_ID`, `BLOOM_ROBOT_SECRET` | `bloom_node` (issued by an admin; robots no longer self-register) |
+
+Both need to be filled in if you use both run modes. For the ROS2 stack alone, only `.env` matters.
 
 ### Remote shell agent (`agent/`)
 
@@ -257,8 +282,7 @@ sudo systemctl start bloom
 
 **Microphone issues:**
 - Check OS permissions (System Settings → Privacy)
-- Run `stt_module/setup_mic.py`
-- Test with `stt_module/test_engine.py`
+- (`stt_module/setup_mic.py` and its `test_engine.py` are defunct.) For the ROS2 `stt_node`, check the mic device with `arecord -l`.
 
 **LLM errors:**
 - Verify API key and deployment name

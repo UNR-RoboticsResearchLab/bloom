@@ -1,24 +1,10 @@
 import os
-import sys
-_this_dir = os.path.dirname(os.path.abspath(__file__))
-_robot_dir = None
-# Source layout:    Robot/src/bloom_speech/bloom_speech/ (3 up)
-# Installed layout: Robot/install/bloom_speech/lib/python3.12/site-packages/bloom_speech/ (6 up)
-for _levels in (3, 6):
-    _candidate = _this_dir
-    for _ in range(_levels):
-        _candidate = os.path.dirname(_candidate)
-    if os.path.isdir(os.path.join(_candidate, 'llm_module')):
-        _robot_dir = _candidate
-        break
-if _robot_dir and _robot_dir not in sys.path:
-    sys.path.insert(0, _robot_dir)
 import threading
 import rclpy
+from bloom_speech.envfile import load_env
 from rclpy.node import Node
 from std_msgs.msg import String
-from ament_index_python.packages import get_package_share_directory
-from llm_module.engine_azure_openai import AzureOpenAIEngine
+from bloom_speech_engines.llm.engine_azure_openai import AzureOpenAIEngine
 
 FREE_CONVERSATION_PROMPT = """You are Bloom, a friendly and caring robot who loves talking with children. You are warm, patient, and genuinely excited to get to know the child you are speaking with.
 
@@ -111,7 +97,7 @@ class LLMNode(Node):
         llm_api_version = os.environ.get('AZURE_OPENAI_API_VERSION', '2024-02-15-preview')
 
         if not llm_key or not llm_endpoint:
-            self.get_logger().error('AZURE_OPENAI_KEY or AZURE_OPENAI_ENDPOINT not set - check your .env file')
+            self.get_logger().error('AZURE_OPENAI_KEY or AZURE_OPENAI_ENDPOINT not set - set it in /etc/bloom/robot.env (or BLOOM_ENV_FILE)')
 
         self.llm_engine = AzureOpenAIEngine(
             api_key=llm_key,
@@ -266,17 +252,7 @@ class LLMNode(Node):
 
 
 def main(args=None):
-    env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')
-    if os.path.exists(env_path):
-        with open(env_path) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    os.environ.setdefault(key.strip(), value.strip())
-    else:
-        print(f'WARNING: .env not found at {env_path}')
-        print('Copy .env.example to .env and fill in your credentials')
+    load_env()
 
     rclpy.init(args=args)
     node = LLMNode()

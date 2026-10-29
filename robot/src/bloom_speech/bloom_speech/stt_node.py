@@ -3,9 +3,9 @@ import sys
 import json
 import threading
 import rclpy
+from bloom_speech.envfile import load_env
 from rclpy.node import Node
 from std_msgs.msg import String
-from ament_index_python.packages import get_package_share_directory
 import azure.cognitiveservices.speech as speechsdk
 
 from bloom_speech.mic_utils import find_alsa_capture_device
@@ -20,7 +20,7 @@ class STTNode(Node):
         stt_region = os.environ.get('AZURE_TTS_REGION', 'westus2')
 
         if not stt_key:
-            self.get_logger().error('AZURE_TTS_KEY not set - check your .env file')
+            self.get_logger().error('AZURE_TTS_KEY not set - set it in /etc/bloom/robot.env (or BLOOM_ENV_FILE)')
 
         speech_config = speechsdk.SpeechConfig(subscription=stt_key, region=stt_region)
         speech_config.speech_recognition_language = 'en-US'
@@ -132,17 +132,7 @@ class STTNode(Node):
 
 
 def main(args=None):
-    env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')
-    if os.path.exists(env_path):
-        with open(env_path) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    os.environ.setdefault(key.strip(), value.strip())
-    else:
-        print(f'WARNING: .env not found at {env_path}')
-        print('Copy .env.example to .env and fill in your credentials')
+    load_env()
 
     rclpy.init(args=args)
     node = STTNode()

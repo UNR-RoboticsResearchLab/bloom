@@ -6,10 +6,9 @@ Text-to-Speech with viseme data for lip-sync animation
 
 ### 1. Install dependencies
 ```bash
-cd tts_module
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e 'robot/src/bloom_speech_engines[azure]'
 ```
 
 ### 2. Configure Azure credentials
@@ -23,7 +22,7 @@ Edit `config.py` with your Azure credentials:
 
 ### 3. Test
 ```bash
-python test_engine.py
+python -m bloom_speech_engines.tts.live_check
 ```
 
 This will:
@@ -41,7 +40,7 @@ Play the audio to verify: `afplay BloomResponse.wav`
 
 ## Basic Usage
 ```python
-from engine_azure import AzureTTSEngine
+from bloom_speech_engines.tts.engine_azure import AzureTTSEngine
 
 engine = AzureTTSEngine(
     subscription_key="your-key",

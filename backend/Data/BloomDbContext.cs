@@ -23,6 +23,7 @@ namespace bloom.Data
         public DbSet<RobotProfile> RobotProfiles { get; set; }
         public DbSet<RobotSession> RobotSessions { get; set; }
         public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
+        public DbSet<RobotEvent> RobotEvents { get; set; }
         public DbSet<LessonStep> LessonSteps { get; set; }
         public DbSet<LessonProgress> LessonProgresses { get; set; }
         public DbSet<LessonInteraction> LessonInteractions { get; set; }
@@ -45,6 +46,26 @@ namespace bloom.Data
 
             // Configure tables
             builder.Entity<Account>(entity => { entity.ToTable("Accounts"); });
+
+            builder.Entity<RobotEvent>(entity =>
+            {
+                entity.ToTable("RobotEvents");
+
+                entity.HasOne(e => e.Robot)
+                    .WithMany()
+                    .HasForeignKey(e => e.RobotId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.RobotSession)
+                    .WithMany()
+                    .HasForeignKey(e => e.RobotSessionId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.Property(e => e.EventType).HasConversion<string>().HasMaxLength(32);
+
+                entity.HasIndex(e => new { e.RobotId, e.OccurredAt });
+                entity.HasIndex(e => e.RobotSessionId);
+            });
 
             builder.Entity<Robot>(entity => { entity.ToTable("Robots"); });
 

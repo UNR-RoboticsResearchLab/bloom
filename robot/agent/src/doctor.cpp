@@ -15,6 +15,7 @@
 #include <nlohmann/json.hpp>
 
 #include "net.h"
+#include "signalr.h"
 #include "version.h"
 
 namespace bloom_agent {
@@ -302,9 +303,27 @@ int run_doctor(const std::string& config_path) {
           [&token](websocket::request_type& req) { req.set(http::field::authorization, "Bearer " + token); }));
       websocket::response_type res;
       beast::error_code ec;
-      ws.handshake(res, cfg.backend.authority(), cfg.backend.base_path + "/ws/robot-agent", ec);
+      ws.handshake(res, cfg.backend.authority(), cfg.backend.base_path + "/hubs/robot-agent", ec);
       if (!ec) {
-        pass("WebSocket", "upgrade accepted on /ws/robot-agent");
+        pass("WebSocket", "upgrade accepted on /hubs/robot-agent");
+
+        // Then the SignalR handshake: a proxy can pass the upgrade and still mangle the protocol.
+        // Doctor never sends Hello, so the robot doesn't appear online and a running agent's
+        // connection isn't replaced.
+        ws.text(true);
+        beast::get_lowest_layer(ws).expires_after(std::chrono::seconds(10));
+        ws.write(asio::buffer(signalr::handshake_request()));
+        beast::flat_buffer reply;
+        ws.read(reply);
+        signalr::RecordParser records;
+        records.feed(beast::buffers_to_string(reply.data()));
+        const auto record = records.next();
+        const auto accepted = record ? signalr::parse_handshake_response(*record) : signalr::HandshakeResponse{false, "no reply"};
+        if (accepted.ok)
+          pass("SignalR", "handshake accepted");
+        else
+          fail("SignalR", "handshake refused: " + accepted.error,
+               "something between the robot and the backend is altering WebSocket traffic, or the backend is a different version");
         ws.close(websocket::close_code::normal, ec);
       } else if (res.result_int() == 404) {
         fail("WebSocket", "HTTP 404", "the backend has RemoteShell:Enabled=false");

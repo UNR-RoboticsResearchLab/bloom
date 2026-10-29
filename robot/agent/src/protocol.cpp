@@ -1,7 +1,9 @@
 #include "protocol.h"
 
 #include <cctype>
-#include <nlohmann/json.hpp>
+
+#include "base64.h"
+#include "signalr.h"
 
 namespace bloom_agent {
 namespace {
@@ -43,58 +45,56 @@ std::string format_uuid(const Uuid& id) {
   return out;
 }
 
-std::string encode_data_frame(const Uuid& session, std::string_view payload) {
-  std::string frame;
-  frame.reserve(kFrameHeaderLength + payload.size());
-  frame.push_back(static_cast<char>(kDataFrame));
-  frame.append(reinterpret_cast<const char*>(session.data()), session.size());
-  frame.append(payload);
-  return frame;
-}
-
-bool decode_data_frame(std::string_view frame, Uuid& session, std::string_view& payload) {
-  if (frame.size() < kFrameHeaderLength || static_cast<std::uint8_t>(frame[0]) != kDataFrame) return false;
-  for (size_t i = 0; i < session.size(); ++i) session[i] = static_cast<std::uint8_t>(frame[1 + i]);
-  payload = frame.substr(kFrameHeaderLength);
-  return true;
-}
-
 std::string hello_message(std::string_view version, std::string_view commit) {
-  return nlohmann::json{{"type", "hello"}, {"version", version}, {"commit", commit}}.dump();
+  return signalr::invocation("Hello", nlohmann::json::array({version, commit}));
 }
 
-std::string ping_message() { return R"({"type":"ping"})"; }
+std::string output_message(const Uuid& session, std::string_view bytes) {
+  return signalr::invocation("Output", nlohmann::json::array({format_uuid(session), base64_encode(bytes)}));
+}
 
 std::string exited_message(const Uuid& session, std::optional<int> code) {
-  nlohmann::json msg{{"type", "exited"}, {"sessionId", format_uuid(session)}};
-  msg["code"] = code ? nlohmann::json(*code) : nlohmann::json(nullptr);
-  return msg.dump();
-}
-
-std::optional<std::string> request_id_of(std::string_view json_text) {
-  const auto msg = nlohmann::json::parse(json_text, nullptr, /*allow_exceptions=*/false);
-  if (!msg.is_object() || !msg.contains("requestId") || !msg["requestId"].is_string()) return std::nullopt;
-  auto id = msg["requestId"].get<std::string>();
-  if (!parse_uuid(id)) return std::nullopt;
-  return id;
-}
-
-std::optional<SetSecretRequest> parse_set_secret(std::string_view json_text) {
-  const auto msg = nlohmann::json::parse(json_text, nullptr, /*allow_exceptions=*/false);
-  if (!msg.is_object() || msg.value("type", "") != "set_secret") return std::nullopt;
-  auto id = request_id_of(json_text);
-  if (!id || !msg.contains("secret") || !msg["secret"].is_string()) return std::nullopt;
-  auto secret = msg["secret"].get<std::string>();
-  if (secret.size() < 16 || secret.size() > 512) return std::nullopt;
-  for (char c : secret)
-    if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') return std::nullopt;
-  return SetSecretRequest{*id, std::move(secret)};
+  return signalr::invocation(
+      "SessionExited", nlohmann::json::array({format_uuid(session), code ? nlohmann::json(*code) : nlohmann::json(nullptr)}));
 }
 
 std::string secret_applied_message(std::string_view request_id, bool ok, std::string_view message) {
-  nlohmann::json msg{{"type", "secret_applied"}, {"requestId", request_id}, {"ok", ok}};
-  if (!message.empty()) msg["message"] = message;
-  return msg.dump();
+  return signalr::invocation("SecretApplied",
+                             nlohmann::json::array({request_id, ok, message.empty() ? nlohmann::json(nullptr) : nlohmann::json(message)}));
+}
+
+std::optional<std::string> arg_string(const nlohmann::json& args, std::size_t index) {
+  if (!args.is_array() || index >= args.size() || !args[index].is_string()) return std::nullopt;
+  return args[index].get<std::string>();
+}
+
+std::optional<Uuid> arg_uuid(const nlohmann::json& args, std::size_t index) {
+  const auto text = arg_string(args, index);
+  return text ? parse_uuid(*text) : std::nullopt;
+}
+
+std::optional<int> arg_int(const nlohmann::json& args, std::size_t index) {
+  if (!args.is_array() || index >= args.size() || !args[index].is_number_integer()) return std::nullopt;
+  return args[index].get<int>();
+}
+
+std::optional<std::string> arg_bytes(const nlohmann::json& args, std::size_t index) {
+  const auto text = arg_string(args, index);
+  return text ? base64_decode(*text) : std::nullopt;
+}
+
+std::optional<std::string> request_id_of(const nlohmann::json& args) {
+  const auto id = arg_uuid(args, 0);
+  return id ? std::optional<std::string>(format_uuid(*id)) : std::nullopt;
+}
+
+std::optional<SetSecretRequest> parse_set_secret(const nlohmann::json& args) {
+  auto id = request_id_of(args);
+  auto secret = arg_string(args, 1);
+  if (!id || !secret || secret->size() < 16 || secret->size() > 512) return std::nullopt;
+  for (char c : *secret)
+    if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') return std::nullopt;
+  return SetSecretRequest{*id, std::move(*secret)};
 }
 
 }  // namespace bloom_agent

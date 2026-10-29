@@ -46,6 +46,7 @@ endif()
 
 # Everything except main.cpp, so the tests link the same code.
 add_library(agent_core STATIC
+  src/base64.cpp
   src/config.cpp
   src/doctor.cpp
   src/log.cpp
@@ -53,7 +54,9 @@ add_library(agent_core STATIC
   src/protocol.cpp
   src/proxy.cpp
   src/pty_process.cpp
+  src/pty_writer.cpp
   src/secret_apply.cpp
+  src/signalr.cpp
   src/sessions.cpp
   src/supervisor.cpp
   src/tunnel.cpp
@@ -76,11 +79,14 @@ if(AGENT_BUILD_TESTS)
   enable_testing()
   add_executable(agent_tests
     tests/backoff_test.cpp
+    tests/base64_test.cpp
     tests/liveness_test.cpp
     tests/protocol_test.cpp
     tests/proxy_test.cpp
     tests/pty_test.cpp
+    tests/pty_writer_test.cpp
     tests/secret_apply_test.cpp
+    tests/signalr_test.cpp
     tests/semver_test.cpp
     tests/sessions_test.cpp
     tests/supervisor_test.cpp

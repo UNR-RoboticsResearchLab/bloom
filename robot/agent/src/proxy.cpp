@@ -1,5 +1,7 @@
 #include "proxy.h"
 
+#include "base64.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -34,25 +36,6 @@ std::string percent_decode(std::string_view s) {
 }  // namespace
 
 const char* system_env(const char* name) { return std::getenv(name); }
-
-std::string base64_encode(std::string_view input) {
-  static constexpr char table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  std::string out;
-  size_t i = 0;
-  for (; i + 2 < input.size(); i += 3) {
-    const unsigned n = static_cast<unsigned char>(input[i]) << 16 | static_cast<unsigned char>(input[i + 1]) << 8 |
-                       static_cast<unsigned char>(input[i + 2]);
-    out += {table[n >> 18], table[(n >> 12) & 63], table[(n >> 6) & 63], table[n & 63]};
-  }
-  if (i + 1 == input.size()) {
-    const unsigned n = static_cast<unsigned char>(input[i]) << 16;
-    out += {table[n >> 18], table[(n >> 12) & 63], '=', '='};
-  } else if (i + 2 == input.size()) {
-    const unsigned n = static_cast<unsigned char>(input[i]) << 16 | static_cast<unsigned char>(input[i + 1]) << 8;
-    out += {table[n >> 18], table[(n >> 12) & 63], table[(n >> 6) & 63], '='};
-  }
-  return out;
-}
 
 std::optional<ProxyConfig> parse_proxy_url(std::string_view url) {
   url = trim(url);

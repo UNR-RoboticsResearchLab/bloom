@@ -32,6 +32,4 @@ std::optional<ProxyConfig> parse_proxy_url(std::string_view url);
 
 std::string connect_request(std::string_view host, std::string_view port, const ProxyConfig& proxy);
 
-std::string base64_encode(std::string_view input);
-
 }  // namespace bloom_agent

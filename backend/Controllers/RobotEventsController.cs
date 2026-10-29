@@ -11,15 +11,15 @@ using Microsoft.AspNetCore.Mvc;
 namespace bloom.Controllers
 {
     /// <summary>
-    /// Manages robot device registration and lookup.
-    /// Provides CRUD operations and filtering by owner or firmware version.
-    /// Has no session or lesson awareness — purely device management.
+    /// Retrieves logged robot events by id or query filter.
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class RobotEventsController : BloomControllerBase
     {
-        
+        private readonly ILogger<RobotEventsController> _logger;
+        private readonly IRobotEventService _robotEventService;
+
         public RobotEventsController(ILogger<RobotEventsController> logger, IRobotEventService robotEventService)
         {
             _logger = logger;

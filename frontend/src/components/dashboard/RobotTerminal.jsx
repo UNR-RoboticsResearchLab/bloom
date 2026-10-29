@@ -1,16 +1,21 @@
 // RobotTerminal.jsx
-// Browser end of the fleet remote shell: an xterm.js terminal wired to the backend's /ws/shell
-// relay, which pipes it to a PTY on the robot via its agent. One WebSocket = one shell session.
+// Browser end of the fleet remote shell: an xterm.js terminal wired to the backend's /hubs/shell
+// SignalR hub, which pipes it to a PTY on the robot via its agent. One connection = one shell session.
 //
-// Protocol (backend/Services/RemoteShell/ShellProtocol.cs): terminal bytes are raw binary frames
-// both ways; control messages are JSON text frames -- we send {type:"resize"|"close"}, the backend
-// sends {type:"opened"|"busy"|"error"|"closed"}.
+// Hub contract (backend/Services/RemoteShell/ShellHub.cs, ShellHubClients.cs):
+//   we call   OpenSession(robotId, cols, rows, force) -> { status, sessionId, heldBy, since, message }
+//             Input(base64) / Resize(cols, rows) / CloseSession()
+//   it calls  Output(base64) / SessionClosed(reason)
+// Byte payloads are base64 (SignalR's JSON protocol). Input goes out in small pieces because the
+// backend drops a connection that sends a message over its receive limit.
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { useApiClient } from "../../context/ApiClientContext";
+import { base64ToBytes, encodeInput } from "../../utils/base64";
 
 const CLOSE_REASONS = {
   exited: "The shell exited.",
@@ -19,74 +24,92 @@ const CLOSE_REASONS = {
   taken_over: "Another admin took over this robot's shell.",
   robot_disconnected: "The robot went offline.",
   revoked: "The robot's credentials were revoked.",
-  token_expired: "The robot's tunnel was renewed (token expiry). Reconnect to continue.",
+  robot_deleted: "The robot was deleted.",
+  credentials_rotated: "The robot's credentials were changed. Reconnect to continue.",
+  token_expired: "The robot's connection was renewed (token expiry). Reconnect to continue.",
 };
 
 export default function RobotTerminal({ robot, onClose }) {
   const api = useApiClient();
-  // ApiClientProvider builds a new client every render; keep the terminal and its socket from
-  // being torn down and reconnected whenever that happens.
+  // ApiClientProvider builds a new client every render; keep the terminal and its connection from
+  // being torn down and rebuilt whenever that happens.
   const apiRef = useRef(api);
   apiRef.current = api;
   const containerRef = useRef(null);
   const termRef = useRef(null);
-  const socketRef = useRef(null);
+  const connectionRef = useRef(null);
+  const openRef = useRef(false); // a session is open on the current connection
   // "connecting" | "open" | "busy" | "ended"
   const [status, setStatus] = useState("connecting");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(null);
 
   const connect = useCallback(
-    (force = false) => {
+    async (force = false) => {
       const term = termRef.current;
       if (!term) return;
-      socketRef.current?.close();
+      connectionRef.current?.stop();
 
       setStatus("connecting");
       setMessage("");
       setBusy(null);
+      openRef.current = false;
 
-      const ws = new WebSocket(apiRef.current.shellSocketUrl(robot.id, term.cols, term.rows, force));
-      ws.binaryType = "arraybuffer";
-      socketRef.current = ws;
+      // No automatic reconnect: a dropped connection is a dead session, and silently starting a new
+      // shell behind the admin's back would be wrong.
+      const connection = new HubConnectionBuilder()
+        .withUrl(apiRef.current.shellHubUrl())
+        .configureLogging(LogLevel.Warning)
+        .build();
+      connectionRef.current = connection;
+
       let ended = false;
+      const current = () => connectionRef.current === connection;
       const end = (text) => {
-        if (ended) return;
+        if (ended || !current()) return;
         ended = true;
+        openRef.current = false;
         setStatus("ended");
         setMessage(text);
       };
 
-      ws.onmessage = (event) => {
-        if (socketRef.current !== ws) return;
-        if (event.data instanceof ArrayBuffer) {
-          term.write(new Uint8Array(event.data));
-          return;
+      connection.on("Output", (base64) => {
+        if (current()) term.write(base64ToBytes(base64));
+      });
+      connection.on("SessionClosed", (reason) => {
+        end(CLOSE_REASONS[reason] || `Session ended (${reason}).`);
+        connection.stop(); // nothing left on this connection
+      });
+      connection.onclose(() => end("Connection closed."));
+
+      try {
+        await connection.start();
+        if (!current()) return connection.stop();
+        const result = await connection.invoke("OpenSession", robot.id, term.cols, term.rows, force);
+        if (!current()) return;
+
+        if (result.status === "opened") {
+          openRef.current = true;
+          setStatus("open");
+          term.focus();
+        } else if (result.status === "busy") {
+          ended = true; // the stop below is not a failure
+          setStatus("busy");
+          setBusy({ heldBy: result.heldBy, since: result.since });
+          connection.stop();
+        } else {
+          end(result.message || "Couldn't open a session.");
+          connection.stop();
         }
-        const msg = JSON.parse(event.data);
-        switch (msg.type) {
-          case "opened":
-            setStatus("open");
-            term.focus();
-            break;
-          case "busy":
-            ended = true;
-            setStatus("busy");
-            setBusy({ heldBy: msg.heldBy, since: msg.since });
-            break;
-          case "error":
-            end(msg.message);
-            break;
-          case "closed":
-            end(CLOSE_REASONS[msg.reason] || `Session ended (${msg.reason}).`);
-            break;
-          default:
-            break;
-        }
-      };
-      ws.onclose = () => {
-        if (socketRef.current === ws) end("Connection closed.");
-      };
+      } catch (err) {
+        console.error("Remote shell connection failed:", err);
+        end(
+          /\b40[13]\b/.test(err?.message || "")
+            ? "You don't have permission to open a shell."
+            : "Couldn't connect to the server."
+        );
+        connection.stop();
+      }
     },
     [robot.id]
   );
@@ -106,14 +129,14 @@ export default function RobotTerminal({ robot, onClose }) {
     fit.fit();
     termRef.current = term;
 
-    const encoder = new TextEncoder();
     const input = term.onData((data) => {
-      const ws = socketRef.current;
-      if (ws?.readyState === WebSocket.OPEN) ws.send(encoder.encode(data));
+      const connection = connectionRef.current;
+      if (!openRef.current || !connection) return;
+      for (const piece of encodeInput(data)) connection.send("Input", piece).catch(() => {});
     });
     const resize = term.onResize(({ cols, rows }) => {
-      const ws = socketRef.current;
-      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "resize", cols, rows }));
+      const connection = connectionRef.current;
+      if (openRef.current && connection) connection.send("Resize", cols, rows).catch(() => {});
     });
     const observer = new ResizeObserver(() => fit.fit());
     observer.observe(containerRef.current);
@@ -124,10 +147,13 @@ export default function RobotTerminal({ robot, onClose }) {
       observer.disconnect();
       input.dispose();
       resize.dispose();
-      const ws = socketRef.current;
-      socketRef.current = null;
-      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "close" }));
-      ws?.close();
+      const connection = connectionRef.current;
+      connectionRef.current = null;
+      if (connection) {
+        // Say goodbye so the audit log records an admin close rather than a dropped connection.
+        const hangUp = () => connection.stop();
+        (openRef.current ? connection.send("CloseSession") : Promise.resolve()).then(hangUp, hangUp);
+      }
       term.dispose();
     };
   }, [connect]);
@@ -169,11 +195,7 @@ export default function RobotTerminal({ robot, onClose }) {
           <span>
             In use by <strong>{busy.heldBy || "another admin"}</strong> since{" "}
             {new Date(busy.since).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.
-          </span>The release build is stamped 1.0.3-g965b69c09d, strips to 2.3 MB, and links only libc and OpenSSL. One Release-only warning ((void) doesn't silence warn_unused_result in GCC), fixing it:
-
-￼
-￼
-
+          </span>
           <button
             type="button"
             onClick={() => connect(true)}

@@ -6,8 +6,8 @@ const target = env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
 module.exports = function (app) {
   app.use(
     createProxyMiddleware({
-      // /ws: the remote shell's WebSocket relay (needs ws: true to proxy the upgrade).
-      pathFilter: ['/api', '/ws'],
+      // /hubs: the remote shell's SignalR hubs (needs ws: true to proxy the WebSocket upgrade).
+      pathFilter: ['/api', '/hubs'],
       target,
       ws: true,
       changeOrigin: true,

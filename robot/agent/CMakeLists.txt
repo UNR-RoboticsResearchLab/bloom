@@ -51,6 +51,7 @@ add_library(agent_core STATIC
   src/doctor.cpp
   src/log.cpp
   src/net.cpp
+  src/ota_manifest.cpp
   src/protocol.cpp
   src/proxy.cpp
   src/pty_process.cpp
@@ -81,6 +82,7 @@ if(AGENT_BUILD_TESTS)
     tests/backoff_test.cpp
     tests/base64_test.cpp
     tests/liveness_test.cpp
+    tests/ota_manifest_test.cpp
     tests/protocol_test.cpp
     tests/proxy_test.cpp
     tests/pty_test.cpp

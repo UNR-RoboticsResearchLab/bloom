@@ -103,3 +103,13 @@ TEST(Protocol, RequestIdIsRecoverableFromInvalidSecrets) {
   EXPECT_EQ(request_id_of(args), "00112233-4455-6677-8899-aabbccddeeff");
   EXPECT_FALSE(request_id_of(nlohmann::json::array({"x"})));
 }
+
+TEST(OtaProtocol, ReportMessagesUseTheHubMethodNames) {
+  const auto progress = bloom_agent::ota_progress_message("job-1", "staging", 40, "downloading");
+  EXPECT_NE(progress.find("\"target\":\"ReportOtaProgress\""), std::string::npos);
+  EXPECT_NE(progress.find("[\"job-1\",\"staging\",40,\"downloading\"]"), std::string::npos);
+  EXPECT_EQ(progress.back(), '\x1e');
+  const auto version = bloom_agent::installed_version_message("1.4.2-1jazzy");
+  EXPECT_NE(version.find("\"target\":\"ReportInstalledVersion\""), std::string::npos);
+  EXPECT_NE(version.find("[\"1.4.2-1jazzy\"]"), std::string::npos);
+}

@@ -14,6 +14,8 @@ Group=bloom-ops
 # System-wide proxy settings (HTTPS_PROXY / NO_PROXY) live here on Ubuntu.
 EnvironmentFile=-/etc/environment
 ExecStart=/opt/bloom-agent/current/robot-agent run --config /etc/bloom-agent/agent.json
+# /var/lib/bloom-agent, owned by bloom-ops: the OTA job record (idempotency across restarts).
+StateDirectory=bloom-agent
 Restart=always
 RestartSec=5
 # 78 = EX_CONFIG: a broken config won't fix itself by restarting. Fix it, then `systemctl restart`.

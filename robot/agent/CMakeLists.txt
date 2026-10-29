@@ -86,6 +86,7 @@ if(AGENT_BUILD_TESTS)
     tests/base64_test.cpp
     tests/liveness_test.cpp
     tests/ota_manager_test.cpp
+    tests/ota_config_test.cpp
     tests/ota_manifest_test.cpp
     tests/ota_state_test.cpp
     tests/ota_system_test.cpp

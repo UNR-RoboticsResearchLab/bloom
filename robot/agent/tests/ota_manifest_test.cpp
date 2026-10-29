@@ -136,3 +136,19 @@ TEST(OtaManifest, TimestampParsing) {
   EXPECT_FALSE(parse_utc_timestamp("2000-13-01T00:00:00Z"));
   EXPECT_FALSE(parse_utc_timestamp("2000-01-01 00:00:00Z"));
 }
+
+// A vector made with the openssl CLI, exactly as docs/ota.md tells operators to sign: proves the
+// documented recipe and the agent's canonical payload agree.
+TEST(OtaManifest, VerifiesTheDocumentedOpensslSignature) {
+  const std::string pub =
+      "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEADWmZm953S7wr9kzqbm9Suvx86XVMDNtdDyQH5s+f9IY=\n-----END PUBLIC KEY-----\n";
+  const nlohmann::json manifest = {
+      {"jobId", "9b2f6c1e-example-0001"}, {"action", "apply"}, {"version", "1.4.2-1jazzy"},
+      {"source", {{"type", "apt"}, {"suite", "jazzy-stable"}}},
+      {"signature", "r/MpwXjJJHlQx+DRZwGhqct144KqtDAY6VGNyqVk17fAO0lU/gZSXj1q9HFEsZEowsHB/VECAWRpNmW10YjaAA=="},
+      {"expiresAt", "2999-01-01T00:00:00Z"}};
+  std::string error, id;
+  const auto m = parse_manifest(manifest, error, id);
+  ASSERT_TRUE(m) << error;
+  EXPECT_EQ(validate(*m, {{"jazzy-stable"}, pub}, kNow), "");
+}

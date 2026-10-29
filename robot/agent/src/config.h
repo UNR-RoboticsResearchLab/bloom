@@ -2,7 +2,8 @@
 //
 // File: /etc/bloom-agent/agent.json (or --config / BLOOM_AGENT_CONFIG):
 //   { "backend_url": "https://bloom.example.edu", "robot_id": "<guid>",
-//     "ca_file": "", "expected_issuers": [], "captive_check_url": "...", "shell": "" }
+//     "ca_file": "", "expected_issuers": [], "captive_check_url": "...", "shell": "",
+//     "ota": { "enabled": true, "allowed_suites": ["jazzy-stable"], ... } }   (keys: see OtaConfig)
 // Env overrides: BLOOM_AGENT_BACKEND_URL, BLOOM_ROBOT_ID.
 // Secret, first found: $CREDENTIALS_DIRECTORY/secret (systemd LoadCredential),
 //   /etc/bloom-agent/secret, BLOOM_ROBOT_SECRET (dev only).
@@ -26,6 +27,23 @@ struct BackendUrl {
   static std::optional<BackendUrl> parse(const std::string& url);
 };
 
+// On-demand OTA updates (ota_manager.h). Off unless "ota": {"enabled": true} -- and even then every
+// manifest must be signed by the key at signing_key_path.
+struct OtaConfig {
+  bool enabled = false;
+  std::string apt_sources_path = "/etc/apt/sources.list.d/bloom-fleet.list";  // the only apt source fleet-ota uses
+  std::string metapackage = "bloom-robot-core";
+  std::vector<std::string> allowed_suites;
+  std::string signing_key_path = "/etc/bloom-agent/ota-signing.pub";  // Ed25519 SPKI PEM
+  int healthcheck_timeout_seconds = 120;
+  std::string idle_command = "/usr/local/bin/robot-is-idle";          // exit 0 = idle
+  std::string healthcheck_command = "/usr/local/bin/robot-healthcheck";  // exit 0 = healthy
+  std::string ros_service = "bloom.service";
+  std::string updater_path = "/opt/bloom-agent/current/fleet-ota";
+  std::string state_dir = "/var/lib/fleet-ota";                       // fleet-ota writes state.json here
+  std::string job_store_path = "/var/lib/bloom-agent/ota-jobs.json";  // the agent's own idempotency record
+};
+
 struct AgentConfig {
   BackendUrl backend;
   std::string backend_url;
@@ -38,6 +56,7 @@ struct AgentConfig {
   // Run (via sudo, unless root) with the new secret on stdin when the backend pushes one. Writes
   // the agent's secret file and bloom_node's .env.
   std::string apply_secret_command = "/opt/bloom-agent/current/provision.sh";
+  OtaConfig ota;
   std::string config_path;
 };
 

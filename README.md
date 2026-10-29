@@ -183,7 +183,7 @@ Robots don't register themselves any more. An admin adds each one in the dashboa
 
 ## Fleet remote shell
 
-Admins can open a shell on any online robot from the **Fleet** section of the admin dashboard. Each robot runs `robot-agent` ([robot/agent/README.md](robot/agent/README.md)), which keeps an outbound TLS WebSocket open to the backend. No inbound port and no sshd are needed, and it works through campus HTTP proxies. The backend relays the browser's xterm.js terminal over that connection.
+Admins can open a shell on any online robot from the **Fleet** section of the admin dashboard. Each robot runs `robot-agent` ([robot/agent/README.md](robot/agent/README.md)), which keeps an outbound TLS connection open to the backend. No inbound port and no sshd are needed, and it works through campus HTTP proxies. The backend relays the browser's xterm.js terminal over that connection. Both legs are SignalR hubs (`/hubs/robot-agent`, `/hubs/shell`); the C++ agent speaks the SignalR protocol itself, so **there is no .NET on the robots**. The agent uses only the WebSocket transport (browsers get SignalR's fallback), and the relay state is in memory, so run **one backend instance**: more would need a SignalR backplane such as Redis plus moving that state out of memory.
 
 - **Run locally:**
   1. Set `RemoteShell__Enabled=true` and a private `Jwt__Key` of at least 32 bytes on the backend.

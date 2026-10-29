@@ -23,6 +23,12 @@ the fallback.
 - Every session is audited by the backend: who opened it, which robot, when it started and ended,
   and why it ended. Keystrokes and output are never stored.
 
+## On-demand OTA updates
+
+The agent can also trigger and report operator-requested software updates (Debian packages from a
+private apt repo, installed by the separate `fleet-ota` script). Off by default; see
+[docs/ota.md](../../docs/ota.md).
+
 ## Build
 
 ```bash

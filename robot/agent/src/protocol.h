@@ -3,9 +3,11 @@
 //
 //   agent -> server (hub methods):  Hello(version, commit)  Output(sessionId, bytes)
 //                                   SessionExited(sessionId, code)  SecretApplied(requestId, ok, message)
+//                                   ReportOtaProgress(jobId, state, percent, detail)  ReportInstalledVersion(version)
 //   server -> agent (client methods): Open(sessionId, cols, rows)  Input(sessionId, bytes)
 //                                   Resize(sessionId, cols, rows)  Close(sessionId)
 //                                   SetSecret(requestId, secret)  Disconnecting(reason)
+//                                   StartOta(manifest)  CancelOta(jobId)  GetOtaStatus()   (see ota_manager.h, docs/ota.md)
 //
 // GUIDs are strings and byte[] is base64 in the JSON protocol. SetSecret carries a secret: never log it.
 #pragma once
@@ -32,6 +34,8 @@ std::string hello_message(std::string_view version, std::string_view commit);
 std::string output_message(const Uuid& session, std::string_view bytes);
 std::string exited_message(const Uuid& session, std::optional<int> code);
 std::string secret_applied_message(std::string_view request_id, bool ok, std::string_view message);
+std::string ota_progress_message(std::string_view job_id, std::string_view state, int percent, std::string_view detail);
+std::string installed_version_message(std::string_view version);
 
 // ── server -> agent: read positional arguments of an invocation ──────────────
 

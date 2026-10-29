@@ -49,6 +49,14 @@ std::string hello_message(std::string_view version, std::string_view commit) {
   return signalr::invocation("Hello", nlohmann::json::array({version, commit}));
 }
 
+std::string ota_progress_message(std::string_view job_id, std::string_view state, int percent, std::string_view detail) {
+  return signalr::invocation("ReportOtaProgress", nlohmann::json::array({job_id, state, percent, detail}));
+}
+
+std::string installed_version_message(std::string_view version) {
+  return signalr::invocation("ReportInstalledVersion", nlohmann::json::array({version}));
+}
+
 std::string output_message(const Uuid& session, std::string_view bytes) {
   return signalr::invocation("Output", nlohmann::json::array({format_uuid(session), base64_encode(bytes)}));
 }

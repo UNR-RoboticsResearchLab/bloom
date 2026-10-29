@@ -41,19 +41,25 @@ constexpr std::size_t kResumeBytes = 256 << 10;
 
 // One established tunnel. Everything runs on one thread inside io.run(): WebSocket reads and
 // writes, every PTY's output, and the keepalive timer.
-class TunnelSession {
+class TunnelSession : public ota::IOtaSink {
  public:
   using Ws = websocket::stream<TlsStream>;
 
-  TunnelSession(asio::io_context& io, Ws& ws, PtyFactory factory, SecretApplier applier, std::function<bool()> stopping)
+  TunnelSession(asio::io_context& io, Ws& ws, PtyFactory factory, SecretApplier applier, std::function<bool()> stopping,
+                ota::OtaManager* ota)
       : io_(io),
         ws_(ws),
         sessions_(std::move(factory)),
         secret_applier_(std::move(applier)),
         stopping_(std::move(stopping)),
+        ota_(ota),
         liveness_(kPingInterval, kDeadAfter, clock::now()),
         timer_(io) {
     ws_.text(true);  // SignalR's JSON protocol is text frames throughout
+  }
+
+  ~TunnelSession() override {
+    if (ota_) ota_->detach();
   }
 
   TunnelResult run() {
@@ -76,6 +82,13 @@ class TunnelSession {
     std::array<char, 16 * 1024> buffer{};
     bool paused = false;
   };
+
+  // ── OTA reports (ota::IOtaSink) ─────────────────────────────────────────
+
+  void progress(const ota::JobStatus& status) override {
+    send(ota_progress_message(status.job_id, ota::to_string(status.state), status.percent, status.detail));
+  }
+  void installed_version(const std::string& version) override { send(installed_version_message(version)); }
 
   // ── WebSocket ───────────────────────────────────────────────────────────
 
@@ -141,6 +154,10 @@ class TunnelSession {
       }
       handshaken_ = true;
       send(hello_message(kVersion, kCommit));
+      if (ota_) {
+        ota_->attach(this);
+        ota_->on_connected();
+      }
       return;
     }
 
@@ -164,6 +181,13 @@ class TunnelSession {
   void on_invocation(const std::string& target, const nlohmann::json& args) {
     if (target == "SetSecret") {
       on_set_secret(args);
+    } else if (target == "StartOta") {
+      if (ota_) ota_->on_start_ota(args);
+      else log::warn("ignoring StartOta: OTA is not enabled on this robot");
+    } else if (target == "CancelOta") {
+      if (ota_) ota_->on_cancel_ota(args);
+    } else if (target == "GetOtaStatus") {
+      if (ota_) ota_->on_get_status();
     } else if (target == "Disconnecting") {
       on_disconnecting(arg_string(args, 0).value_or(""));
     } else if (target == "Open") {
@@ -296,6 +320,7 @@ class TunnelSession {
         finish(TunnelEnd::Dead, "nothing received for " + std::to_string(kDeadAfter.count()) + "s");
         return;
       }
+      if (ota_) ota_->poll();
       if (liveness_.ping_due(now)) {
         send(signalr::ping());
         liveness_.on_ping_sent(now);
@@ -309,6 +334,10 @@ class TunnelSession {
     finished_ = true;
     result_.end = end;
     result_.detail = std::move(detail);
+
+    // Reports made from here on are recorded and sent on the next connection. Updates themselves
+    // run in their own systemd unit and carry on regardless.
+    if (ota_) ota_->detach();
 
     // Nobody can see these shells any more; don't leave them running.
     readers_.clear();
@@ -326,6 +355,7 @@ class TunnelSession {
   SessionManager sessions_;
   SecretApplier secret_applier_;
   std::function<bool()> stopping_;
+  ota::OtaManager* ota_;
   Liveness liveness_;
   asio::steady_timer timer_;
 
@@ -344,12 +374,13 @@ class TunnelSession {
 }  // namespace
 
 HttpBackend::HttpBackend(const AgentConfig& cfg, PtyFactory pty_factory, SecretApplier secret_applier,
-                         std::function<bool()> stopping)
+                         std::function<bool()> stopping, ota::OtaManager* ota)
     : cfg_(cfg),
       tls_(make_tls_context(cfg)),
       pty_factory_(std::move(pty_factory)),
       secret_applier_(std::move(secret_applier)),
-      stopping_(std::move(stopping)) {}
+      stopping_(std::move(stopping)),
+      ota_(ota) {}
 
 LoginResult HttpBackend::login() {
   try {
@@ -403,7 +434,7 @@ TunnelResult HttpBackend::run_tunnel(const std::string& token) {
   }
 
   log::info("connected to " + cfg_.backend.authority() + " (agent " + kVersion + ")");
-  TunnelSession session(io, ws, pty_factory_, secret_applier_, stopping_);
+  TunnelSession session(io, ws, pty_factory_, secret_applier_, stopping_, ota_);
   return session.run();
 }
 

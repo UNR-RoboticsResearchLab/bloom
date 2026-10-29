@@ -51,6 +51,7 @@ add_library(agent_core STATIC
   src/doctor.cpp
   src/log.cpp
   src/net.cpp
+  src/ota_manager.cpp
   src/ota_manifest.cpp
   src/ota_state.cpp
   src/ota_system.cpp
@@ -84,6 +85,7 @@ if(AGENT_BUILD_TESTS)
     tests/backoff_test.cpp
     tests/base64_test.cpp
     tests/liveness_test.cpp
+    tests/ota_manager_test.cpp
     tests/ota_manifest_test.cpp
     tests/ota_state_test.cpp
     tests/ota_system_test.cpp

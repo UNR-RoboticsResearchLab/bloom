@@ -1,10 +1,9 @@
 using System;
 using System.Linq;
+using System.Net;
 using System.Net.Http.Json;
-using System.Net.WebSockets;
 using System.Security.Claims;
 using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 using bloom.Data;
 using bloom.Models;
@@ -20,8 +19,8 @@ using Xunit;
 namespace bloom.Tests.Integration
 {
     /// <summary>
-    /// Auth rules and relaying for the remote shell's two WebSocket endpoints:
-    /// /ws/robot-agent (robot JWT, identity from the token only) and /ws/shell (Admin cookie).
+    /// Auth rules and relaying for the remote shell's two SignalR hubs:
+    /// /hubs/robot-agent (robot JWT, identity from the token only) and /hubs/shell (Admin cookie).
     /// The relay is a DI singleton, so every test uses its own freshly provisioned robot.
     /// </summary>
     public class RemoteShellRelayTests : IClassFixture<BloomWebApplicationFactory>
@@ -33,12 +32,19 @@ namespace bloom.Tests.Integration
             _factory = factory;
         }
 
-        private async Task<(Robot Robot, string Token)> RobotWithTokenAsync()
+        private IShellRelay Relay => _factory.Services.GetRequiredService<IShellRelay>();
+
+        private async Task<(Robot Robot, string Secret)> ProvisionedRobotAsync()
         {
             using var scope = _factory.Services.CreateScope();
-            var (robot, secret) = await TestDataSeeder.CreateProvisionedRobotAsync(
+            return await TestDataSeeder.CreateProvisionedRobotAsync(
                 scope.ServiceProvider.GetRequiredService<BloomDbContext>(),
                 scope.ServiceProvider.GetRequiredService<IRobotService>());
+        }
+
+        private async Task<(Robot Robot, string Token)> RobotWithTokenAsync()
+        {
+            var (robot, secret) = await ProvisionedRobotAsync();
             return (robot, await AuthTestHelper.LoginRobotAsync(_factory, robot.Id, secret));
         }
 
@@ -52,47 +58,49 @@ namespace bloom.Tests.Integration
             return (account, await ShellTestClients.GetAuthCookieAsync(_factory, account));
         }
 
-        private IShellRelay Relay => _factory.Services.GetRequiredService<IShellRelay>();
+        private async Task<System.Net.Http.HttpClient> AdminHttpAsync(bool admin = true)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
+            var account = admin
+                ? await TestDataSeeder.CreateAdminAsync(userManager)
+                : await TestDataSeeder.CreateAccountAsync(userManager, role: "SLP");
+            return await AuthTestHelper.CreateAuthorizedClientAsync(_factory, account);
+        }
 
         private async Task WaitUntilOnlineAsync(Guid robotId, bool online = true)
         {
-            for (var i = 0; i < 100 && Relay.IsOnline(robotId) != online; i++)
+            for (var i = 0; i < 150 && Relay.IsOnline(robotId) != online; i++)
                 await Task.Delay(20);
             Assert.Equal(online, Relay.IsOnline(robotId));
         }
 
         /// <summary>Connects an agent and an admin and returns both ends of an open session.</summary>
-        private async Task<(Robot Robot, TestShellSocket Agent, TestShellSocket Admin, Guid SessionId)> OpenSessionAsync()
+        private async Task<(Robot Robot, TestAgent Agent, TestAdmin Admin, Guid SessionId)> OpenSessionAsync()
         {
             var (robot, token) = await RobotWithTokenAsync();
-            var agent = await ShellTestClients.ConnectAgentAsync(_factory, token);
+            var agent = await TestAgent.ConnectAsync(_factory, token);
             await WaitUntilOnlineAsync(robot.Id);
 
             var (_, cookie) = await AccountWithCookieAsync();
-            var admin = await ShellTestClients.ConnectAdminAsync(_factory, cookie, robot.Id);
-            var opened = await admin.ReceiveJsonAsync();
-            Assert.Equal("opened", opened.GetProperty("type").GetString());
-            var sessionId = opened.GetProperty("sessionId").GetGuid();
+            var admin = await TestAdmin.ConnectAsync(_factory, cookie);
+            var opened = await admin.OpenSessionAsync(robot.Id);
+            Assert.Equal("opened", opened.Status);
+            var sessionId = opened.SessionId!.Value;
 
-            var open = await agent.ReceiveJsonAsync();
-            Assert.Equal("open", open.GetProperty("type").GetString());
-            Assert.Equal(sessionId, open.GetProperty("sessionId").GetGuid());
-            Assert.Equal(100, open.GetProperty("cols").GetInt32());
-            Assert.Equal(30, open.GetProperty("rows").GetInt32());
-
+            var open = await agent.NextAsync("Open");
+            Assert.Equal(sessionId, open.Arg<Guid>(0));
+            Assert.Equal(100, open.Arg<int>(1));
+            Assert.Equal(30, open.Arg<int>(2));
             return (robot, agent, admin, sessionId);
         }
 
-        // ── Agent endpoint auth ────────────────────────────────────────────────
+        // ── Agent hub auth ─────────────────────────────────────────────────────
 
         [Fact]
         public async Task Agent_NoToken_IsRejected()
         {
-            var status = await ShellTestClients.HandshakeStatusAsync(async () =>
-            {
-                var client = _factory.Server.CreateWebSocketClient();
-                await client.ConnectAsync(new Uri("ws://localhost/ws/robot-agent"), default);
-            });
+            var status = await ShellTestClients.RefusedStatusAsync(() => TestAgent.ConnectAsync(_factory, token: ""));
 
             Assert.Equal(401, status);
         }
@@ -108,9 +116,7 @@ namespace bloom.Tests.Integration
                 new Claim(RobotService.CredentialClaim, "legacy"),
             });
 
-            var status = await ShellTestClients.HandshakeStatusAsync(() => ShellTestClients.ConnectAgentAsync(_factory, legacy));
-
-            Assert.Equal(401, status);
+            Assert.Equal(401, await ShellTestClients.RefusedStatusAsync(() => TestAgent.ConnectAsync(_factory, legacy)));
         }
 
         [Fact]
@@ -125,33 +131,20 @@ namespace bloom.Tests.Integration
                 new Claim(RobotService.TokenVersionClaim, "0"),  // provisioning already bumped it to 1
             });
 
-            var status = await ShellTestClients.HandshakeStatusAsync(() => ShellTestClients.ConnectAgentAsync(_factory, stale));
-
-            Assert.Equal(401, status);
+            Assert.Equal(401, await ShellTestClients.RefusedStatusAsync(() => TestAgent.ConnectAsync(_factory, stale)));
         }
 
         [Fact]
-        public async Task Agent_IdentityComesFromToken_NotFromMessages()
+        public async Task Agent_Hello_RecordsSemVerVersionAndCommit_ForTheTokensRobot()
         {
             var (robot, token) = await RobotWithTokenAsync();
-            var (victim, _) = await RobotWithTokenAsync();
+            var (other, _) = await RobotWithTokenAsync();
 
-            await using var agent = await ShellTestClients.ConnectAgentAsync(_factory, token,
-                new { type = "hello", version = "1.0.7", commit = "abc", robotId = victim.Id });
+            await using var agent = await TestAgent.ConnectAsync(_factory, token, hello: false);
+            await agent.Hello("1.0.42-g1a2b3c4d", "1a2b3c4d");
             await WaitUntilOnlineAsync(robot.Id);
 
-            Assert.False(Relay.IsOnline(victim.Id));
-        }
-
-        [Fact]
-        public async Task Agent_Hello_RecordsSemVerVersionAndCommit()
-        {
-            var (robot, token) = await RobotWithTokenAsync();
-
-            await using var agent = await ShellTestClients.ConnectAgentAsync(_factory, token,
-                new { type = "hello", version = "1.0.42-g1a2b3c4d", commit = "1a2b3c4d" });
-            await WaitUntilOnlineAsync(robot.Id);
-
+            Assert.False(Relay.IsOnline(other.Id));  // no method takes a robot id: identity is the token's
             using var scope = _factory.Services.CreateScope();
             var stored = await scope.ServiceProvider.GetRequiredService<BloomDbContext>()
                 .Robots.AsNoTracking().FirstAsync(r => r.Id == robot.Id);
@@ -161,10 +154,9 @@ namespace bloom.Tests.Integration
         }
 
         [Fact]
-        public async Task Agent_TunnelIsClosedAtTokenExpiry_WithReason()
+        public async Task Agent_ConnectionIsClosedAtTokenExpiry_WithReason()
         {
             var robot = (await RobotWithTokenAsync()).Robot;
-            // JwtBearer's default 5 minute clock skew still accepts this; the relay closes at "exp".
             var shortLived = AuthTestHelper.MintJwt(_factory, new[]
             {
                 new Claim("robotId", robot.Id.ToString()),
@@ -173,27 +165,21 @@ namespace bloom.Tests.Integration
                 new Claim(RobotService.TokenVersionClaim, "1"),
             }, expires: DateTime.UtcNow.AddSeconds(2));
 
-            await using var agent = await ShellTestClients.ConnectAgentAsync(_factory, shortLived);
+            await using var agent = await TestAgent.ConnectAsync(_factory, shortLived);
             await WaitUntilOnlineAsync(robot.Id);
 
-            Assert.Null(await agent.ReceiveUntilClosedAsync(TimeSpan.FromSeconds(10)));
-            Assert.Equal(WebSocketCloseStatus.PolicyViolation, agent.CloseStatus);
-            Assert.Equal(ShellEndReason.TokenExpired, agent.CloseStatusDescription);
-            // Reply to the close like the real agent (Beast does it automatically); the server's
-            // receive loop ends on that reply rather than an abort.
-            await agent.DisposeAsync();
+            var told = await agent.NextAsync("Disconnecting", TimeSpan.FromSeconds(10));
+            Assert.Equal(ShellEndReason.TokenExpired, told.Arg<string>(0));
+            Assert.True(await agent.WaitClosedAsync());
             await WaitUntilOnlineAsync(robot.Id, online: false);
         }
 
-        // ── Admin endpoint auth ────────────────────────────────────────────────
+        // ── Admin hub auth ─────────────────────────────────────────────────────
 
         [Fact]
         public async Task Admin_NoCookie_IsRejected()
         {
-            var status = await ShellTestClients.HandshakeStatusAsync(
-                () => ShellTestClients.ConnectAdminAsync(_factory, cookie: null, Guid.NewGuid()));
-
-            Assert.Equal(401, status);
+            Assert.Equal(401, await ShellTestClients.RefusedStatusAsync(() => TestAdmin.ConnectAsync(_factory, cookie: null)));
         }
 
         [Fact]
@@ -201,21 +187,16 @@ namespace bloom.Tests.Integration
         {
             var (_, cookie) = await AccountWithCookieAsync(admin: false);
 
-            var status = await ShellTestClients.HandshakeStatusAsync(
-                () => ShellTestClients.ConnectAdminAsync(_factory, cookie, Guid.NewGuid()));
-
-            Assert.Equal(403, status);
+            Assert.Equal(403, await ShellTestClients.RefusedStatusAsync(() => TestAdmin.ConnectAsync(_factory, cookie)));
         }
 
         [Fact]
         public async Task Admin_RobotJwt_CannotOpenShell()
         {
-            var (robot, token) = await RobotWithTokenAsync();
+            var (_, token) = await RobotWithTokenAsync();
 
-            var status = await ShellTestClients.HandshakeStatusAsync(
-                () => ShellTestClients.ConnectAdminAsync(_factory, cookie: null, robot.Id, bearer: token));
-
-            Assert.Equal(401, status);
+            Assert.Equal(401, await ShellTestClients.RefusedStatusAsync(
+                () => TestAdmin.ConnectAsync(_factory, cookie: null, bearer: token)));
         }
 
         [Fact]
@@ -223,22 +204,20 @@ namespace bloom.Tests.Integration
         {
             var (_, cookie) = await AccountWithCookieAsync();
 
-            var status = await ShellTestClients.HandshakeStatusAsync(
-                () => ShellTestClients.ConnectAdminAsync(_factory, cookie, Guid.NewGuid(), origin: "https://evil.example"));
-
-            Assert.Equal(403, status);
+            Assert.Equal(403, await ShellTestClients.RefusedStatusAsync(
+                () => TestAdmin.ConnectAsync(_factory, cookie, origin: "https://evil.example")));
         }
 
         [Fact]
-        public async Task Admin_OfflineRobot_GetsError()
+        public async Task Admin_OfflineRobot_IsReported()
         {
             var (robot, _) = await RobotWithTokenAsync();
             var (_, cookie) = await AccountWithCookieAsync();
 
-            await using var admin = await ShellTestClients.ConnectAdminAsync(_factory, cookie, robot.Id);
-            var reply = await admin.ReceiveJsonAsync();
+            await using var admin = await TestAdmin.ConnectAsync(_factory, cookie);
 
-            Assert.Equal("error", reply.GetProperty("type").GetString());
+            Assert.Equal("offline", (await admin.OpenSessionAsync(robot.Id)).Status);
+            Assert.Equal("not_found", (await admin.OpenSessionAsync(Guid.NewGuid())).Status);
         }
 
         // ── Relaying ───────────────────────────────────────────────────────────
@@ -250,21 +229,19 @@ namespace bloom.Tests.Integration
             await using (agent)
             await using (admin)
             {
-                await admin.SendBinaryAsync(Encoding.UTF8.GetBytes("ls\n"));
-                var input = await agent.ReceiveAsync();
-                Assert.Equal(WebSocketMessageType.Binary, input!.Value.Type);
-                Assert.Equal(ShellTestClients.DataFrame(sessionId, "ls\n"), input.Value.Data);
+                await admin.Input("ls\n");
+                var input = await agent.NextAsync("Input");
+                Assert.Equal(sessionId, input.Arg<Guid>(0));
+                Assert.Equal("ls\n", Encoding.UTF8.GetString(input.Arg<byte[]>(1)));
 
-                await agent.SendBinaryAsync(ShellTestClients.DataFrame(sessionId, "file.txt\r\n"));
-                var output = await admin.ReceiveAsync();
-                Assert.Equal(WebSocketMessageType.Binary, output!.Value.Type);
-                Assert.Equal("file.txt\r\n", Encoding.UTF8.GetString(output.Value.Data));
+                await agent.Output(sessionId, "file.txt\r\n");
+                await admin.WaitForOutputAsync("file.txt\r\n");
 
-                await admin.SendJsonAsync(new { type = "resize", cols = 120, rows = 40 });
-                var resize = await agent.ReceiveJsonAsync();
-                Assert.Equal("resize", resize.GetProperty("type").GetString());
-                Assert.Equal(sessionId, resize.GetProperty("sessionId").GetGuid());
-                Assert.Equal(120, resize.GetProperty("cols").GetInt32());
+                await admin.Resize(120, 40);
+                var resize = await agent.NextAsync("Resize");
+                Assert.Equal(sessionId, resize.Arg<Guid>(0));
+                Assert.Equal(120, resize.Arg<int>(1));
+                Assert.Equal(40, resize.Arg<int>(2));
             }
         }
 
@@ -273,16 +250,17 @@ namespace bloom.Tests.Integration
         {
             var (_, agent, admin, sessionId) = await OpenSessionAsync();
             var (other, otherToken) = await RobotWithTokenAsync();
-            await using var otherAgent = await ShellTestClients.ConnectAgentAsync(_factory, otherToken);
+            await using var otherAgent = await TestAgent.ConnectAsync(_factory, otherToken);
             await WaitUntilOnlineAsync(other.Id);
             await using (agent)
             await using (admin)
             {
-                await otherAgent.SendBinaryAsync(ShellTestClients.DataFrame(sessionId, "injected"));
-                await agent.SendBinaryAsync(ShellTestClients.DataFrame(sessionId, "genuine"));
+                await otherAgent.Output(sessionId, "injected");
+                await otherAgent.SessionExited(sessionId);  // nor can it end someone else's session
+                await agent.Output(sessionId, "genuine");
 
-                var output = await admin.ReceiveAsync();
-                Assert.Equal("genuine", Encoding.UTF8.GetString(output!.Value.Data));
+                Assert.Equal("genuine", await admin.WaitForOutputAsync("genuine"));
+                Assert.False(admin.SessionClosed.IsCompleted);
             }
         }
 
@@ -293,10 +271,9 @@ namespace bloom.Tests.Integration
             await using (agent)
             await using (admin)
             {
-                await agent.SendJsonAsync(new { type = "exited", sessionId, code = 0 });
+                await agent.SessionExited(sessionId, 0);
 
-                var last = await admin.ReceiveUntilClosedAsync();
-                Assert.Equal("exited", last!.Value.GetProperty("reason").GetString());
+                Assert.Equal(ShellEndReason.Exited, await admin.WaitSessionClosedAsync());
                 await AssertAuditEndedAsync(sessionId, ShellEndReason.Exited);
                 Assert.Null(Relay.GetActiveSession(robot.Id));
             }
@@ -309,13 +286,25 @@ namespace bloom.Tests.Integration
             await using (agent)
             await using (admin)
             {
-                await admin.SendJsonAsync(new { type = "close" });
+                await admin.CloseSession();
 
-                var close = await agent.ReceiveJsonAsync();
-                Assert.Equal("close", close.GetProperty("type").GetString());
-                Assert.Equal(sessionId, close.GetProperty("sessionId").GetGuid());
-                await admin.ReceiveUntilClosedAsync();
+                var close = await agent.NextAsync("Close");
+                Assert.Equal(sessionId, close.Arg<Guid>(0));
                 await AssertAuditEndedAsync(sessionId, ShellEndReason.AdminClosed);
+            }
+        }
+
+        [Fact]
+        public async Task Session_AdminDisappearing_EndsItAndTellsAgent()
+        {
+            var (_, agent, admin, sessionId) = await OpenSessionAsync();
+            await using (agent)
+            {
+                await admin.DisposeAsync();  // browser tab closed
+
+                var close = await agent.NextAsync("Close");
+                Assert.Equal(sessionId, close.Arg<Guid>(0));
+                await AssertAuditEndedAsync(sessionId, ShellEndReason.AdminDisconnected);
             }
         }
 
@@ -327,38 +316,48 @@ namespace bloom.Tests.Integration
             await using (agent)
             await using (first)
             {
-                await using (var refused = await ShellTestClients.ConnectAdminAsync(_factory, secondCookie, robot.Id))
+                await using (var refused = await TestAdmin.ConnectAsync(_factory, secondCookie))
                 {
-                    var busy = await refused.ReceiveJsonAsync();
-                    Assert.Equal("busy", busy.GetProperty("type").GetString());
-                    Assert.False(string.IsNullOrEmpty(busy.GetProperty("heldBy").GetString()));
+                    var busy = await refused.OpenSessionAsync(robot.Id);
+                    Assert.Equal("busy", busy.Status);
+                    Assert.False(string.IsNullOrEmpty(busy.HeldBy));
                 }
 
-                await using var second = await ShellTestClients.ConnectAdminAsync(_factory, secondCookie, robot.Id, force: true);
-                Assert.Equal("opened", (await second.ReceiveJsonAsync()).GetProperty("type").GetString());
+                await using var second = await TestAdmin.ConnectAsync(_factory, secondCookie);
+                var taken = await second.OpenSessionAsync(robot.Id, force: true);
+                Assert.Equal("opened", taken.Status);
 
-                var last = await first.ReceiveUntilClosedAsync();
-                Assert.Equal(ShellEndReason.TakenOver, last!.Value.GetProperty("reason").GetString());
+                Assert.Equal(ShellEndReason.TakenOver, await first.WaitSessionClosedAsync());
+                Assert.Equal(firstSession, (await agent.NextAsync("Close")).Arg<Guid>(0));
+                Assert.Equal(taken.SessionId, (await agent.NextAsync("Open")).Arg<Guid>(0));
                 await AssertAuditEndedAsync(firstSession, ShellEndReason.TakenOver);
             }
         }
 
         [Fact]
-        public async Task Revoke_DropsLiveTunnelAndSession()
+        public async Task Session_OneConnection_OneSession()
         {
-            var (robot, agent, admin, sessionId) = await OpenSessionAsync();
-            using var scope = _factory.Services.CreateScope();
-            var adminAccount = await TestDataSeeder.CreateAdminAsync(scope.ServiceProvider.GetRequiredService<UserManager<Account>>());
-            var http = await AuthTestHelper.CreateAuthorizedClientAsync(_factory, adminAccount);
+            var (robot, agent, admin, _) = await OpenSessionAsync();
             await using (agent)
             await using (admin)
             {
-                var response = await http.PostAsync($"api/robot/{robot.Id}/revoke", null);
-                response.EnsureSuccessStatusCode();
+                Assert.Equal("already_open", (await admin.OpenSessionAsync(robot.Id)).Status);
+            }
+        }
 
-                Assert.Null(await agent.ReceiveUntilClosedAsync());
-                var last = await admin.ReceiveUntilClosedAsync();
-                Assert.Equal(ShellEndReason.Revoked, last!.Value.GetProperty("reason").GetString());
+        [Fact]
+        public async Task Revoke_DropsLiveConnectionAndSession()
+        {
+            var (robot, agent, admin, sessionId) = await OpenSessionAsync();
+            var http = await AdminHttpAsync();
+            await using (agent)
+            await using (admin)
+            {
+                (await http.PostAsync($"api/robot/{robot.Id}/revoke", null)).EnsureSuccessStatusCode();
+
+                Assert.Equal(ShellEndReason.Revoked, (await agent.NextAsync("Disconnecting")).Arg<string>(0));
+                Assert.Equal(ShellEndReason.Revoked, await admin.WaitSessionClosedAsync());
+                Assert.True(await agent.WaitClosedAsync());
                 await WaitUntilOnlineAsync(robot.Id, online: false);
                 await AssertAuditEndedAsync(sessionId, ShellEndReason.Revoked);
             }
@@ -369,24 +368,20 @@ namespace bloom.Tests.Integration
         {
             var (robot, _) = await RobotWithTokenAsync();  // offline: every attempt still counts
             var (_, cookie) = await AccountWithCookieAsync();
+            await using var admin = await TestAdmin.ConnectAsync(_factory, cookie);
 
-            string? lastMessage = null;
+            string? last = null;
             for (var i = 0; i < 6; i++)
-            {
-                await using var admin = await ShellTestClients.ConnectAdminAsync(_factory, cookie, robot.Id);
-                lastMessage = (await admin.ReceiveJsonAsync()).GetProperty("message").GetString();
-            }
+                last = (await admin.OpenSessionAsync(robot.Id)).Status;
 
-            Assert.Contains("Too many", lastMessage);
+            Assert.Equal("rate_limited", last);
         }
 
         [Fact]
         public async Task Fleet_ShowsOnlineVersionAndShellHolder()
         {
             var (robot, agent, admin, _) = await OpenSessionAsync();
-            using var scope = _factory.Services.CreateScope();
-            var adminAccount = await TestDataSeeder.CreateAdminAsync(scope.ServiceProvider.GetRequiredService<UserManager<Account>>());
-            var http = await AuthTestHelper.CreateAuthorizedClientAsync(_factory, adminAccount);
+            var http = await AdminHttpAsync();
             await using (agent)
             await using (admin)
             {
@@ -402,30 +397,16 @@ namespace bloom.Tests.Integration
 
         // ── Credential push ────────────────────────────────────────────────────
 
-        private async Task<System.Net.Http.HttpClient> AdminHttpAsync(bool admin = true)
+        private async Task<(Robot Robot, string Secret, TestAgent Agent)> OnlineProvisionedRobotAsync()
         {
-            using var scope = _factory.Services.CreateScope();
-            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
-            var account = admin
-                ? await TestDataSeeder.CreateAdminAsync(userManager)
-                : await TestDataSeeder.CreateAccountAsync(userManager, role: "SLP");
-            return await AuthTestHelper.CreateAuthorizedClientAsync(_factory, account);
-        }
-
-        private async Task<(Robot Robot, string Secret, TestShellSocket Agent)> OnlineProvisionedRobotAsync()
-        {
-            using var scope = _factory.Services.CreateScope();
-            var (robot, secret) = await TestDataSeeder.CreateProvisionedRobotAsync(
-                scope.ServiceProvider.GetRequiredService<BloomDbContext>(),
-                scope.ServiceProvider.GetRequiredService<IRobotService>());
-            var agent = await ShellTestClients.ConnectAgentAsync(_factory,
-                await AuthTestHelper.LoginRobotAsync(_factory, robot.Id, secret));
+            var (robot, secret) = await ProvisionedRobotAsync();
+            var agent = await TestAgent.ConnectAsync(_factory, await AuthTestHelper.LoginRobotAsync(_factory, robot.Id, secret));
             await WaitUntilOnlineAsync(robot.Id);
             return (robot, secret, agent);
         }
 
-        private async Task<System.Net.Http.HttpResponseMessage> LoginAsync(Guid robotId, string secret) =>
-            await _factory.CreateClient().PostAsJsonAsync("api/robot/login", new { RobotId = robotId, Secret = secret });
+        private async Task<HttpStatusCode> LoginStatusAsync(Guid robotId, string secret) =>
+            (await _factory.CreateClient().PostAsJsonAsync("api/robot/login", new { RobotId = robotId, Secret = secret })).StatusCode;
 
         [Fact]
         public async Task Push_Applied_DeliversSecret_AndRetiresTheOldOneOnFirstUse()
@@ -436,24 +417,24 @@ namespace bloom.Tests.Integration
             {
                 var post = admin.PostAsync($"api/robot/{robot.Id}/credentials/push", null);
 
-                var push = await agent.ReceiveJsonAsync();
-                Assert.Equal("set_secret", push.GetProperty("type").GetString());
-                var newSecret = push.GetProperty("secret").GetString()!;
+                var push = await agent.NextAsync("SetSecret");
+                var requestId = push.Arg<Guid>(0);
+                var newSecret = push.Arg<string>(1);
                 Assert.NotEqual(oldSecret, newSecret);
-                await agent.SendJsonAsync(new { type = "secret_applied", requestId = push.GetProperty("requestId").GetGuid(), ok = true });
+                await agent.SecretApplied(requestId, ok: true);
 
                 var response = await post;
-                Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
                 Assert.DoesNotContain(newSecret, await response.Content.ReadAsStringAsync());
 
-                // The tunnel is dropped so the agent logs in again -- with the new secret.
-                Assert.Null(await agent.ReceiveUntilClosedAsync());
-                Assert.Equal(ShellEndReason.CredentialsRotated, agent.CloseStatusDescription);
+                // The connection is dropped so the agent logs in again -- with the new secret.
+                Assert.Equal(ShellEndReason.CredentialsRotated, (await agent.NextAsync("Disconnecting")).Arg<string>(0));
+                Assert.True(await agent.WaitClosedAsync());
                 await WaitUntilOnlineAsync(robot.Id, online: false);
 
-                Assert.Equal(System.Net.HttpStatusCode.OK, (await LoginAsync(robot.Id, oldSecret)).StatusCode);  // not retired yet
-                Assert.Equal(System.Net.HttpStatusCode.OK, (await LoginAsync(robot.Id, newSecret)).StatusCode);  // promotes
-                Assert.Equal(System.Net.HttpStatusCode.Unauthorized, (await LoginAsync(robot.Id, oldSecret)).StatusCode);
+                Assert.Equal(HttpStatusCode.OK, await LoginStatusAsync(robot.Id, oldSecret));    // not retired yet
+                Assert.Equal(HttpStatusCode.OK, await LoginStatusAsync(robot.Id, newSecret));    // promotes
+                Assert.Equal(HttpStatusCode.Unauthorized, await LoginStatusAsync(robot.Id, oldSecret));
             }
         }
 
@@ -465,17 +446,16 @@ namespace bloom.Tests.Integration
             await using (agent)
             {
                 var post = admin.PostAsync($"api/robot/{robot.Id}/credentials/push", null);
-                var push = await agent.ReceiveJsonAsync();
-                await agent.SendJsonAsync(new { type = "secret_applied", requestId = push.GetProperty("requestId").GetGuid(), ok = false, message = "cannot write /etc/bloom-agent/secret" });
+                var push = await agent.NextAsync("SetSecret");
+                await agent.SecretApplied(push.Arg<Guid>(0), ok: false, "cannot write /etc/bloom-agent/secret");
 
                 var response = await post;
-                Assert.Equal(System.Net.HttpStatusCode.BadGateway, response.StatusCode);
+                Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
                 Assert.Contains("cannot write", await response.Content.ReadAsStringAsync());
                 Assert.True(Relay.IsOnline(robot.Id));  // still connected; nothing was rotated
 
-                Assert.Equal(System.Net.HttpStatusCode.OK, (await LoginAsync(robot.Id, oldSecret)).StatusCode);
-                Assert.Equal(System.Net.HttpStatusCode.Unauthorized,
-                    (await LoginAsync(robot.Id, push.GetProperty("secret").GetString()!)).StatusCode);  // pending was discarded
+                Assert.Equal(HttpStatusCode.OK, await LoginStatusAsync(robot.Id, oldSecret));
+                Assert.Equal(HttpStatusCode.Unauthorized, await LoginStatusAsync(robot.Id, push.Arg<string>(1)));  // pending discarded
             }
         }
 
@@ -487,11 +467,11 @@ namespace bloom.Tests.Integration
             await using (agent)
             {
                 var post = admin.PostAsync($"api/robot/{robot.Id}/credentials/push", null);
-                var push = await agent.ReceiveJsonAsync();   // ...and never answer
+                var push = await agent.NextAsync("SetSecret");   // ...and never answer
 
-                Assert.Equal(System.Net.HttpStatusCode.GatewayTimeout, (await post).StatusCode);
-                Assert.Equal(System.Net.HttpStatusCode.OK, (await LoginAsync(robot.Id, oldSecret)).StatusCode);
-                Assert.Equal(System.Net.HttpStatusCode.OK, (await LoginAsync(robot.Id, push.GetProperty("secret").GetString()!)).StatusCode);
+                Assert.Equal(HttpStatusCode.GatewayTimeout, (await post).StatusCode);
+                Assert.Equal(HttpStatusCode.OK, await LoginStatusAsync(robot.Id, oldSecret));
+                Assert.Equal(HttpStatusCode.OK, await LoginStatusAsync(robot.Id, push.Arg<string>(1)));
             }
         }
 
@@ -499,51 +479,46 @@ namespace bloom.Tests.Integration
         public async Task Push_AckFromAnotherRobot_IsIgnored()
         {
             var (robot, _, agent) = await OnlineProvisionedRobotAsync();
-            var (other, _, otherAgent) = await OnlineProvisionedRobotAsync();
+            var (_, _, otherAgent) = await OnlineProvisionedRobotAsync();
             var admin = await AdminHttpAsync();
             await using (agent)
             await using (otherAgent)
             {
                 var post = admin.PostAsync($"api/robot/{robot.Id}/credentials/push", null);
-                var push = await agent.ReceiveJsonAsync();
-                var requestId = push.GetProperty("requestId").GetGuid();
+                var requestId = (await agent.NextAsync("SetSecret")).Arg<Guid>(0);
 
-                await otherAgent.SendJsonAsync(new { type = "secret_applied", requestId, ok = true });  // not its push
-                await agent.SendJsonAsync(new { type = "secret_applied", requestId, ok = false, message = "no" });
+                await otherAgent.SecretApplied(requestId, ok: true);  // not its push
+                await agent.SecretApplied(requestId, ok: false, "no");
 
-                Assert.Equal(System.Net.HttpStatusCode.BadGateway, (await post).StatusCode);
+                Assert.Equal(HttpStatusCode.BadGateway, (await post).StatusCode);
             }
         }
 
         [Fact]
         public async Task Push_OfflineRobot_IsConflict_AndNonAdminIsForbidden()
         {
-            using var scope = _factory.Services.CreateScope();
-            var (robot, _) = await TestDataSeeder.CreateProvisionedRobotAsync(
-                scope.ServiceProvider.GetRequiredService<BloomDbContext>(),
-                scope.ServiceProvider.GetRequiredService<IRobotService>());
+            var (robot, _) = await ProvisionedRobotAsync();
 
-            Assert.Equal(System.Net.HttpStatusCode.Conflict,
+            Assert.Equal(HttpStatusCode.Conflict,
                 (await (await AdminHttpAsync()).PostAsync($"api/robot/{robot.Id}/credentials/push", null)).StatusCode);
-            Assert.Equal(System.Net.HttpStatusCode.Forbidden,
+            Assert.Equal(HttpStatusCode.Forbidden,
                 (await (await AdminHttpAsync(admin: false)).PostAsync($"api/robot/{robot.Id}/credentials/push", null)).StatusCode);
-            Assert.Equal(System.Net.HttpStatusCode.Unauthorized,
+            Assert.Equal(HttpStatusCode.Unauthorized,
                 (await _factory.CreateClient().PostAsync($"api/robot/{robot.Id}/credentials/push", null)).StatusCode);
         }
 
         [Fact]
-        public async Task Delete_DropsLiveTunnelAndSession_ButKeepsAuditLog()
+        public async Task Delete_DropsLiveConnectionAndSession_ButKeepsAuditLog()
         {
             var (robot, agent, admin, sessionId) = await OpenSessionAsync();
             var http = await AdminHttpAsync();
             await using (agent)
             await using (admin)
             {
-                Assert.Equal(System.Net.HttpStatusCode.OK, (await http.DeleteAsync($"api/robot/{robot.Id}")).StatusCode);
+                Assert.Equal(HttpStatusCode.OK, (await http.DeleteAsync($"api/robot/{robot.Id}")).StatusCode);
 
-                Assert.Null(await agent.ReceiveUntilClosedAsync());
-                var last = await admin.ReceiveUntilClosedAsync();
-                Assert.Equal(ShellEndReason.RobotDeleted, last!.Value.GetProperty("reason").GetString());
+                Assert.Equal(ShellEndReason.RobotDeleted, (await agent.NextAsync("Disconnecting")).Arg<string>(0));
+                Assert.Equal(ShellEndReason.RobotDeleted, await admin.WaitSessionClosedAsync());
                 await WaitUntilOnlineAsync(robot.Id, online: false);
                 await AssertAuditEndedAsync(sessionId, ShellEndReason.RobotDeleted);  // history outlives the robot
             }
@@ -552,7 +527,7 @@ namespace bloom.Tests.Integration
         private async Task AssertAuditEndedAsync(Guid sessionId, string reason)
         {
             ShellSessionAudit? audit = null;
-            for (var i = 0; i < 100; i++)
+            for (var i = 0; i < 150; i++)
             {
                 using var scope = _factory.Services.CreateScope();
                 audit = await scope.ServiceProvider.GetRequiredService<BloomDbContext>()

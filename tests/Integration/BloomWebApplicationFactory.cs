@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using bloom.Data;
 using Microsoft.AspNetCore.Hosting;
@@ -12,24 +13,28 @@ using Microsoft.Extensions.DependencyInjection;
 namespace bloom.Tests.Integration
 {
     /// <summary>
-    /// WebApplicationFactory for controller-level integration tests. Swaps BloomDbContext to a
-    /// SQLite connection held open for the lifetime of this factory instance -- a bare
-    /// "DataSource=:memory:" string opens a brand-new, empty in-memory database every time EF
-    /// opens a connection, so nothing would persist across the many DbContext scopes one HTTP
-    /// request creates. Holding one open SqliteConnection and passing that object to UseSqlite
-    /// keeps them all talking to the same in-memory database for as long as this factory lives.
+    /// WebApplicationFactory for controller-level integration tests. Swaps BloomDbContext to a SQLite
+    /// database file private to this factory instance, in WAL mode with a busy timeout.
+    ///
+    /// Why a file rather than ":memory:": every in-memory connection is its own empty database, so
+    /// tests had to share ONE held-open connection -- which SQLite doesn't support using from several
+    /// threads at once. Plain HTTP tests never did, but the remote shell hubs do (a disconnect handler
+    /// writes an audit row while a test polls for it), which showed up as intermittent "database is
+    /// locked". With a file each DbContext gets its own connection; WAL lets readers proceed during a
+    /// write and the busy timeout makes a second writer wait instead of failing.
     ///
     /// One instance of this factory is created per test CLASS via IClassFixture&lt;&gt;, so each
     /// test class gets its own isolated database AND its own instances of the services
     /// registered as DI singletons in Program.cs (IStepControlService, IRobotStateRepository,
-    /// IRepeatRequestDetector) -- none of that state crosses test-class boundaries. Tests WITHIN
-    /// one class share both the database and those singletons, so each test method should seed
-    /// its own fresh data (fresh Guids/emails via TestDataSeeder) rather than relying on
-    /// anything set up by a different test in the same class.
+    /// IRepeatRequestDetector, IShellRelay) -- none of that state crosses test-class boundaries. Tests
+    /// WITHIN one class share both the database and those singletons, so each test method should seed
+    /// its own fresh data (fresh Guids/emails via TestDataSeeder) rather than relying on anything set
+    /// up by a different test in the same class.
     /// </summary>
     public class BloomWebApplicationFactory : WebApplicationFactory<Program>
     {
-        private readonly SqliteConnection _connection;
+        private readonly string _databasePath;
+        private readonly string _connectionString;
 
         public BloomWebApplicationFactory()
         {
@@ -48,8 +53,20 @@ namespace bloom.Tests.Integration
             Environment.SetEnvironmentVariable("RemoteShell__SecretPushTimeoutSeconds", "2");
             Environment.SetEnvironmentVariable("Jwt__Key", "integration-tests-only-signing-key-0123456789abcdef");
 
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _databasePath = Path.Combine(Path.GetTempPath(), $"bloom-tests-{Guid.NewGuid():N}.db");
+            _connectionString = new SqliteConnectionStringBuilder
+            {
+                DataSource = _databasePath,
+                Pooling = false,          // so Dispose can delete the file, and no connection outlives its DbContext
+                DefaultTimeout = 30,      // also sets SQLite's busy timeout: a second writer waits
+            }.ToString();
+
+            // WAL is a property of the file, so setting it once here covers every later connection.
+            using var setup = new SqliteConnection(_connectionString);
+            setup.Open();
+            using var wal = setup.CreateCommand();
+            wal.CommandText = "PRAGMA journal_mode=WAL;";
+            wal.ExecuteNonQuery();
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -79,9 +96,8 @@ namespace bloom.Tests.Integration
                     services.Remove(descriptor);
                 }
 
-                // Add SQLite in-memory, backed by the connection held open for this factory's lifetime.
                 services.AddDbContext<BloomDbContext>(options =>
-                    options.UseSqlite(_connection));
+                    options.UseSqlite(_connectionString));
 
                 // Program.cs's Development branch persists DataProtection keys to
                 // DataProtection:KeyringPath (default /var/dpkeys), which won't exist/won't be
@@ -96,7 +112,9 @@ namespace bloom.Tests.Integration
             base.Dispose(disposing);
             if (disposing)
             {
-                _connection.Dispose();
+                SqliteConnection.ClearAllPools();
+                foreach (var suffix in new[] { "", "-wal", "-shm" })
+                    File.Delete(_databasePath + suffix);
             }
         }
     }

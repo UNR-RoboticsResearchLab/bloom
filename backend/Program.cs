@@ -169,7 +169,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 
     options.Events.OnRedirectToLogin = ctx =>
     {
-        if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/ws"))
+        if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/hubs"))
         {
             ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return Task.CompletedTask;
@@ -179,7 +179,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
     options.Events.OnRedirectToAccessDenied = ctx =>
     {
-        if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/ws"))
+        if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/hubs"))
         {
             ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
             return Task.CompletedTask;
@@ -267,8 +267,19 @@ builder.Services.Configure<RemoteShellOptions>(remoteShellSection);
 builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IShellRelay, ShellRelay>();
 builder.Services.AddScoped<IShellAuditService, ShellAuditService>();
-builder.Services.AddScoped<AgentConnection>();
-builder.Services.AddScoped<AdminConnection>();
+// SignalR carries both legs. Registered even when the shell is off: the relay (and so the robot
+// controller) takes IHubContext, which only needs the services, not the mapped endpoints.
+{
+    var shell = remoteShellSection.Get<RemoteShellOptions>() ?? new RemoteShellOptions();
+    builder.Services.AddSignalR(o =>
+    {
+        o.MaximumReceiveMessageSize = 256 * 1024;  // the default 32 KB is smaller than a big paste
+        o.KeepAliveInterval = TimeSpan.FromSeconds(15);
+        // Must be at least twice the keepalive. A silent client past this is dropped, which is how a
+        // robot that vanished without a FIN (Wi-Fi gone) is noticed.
+        o.ClientTimeoutInterval = TimeSpan.FromSeconds(Math.Max(shell.AgentIdleTimeoutSeconds, 30));
+    });
+}
 
 if (remoteShellEnabled)
 {
@@ -367,9 +378,7 @@ else
 
 // app.UseHttpsRedirection();
 app.UseCors();
-// Server-side WebSocket pings keep NATs/proxies from idling out the tunnels; the agent also sends
-// its own app-level pings so it can detect a dead link from its side.
-app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(25) });
+app.UseMiddleware<ShellHubOriginCheck>();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
@@ -410,10 +419,12 @@ app.MapControllers();
 
 if (remoteShellEnabled)
 {
-    app.Map("/ws/robot-agent", (HttpContext ctx, AgentConnection conn) => conn.RunAsync(ctx))
+    // The agent speaks only WebSockets (it connects without SignalR's negotiate step); browsers get
+    // SignalR's normal transport fallback.
+    app.MapHub<RobotAgentHub>("/hubs/robot-agent",
+            o => o.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets)
         .RequireAuthorization("RobotAgent");
-    app.Map("/ws/shell", (HttpContext ctx, AdminConnection conn) => conn.RunAsync(ctx))
-        .RequireAuthorization("AdminOnly");
+    app.MapHub<ShellHub>("/hubs/shell").RequireAuthorization("AdminOnly");
 }
 
 app.MapFallbackToFile("index.html");

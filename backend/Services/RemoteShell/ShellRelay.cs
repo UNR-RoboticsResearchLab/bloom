@@ -1,14 +1,15 @@
 // bloom
 // ShellRelay.cs
-// Process-wide remote shell state: which robots have a live agent tunnel, and which admin holds
+// Process-wide remote shell state: which robots have a live agent connection, and which admin holds
 // the (single) shell session on each robot. Registered as a Singleton, like
-// InMemoryRobotStateRepository -- one backend instance only; scaling out would need a backplane.
+// InMemoryRobotStateRepository -- one backend instance only; scaling out would need a SignalR
+// backplane (e.g. Redis) plus moving this state out of memory.
 //
 // The relay never trusts ids from message bodies: robot ids come from the agent's validated JWT
-// (AgentConnection), sessions are looked up by id and checked against the sender's robot/admin.
+// (RobotAgentHub), sessions are looked up by connection / id and checked against the sender.
 
 using System.Collections.Concurrent;
-using System.Net.WebSockets;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 
 namespace bloom.Services.RemoteShell
@@ -16,12 +17,13 @@ namespace bloom.Services.RemoteShell
     public sealed class AgentLink
     {
         public required Guid RobotId { get; init; }
-        public required ShellSocket Socket { get; init; }
+        public required string ConnectionId { get; init; }
+        public required HubCallerContext Context { get; init; }
         public string? Version { get; init; }
         public string? Commit { get; init; }
         public DateTime ConnectedAt { get; init; }
 
-        // Cancelling this ends the agent's receive loop; DropReason says why.
+        // Cancelled when the link ends; stops its token-expiry timer.
         public CancellationTokenSource Lifetime { get; } = new();
         public string? DropReason { get; set; }
     }
@@ -34,17 +36,15 @@ namespace bloom.Services.RemoteShell
         public required string AdminUserId { get; init; }
         public string? AdminEmail { get; init; }
         public DateTime StartedAt { get; init; }
-        public required ShellSocket AdminSocket { get; init; }
-
-        // Cancelling this ends the admin's receive loop.
-        public CancellationTokenSource Lifetime { get; } = new();
+        public required string AdminConnectionId { get; init; }
+        public required HubCallerContext AdminContext { get; init; }
     }
 
-    public enum OpenStatus { Opened, Offline, Busy, RateLimited }
+    public enum OpenStatus { Opened, Offline, Busy, RateLimited, AlreadyOpen }
 
     public record OpenRequest(
         Guid RobotId, string RobotName, string AdminUserId, string? AdminEmail,
-        ShellSocket AdminSocket, int Cols, int Rows, bool Force);
+        HubCallerContext AdminContext, int Cols, int Rows, bool Force);
 
     public record OpenResult(OpenStatus Status, ShellSession? Session = null, string? HeldBy = null, DateTime? Since = null);
 
@@ -57,42 +57,48 @@ namespace bloom.Services.RemoteShell
 
     public interface IShellRelay
     {
-        Task<AgentLink> RegisterAgentAsync(Guid robotId, ShellSocket socket, string? version, string? commit);
+        Task<AgentLink> RegisterAgentAsync(Guid robotId, HubCallerContext context, string? version, string? commit, DateTimeOffset? tokenExpiresAt);
         Task UnregisterAgentAsync(AgentLink link, string reason);
         bool IsOnline(Guid robotId);
         AgentLink? GetAgent(Guid robotId);
         ActiveSessionInfo? GetActiveSession(Guid robotId);
 
         Task<OpenResult> OpenSessionAsync(OpenRequest request);
-        Task AdminInputAsync(ShellSession session, ReadOnlyMemory<byte> data);
-        Task AdminResizeAsync(ShellSession session, int cols, int rows);
-        Task AgentOutputAsync(Guid robotId, Guid sessionId, ReadOnlyMemory<byte> data);
+        Task AdminInputAsync(string adminConnectionId, byte[] data);
+        Task AdminResizeAsync(string adminConnectionId, int cols, int rows);
+        Task EndAdminSessionAsync(string adminConnectionId, string reason);
+        Task AgentOutputAsync(Guid robotId, Guid sessionId, byte[] data);
         Task AgentExitedAsync(Guid robotId, Guid sessionId);
         Task EndSessionAsync(Guid sessionId, string reason, bool notifyAgent = true);
 
         /// <summary>
-        /// Sends a new secret to the robot's agent over its live tunnel and waits for it to confirm
-        /// it has applied it. Applied means the robot now holds the secret; TimedOut and
+        /// Sends a new secret to the robot's agent over its live connection and waits for it to
+        /// confirm it has applied it. Applied means the robot now holds the secret; TimedOut and
         /// ConnectionLost mean it is unknown whether it does.
         /// </summary>
         Task<SecretPushResult> PushSecretAsync(Guid robotId, string secret, TimeSpan timeout);
         void CompleteSecretPush(Guid robotId, Guid requestId, bool ok, string? message);
 
-        /// <summary>Drops a robot's tunnel and ends its session, e.g. on revoke.</summary>
+        /// <summary>Drops a robot's connection and ends its session, e.g. on revoke.</summary>
         Task DisconnectRobotAsync(Guid robotId, string reason);
     }
 
     public class ShellRelay : IShellRelay
     {
+        private readonly IHubContext<RobotAgentHub, IAgentClient> _agentHub;
+        private readonly IHubContext<ShellHub, IAdminClient> _adminHub;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IOptions<RemoteShellOptions> _options;
         private readonly TimeProvider _time;
         private readonly ILogger<ShellRelay> _logger;
 
+        // A hub can't close a connection with a reason, so a peer is told why and given a moment to
+        // hang up cleanly before the server aborts it.
         private static readonly TimeSpan PeerCloseGrace = TimeSpan.FromSeconds(5);
 
         private readonly ConcurrentDictionary<Guid, AgentLink> _agents = new();
         private readonly ConcurrentDictionary<Guid, ShellSession> _sessions = new();
+        private readonly ConcurrentDictionary<string, ShellSession> _sessionByAdminConnection = new();
 
         private sealed record PendingPush(Guid RobotId, TaskCompletionSource<SecretPushResult> Completion);
         private readonly ConcurrentDictionary<Guid, PendingPush> _pushes = new();  // by request id
@@ -104,23 +110,31 @@ namespace bloom.Services.RemoteShell
         private readonly Dictionary<string, Queue<DateTimeOffset>> _opensByAdmin = new();
 
         public ShellRelay(
+            IHubContext<RobotAgentHub, IAgentClient> agentHub,
+            IHubContext<ShellHub, IAdminClient> adminHub,
             IServiceScopeFactory scopeFactory,
             IOptions<RemoteShellOptions> options,
             TimeProvider time,
             ILogger<ShellRelay> logger)
         {
+            _agentHub = agentHub;
+            _adminHub = adminHub;
             _scopeFactory = scopeFactory;
             _options = options;
             _time = time;
             _logger = logger;
         }
 
-        public async Task<AgentLink> RegisterAgentAsync(Guid robotId, ShellSocket socket, string? version, string? commit)
+        // ── Agents ──────────────────────────────────────────────────────────────
+
+        public async Task<AgentLink> RegisterAgentAsync(
+            Guid robotId, HubCallerContext context, string? version, string? commit, DateTimeOffset? tokenExpiresAt)
         {
             var link = new AgentLink
             {
                 RobotId = robotId,
-                Socket = socket,
+                ConnectionId = context.ConnectionId,
+                Context = context,
                 Version = version,
                 Commit = commit,
                 ConnectedAt = _time.GetUtcNow().UtcDateTime,
@@ -131,14 +145,19 @@ namespace bloom.Services.RemoteShell
 
             if (previous != null)
             {
-                // A reconnect means the old tunnel is dead, and the agent kills its PTYs when a
-                // tunnel drops, so any session on it is gone too.
+                // A reconnect means the old connection is dead, and the agent kills its PTYs when a
+                // connection drops, so any session on it is gone too.
                 _logger.LogInformation("Robot {RobotId} agent reconnected; replacing stale link", robotId);
                 await EndRobotSessionAsync(robotId, ShellEndReason.RobotDisconnected, notifyAgent: false);
                 FailPushes(robotId);
                 previous.DropReason = "replaced";
-                previous.Lifetime.Cancel();
+                await HangUpAsync(previous, "replaced");
             }
+
+            // The connection lives no longer than the token that opened it. The agent re-logs in
+            // and reconnects, so a revoked robot can't hold a connection past expiry either.
+            if (tokenExpiresAt is { } exp)
+                _ = ExpireAtAsync(link, exp);
 
             _logger.LogInformation("Robot {RobotId} agent online (version {Version}, commit {Commit})", robotId, version, commit);
             return link;
@@ -146,6 +165,8 @@ namespace bloom.Services.RemoteShell
 
         public async Task UnregisterAgentAsync(AgentLink link, string reason)
         {
+            link.Lifetime.Cancel();
+
             // Only remove the link if it's still the current one -- a replaced link must not
             // tear down its replacement.
             if (!_agents.TryRemove(new KeyValuePair<Guid, AgentLink>(link.RobotId, link)))
@@ -170,6 +191,46 @@ namespace bloom.Services.RemoteShell
             return null;
         }
 
+        private async Task ExpireAtAsync(AgentLink link, DateTimeOffset expiresAt)
+        {
+            try
+            {
+                var remaining = expiresAt - _time.GetUtcNow();
+                if (remaining > TimeSpan.Zero)
+                    await Task.Delay(remaining, _time, link.Lifetime.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;  // the link ended first
+            }
+
+            if (!_agents.TryRemove(new KeyValuePair<Guid, AgentLink>(link.RobotId, link)))
+                return;
+            _logger.LogInformation("Robot {RobotId} agent token expired; dropping connection", link.RobotId);
+            link.DropReason = ShellEndReason.TokenExpired;
+            FailPushes(link.RobotId);
+            await EndRobotSessionAsync(link.RobotId, ShellEndReason.TokenExpired, notifyAgent: false);
+            await HangUpAsync(link, ShellEndReason.TokenExpired);
+        }
+
+        private async Task HangUpAsync(AgentLink link, string reason)
+        {
+            try
+            {
+                await _agentHub.Clients.Client(link.ConnectionId).Disconnecting(reason);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Couldn't tell robot {RobotId} why it is being dropped", link.RobotId);
+            }
+            AbortLater(link.Context);
+        }
+
+        private static void AbortLater(HubCallerContext context) =>
+            _ = Task.Delay(PeerCloseGrace).ContinueWith(_ => context.Abort(), TaskScheduler.Default);
+
+        // ── Sessions ────────────────────────────────────────────────────────────
+
         public async Task<OpenResult> OpenSessionAsync(OpenRequest request)
         {
             ShellSession session;
@@ -177,6 +238,10 @@ namespace bloom.Services.RemoteShell
 
             lock (_gate)
             {
+                // One connection, one session: a second attempt (e.g. "take over") uses a new connection.
+                if (_sessionByAdminConnection.ContainsKey(request.AdminContext.ConnectionId))
+                    return new OpenResult(OpenStatus.AlreadyOpen);
+
                 if (!TryConsumeOpen(request.AdminUserId))
                     return new OpenResult(OpenStatus.RateLimited);
 
@@ -199,10 +264,12 @@ namespace bloom.Services.RemoteShell
                     AdminUserId = request.AdminUserId,
                     AdminEmail = request.AdminEmail,
                     StartedAt = _time.GetUtcNow().UtcDateTime,
-                    AdminSocket = request.AdminSocket,
+                    AdminConnectionId = request.AdminContext.ConnectionId,
+                    AdminContext = request.AdminContext,
                 };
                 _sessions[session.Id] = session;
                 _sessionByRobot[request.RobotId] = session.Id;
+                _sessionByAdminConnection[session.AdminConnectionId] = session;
             }
 
             if (takenOver is Guid oldId)
@@ -225,31 +292,39 @@ namespace bloom.Services.RemoteShell
                 session.Id, session.RobotId, session.AdminEmail ?? session.AdminUserId);
 
             if (GetAgent(request.RobotId) is { } agent)
-                await agent.Socket.SendJsonAsync(new AgentOpen(session.Id, request.Cols, request.Rows));
+                await _agentHub.Clients.Client(agent.ConnectionId).Open(session.Id, request.Cols, request.Rows);
 
             return new OpenResult(OpenStatus.Opened, session);
         }
 
-        public async Task AdminInputAsync(ShellSession session, ReadOnlyMemory<byte> data)
+        public async Task AdminInputAsync(string adminConnectionId, byte[] data)
         {
-            if (!IsCurrent(session) || GetAgent(session.RobotId) is not { } agent)
+            if (!_sessionByAdminConnection.TryGetValue(adminConnectionId, out var session)
+                || GetAgent(session.RobotId) is not { } agent)
                 return;
-            await agent.Socket.SendBinaryAsync(ShellProtocol.EncodeDataFrame(session.Id, data.Span));
+            await _agentHub.Clients.Client(agent.ConnectionId).Input(session.Id, data);
         }
 
-        public async Task AdminResizeAsync(ShellSession session, int cols, int rows)
+        public async Task AdminResizeAsync(string adminConnectionId, int cols, int rows)
         {
-            if (!IsCurrent(session) || GetAgent(session.RobotId) is not { } agent)
+            if (!_sessionByAdminConnection.TryGetValue(adminConnectionId, out var session)
+                || GetAgent(session.RobotId) is not { } agent)
                 return;
-            await agent.Socket.SendJsonAsync(new AgentResize(session.Id, cols, rows));
+            await _agentHub.Clients.Client(agent.ConnectionId).Resize(session.Id, cols, rows);
         }
 
-        public async Task AgentOutputAsync(Guid robotId, Guid sessionId, ReadOnlyMemory<byte> data)
+        public async Task EndAdminSessionAsync(string adminConnectionId, string reason)
+        {
+            if (_sessionByAdminConnection.TryGetValue(adminConnectionId, out var session))
+                await EndSessionAsync(session.Id, reason);
+        }
+
+        public async Task AgentOutputAsync(Guid robotId, Guid sessionId, byte[] data)
         {
             // A robot may only write into sessions on itself.
             if (!_sessions.TryGetValue(sessionId, out var session) || session.RobotId != robotId)
                 return;
-            await session.AdminSocket.SendBinaryAsync(data);
+            await _adminHub.Clients.Client(session.AdminConnectionId).Output(data);
         }
 
         public async Task AgentExitedAsync(Guid robotId, Guid sessionId)
@@ -267,14 +342,18 @@ namespace bloom.Services.RemoteShell
             _logger.LogWarning("Shell session {SessionId} on robot {RobotId} ended ({Reason})", sessionId, session.RobotId, reason);
 
             if (notifyAgent && GetAgent(session.RobotId) is { } agent)
-                await agent.Socket.SendJsonAsync(new AgentClose(sessionId));
+                await _agentHub.Clients.Client(agent.ConnectionId).Close(sessionId);
 
-            await session.AdminSocket.SendJsonAsync(new AdminClosed(reason));
-            await session.AdminSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, reason);
-            // Not Cancel(): cancelling a pending receive aborts the connection on Kestrel and drops
-            // the close/reason frames just sent. The browser's close reply ends its loop; this is the
-            // fallback for one that never answers.
-            session.Lifetime.CancelAfter(PeerCloseGrace);
+            try
+            {
+                await _adminHub.Clients.Client(session.AdminConnectionId).SessionClosed(reason);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Admin connection for session {SessionId} was already gone", sessionId);
+            }
+            // The browser hangs up on SessionClosed; this is the fallback for one that doesn't.
+            AbortLater(session.AdminContext);
 
             try
             {
@@ -287,6 +366,8 @@ namespace bloom.Services.RemoteShell
                 _logger.LogError(ex, "Failed to record end of shell session {SessionId}", sessionId);
             }
         }
+
+        // ── Credential push ─────────────────────────────────────────────────────
 
         public async Task<SecretPushResult> PushSecretAsync(Guid robotId, string secret, TimeSpan timeout)
         {
@@ -304,7 +385,7 @@ namespace bloom.Services.RemoteShell
 
             try
             {
-                await agent.Socket.SendJsonAsync(new AgentSetSecret(requestId, secret));
+                await _agentHub.Clients.Client(agent.ConnectionId).SetSecret(requestId, secret);
                 using var cts = new CancellationTokenSource(timeout, _time);
                 using var _ = cts.Token.Register(
                     () => pending.Completion.TrySetResult(new SecretPushResult(SecretPushStatus.TimedOut)));
@@ -336,15 +417,18 @@ namespace bloom.Services.RemoteShell
                 pending.Completion.TrySetResult(new SecretPushResult(SecretPushStatus.ConnectionLost));
         }
 
+        // ── Dropping robots ─────────────────────────────────────────────────────
+
         public async Task DisconnectRobotAsync(Guid robotId, string reason)
         {
             await EndRobotSessionAsync(robotId, reason, notifyAgent: false);
+            FailPushes(robotId);
             if (_agents.TryRemove(robotId, out var link))
             {
-                _logger.LogWarning("Robot {RobotId} tunnel dropped ({Reason})", robotId, reason);
+                _logger.LogWarning("Robot {RobotId} connection dropped ({Reason})", robotId, reason);
                 link.DropReason = reason;
-                await link.Socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, reason);
-                link.Lifetime.CancelAfter(PeerCloseGrace);  // see EndSessionAsync
+                link.Lifetime.Cancel();
+                await HangUpAsync(link, reason);
             }
         }
 
@@ -360,9 +444,6 @@ namespace bloom.Services.RemoteShell
                 await EndSessionAsync(sid, reason, notifyAgent);
         }
 
-        private bool IsCurrent(ShellSession session) =>
-            _sessions.TryGetValue(session.Id, out var current) && ReferenceEquals(current, session);
-
         // Returns false if the session was already removed (i.e. someone else is ending it).
         private bool RemoveSession(ShellSession session)
         {
@@ -372,6 +453,7 @@ namespace bloom.Services.RemoteShell
                     return false;
                 if (_sessionByRobot.TryGetValue(session.RobotId, out var id) && id == session.Id)
                     _sessionByRobot.Remove(session.RobotId);
+                _sessionByAdminConnection.TryRemove(new KeyValuePair<string, ShellSession>(session.AdminConnectionId, session));
                 return true;
             }
         }

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using bloom.Data;
 using bloom.Models;
 using bloom.Models.dto;
-using bloom.Services;
+using bloom.Services.Robots;
 using bloom.Services.RemoteShell;
 using bloom.Tests.TestHelpers;
 using Microsoft.AspNetCore.Identity;

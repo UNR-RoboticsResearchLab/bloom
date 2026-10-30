@@ -5,7 +5,8 @@
 using System.Security.Claims;
 using bloom.Models;
 using bloom.Models.dto;
-using bloom.Services;
+using bloom.Services.Classrooms;
+using bloom.Services.Lessons;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

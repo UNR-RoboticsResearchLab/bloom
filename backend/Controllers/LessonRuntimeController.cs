@@ -4,7 +4,8 @@
 // Robot polling, robot reporting, SLP commands, and SLP feedback are co-located here.
 
 using bloom.Models.dto;
-using bloom.Services;
+using bloom.Services.Robots;
+using bloom.Services.SessionControl;
 using Microsoft.AspNetCore.Mvc;
 
 namespace bloom.Controllers

@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using bloom.Data;
 using bloom.Models;
-using bloom.Services;
+using bloom.Services.Robots;
 using Microsoft.AspNetCore.Identity;
 
 namespace bloom.Tests.TestHelpers

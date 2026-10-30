@@ -39,7 +39,9 @@ RUN dotnet tool install -g dotnet-ef
 
 WORKDIR /app
 COPY --from=build /app/out .
-COPY --from=react-build /app/frontend/build ./frontend/build
+# The app serves the SPA from wwwroot (UseStaticFiles + MapFallbackToFile). dotnet publish only puts
+# the React build there from a full checkout, which this build context is not, so copy it in.
+COPY --from=react-build /app/frontend/build ./wwwroot
 
 
 EXPOSE 5000

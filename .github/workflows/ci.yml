@@ -2,9 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main, development]
+    # development is tested by deploy-development.yml, which calls this workflow before deploying.
+    branches: [main]
   pull_request:
     branches: [main, development]
+  workflow_call:
 
 jobs:
   backend-tests:

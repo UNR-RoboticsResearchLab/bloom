@@ -37,7 +37,9 @@ against the agent's verifier with a fixed test vector.
    stage, an apply, and a deliberately failing health check on one robot before a fleet rollout.
 4. **`robot-is-idle` and `robot-healthcheck`.** The updater calls them, but the executables are not
    written. Without them an apply fails (no idle check) or rolls back (no health check).
-5. **Frontend.** No UI for triggering or watching an update.
+5. **Frontend.** The fleet card's version picker is filled from a release list (config plus GitHub
+   Releases, see [fleet-dashboard.md](fleet-dashboard.md)), but its Update button stays disabled and
+   there is no UI for watching an update.
 6. **Updating the agent itself.** Out of scope for now; `install.sh`'s versioned directory plus `current`
    symlink is the natural basis.
 7. **Bundle mode.** `sha256` is accepted in the manifest and ignored.

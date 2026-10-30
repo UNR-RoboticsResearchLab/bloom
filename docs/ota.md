@@ -295,7 +295,9 @@ The hub is in this repo but OTA is not wired into it. The backend needs to:
 3. Hold an Ed25519 signing key (outside the repo), build the signing text above, mint manifests with a
    fresh `jobId` and a short `expiresAt` (minutes), and store jobs and the installed version per robot
    (a migration, an admin-only endpoint and a dashboard control).
-4. Mirror the contract in `RobotTerminal.jsx`/the fleet view as needed, and decide on the version
+4. The version list the dashboard offers already exists (`GET /api/robot/releases`,
+   [fleet-dashboard.md](fleet-dashboard.md)); the admin endpoint should validate a requested version
+   against it. Mirror the contract in `RobotTerminal.jsx`/the fleet view as needed, and decide on the version
    semantics of `ReportInstalledVersion`: it is the Debian version of `bloom-robot-core`, **not** a
    SemVer like the agent's, so don't pass it through the SemVer normaliser.
 5. Gate `StartOta` on robots that have OTA enabled; an agent with it off silently ignores the call.

@@ -13,6 +13,7 @@ using bloom.Services.SessionControl;
 using bloom.Data;
 using bloom.Repositories;
 using bloom.Services.RemoteShell;
+using bloom.Services.ReleaseCatalog;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -306,6 +307,19 @@ builder.Services.AddHttpClient("AutoRsr", client =>
     client.Timeout = TimeSpan.FromMinutes(10);
 });
 builder.Services.AddScoped<IRsrService, RsrService>();
+
+// OTA release list for the fleet view: versions from config plus the GitHub Releases of a repo.
+builder.Services.Configure<ReleaseCatalogOptions>(builder.Configuration.GetSection(ReleaseCatalogOptions.SectionName));
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient(ReleaseCatalogService.HttpClientName, client =>
+{
+    client.BaseAddress = new Uri("https://api.github.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("bloom-backend");  // GitHub rejects requests without one
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+    client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+});
+builder.Services.AddSingleton<IReleaseCatalogService, ReleaseCatalogService>();
 
 // Add MVC model
 builder.Services.AddControllersWithViews();

@@ -236,6 +236,43 @@ describe("AddRobotDialog", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("builds the SD-card flash command for an M-SARG robot", async () => {
+    const user = userEvent.setup();
+    api.registerRobot.mockResolvedValue({ robot: { id: "abc", name: "m-sarg-04" }, secret: SECRET });
+    render(<AddRobotDialog onClose={jest.fn()} />);
+
+    await user.type(screen.getByLabelText(/^name/i), "m-sarg-04");
+    await user.clear(screen.getByLabelText(/^model/i));
+    await user.type(screen.getByLabelText(/^model/i), "M-SARG");
+    await user.click(screen.getByRole("button", { name: "Add robot" }));
+    expect(api.registerRobot).toHaveBeenCalledWith({ name: "m-sarg-04", model: "M-SARG" });
+
+    // The flash section opens for M-SARG and starts with the robot number from the name.
+    expect(await screen.findByLabelText(/m-sarg robot number/i)).toHaveValue("4");
+    expect(screen.getByRole("list", { name: "Still needed" })).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/card device/i), "/dev/sdb");
+    await user.type(screen.getByLabelText(/network 1 name/i), "lab");
+    await user.type(screen.getByLabelText(/network 1 password/i), "pw12345678");
+    await user.type(screen.getByLabelText(/azure speech \.env/i), "~/bloom.env");
+
+    const command = screen.getByLabelText("deploy_sd.sh command");
+    expect(command).toHaveTextContent("--robot-id 4");
+    expect(command).toHaveTextContent("--device /dev/sdb");
+    expect(command).toHaveTextContent("--wifi-ssid lab --wifi-psk pw12345678");
+    expect(command).toHaveTextContent("--bloom-provision-file ~/Downloads/m-sarg-04.provision.json");
+  });
+
+  it("keeps the flash section closed for other models", async () => {
+    const user = userEvent.setup();
+    api.registerRobot.mockResolvedValue({ robot: { id: "abc", name: "blossom-08" }, secret: SECRET });
+    render(<AddRobotDialog onClose={jest.fn()} />);
+    await user.type(screen.getByLabelText(/^name/i), "blossom-08");
+    await user.click(screen.getByRole("button", { name: "Add robot" }));
+    await screen.findByDisplayValue(SECRET);
+    expect(screen.getByText("Flash an M-SARG SD card").closest("details")).not.toHaveAttribute("open");
+  });
+
   it("explains a rejected registration without losing the form", async () => {
     const user = userEvent.setup();
     api.registerRobot.mockRejectedValue(new Error("HTTP 400: {}"));

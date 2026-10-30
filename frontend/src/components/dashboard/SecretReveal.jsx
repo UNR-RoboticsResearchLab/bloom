@@ -1,13 +1,17 @@
 // SecretReveal.jsx
 // Shows a robot's secret -- which the backend hands out exactly once -- with the ways to get it onto
-// the robot: copy it, or download a provisioning file for deploy/provision.sh. The caller gates
-// closing on the "I've saved it" checkbox via `saved` / `onSavedChange`.
+// the robot: copy it, download a provisioning file for deploy/provision.sh, or build the m-sarg
+// deploy_sd.sh command that flashes an SD card with it. The caller gates closing on the "I've saved
+// it" checkbox via `saved` / `onSavedChange`. `model` (else robot.model) opens the flash section for
+// M-SARG robots.
 
 import React, { useId, useState } from "react";
 import { useApiClient } from "../../context/ApiClientContext";
 import { buildProvisionFile, downloadProvisionFile, provisionFileName } from "../../utils/provisioning";
+import { isMsargModel } from "../../utils/msargDeploy";
+import MsargFlashBuilder from "./MsargFlashBuilder";
 
-export default function SecretReveal({ robot, secret, saved, onSavedChange }) {
+export default function SecretReveal({ robot, secret, saved, onSavedChange, model }) {
   const api = useApiClient();
   const secretId = useId();
   const [copied, setCopied] = useState("");
@@ -91,10 +95,6 @@ export default function SecretReveal({ robot, secret, saved, onSavedChange }) {
             {[
               ["First install of the agent", `sudo ./install.sh --provision-file ${fileName}`],
               ["Robot already has the agent", `sudo ./provision.sh ${fileName} --remove`],
-              [
-                "Flashing a new M-SARG SD card (from the m-sarg repo)",
-                `sudo deploy/deploy_sd.sh --enable-bloom-service --bloom-provision-file ${fileName} ...`,
-              ],
             ].map(([label, command]) => (
               <div key={label}>
                 <dt className="text-xs font-medium text-gray-600">{label}</dt>
@@ -108,17 +108,17 @@ export default function SecretReveal({ robot, secret, saved, onSavedChange }) {
             ))}
           </dl>
           <p className="mt-2 text-xs text-gray-600">
-            The first two update the agent and <span className="font-mono">bloom_node</span>'s <span className="font-mono">.env</span>,
+            Both update the agent and <span className="font-mono">bloom_node</span>'s <span className="font-mono">.env</span>,
             all-or-nothing, and restart them.
           </p>
-          <p className="mt-2 text-xs text-gray-600">
-            <span className="font-mono">deploy_sd.sh</span> bakes the file's robot ID and secret into the card
-            (<span className="font-mono">/etc/m-sarg/bloom.env</span>) and uses its backend URL as the robot's
-            backend. Replace <span className="font-mono">...</span> with the usual flags (
-            <span className="font-mono">--robot-id</span>, <span className="font-mono">--image</span> or{" "}
-            <span className="font-mono">--device</span>, Wi-Fi, <span className="font-mono">--ssh-pubkey</span>,
-            <span className="font-mono">--env-file</span>). Use a separate robot, and file, for each card.
-          </p>
+        </details>
+        <details className="mt-3" open={isMsargModel(model ?? robot.model)}>
+          <summary className="cursor-pointer text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            Flash an M-SARG SD card
+          </summary>
+          <div className="mt-2">
+            <MsargFlashBuilder robot={robot} fileName={fileName} onCopy={copy} copied={copied} />
+          </div>
         </details>
       </div>
 

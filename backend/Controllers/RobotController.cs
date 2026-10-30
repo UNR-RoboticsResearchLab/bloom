@@ -6,6 +6,7 @@ using bloom.Models;
 using bloom.Models.dto;
 using bloom.Services.Robots;
 using bloom.Services.RemoteShell;
+using bloom.Services.ReleaseCatalog;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,14 +27,17 @@ namespace bloom.Controllers
         private readonly IShellRelay _shellRelay;
         private readonly IShellAuditService _shellAudit;
         private readonly IOptions<RemoteShellOptions> _shellOptions;
+        private readonly IReleaseCatalogService _releases;
 
         public RobotController(
             ILogger<RobotController> logger,
             IRobotService robotService,
             IShellRelay shellRelay,
             IShellAuditService shellAudit,
-            IOptions<RemoteShellOptions> shellOptions)
+            IOptions<RemoteShellOptions> shellOptions,
+            IReleaseCatalogService releases)
         {
+            _releases = releases;
             _logger = logger;
             _robotService = robotService;
             _shellRelay = shellRelay;
@@ -207,6 +211,17 @@ namespace bloom.Controllers
                     ShellSince = shell?.StartedAt,
                 };
             }));
+        }
+
+        /// <summary>
+        /// The versions that can be pushed to robots, per release channel (prod / canary / dev), newest
+        /// first: those listed under Releases:Channels plus the GitHub Releases of Releases:GitHub:Repository.
+        /// </summary>
+        [Authorize(Policy = "AdminOnly")]
+        [HttpGet("releases")]
+        public async Task<ActionResult<ReleaseCatalogDto>> GetReleases(CancellationToken ct)
+        {
+            return Ok(await _releases.GetCatalogAsync(ct));
         }
 
         /// <summary>

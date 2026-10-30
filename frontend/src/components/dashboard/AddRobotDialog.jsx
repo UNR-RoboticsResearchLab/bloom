@@ -1,6 +1,6 @@
 // AddRobotDialog.jsx
 // Admin flow for adding a robot: name + model -> POST /api/robot/register -> the robot's login
-// secret, which the backend shows exactly once. The second step can't be dismissed (no backdrop
+// secret, which the backend shows exactly once (plus, for M-SARG robots, the SD-card flash command). The second step can't be dismissed (no backdrop
 // click, Escape or close button) until the admin confirms they've saved it.
 
 import React, { useId, useRef, useState } from "react";
@@ -9,7 +9,7 @@ import Modal from "../ui/Modal";
 import SecretReveal from "./SecretReveal";
 import { apiErrorStatus } from "../../utils/provisioning";
 
-const MODEL_SUGGESTIONS = ["Blossom"];
+const MODEL_SUGGESTIONS = ["Blossom", "M-SARG"];
 const inputClass =
   "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200";
 
@@ -22,7 +22,7 @@ export default function AddRobotDialog({ onClose, onCreated }) {
   const [model, setModel] = useState(MODEL_SUGGESTIONS[0]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [created, setCreated] = useState(null); // { robot, secret }
+  const [created, setCreated] = useState(null); // { robot, secret, model }
   const [saved, setSaved] = useState(false);
 
   const locked = !!created && !saved; // closing now would lose the secret forever
@@ -43,9 +43,10 @@ export default function AddRobotDialog({ onClose, onCreated }) {
     setError("");
     setSubmitting(true);
     try {
-      const res = await api.registerRobot({ name: trimmed, model: model.trim() || "Unknown" });
+      const chosenModel = model.trim() || "Unknown";
+      const res = await api.registerRobot({ name: trimmed, model: chosenModel });
       if (!res?.secret || !res?.robot?.id) throw new Error("Unexpected response from the server.");
-      setCreated({ robot: res.robot, secret: res.secret });
+      setCreated({ robot: res.robot, secret: res.secret, model: chosenModel });
     } catch (err) {
       console.error("Failed to add robot:", err);
       setError(
@@ -59,7 +60,13 @@ export default function AddRobotDialog({ onClose, onCreated }) {
   }
 
   return (
-    <Modal titleId={`${id}-title`} descriptionId={`${id}-desc`} onClose={close} dismissible={!locked && !submitting}>
+    <Modal
+      titleId={`${id}-title`}
+      descriptionId={`${id}-desc`}
+      onClose={close}
+      dismissible={!locked && !submitting}
+      widthClass={created ? "max-w-2xl" : undefined}
+    >
       <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-4">
         <div>
           <h2 id={`${id}-title`} className="text-lg font-semibold text-gray-900">
@@ -153,7 +160,13 @@ export default function AddRobotDialog({ onClose, onCreated }) {
         </form>
       ) : (
         <div className="space-y-4 px-6 py-5">
-          <SecretReveal robot={created.robot} secret={created.secret} saved={saved} onSavedChange={setSaved} />
+          <SecretReveal
+            robot={created.robot}
+            secret={created.secret}
+            model={created.model}
+            saved={saved}
+            onSavedChange={setSaved}
+          />
           <div className="flex justify-end pt-1">
             <button
               type="button"

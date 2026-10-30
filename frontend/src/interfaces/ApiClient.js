@@ -427,6 +427,12 @@ export default class ApiClient {
     return res || [];
   }
 
+  // { channels: { prod: [...], canary: [...], dev: [...] } newest first, warnings: [...] }
+  async getReleases() {
+    const res = await this.request("/api/robot/releases", { method: "GET" });
+    return res || { channels: {}, warnings: [] };
+  }
+
   async getShellSessions(robotId) {
     const res = await this.request(`/api/robot/${robotId}/shell-sessions`, { method: "GET" });
     return res || [];

@@ -55,6 +55,9 @@ export default function AdminDashboard() {
   const [deleteRobot, setDeleteRobot] = useState(null);
   const [fleetNotice, setFleetNotice] = useState("");
   const [fleetRefresh, setFleetRefresh] = useState(0);
+  // OTA versions per channel ({ prod, canary, dev }), from the backend's config and GitHub releases.
+  const [releases, setReleases] = useState({});
+  const [releaseWarnings, setReleaseWarnings] = useState([]);
   // const api = null;
   const [lessonPaneOpen, setLessonPaneOpen] = useState(false);
   const [lessonSuccess, setLessonSuccess] = useState("");
@@ -113,6 +116,25 @@ export default function AdminDashboard() {
       clearInterval(intervalId);
     };
   }, [api, fleetRefresh]);
+
+  // Loaded once: the backend caches GitHub for minutes, and reloading would reset each card's pick.
+  useEffect(() => {
+    let mounted = true;
+    api
+      .getReleases()
+      .then((data) => {
+        if (!mounted) return;
+        setReleases(data.channels || {});
+        setReleaseWarnings(data.warnings || []);
+      })
+      .catch((err) => {
+        console.error("failed to load releases:", err);
+        if (mounted) setReleaseWarnings(["Couldn't load the release list."]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [api]);
 
   useEffect(() => {
     async function loadSessions() {
@@ -377,6 +399,11 @@ export default function AdminDashboard() {
           </div>
         </div>
         {fleetError && <p className="mb-3 text-sm text-red-600">{fleetError}</p>}
+        {releaseWarnings.map((w) => (
+          <p key={w} className="mb-3 text-sm text-amber-700">
+            {w} Versions from it are missing from the update lists.
+          </p>
+        ))}
         {fleet.length === 0 && !fleetError ? (
           <p className="text-sm text-gray-500">No robots registered.</p>
         ) : (
@@ -385,6 +412,7 @@ export default function AdminDashboard() {
               <RobotFleetCard
                 key={robot.id}
                 robot={robot}
+                releases={releases}
                 onConnect={setTerminalRobot}
                 onCredentials={setCredentialsRobot}
                 onDelete={setDeleteRobot}

@@ -82,19 +82,19 @@ namespace bloom.Tests.Services
             handler.Respond = _ => new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = Json("[" + string.Join(",",
-                    Release("robot-v1.2.0-1"),
-                    Release("robot-v1.3.0~rc1-1", prerelease: true),
-                    Release("robot-v1.3.0~dev5-1", prerelease: true),
-                    Release("robot-v1.4.0-1", draft: true),   // drafts aren't published
+                    Release("robot-v1.2.0"),
+                    Release("robot-v1.3.0-rc.1", prerelease: true),
+                    Release("robot-v1.3.0-dev.5", prerelease: true),
+                    Release("robot-v1.4.0", draft: true),     // drafts aren't published
                     Release("0.2.0"),                          // another project's tag
-                    Release("robot-vlatest")) + "]"),         // not a package version
+                    Release("robot-vlatest")) + "]"),         // not SemVer
             };
 
             var catalog = await service.GetCatalogAsync();
 
             Assert.Equal(new[] { "1.2.0-1" }, catalog.Channels["prod"]);
-            Assert.Equal(new[] { "1.3.0~rc1-1" }, catalog.Channels["canary"]);
-            Assert.Equal(new[] { "1.3.0~dev5-1" }, catalog.Channels["dev"]);
+            Assert.Equal(new[] { "1.3.0~rc.1-1" }, catalog.Channels["canary"]);
+            Assert.Equal(new[] { "1.3.0~dev.5-1" }, catalog.Channels["dev"]);
             var request = Assert.Single(handler.Requests);
             Assert.Equal("https://api.github.com/repos/org/robot/releases?per_page=100", request.RequestUri!.ToString());
             Assert.Null(request.Headers.Authorization);
@@ -108,7 +108,7 @@ namespace bloom.Tests.Services
             var (service, handler) = Create(options);
             handler.Respond = _ => new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = Json("[" + Release("v1.2.0-1") + "," + Release("v1.10.0-1") + "]"),
+                Content = Json("[" + Release("v1.2.0") + "," + Release("v1.10.0") + "]"),
             };
 
             var catalog = await service.GetCatalogAsync();
@@ -127,7 +127,7 @@ namespace bloom.Tests.Services
             var second = await service.GetCatalogAsync();
 
             Assert.Single(handler.Requests);
-            Assert.Equal(new[] { "1.0.0" }, second.Channels["prod"]);
+            Assert.Equal(new[] { "1.0.0-1" }, second.Channels["prod"]);
         }
 
         [Fact]
@@ -160,6 +160,19 @@ namespace bloom.Tests.Services
         {
             Assert.Equal(expectedSign, Math.Sign(DebianVersion.Compare(a, b)));
             Assert.Equal(-expectedSign, Math.Sign(DebianVersion.Compare(b, a)));
+        }
+
+        [Theory]
+        [InlineData("1.0.20", "1.0.20-1")]
+        [InlineData("1.0.20-g4fc39fd", "1.0.20~g4fc39fd-1")]
+        [InlineData("1.3.0-rc-1.2", "1.3.0~rc.1.2-1")]   // a "-" inside the pre-release would read as the revision
+        [InlineData("1.0.20+build-5", "1.0.20+build.5-1")]
+        [InlineData("1.0", null)]
+        [InlineData("1.0.20-1jazzy-2", "1.0.20~1jazzy.2-1")]
+        [InlineData("latest", null)]
+        public void FromSemVer_MatchesThePackagingTool(string semver, string? expected)
+        {
+            Assert.Equal(expected, DebianVersion.FromSemVer(semver));
         }
 
         [Theory]

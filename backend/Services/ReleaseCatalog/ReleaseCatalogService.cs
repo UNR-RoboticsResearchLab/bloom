@@ -125,11 +125,14 @@ namespace bloom.Services.ReleaseCatalog
                 if (release.Draft || string.IsNullOrEmpty(release.TagName)) continue;
                 if (!release.TagName.StartsWith(gh.TagPrefix, StringComparison.Ordinal)) continue;
 
-                var version = release.TagName[gh.TagPrefix.Length..];
-                if (version.StartsWith('v') || version.StartsWith('V')) version = version[1..];
-                if (!DebianVersion.IsValid(version)) continue; // a tag that isn't a package version, e.g. a demo tag
+                // Tags carry the SemVer the build was versioned with (git forbids "~" in tag names);
+                // the robot's package version is its Debian form.
+                var semver = release.TagName[gh.TagPrefix.Length..];
+                if (semver.StartsWith('v') || semver.StartsWith('V')) semver = semver[1..];
+                var version = DebianVersion.FromSemVer(semver);
+                if (version == null || !DebianVersion.IsValid(version)) continue; // e.g. a demo tag
 
-                var channel = !release.Prerelease ? "prod" : dev.IsMatch(version) ? "dev" : "canary";
+                var channel = !release.Prerelease ? "prod" : dev.IsMatch(semver) ? "dev" : "canary";
                 found.Add((channel, version));
             }
             return found;

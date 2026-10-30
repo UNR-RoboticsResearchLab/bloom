@@ -15,6 +15,22 @@ namespace bloom.Services.ReleaseCatalog
 
         public static bool IsValid(string? version) => version != null && Valid.IsMatch(version);
 
+        private static readonly Regex SemVer = new(
+            @"^(?<core>\d+\.\d+\.\d+)(?:-(?<pre>[0-9A-Za-z.-]+))?(?:\+(?<meta>[0-9A-Za-z.-]+))?$", RegexOptions.Compiled);
+
+        // SemVer (what Nerdbank.GitVersioning emits, and what release tags carry) -> the Debian version
+        // robot/packaging builds, same rule as bloom_packaging/version.py: 1.0.20-gabc -> 1.0.20~gabc-1.
+        // Null if it isn't SemVer. A "-" can't be in a git tag as "~", which is why tags use SemVer.
+        public static string? FromSemVer(string? semver, string revision = "1")
+        {
+            var m = semver == null ? null : SemVer.Match(semver.Trim());
+            if (m == null || !m.Success) return null;
+            var version = m.Groups["core"].Value;
+            if (m.Groups["pre"].Success) version += "~" + m.Groups["pre"].Value.Replace('-', '.');
+            if (m.Groups["meta"].Success) version += "+" + m.Groups["meta"].Value.Replace('-', '.');
+            return $"{version}-{revision}";
+        }
+
         // dpkg --compare-versions, without epochs.
         public static int Compare(string a, string b)
         {

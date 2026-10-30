@@ -28,6 +28,27 @@ env -u PYTHONPATH python3 -m pytest packaging/tests                        # tes
   a temporary local source (`ROSDEP_SOURCE_PATH`), never `/etc/ros`.
 - **Metapackage** (`metapackage.py`). `Depends: pkg (= ver), ...` for every `.deb` in the directory.
 
+## Release labels (what the dashboard's version picker lists)
+
+A robot release is a git tag `robot-v<SemVer>` plus a GitHub Release, made by the **Robot release**
+workflow (`.github/workflows/robot-release.yml`, run manually). The backend reads them
+(`GET /api/robot/releases`, config `Releases:GitHub`) and lists them per channel:
+
+| Tag | GitHub Release | Channel | Package version on the robot |
+|---|---|---|---|
+| `robot-v1.0.21` | normal | prod | `1.0.21-1` |
+| `robot-v1.0.21-g4fc39fd` | pre-release | canary | `1.0.21~g4fc39fd-1` |
+
+- The tag holds the SemVer, not the Debian version, because git forbids `~` in tag names. The
+  backend maps it with the same rule as `version.py`.
+- Prod releases come from `main` (no suffix); canary can come from any branch.
+- Promote without a rebuild: `gh release edit robot-v1.0.21 --prerelease=false`.
+  Withdraw: `gh release delete robot-v1.0.21 --cleanup-tag`.
+- A `dev` channel isn't produced by the workflow; list those versions under `Releases:Channels:dev`
+  in the backend config, or mark a pre-release whose SemVer contains `dev`.
+- Releases don't carry packages yet: until `build-debs` runs for real and an apt repo exists, the
+  list only says what *could* be pushed.
+
 ## Secrets are not packaged
 
 `--env-file /etc/bloom/robot.env` makes the metapackage's `postinst` create that file **empty and

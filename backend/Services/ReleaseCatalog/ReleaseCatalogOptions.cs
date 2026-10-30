@@ -22,11 +22,12 @@ namespace bloom.Services.ReleaseCatalog
         // Optional; needed for a private repo, and raises the 60 requests/hour anonymous limit.
         public string Token { get; set; } = "";
 
-        // Only tags starting with this are releases of the robot software (e.g. "robot-v"); the prefix
-        // is stripped, then a leading "v". Empty takes every tag.
+        // Only tags starting with this are releases of the robot software (e.g. "robot-v"). After the
+        // prefix (and an optional "v") the tag is the build's SemVer, e.g. robot-v1.3.0-rc.1, which
+        // becomes package version 1.3.0~rc.1-1. Empty takes every tag. Tags that aren't SemVer are skipped.
         public string TagPrefix { get; set; } = "";
 
-        // A pre-release whose version matches this goes to "dev" instead of "canary".
+        // A GitHub pre-release whose SemVer matches this goes to "dev" instead of "canary".
         public string DevPattern { get; set; } = @"(^|[-.~+])dev";
 
         public int CacheMinutes { get; set; } = 10;

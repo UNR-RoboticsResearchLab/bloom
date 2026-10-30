@@ -1,0 +1,81 @@
+name: Robot release
+
+# Labels a commit as a robot software release: creates the git tag and GitHub Release that the
+# backend's release catalog (GET /api/robot/releases, Releases:GitHub in appsettings) lists in the
+# fleet dashboard's version picker. It does not build or upload packages yet (see robot-packages.yml).
+#
+# The tag is the SemVer Nerdbank.GitVersioning gives that commit, e.g. robot-v1.0.21 or
+# robot-v1.0.21-g4fc39fd. Git forbids "~" in tag names, so the Debian form (1.0.21~g4fc39fd-1) is
+# derived from the tag by the backend and by robot/packaging, never stored in it.
+#
+# Channel = the GitHub Release's state:
+#   prod    a normal release. Only from main, where the version has no suffix.
+#   canary  marked "pre-release". From any branch.
+# Promote canary -> prod without a rebuild:  gh release edit robot-v<semver> --prerelease=false
+# Pull a version from the lists:             gh release delete robot-v<semver> --cleanup-tag
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel
+        type: choice
+        options: [canary, prod]
+        default: canary
+
+permissions:
+  contents: write   # create the tag and release
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # nbgv needs the full history
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Version
+        id: version
+        run: |
+          dotnet tool install -g nbgv
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+          semver="$("$HOME/.dotnet/tools/nbgv" get-version -v SemVer2)"
+          echo "semver=$semver" >> "$GITHUB_OUTPUT"
+          echo "tag=robot-v$semver" >> "$GITHUB_OUTPUT"
+
+      - name: Check
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          SEMVER: ${{ steps.version.outputs.semver }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git check-ref-format "refs/tags/$TAG" || { echo "::error::$TAG is not a valid tag name"; exit 1; }
+          if [ "$CHANNEL" = prod ] && [[ "$SEMVER" == *-* ]]; then
+            echo "::error::Prod releases come from main, where the version has no suffix. This commit is $SEMVER. Release it as canary, or run this from main."
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "::error::$TAG already exists. Each commit has one version; push a commit to get the next one."
+            exit 1
+          fi
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ inputs.channel }}
+          TAG: ${{ steps.version.outputs.tag }}
+          SEMVER: ${{ steps.version.outputs.semver }}
+        run: |
+          flags=()
+          [ "$CHANNEL" = prod ] || flags+=(--prerelease)
+          gh release create "$TAG" "${flags[@]}" \
+            --target "$GITHUB_SHA" \
+            --title "Robot $SEMVER ($CHANNEL)" \
+            --generate-notes
+          {
+            echo "### Released \`$TAG\` to **$CHANNEL**"
+            echo "Package version on the robot: \`bloom-robot-core\` (SemVer \`$SEMVER\` mapped by robot/packaging)."
+          } >> "$GITHUB_STEP_SUMMARY"

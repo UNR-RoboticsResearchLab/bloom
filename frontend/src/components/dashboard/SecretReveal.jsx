@@ -91,6 +91,10 @@ export default function SecretReveal({ robot, secret, saved, onSavedChange }) {
             {[
               ["First install of the agent", `sudo ./install.sh --provision-file ${fileName}`],
               ["Robot already has the agent", `sudo ./provision.sh ${fileName} --remove`],
+              [
+                "Flashing a new M-SARG SD card (from the m-sarg repo)",
+                `sudo deploy/deploy_sd.sh --enable-bloom-service --bloom-provision-file ${fileName} ...`,
+              ],
             ].map(([label, command]) => (
               <div key={label}>
                 <dt className="text-xs font-medium text-gray-600">{label}</dt>
@@ -104,8 +108,16 @@ export default function SecretReveal({ robot, secret, saved, onSavedChange }) {
             ))}
           </dl>
           <p className="mt-2 text-xs text-gray-600">
-            Both update the agent and <span className="font-mono">bloom_node</span>'s <span className="font-mono">.env</span>,
+            The first two update the agent and <span className="font-mono">bloom_node</span>'s <span className="font-mono">.env</span>,
             all-or-nothing, and restart them.
+          </p>
+          <p className="mt-2 text-xs text-gray-600">
+            <span className="font-mono">deploy_sd.sh</span> bakes the file's robot ID and secret into the card
+            (<span className="font-mono">/etc/m-sarg/bloom.env</span>) and uses its backend URL as the robot's
+            backend. Replace <span className="font-mono">...</span> with the usual flags (
+            <span className="font-mono">--robot-id</span>, <span className="font-mono">--image</span> or{" "}
+            <span className="font-mono">--device</span>, Wi-Fi, <span className="font-mono">--ssh-pubkey</span>,
+            <span className="font-mono">--env-file</span>). Use a separate robot, and file, for each card.
           </p>
         </details>
       </div>

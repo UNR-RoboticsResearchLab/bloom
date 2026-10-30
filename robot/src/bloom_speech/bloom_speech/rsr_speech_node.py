@@ -46,13 +46,17 @@ class RsrSpeechNode(Node):
         self.try_load_config()
 
     def try_load_config(self):
+        # Robots no longer self-register, so bloom_node doesn't write robot_id to
+        # robot.cfg any more: it comes from BLOOM_ROBOT_ID (robot/.env, or
+        # /etc/m-sarg/bloom.env on M-SARG). Same precedence as bloom_node: the
+        # environment wins, robot.cfg is the fallback.
         cfg = read_robot_config(ROBOT_CFG_PATH)
-        robot_id = cfg.get('robot_id')
-        base_url = cfg.get('base_url')
+        robot_id = os.environ.get('BLOOM_ROBOT_ID') or cfg.get('robot_id')
+        base_url = os.environ.get('BLOOM_BASE_URL') or cfg.get('base_url')
 
         if not robot_id or not base_url:
             self.get_logger().warn(
-                f'Waiting for robot_id/base_url in {ROBOT_CFG_PATH} (robot not yet registered?)')
+                f'Waiting for robot_id/base_url (BLOOM_ROBOT_ID/BLOOM_BASE_URL, or {ROBOT_CFG_PATH})')
             return
 
         self.robot_id = robot_id

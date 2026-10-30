@@ -69,7 +69,7 @@ playback mode.
   mariadb-dev` or `dotnet run` from `backend/`). Note the base URL — referred
   to below as `$BACKEND_URL` (e.g. `http://localhost:8080` for the docker
   compose stack, or whatever `dotnet run` prints).
-- `robot/tts_module/config.py` filled in with real Azure Speech credentials
+- `robot/src/bloom_speech_engines/bloom_speech_engines/tts/config.py` filled in with real Azure Speech credentials
   (copy from `config_example.py`).
 - pnpm available (`corepack enable` if `pnpm` isn't found).
 

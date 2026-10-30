@@ -62,6 +62,10 @@ install -m 0755 "$HERE/robot-agent" "$PREFIX/$VERSION/robot-agent"
 [ -f "$HERE/README.md" ] && install -m 0644 "$HERE/README.md" "$PREFIX/$VERSION/README.md"
 # Run by the agent (via sudo) when the dashboard pushes a new secret, and by hand otherwise.
 install -m 0755 "$HERE/provision.sh" "$PREFIX/$VERSION/provision.sh"
+# Run (as root, in its own systemd unit) when the dashboard triggers an OTA update. See docs/ota.md.
+install -m 0755 "$HERE/fleet-ota" "$PREFIX/$VERSION/fleet-ota"
+# fleet-ota writes state.json here; the agent (bloom-ops) only reads it.
+install -d -m 0755 -o root -g root /var/lib/fleet-ota
 ln -sfn "$PREFIX/$VERSION" "$PREFIX/current.new"
 mv -T "$PREFIX/current.new" "$PREFIX/current"
 

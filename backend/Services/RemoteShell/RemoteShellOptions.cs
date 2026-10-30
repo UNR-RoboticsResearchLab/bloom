@@ -11,7 +11,7 @@ namespace bloom.Services.RemoteShell
         // Off by default. Turning it on also requires a real Jwt:Key (see Program.cs).
         public bool Enabled { get; set; }
 
-        // Browser origins allowed to open /ws/shell besides the backend's own host, e.g. the CRA
+        // Browser origins allowed to open /hubs/shell besides the backend's own host, e.g. the CRA
         // dev server. Blocks cross-site WebSocket hijacking with an admin's cookie.
         public string[] AllowedOrigins { get; set; } = Array.Empty<string>();
 

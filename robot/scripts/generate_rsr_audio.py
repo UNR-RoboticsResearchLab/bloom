@@ -36,9 +36,7 @@ SENTENCES_PATH = os.path.join(SCRIPT_DIR, "rsr_sentences.json")
 ENV_PATH = os.path.join(ROBOT_DIR, ".env")
 RECORDING_EXTENSIONS = [".wav", ".flac", ".ogg"]
 
-sys.path.insert(0, ROBOT_DIR)
-
-from tts_module.engine_azure import AzureTTSEngine  # noqa: E402
+from bloom_speech_engines.tts.engine_azure import AzureTTSEngine
 
 
 def load_env_file(env_path):

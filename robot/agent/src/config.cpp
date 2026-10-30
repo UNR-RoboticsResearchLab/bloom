@@ -91,6 +91,30 @@ AgentConfig load_config(const std::string& path, bool require_credentials) {
     for (const auto& i : file["expected_issuers"])
       if (i.is_string()) cfg.expected_issuers.push_back(i.get<std::string>());
 
+  if (file.contains("ota") && file["ota"].is_object()) {
+    const auto& o = file["ota"];
+    auto ostr = [&](const char* key, std::string& out) {
+      if (o.contains(key) && o[key].is_string() && !o[key].get<std::string>().empty()) out = o[key].get<std::string>();
+    };
+    if (o.contains("enabled") && o["enabled"].is_boolean()) cfg.ota.enabled = o["enabled"].get<bool>();
+    ostr("apt_sources_path", cfg.ota.apt_sources_path);
+    ostr("metapackage", cfg.ota.metapackage);
+    ostr("signing_key_path", cfg.ota.signing_key_path);
+    ostr("idle_command", cfg.ota.idle_command);
+    ostr("healthcheck_command", cfg.ota.healthcheck_command);
+    ostr("ros_service", cfg.ota.ros_service);
+    ostr("updater_path", cfg.ota.updater_path);
+    ostr("state_dir", cfg.ota.state_dir);
+    ostr("job_store_path", cfg.ota.job_store_path);
+    if (o.contains("healthcheck_timeout_seconds") && o["healthcheck_timeout_seconds"].is_number_integer())
+      cfg.ota.healthcheck_timeout_seconds = o["healthcheck_timeout_seconds"].get<int>();
+    if (o.contains("allowed_suites") && o["allowed_suites"].is_array())
+      for (const auto& s : o["allowed_suites"])
+        if (s.is_string()) cfg.ota.allowed_suites.push_back(s.get<std::string>());
+    if (cfg.ota.enabled && (cfg.ota.healthcheck_timeout_seconds < 1 || cfg.ota.healthcheck_timeout_seconds > 3600))
+      throw std::runtime_error("ota.healthcheck_timeout_seconds must be between 1 and 3600");
+  }
+
   auto backend = BackendUrl::parse(cfg.backend_url);
   if (!backend)
     throw std::runtime_error("backend_url must be an https:// URL (got \"" + cfg.backend_url + "\")");

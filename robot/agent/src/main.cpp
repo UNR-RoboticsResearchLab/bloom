@@ -5,10 +5,14 @@
 //   robot-agent doctor [--config PATH]  diagnose connectivity from this network
 //   robot-agent version
 
+#include <chrono>
 #include <csignal>
+#include <fstream>
+#include <sstream>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <random>
 #include <string>
 #include <thread>
@@ -17,6 +21,7 @@
 #include "config.h"
 #include "doctor.h"
 #include "log.h"
+#include "ota_manager.h"
 #include "pty_process.h"
 #include "secret_apply.h"
 #include "supervisor.h"
@@ -82,7 +87,26 @@ int main(int argc, char** argv) {
   apply_options.use_sudo = geteuid() != 0;
   SecretApplier secret_applier = [apply_options](const std::string& secret) { return apply_secret(apply_options, secret); };
 
-  HttpBackend backend(cfg, pty_factory, secret_applier, stopping);
+  // OTA is opt-in. The job store lives in the agent's StateDirectory (bloom-agent.service).
+  std::unique_ptr<ota::SystemdOtaSystem> ota_system;
+  std::unique_ptr<ota::JobStore> ota_store;
+  std::unique_ptr<ota::OtaManager> ota_manager;
+  if (cfg.ota.enabled) {
+    ota_system = std::make_unique<ota::SystemdOtaSystem>(cfg.ota, /*use_sudo=*/geteuid() != 0);
+    ota_store = std::make_unique<ota::JobStore>(cfg.ota.job_store_path);
+    ota_store->load();
+    auto key_loader = [path = cfg.ota.signing_key_path] {
+      std::ifstream in(path);
+      std::stringstream ss;
+      ss << in.rdbuf();
+      return ss.str();
+    };
+    ota_manager = std::make_unique<ota::OtaManager>(cfg.ota, *ota_system, *ota_store, key_loader,
+                                                    [] { return std::chrono::system_clock::now(); });
+    log::info("ota: enabled (metapackage " + cfg.ota.metapackage + ", " + std::to_string(cfg.ota.allowed_suites.size()) + " allowed suite(s))");
+  }
+
+  HttpBackend backend(cfg, pty_factory, secret_applier, stopping, ota_manager.get());
   Supervisor supervisor(backend, backoff);
   supervisor.run(stopping, [&](std::chrono::milliseconds delay) {
     // Sleep in slices so SIGTERM is honoured promptly.

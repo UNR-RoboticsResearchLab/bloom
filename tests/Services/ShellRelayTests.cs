@@ -1,8 +1,7 @@
 using System;
-using System.IO;
-using System.Net.WebSockets;
 using System.Threading.Tasks;
 using bloom.Services.RemoteShell;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -24,14 +23,17 @@ namespace bloom.Tests.Services
         }
 
         private static ShellRelay CreateRelay(ManualTime time, int opensPerMinute = 3) =>
-            new(Mock.Of<IServiceScopeFactory>(),
+            new(Mock.Of<IHubContext<RobotAgentHub, IAgentClient>>(),
+                Mock.Of<IHubContext<ShellHub, IAdminClient>>(),
+                Mock.Of<IServiceScopeFactory>(),
                 Options.Create(new RemoteShellOptions { SessionOpensPerMinute = opensPerMinute }),
                 time,
                 NullLogger<ShellRelay>.Instance);
 
+        // Offline robot: the open is refused before anything is sent, but still counts toward the limit.
         private static OpenRequest OpenOfflineRobot(string adminId) =>
             new(Guid.NewGuid(), "robot", adminId, null,
-                new ShellSocket(WebSocket.CreateFromStream(new MemoryStream(), new WebSocketCreationOptions { IsServer = true })),
+                Mock.Of<HubCallerContext>(c => c.ConnectionId == Guid.NewGuid().ToString()),
                 80, 24, Force: false);
 
         [Fact]

@@ -1,13 +1,20 @@
 # robot-agent
 
 Gives admins a shell on a robot from the fleet dashboard, with no inbound ports. The agent keeps
-one **outbound** TLS WebSocket open to the backend (port 443 by default, through the system HTTP
+one **outbound** TLS connection open to the backend (port 443 by default, through the system HTTP
 proxy if there is one). The backend relays the admin's browser terminal over it into a PTY on the
-robot.
+robot. Both legs are [SignalR](https://learn.microsoft.com/aspnet/core/signalr) hubs.
 
 ```
-Browser (xterm.js) ──wss, admin cookie──▶ Backend relay ◀──wss, robot JWT── robot-agent ──▶ bash on a PTY
+Browser (xterm.js) ──SignalR /hubs/shell, admin cookie──▶ Backend ◀──SignalR /hubs/robot-agent, robot JWT── robot-agent ──▶ bash on a PTY
 ```
+
+**No .NET on the robot.** SignalR is just a wire protocol (JSON messages over a WebSocket), and
+Microsoft ships no C++ client, so the agent speaks it itself in `src/signalr.{h,cpp}` on top of
+Boost.Beast. It uses only the WebSocket transport, connecting straight to the WebSocket without
+SignalR's negotiate step, which means it does **not** get SignalR's long-polling/SSE fallback: a
+network that strips WebSocket upgrades blocks the agent (`robot-agent doctor` says so). Browsers get
+the fallback.
 
 - Plain CMake, C++17, **not** a ROS 2 package (`COLCON_IGNORE`). It's how you get in when the
   ROS stack is broken, so it must not depend on it.
@@ -15,6 +22,12 @@ Browser (xterm.js) ──wss, admin cookie──▶ Backend relay ◀──wss, 
   locked, so the agent is the only way to log in as it.
 - Every session is audited by the backend: who opened it, which robot, when it started and ended,
   and why it ended. Keystrokes and output are never stored.
+
+## On-demand OTA updates
+
+The agent can also trigger and report operator-requested software updates (Debian packages from a
+private apt repo, installed by the separate `fleet-ota` script). Off by default; see
+[docs/ota.md](../../docs/ota.md).
 
 ## Build
 
@@ -84,7 +97,7 @@ $ sudo -u bloom-ops /opt/bloom-agent/current/robot-agent doctor
 | TLS certificate / issuer | Chain and hostname verify. If they don't, it prints the certificate it was given. TLS interception (campus inspection appliances) shows up here. Set `expected_issuers` to also flag certificates from an unexpected CA |
 | Captive portal | `captive_check_url` (Ubuntu's connectivity check) must answer HTTP 204 |
 | Backend | `GET /api/agent/health` must come back from the Bloom backend, not a portal or proxy error page |
-| Login, WebSocket | The credentials are accepted and `/ws/robot-agent` upgrades. Doctor never sends `hello`, so it doesn't disturb the running agent |
+| Login, WebSocket, SignalR | The credentials are accepted, `/hubs/robot-agent` upgrades, and the server accepts the SignalR handshake (a proxy can pass the upgrade and still mangle the protocol). Doctor never sends `Hello`, so it doesn't disturb the running agent |
 
 If the network inspects TLS and policy requires it, add the inspection CA with `"ca_file"` in
 `agent.json`. That file is used in addition to the system store.
@@ -94,8 +107,9 @@ If the network inspects TLS and policy requires it, add the inspection CA with `
 - The agent logs in fresh (`POST /api/robot/login`) before every connection.
 - Reconnects use full-jitter exponential backoff: 1 s base, 60 s cap. It never gives up, and it
   resets after a tunnel has stayed up for 60 s.
-- The agent sends an app-level `ping` every 25 s. A link silent for 60 s is treated as dead and
-  reconnected. The backend drops agents that are silent for 75 s.
+- SignalR pings both ways: the server every 15 s, the agent every 15 s. A connection silent for 60 s
+  is treated as dead and reconnected. The backend drops agents that are silent for
+  `RemoteShell:AgentIdleTimeoutSeconds` (75 s).
 - **The backend closes every tunnel when its JWT expires** (`Jwt:ExpireMinutes`, 30 by default).
   The agent reconnects immediately, but **any open shell on that robot ends with
   `token_expired`**.
@@ -158,9 +172,30 @@ tunnel, so it doubles as "kick everyone off this robot".
 
 ## Wire protocol
 
-This is in `src/protocol.h`, mirrored in `backend/Services/RemoteShell/ShellProtocol.cs`.
-- Control messages are JSON text frames: `hello`, `ping`/`pong`, `open`, `resize`, `close`,
-  `exited`.
-- Terminal bytes are binary frames: `[0x01][16-byte session id][payload]`.
-- The version in `hello` is SemVer 2.0. The backend stores it only if it parses, and compares it
+SignalR's JSON hub protocol: every message is a JSON object followed by the byte `0x1E`, and a
+WebSocket message can carry several. The codec is `src/signalr.{h,cpp}`; the contract on top of it
+is `src/protocol.{h,cpp}`, mirrored in `backend/Services/RemoteShell/` (`RobotAgentHub.cs`,
+`ShellHubClients.cs`) and the browser's `RobotTerminal.jsx`. Change all of them together.
+
+| Agent → server | Arguments |
+|---|---|
+| `Hello` | `version`, `commit` (first call on every connection) |
+| `Output` | `sessionId`, `bytes` |
+| `SessionExited` | `sessionId`, `code` |
+| `SecretApplied` | `requestId`, `ok`, `message` |
+
+| Server → agent | Arguments |
+|---|---|
+| `Open` / `Resize` | `sessionId`, `cols`, `rows` |
+| `Input` | `sessionId`, `bytes` |
+| `Close` | `sessionId` |
+| `SetSecret` | `requestId`, `secret` (never logged) |
+| `Disconnecting` | `reason`: sent just before the server drops the connection, because a hub can't attach a reason to a drop. It decides how the agent reconnects: `token_expired` / `credentials_rotated` reconnect at once, `revoked` backs off |
+
+- GUIDs are strings; bytes are base64 (about 33% bigger than raw, which is irrelevant for a shell).
+- The backend rejects a message over 256 KB by dropping the connection, so senders keep messages
+  small (the browser sends input in 8 KB pieces, the agent reads the shell 16 KB at a time).
+- Input to the shell is written asynchronously (`src/pty_writer.h`): a blocking write would stall
+  the agent on a large paste, because the shell's echo backs up while the agent isn't draining it.
+- The version in `Hello` is SemVer 2.0. The backend stores it only if it parses, and compares it
   as SemVer, never as a string. OTA in Phase 2 relies on that.

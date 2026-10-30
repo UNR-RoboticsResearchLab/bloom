@@ -5,10 +5,10 @@ import queue
 import threading
 import sounddevice as sd
 import rclpy
+from bloom_speech.envfile import load_env
 from rclpy.node import Node
 from std_msgs.msg import String
 from vosk import Model, KaldiRecognizer
-from ament_index_python.packages import get_package_share_directory
 
 from bloom_speech.mic_utils import find_sounddevice_input
 
@@ -79,14 +79,7 @@ class STTNode(Node):
 
 
 def main(args=None):
-    env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')
-    if os.path.exists(env_path):
-        with open(env_path) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    os.environ.setdefault(key.strip(), value.strip())
+    load_env()
 
     rclpy.init(args=args)
     node = STTNode()

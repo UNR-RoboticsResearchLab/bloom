@@ -1,6 +1,5 @@
 #include "tunnel.h"
 
-#include <poll.h>
 #include <unistd.h>
 
 #include <array>
@@ -17,7 +16,9 @@
 #include "liveness.h"
 #include "log.h"
 #include "protocol.h"
+#include "pty_writer.h"
 #include "sessions.h"
+#include "signalr.h"
 #include "version.h"
 
 namespace bloom_agent {
@@ -29,49 +30,42 @@ using clock = std::chrono::steady_clock;
 
 namespace {
 
-constexpr auto kPingInterval = std::chrono::seconds(25);
+// SignalR's server pings us every 15 s and drops a client that has been silent for the backend's
+// ClientTimeoutInterval (75 s by default), so we send something at least that often too.
+constexpr auto kPingInterval = std::chrono::seconds(15);
 constexpr auto kDeadAfter = std::chrono::seconds(60);
 // Stop reading shell output while this much is waiting to go out (e.g. `cat` of a huge file over a
 // slow link), so memory stays bounded; resume below kResumeBytes.
 constexpr std::size_t kPauseBytes = 1 << 20;
 constexpr std::size_t kResumeBytes = 256 << 10;
 
-// Keystrokes into the PTY. The master is non-blocking; input is small, so wait briefly when the
-// kernel buffer is full (a big paste) rather than queueing.
-void write_all(int fd, std::string_view data) {
-  for (int stalls = 0; !data.empty() && stalls < 20;) {
-    const ssize_t n = ::write(fd, data.data(), data.size());
-    if (n > 0) {
-      data.remove_prefix(static_cast<size_t>(n));
-      stalls = 0;
-    } else if (n < 0 && (errno == EAGAIN || errno == EINTR)) {
-      pollfd p{fd, POLLOUT, 0};
-      ::poll(&p, 1, 100);
-      ++stalls;
-    } else {
-      return;  // EIO: the shell is gone; the reader will report it
-    }
-  }
-}
-
 // One established tunnel. Everything runs on one thread inside io.run(): WebSocket reads and
 // writes, every PTY's output, and the keepalive timer.
-class TunnelSession {
+class TunnelSession : public ota::IOtaSink {
  public:
   using Ws = websocket::stream<TlsStream>;
 
-  TunnelSession(asio::io_context& io, Ws& ws, PtyFactory factory, SecretApplier applier, std::function<bool()> stopping)
+  TunnelSession(asio::io_context& io, Ws& ws, PtyFactory factory, SecretApplier applier, std::function<bool()> stopping,
+                ota::OtaManager* ota)
       : io_(io),
         ws_(ws),
         sessions_(std::move(factory)),
         secret_applier_(std::move(applier)),
         stopping_(std::move(stopping)),
+        ota_(ota),
         liveness_(kPingInterval, kDeadAfter, clock::now()),
-        timer_(io) {}
+        timer_(io) {
+    ws_.text(true);  // SignalR's JSON protocol is text frames throughout
+  }
+
+  ~TunnelSession() override {
+    if (ota_) ota_->detach();
+  }
 
   TunnelResult run() {
     const auto started = clock::now();
-    send(false, hello_message(kVersion, kCommit));
+    // The first thing on a SignalR connection; Hello follows once the server accepts it.
+    send(signalr::handshake_request());
     start_read();
     start_timer();
     io_.run();
@@ -81,11 +75,20 @@ class TunnelSession {
 
  private:
   struct Reader {
-    Reader(asio::io_context& io, int fd) : descriptor(io, ::dup(fd)) {}
+    Reader(asio::io_context& io, int fd) : descriptor(io, ::dup(fd)), input(PtyWriter::create(io, fd)) {}
+    ~Reader() { input->cancel(); }
     asio::posix::stream_descriptor descriptor;
+    std::shared_ptr<PtyWriter> input;  // keystrokes in: asynchronous, see pty_writer.h
     std::array<char, 16 * 1024> buffer{};
     bool paused = false;
   };
+
+  // ── OTA reports (ota::IOtaSink) ─────────────────────────────────────────
+
+  void progress(const ota::JobStatus& status) override {
+    send(ota_progress_message(status.job_id, ota::to_string(status.state), status.percent, status.detail));
+  }
+  void installed_version(const std::string& version) override { send(installed_version_message(version)); }
 
   // ── WebSocket ───────────────────────────────────────────────────────────
 
@@ -96,39 +99,28 @@ class TunnelSession {
   void on_read(beast::error_code ec) {
     if (finished_) return;
     if (ec) {
-      // A received close frame is authoritative even when the read then fails: the backend
-      // (Kestrel) drops TCP after the close handshake without a TLS close_notify, which Beast
-      // reports as stream_truncated rather than websocket::error::closed.
-      if (ec == websocket::error::closed || ws_.reason().code != websocket::close_code::none) {
-        const auto reason = std::string(ws_.reason().reason.c_str());
-        if (reason == "token_expired")
-          finish(TunnelEnd::TokenExpired, reason);
-        else if (reason == "credentials_rotated")
-          finish(TunnelEnd::CredentialsRotated, reason);
-        else if (reason == "revoked")
-          finish(TunnelEnd::Revoked, reason);
-        else
-          finish(TunnelEnd::Closed, "closed by backend: " + std::to_string(ws_.reason().code) + " " + reason);
-      } else {
+      if (ec == websocket::error::closed || ws_.reason().code != websocket::close_code::none)
+        finish(TunnelEnd::Closed, "closed by backend: " + std::to_string(ws_.reason().code) + " " + std::string(ws_.reason().reason.c_str()));
+      else
         finish(TunnelEnd::Closed, error_text(ec));
-      }
       return;
     }
 
     liveness_.on_received(clock::now());
-    const bool text = ws_.got_text();
-    const auto data = beast::buffers_to_string(read_buffer_.data());
+    records_.feed(beast::buffers_to_string(read_buffer_.data()));
     read_buffer_.consume(read_buffer_.size());
-    if (text)
-      on_control(data);
-    else
-      on_data(data);
-    start_read();
+    // A message may hold several records, and handling one can end the tunnel.
+    while (!finished_) {
+      const auto record = records_.next();
+      if (!record) break;
+      on_record(*record);
+    }
+    if (!finished_) start_read();
   }
 
-  void send(bool binary, std::string message) {
+  void send(std::string message) {
     queued_bytes_ += message.size();
-    outbox_.emplace_back(binary, std::move(message));
+    outbox_.push_back(std::move(message));
     if (!writing_) write_next();
   }
 
@@ -138,92 +130,136 @@ class TunnelSession {
       return;
     }
     writing_ = true;
-    ws_.text(!outbox_.front().first);
-    ws_.async_write(asio::buffer(outbox_.front().second), [this](beast::error_code ec, std::size_t) {
+    ws_.async_write(asio::buffer(outbox_.front()), [this](beast::error_code ec, std::size_t) {
       if (finished_) return;
       if (ec) {
         finish(TunnelEnd::Closed, "write failed: " + error_text(ec));
         return;
       }
-      queued_bytes_ -= outbox_.front().second.size();
+      queued_bytes_ -= outbox_.front().size();
       outbox_.pop_front();
       if (queued_bytes_ < kResumeBytes) resume_readers();
       write_next();
     });
   }
 
-  // ── Control messages from the backend ───────────────────────────────────
+  // ── Messages from the backend ───────────────────────────────────────────
 
-  void on_control(const std::string& data) {
-    nlohmann::json msg;
-    try {
-      msg = nlohmann::json::parse(data);
-    } catch (const nlohmann::json::exception&) {
-      log::warn("ignoring malformed control message");
+  void on_record(const std::string& record) {
+    if (!handshaken_) {
+      const auto reply = signalr::parse_handshake_response(record);
+      if (!reply.ok) {
+        finish(TunnelEnd::ConnectFailed, "SignalR handshake refused: " + reply.error);
+        return;
+      }
+      handshaken_ = true;
+      send(hello_message(kVersion, kCommit));
+      if (ota_) {
+        ota_->attach(this);
+        ota_->on_connected();
+      }
       return;
     }
-    const auto type = msg.value("type", "");
-    if (type == "pong") return;
-    if (type == "set_secret") {
-      on_set_secret(data);  // pass the raw text: `msg` holds the secret and isn't kept around
+
+    const auto message = signalr::parse_message(record);
+    if (!message) {
+      log::warn("ignoring a malformed SignalR message");
       return;
     }
-
-    const auto id = parse_uuid(msg.value("sessionId", ""));
-    if (!id) return;
-
-    if (type == "open") {
-      open_session(*id, msg.value("cols", 80), msg.value("rows", 24));
-    } else if (type == "resize") {
-      sessions_.resize(*id, msg.value("cols", 80), msg.value("rows", 24));
-    } else if (type == "close") {
-      log::info("session " + format_uuid(*id) + " closed by backend");
-      readers_.erase(*id);
-      sessions_.close(*id);
+    switch (message->type) {
+      case signalr::MessageType::Invocation:
+        on_invocation(message->target, message->arguments);
+        break;
+      case signalr::MessageType::Close:
+        finish(TunnelEnd::Closed, "the backend closed the connection" + (message->error.empty() ? "" : ": " + message->error));
+        break;
+      default:
+        break;  // Ping: it already counted as liveness. Completions: we never ask for one.
     }
   }
 
+  void on_invocation(const std::string& target, const nlohmann::json& args) {
+    if (target == "SetSecret") {
+      on_set_secret(args);
+    } else if (target == "StartOta") {
+      if (ota_) ota_->on_start_ota(args);
+      else log::warn("ignoring StartOta: OTA is not enabled on this robot");
+    } else if (target == "CancelOta") {
+      if (ota_) ota_->on_cancel_ota(args);
+    } else if (target == "GetOtaStatus") {
+      if (ota_) ota_->on_get_status();
+    } else if (target == "Disconnecting") {
+      on_disconnecting(arg_string(args, 0).value_or(""));
+    } else if (target == "Open") {
+      const auto id = arg_uuid(args, 0);
+      if (id) open_session(*id, arg_int(args, 1).value_or(80), arg_int(args, 2).value_or(24));
+    } else if (target == "Input") {
+      const auto id = arg_uuid(args, 0);
+      const auto bytes = arg_bytes(args, 1);
+      if (id && bytes) {
+        const auto it = readers_.find(*id);
+        if (it != readers_.end()) it->second->input->write(*bytes);
+      }
+    } else if (target == "Resize") {
+      const auto id = arg_uuid(args, 0);
+      if (id) sessions_.resize(*id, arg_int(args, 1).value_or(80), arg_int(args, 2).value_or(24));
+    } else if (target == "Close") {
+      const auto id = arg_uuid(args, 0);
+      if (id) {
+        log::info("session " + format_uuid(*id) + " closed by backend");
+        readers_.erase(*id);
+        sessions_.close(*id);
+      }
+    }
+  }
+
+  // A hub can't attach a reason to dropping a connection, so the backend says why first. Act on it
+  // now rather than waiting for the connection to die: the reason decides how we reconnect.
+  void on_disconnecting(const std::string& reason) {
+    if (reason == "token_expired")
+      finish(TunnelEnd::TokenExpired, reason);
+    else if (reason == "credentials_rotated")
+      finish(TunnelEnd::CredentialsRotated, reason);
+    else if (reason == "revoked")
+      finish(TunnelEnd::Revoked, reason);
+    else
+      finish(TunnelEnd::Closed, "dropped by backend: " + reason);  // robot_deleted, replaced, ...
+  }
+
   // The backend pushes a rotated secret. Apply it to disk, confirm, and the backend then drops the
-  // tunnel so we log in again with it. Blocks the loop for the script's runtime (seconds).
-  void on_set_secret(const std::string& raw) {
-    const auto request_id = request_id_of(raw);
+  // connection so we log in again with it. Blocks the loop for the script's runtime (seconds).
+  void on_set_secret(const nlohmann::json& args) {
+    const auto request_id = request_id_of(args);
     if (!request_id) {
-      log::warn("ignoring set_secret without a valid requestId");
+      log::warn("ignoring SetSecret without a valid requestId");
       return;
     }
-    const auto request = parse_set_secret(raw);
+    const auto request = parse_set_secret(args);
     if (!request) {
-      send(false, secret_applied_message(*request_id, false, "the pushed secret was malformed"));
+      send(secret_applied_message(*request_id, false, "the pushed secret was malformed"));
       return;
     }
     if (secret_is_externally_managed()) {
-      send(false, secret_applied_message(*request_id, false,
-                                         "this robot's secret comes from systemd credentials and can't be replaced remotely"));
+      send(secret_applied_message(*request_id, false,
+                                  "this robot's secret comes from systemd credentials and can't be replaced remotely"));
       return;
     }
     log::info("applying a pushed secret");
     const auto result = secret_applier_(request->secret);
     log::info(result.ok ? "pushed secret applied" : "pushed secret NOT applied: " + result.message);
-    send(false, secret_applied_message(*request_id, result.ok, result.message));
+    send(secret_applied_message(*request_id, result.ok, result.message));
   }
 
   void open_session(const Uuid& id, int cols, int rows) {
     auto* pty = sessions_.open(id, cols, rows);
     if (!pty) {
-      send(false, exited_message(id, std::nullopt));
+      send(exited_message(id, std::nullopt));
       return;
     }
     log::info("session " + format_uuid(id) + " opened (" + std::to_string(cols) + "x" + std::to_string(rows) + ")");
     auto reader = std::make_shared<Reader>(io_, pty->fd());
     readers_[id] = reader;
     read_pty(id, reader);
-  }
-
-  void on_data(const std::string& frame) {
-    Uuid id;
-    std::string_view payload;
-    if (!decode_data_frame(frame, id, payload)) return;
-    if (auto* pty = sessions_.find(id)) write_all(pty->fd(), payload);
   }
 
   // ── Shell output ────────────────────────────────────────────────────────
@@ -241,7 +277,7 @@ class TunnelSession {
         shell_exited(id);
         return;
       }
-      send(true, encode_data_frame(id, std::string_view(reader->buffer.data(), n)));
+      send(output_message(id, std::string_view(reader->buffer.data(), n)));
       if (queued_bytes_ >= kPauseBytes)
         reader->paused = true;
       else
@@ -266,7 +302,7 @@ class TunnelSession {
       pty->terminate();
     }
     log::info("session " + format_uuid(id) + " shell exited" + (code ? " (" + std::to_string(*code) + ")" : ""));
-    send(false, exited_message(id, code));
+    send(exited_message(id, code));
   }
 
   // ── Keepalive / shutdown ────────────────────────────────────────────────
@@ -284,8 +320,9 @@ class TunnelSession {
         finish(TunnelEnd::Dead, "nothing received for " + std::to_string(kDeadAfter.count()) + "s");
         return;
       }
+      if (ota_) ota_->poll();
       if (liveness_.ping_due(now)) {
-        send(false, ping_message());
+        send(signalr::ping());
         liveness_.on_ping_sent(now);
       }
       start_timer();
@@ -297,6 +334,10 @@ class TunnelSession {
     finished_ = true;
     result_.end = end;
     result_.detail = std::move(detail);
+
+    // Reports made from here on are recorded and sent on the next connection. Updates themselves
+    // run in their own systemd unit and carry on regardless.
+    if (ota_) ota_->detach();
 
     // Nobody can see these shells any more; don't leave them running.
     readers_.clear();
@@ -314,11 +355,14 @@ class TunnelSession {
   SessionManager sessions_;
   SecretApplier secret_applier_;
   std::function<bool()> stopping_;
+  ota::OtaManager* ota_;
   Liveness liveness_;
   asio::steady_timer timer_;
 
   beast::flat_buffer read_buffer_;
-  std::deque<std::pair<bool, std::string>> outbox_;  // (binary, message)
+  std::deque<std::string> outbox_;
+  signalr::RecordParser records_;
+  bool handshaken_ = false;
   std::size_t queued_bytes_ = 0;
   bool writing_ = false;
   std::map<Uuid, std::shared_ptr<Reader>> readers_;
@@ -330,12 +374,13 @@ class TunnelSession {
 }  // namespace
 
 HttpBackend::HttpBackend(const AgentConfig& cfg, PtyFactory pty_factory, SecretApplier secret_applier,
-                         std::function<bool()> stopping)
+                         std::function<bool()> stopping, ota::OtaManager* ota)
     : cfg_(cfg),
       tls_(make_tls_context(cfg)),
       pty_factory_(std::move(pty_factory)),
       secret_applier_(std::move(secret_applier)),
-      stopping_(std::move(stopping)) {}
+      stopping_(std::move(stopping)),
+      ota_(ota) {}
 
 LoginResult HttpBackend::login() {
   try {
@@ -380,7 +425,7 @@ TunnelResult HttpBackend::run_tunnel(const std::string& token) {
 
   websocket::response_type res;
   beast::error_code ec;
-  ws.handshake(res, cfg_.backend.authority(), cfg_.backend.base_path + "/ws/robot-agent", ec);
+  ws.handshake(res, cfg_.backend.authority(), cfg_.backend.base_path + "/hubs/robot-agent", ec);
   if (ec) {
     const auto status = res.result_int();
     if (status == 401 || status == 403) return {TunnelEnd::AuthRejected, {}, "HTTP " + std::to_string(status)};
@@ -388,8 +433,8 @@ TunnelResult HttpBackend::run_tunnel(const std::string& token) {
     return {TunnelEnd::ConnectFailed, {}, error_text(ec)};
   }
 
-  log::info("tunnel up to " + cfg_.backend.authority() + " (agent " + kVersion + ")");
-  TunnelSession session(io, ws, pty_factory_, secret_applier_, stopping_);
+  log::info("connected to " + cfg_.backend.authority() + " (agent " + kVersion + ")");
+  TunnelSession session(io, ws, pty_factory_, secret_applier_, stopping_, ota_);
   return session.run();
 }
 

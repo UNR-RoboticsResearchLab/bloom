@@ -1,5 +1,7 @@
 #include "proxy.h"
 
+#include "base64.h"
+
 #include <gtest/gtest.h>
 
 #include <map>
@@ -61,12 +63,4 @@ TEST(Proxy, ConnectRequestIsWellFormed) {
             "Host: bloom.example.edu:443\r\n"
             "Proxy-Authorization: Basic dXNlcjpwYXNz\r\n"
             "User-Agent: bloom-robot-agent\r\n\r\n");
-}
-
-TEST(Proxy, Base64) {
-  EXPECT_EQ(base64_encode(""), "");
-  EXPECT_EQ(base64_encode("f"), "Zg==");
-  EXPECT_EQ(base64_encode("fo"), "Zm8=");
-  EXPECT_EQ(base64_encode("foo"), "Zm9v");
-  EXPECT_EQ(base64_encode("user:pass"), "dXNlcjpwYXNz");
 }

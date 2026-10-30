@@ -1,11 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
-import sys
-import os
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from llm_module.engine_azure_openai import AzureOpenAIEngine
+from bloom_speech_engines.llm.engine_azure_openai import AzureOpenAIEngine
 
 
 class TestAzureOpenAIEngine(unittest.TestCase):

@@ -454,14 +454,11 @@ export default class ApiClient {
     return new URL(this.baseUrl || window.location.origin, window.location.href).origin;
   }
 
-  // WebSocket URL for one remote shell session. Same host as the REST API (so the auth cookie
-  // goes with it); an empty baseUrl means same-origin, e.g. behind the CRA dev proxy.
-  shellSocketUrl(robotId, cols, rows, force = false) {
+  // URL of the remote shell's SignalR hub. Same host as the REST API (so the auth cookie goes with
+  // it); an empty baseUrl means same-origin, e.g. behind the CRA dev proxy.
+  shellHubUrl() {
     const base = new URL(this.baseUrl || window.location.origin, window.location.href);
-    base.protocol = base.protocol === "https:" ? "wss:" : "ws:";
-    base.pathname = `${base.pathname.replace(/\/$/, "")}/ws/shell`;
-    base.search = new URLSearchParams({ robotId, cols, rows, force }).toString();
-    return base.toString();
+    return `${base.origin}${base.pathname.replace(/\/$/, "")}/hubs/shell`;
   }
 
   async getRobotsByFirmwareVersion(firmwareVersion) {

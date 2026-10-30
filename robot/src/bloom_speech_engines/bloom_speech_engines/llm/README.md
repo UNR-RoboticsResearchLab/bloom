@@ -6,10 +6,9 @@ Large Language Model integration for Bloom robot conversations
 
 ### 1. Install dependencies
 ```bash
-cd llm_module
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e 'robot/src/bloom_speech_engines[llm]'
 ```
 
 ### 2. Configure API keys
@@ -23,7 +22,7 @@ Edit `config.py` with your credentials:
 
 ### 3. Test
 ```bash
-python test_engine.py
+python -m bloom_speech_engines.llm.live_check
 ```
 
 ## Engines
@@ -35,7 +34,7 @@ Switch engines in `test_engine.py` by commenting/uncommenting the ENGINE initial
 
 ## Basic Usage
 ```python
-from engine_azure_openai import AzureOpenAIEngine
+from bloom_speech_engines.llm.engine_azure_openai import AzureOpenAIEngine
 
 engine = AzureOpenAIEngine(
     api_key="your-key",

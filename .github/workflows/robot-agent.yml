@@ -23,7 +23,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake g++ libboost-dev libssl-dev libgtest-dev nlohmann-json3-dev
+          sudo apt-get install -y --no-install-recommends cmake g++ libboost-dev libssl-dev libgtest-dev nlohmann-json3-dev shellcheck bats jq
 
       - name: Setup .NET (for the nbgv CLI)
         uses: actions/setup-dotnet@v4
@@ -47,13 +47,18 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+      - name: Lint and test the OTA updater
+        run: |
+          shellcheck -x robot/agent/deploy/fleet-ota
+          bats robot/agent/tests/fleet-ota
+
       - name: Package
         id: package
         run: |
           name="robot-agent-${{ steps.version.outputs.semver }}"
           mkdir -p "dist/$name"
           strip -o "dist/$name/robot-agent" build/robot-agent
-          cp robot/agent/deploy/install.sh robot/agent/deploy/provision.sh robot/agent/deploy/bloom-agent.service \
+          cp robot/agent/deploy/install.sh robot/agent/deploy/provision.sh robot/agent/deploy/fleet-ota robot/agent/deploy/bloom-agent.service \
              robot/agent/deploy/agent.json.example robot/agent/README.md "dist/$name/"
           "dist/$name/robot-agent" version
           tar -C dist -czf "dist/$name.tar.gz" "$name"

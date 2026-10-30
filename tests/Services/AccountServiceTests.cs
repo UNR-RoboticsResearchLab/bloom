@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using bloom.Data;
 using bloom.Models;
 using bloom.Models.dto;
-using bloom.Services;
+using bloom.Services.Accounts;
 
 namespace bloom.Tests.Services
 {

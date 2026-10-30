@@ -1,67 +1,135 @@
-## Builds Database container and ASP.NET Core container for the production environment
-## Need to add a ROS container potentially
+## Bloom production stack: MariaDB, the ASP.NET Core server (which also serves the built React app),
+## and an optional AutoRSR service. Deployed to the development server by CI (deploy-docker.sh);
+## setup and secrets are in docs/deploy-docker.md.
+##
+##   cp .env.example .env     # fill in every value; compose refuses to start with a required one missing
+##   docker compose -f docker-compose.prod.yml up -d --build
+##
+## Runs with ASPNETCORE_ENVIRONMENT=Production: Swagger is off, the ProductionConnection strings are
+## used, and Program.cs insists on a data-protection certificate and the secrets below.
+## The server listens on plain HTTP on loopback only. Put a TLS reverse proxy in front of it:
+## robot agents connect only over https.
+
+name: bloom-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
 
 services:
 
   mariadb-prod:
-    image: mariadb:latest
+    image: mariadb:11.7            # the backend is configured for MariaDB 11.7
     container_name: bloom-mariadb
-    restart: always
+    restart: unless-stopped
     environment:
-      MARIADB_ROOT_PASSWORD: bloomrootpassword
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?set MARIADB_ROOT_PASSWORD in .env}
       MARIADB_DATABASE: bloomdb
       MARIADB_USER: bloomuser
-      MARIADB_PASSWORD: bloompassword
-    ports:
-      - "3306:3306"
+      MARIADB_PASSWORD: ${BLOOM_DB_PASSWORD:?set BLOOM_DB_PASSWORD in .env}
+    # No published ports: only the other containers on bloom-network reach the database.
     volumes:
       - db_data:/var/lib/mysql
     networks:
       - bloom-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MARIADB_ROOT_PASSWORD"]
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 20s
-  
+      retries: 10
+      start_period: 30s
+    logging: *logging
+
+  arsr-db:
+    image: mariadb:11.7
+    container_name: bloom-arsr-db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?set MARIADB_ROOT_PASSWORD in .env}
+      MARIADB_DATABASE: arsrdbl
+      MARIADB_USER: arsruser
+      MARIADB_PASSWORD: ${ARSR_DB_PASSWORD:?set ARSR_DB_PASSWORD in .env}
+    volumes:
+      - arsr_db_data:/var/lib/mysql
+    networks:
+      - bloom-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging: *logging
+
   bloom-server:
     build:
       context: .
+      args:
+        # CI passes the nbgv SemVer; a local build is stamped 0.0.0-local.
+        BUILD_VERSION: ${BUILD_VERSION:-0.0.0-local}
     image: bloom-server:latest
     container_name: bloom-server
+    restart: unless-stopped
+    labels:
+      bloom.commit: ${BLOOM_COMMIT:-unknown}   # set by deploy-docker.sh; read back to know what's running
     ports:
-      - "5000:8080"
-      - "2443:2443"
+      # Loopback only: the TLS proxy on the host forwards to this. Set BLOOM_BIND=0.0.0.0 only if
+      # nothing sits in front.
+      - "${BLOOM_BIND:-127.0.0.1}:${BLOOM_HTTP_PORT:-5000}:8080"
     depends_on:
       mariadb-prod:
-        condition: service_started
-        restart: true
+        condition: service_healthy
+      arsr-db:
+        condition: service_healthy
+    # Optional extras (Azure OpenAI for lesson generation, ...); the app reads backend/.env itself.
+    env_file:
+      - path: backend/.env
+        required: false
     environment:
-    - ASPNETCORE_ENVIRONMENT=Development
-    - ASPNETCORE_URLS=http://+:8080
-    restart: always
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      # Passwords must not contain ';' (they sit inside a connection string).
+      ConnectionStrings__ProductionConnection: "server=mariadb-prod;port=3306;database=bloomdb;user=bloomuser;password=${BLOOM_DB_PASSWORD};"
+      ConnectionStrings__ProdArsrConnection: "server=arsr-db;port=3306;database=arsrdbl;user=arsruser;password=${ARSR_DB_PASSWORD};"
+      # The default Jwt:Key is public (it's in git). Anything that mints robot tokens needs this.
+      Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env (openssl rand -base64 48)}
+      Seed__AdminPassword: ${SEED_ADMIN_PASSWORD:?set SEED_ADMIN_PASSWORD in .env}
+      DataProtection__CertPath: /etc/bloom/certs/bloomserver.pfx
+      DataProtection__CertPassword: ${DP_CERT_PASSWORD:?set DP_CERT_PASSWORD in .env}
+      DataProtection__KeyringPath: /var/dpkeys
+      RemoteShell__Enabled: ${REMOTE_SHELL_ENABLED:-true}
+      Robot__AllowLegacyNameOnlyLogin: "false"
+      Releases__GitHub__Token: ${GITHUB_RELEASES_TOKEN:-}
+      AutoRsr__BaseUrl: ${AUTORSR_BASE_URL:-http://auto_rsr:5050}
+      ArSr__MicroserviceUrl: ${ARSR_MICROSERVICE_URL:-http://arsr-service:5050}
     volumes:
       - dpkeys:/var/dpkeys
+      # PKCS#12 certificate that encrypts the data-protection keys (see docs/deploy-docker.md).
+      - ${DP_CERT_FILE:-./certs/bloomserver.pfx}:/etc/bloom/certs/bloomserver.pfx:ro
     networks:
       - bloom-network
+    logging: *logging
 
+  # Optional: the ArSr speech service, built from a checkout that is not part of this repo.
+  # Enable with: docker compose -f docker-compose.prod.yml --profile arsr up -d --build
   arsr-service:
+    profiles: ["arsr"]
     build:
-      context: ../AutoRsr-NoBert-SARG
+      context: ${ARSR_SOURCE_DIR:-../AutoRsr-NoBert-SARG}
       dockerfile: Dockerfile
     image: arsr-service:latest
-    container_name: arsr-service
-    ports:
-      - "5050:5050"
+    container_name: bloom-arsr-service
+    restart: unless-stopped
     environment:
-      - ARSR_PORT=5050
-      - ARSR_RECORDINGS_DIR=/data/recordings
+      ARSR_PORT: 5050
+      ARSR_RECORDINGS_DIR: /data/recordings
     volumes:
       - arsr_recordings:/data/recordings
     networks:
       - bloom-network
-    restart: always
+    logging: *logging
 
 networks:
   bloom-network:
@@ -70,4 +138,5 @@ networks:
 volumes:
   dpkeys:
   db_data:
+  arsr_db_data:
   arsr_recordings:

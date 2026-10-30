@@ -1,0 +1,77 @@
+name: Deploy development
+
+# Deploys every push to development to the server described in docs/deploy-docker.md, once the tests
+# pass. The runner joins your Tailscale tailnet, then SSHes to the server over it, so the server
+# needs no public SSH port.
+#
+# Needs, in the "development" environment (Settings -> Environments):
+#   TS_OAUTH_CLIENT_ID, TS_OAUTH_SECRET   Tailscale OAuth client (scope: auth_keys write, tag:ci)
+#   DEPLOY_HOST                           the server's tailnet name or 100.x address
+#   DEPLOY_USER, DEPLOY_PATH              deploy user, and the repo checkout on the server
+#   DEPLOY_SSH_KEY                        private key of a deploy-only key pair (no passphrase)
+#   DEPLOY_KNOWN_HOSTS                    ssh-keyscan -t ed25519 <DEPLOY_HOST>, run from the tailnet
+# The tailnet policy must let tag:ci reach the server on port 22.
+on:
+  push:
+    branches: [development]
+  workflow_dispatch:
+
+# One deploy at a time; a newer push waits rather than cancelling a deploy half way.
+concurrency:
+  group: deploy-development
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    name: Tests
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to development server
+    needs: tests
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # The Docker build has no .git, so the version is computed here and passed in.
+      - name: Version
+        id: version
+        run: |
+          dotnet tool install -g nbgv
+          echo "semver=$("$HOME/.dotnet/tools/nbgv" get-version -v SemVer2)" >> "$GITHUB_OUTPUT"
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          BUILD_VERSION: ${{ steps.version.outputs.semver }}
+        run: |
+          for v in DEPLOY_HOST DEPLOY_USER DEPLOY_PATH DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS; do
+            [ -n "${!v}" ] || { echo "::error::Secret $v is not set in the 'development' environment"; exit 1; }
+          done
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # The host key is pinned (no trust-on-first-use): a changed key fails the deploy.
+          # Fetch and check out first, then run the script from the new checkout.
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "cd $(printf %q "$DEPLOY_PATH") && git fetch --prune origin && git checkout --force --detach $(printf %q "$GITHUB_SHA") && BUILD_VERSION=$(printf %q "$BUILD_VERSION") ./deploy-docker.sh"

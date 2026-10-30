@@ -1,9 +1,18 @@
 using System;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using bloom.Models;
 using bloom.Tests.TestHelpers;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 
 namespace bloom.Tests.Integration
 {
@@ -40,6 +49,46 @@ namespace bloom.Tests.Integration
             }
 
             return client;
+        }
+
+        /// <summary>
+        /// Logs a robot in via the real POST /api/robot/login with its RobotId + Secret, and
+        /// returns the raw JWT. Use for robot-side endpoints and the shell relay.
+        /// </summary>
+        public static async Task<string> LoginRobotAsync(BloomWebApplicationFactory factory, Guid robotId, string secret)
+        {
+            var client = factory.CreateClient();
+            var response = await client.PostAsJsonAsync("api/robot/login", new { RobotId = robotId, Secret = secret });
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                throw new InvalidOperationException(
+                    $"Test robot login failed for '{robotId}': {(int)response.StatusCode} {body}");
+            }
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            return json.RootElement.GetProperty("token").GetString()!;
+        }
+
+        public static HttpClient CreateBearerClient(BloomWebApplicationFactory factory, string token)
+        {
+            var client = factory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            return client;
+        }
+
+        /// <summary>
+        /// Signs an arbitrary JWT with the factory's real Jwt:Key -- for tests that need a token
+        /// the backend would never issue itself (forged roles, stale token versions, expiry).
+        /// </summary>
+        public static string MintJwt(BloomWebApplicationFactory factory, IEnumerable<Claim> claims, DateTime? expires = null)
+        {
+            var key = factory.Services.GetRequiredService<IConfiguration>()["Jwt:Key"]!;
+            var token = new JwtSecurityToken(
+                claims: claims,
+                expires: expires ?? DateTime.UtcNow.AddMinutes(30),
+                signingCredentials: new SigningCredentials(
+                    new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)), SecurityAlgorithms.HmacSha256));
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
 }

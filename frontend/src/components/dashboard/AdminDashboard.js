@@ -1,6 +1,11 @@
 import { useMemo, useState, useEffect} from "react";
 import DashboardLayout from "./DashboardLayout";
 import LessonBuilder from "../LessonBuilder";
+import RobotFleetCard from "./RobotFleetCard";
+import RobotTerminal from "./RobotTerminal";
+import AddRobotDialog from "./AddRobotDialog";
+import RobotCredentialsDialog from "./RobotCredentialsDialog";
+import DeleteRobotDialog from "./DeleteRobotDialog";
 import { useApiClient } from "../../context/ApiClientContext";
 
 // function Stat({ label, value, unit = "", percent = null }) {
@@ -38,8 +43,21 @@ function SeverityTag({ severity }) {
   );
 }
 
+const FLEET_POLL_MS = 10000;
+
 export default function AdminDashboard() {
   const api = useApiClient();
+  const [fleet, setFleet] = useState([]);
+  const [fleetError, setFleetError] = useState("");
+  const [terminalRobot, setTerminalRobot] = useState(null);
+  const [addRobotOpen, setAddRobotOpen] = useState(false);
+  const [credentialsRobot, setCredentialsRobot] = useState(null);
+  const [deleteRobot, setDeleteRobot] = useState(null);
+  const [fleetNotice, setFleetNotice] = useState("");
+  const [fleetRefresh, setFleetRefresh] = useState(0);
+  // OTA versions per channel ({ prod, canary, dev }), from the backend's config and GitHub releases.
+  const [releases, setReleases] = useState({});
+  const [releaseWarnings, setReleaseWarnings] = useState([]);
   // const api = null;
   const [lessonPaneOpen, setLessonPaneOpen] = useState(false);
   const [lessonSuccess, setLessonSuccess] = useState("");
@@ -73,6 +91,50 @@ export default function AdminDashboard() {
   // function refresh() {
   //   setTick((t) => t + 1);
   // }
+
+  // Fleet status (online / reported version / who holds a shell) changes underneath us; poll it.
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadFleet() {
+      try {
+        const data = await api.getFleet();
+        if (mounted) {
+          setFleet(data);
+          setFleetError("");
+        }
+      } catch (err) {
+        console.error("failed to load fleet:", err);
+        if (mounted) setFleetError("Couldn't load the fleet.");
+      }
+    }
+
+    loadFleet();
+    const intervalId = setInterval(loadFleet, FLEET_POLL_MS);
+    return () => {
+      mounted = false;
+      clearInterval(intervalId);
+    };
+  }, [api, fleetRefresh]);
+
+  // Loaded once: the backend caches GitHub for minutes, and reloading would reset each card's pick.
+  useEffect(() => {
+    let mounted = true;
+    api
+      .getReleases()
+      .then((data) => {
+        if (!mounted) return;
+        setReleases(data.channels || {});
+        setReleaseWarnings(data.warnings || []);
+      })
+      .catch((err) => {
+        console.error("failed to load releases:", err);
+        if (mounted) setReleaseWarnings(["Couldn't load the release list."]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [api]);
 
   useEffect(() => {
     async function loadSessions() {
@@ -315,6 +377,51 @@ export default function AdminDashboard() {
         </div>
       </div> */}
 
+      <section className="mt-6 rounded-lg bg-white p-4 border border-gray-200">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <div>
+            <h3 className="text-base font-semibold">Fleet</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Robots, the agent version each one reports, and remote shell access.
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-500">
+              {fleet.filter((r) => r.online).length} of {fleet.length} online
+            </span>
+            <button
+              type="button"
+              onClick={() => setAddRobotOpen(true)}
+              className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+            >
+              Add robot
+            </button>
+          </div>
+        </div>
+        {fleetError && <p className="mb-3 text-sm text-red-600">{fleetError}</p>}
+        {releaseWarnings.map((w) => (
+          <p key={w} className="mb-3 text-sm text-amber-700">
+            {w} Versions from it are missing from the update lists.
+          </p>
+        ))}
+        {fleet.length === 0 && !fleetError ? (
+          <p className="text-sm text-gray-500">No robots registered.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {fleet.map((robot) => (
+              <RobotFleetCard
+                key={robot.id}
+                robot={robot}
+                releases={releases}
+                onConnect={setTerminalRobot}
+                onCredentials={setCredentialsRobot}
+                onDelete={setDeleteRobot}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* Placeholder for system events log; replace with real event data from your API */}
       <section className="mt-6 rounded-lg bg-white p-4 border border-gray-200">
         <div className="mb-4 ">
@@ -497,6 +604,54 @@ export default function AdminDashboard() {
               onSubmit={handleLessonSubmit}
               onCancel={() => setLessonPaneOpen(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {addRobotOpen && (
+        <AddRobotDialog
+          onClose={() => setAddRobotOpen(false)}
+          onCreated={() => setFleetRefresh((n) => n + 1)}
+        />
+      )}
+
+      {credentialsRobot && (
+        <RobotCredentialsDialog
+          // Keyed so the dialog starts fresh per robot; reads the polled copy so online status is current.
+          key={credentialsRobot.id}
+          robot={fleet.find((r) => r.id === credentialsRobot.id) || credentialsRobot}
+          onClose={() => setCredentialsRobot(null)}
+          onChanged={() => setFleetRefresh((n) => n + 1)}
+        />
+      )}
+
+      {deleteRobot && (
+        <DeleteRobotDialog
+          key={deleteRobot.id}
+          robot={fleet.find((r) => r.id === deleteRobot.id) || deleteRobot}
+          onClose={() => setDeleteRobot(null)}
+          onDeleted={(robot) => {
+            setFleet((current) => current.filter((r) => r.id !== robot.id));
+            setFleetRefresh((n) => n + 1);
+            setFleetNotice(`Deleted ${robot.name}.`);
+            setTimeout(() => setFleetNotice(""), 5000);
+          }}
+        />
+      )}
+
+      {fleetNotice && (
+        <div role="status" className="fixed bottom-4 left-4 z-50 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow">
+          {fleetNotice}
+        </div>
+      )}
+
+      {terminalRobot && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative z-50 flex h-[80vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+            {/* Keyed by robot so switching robots always starts a fresh session. Clicking the
+                backdrop deliberately doesn't close it -- an admin mid-command shouldn't lose it. */}
+            <RobotTerminal key={terminalRobot.id} robot={terminalRobot} onClose={() => setTerminalRobot(null)} />
           </div>
         </div>
       )}

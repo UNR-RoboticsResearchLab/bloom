@@ -1,25 +1,14 @@
 import os
-import sys
 import time
-_this_dir = os.path.dirname(os.path.abspath(__file__))
-_robot_dir = None
-for _levels in (3, 6):
-    _candidate = _this_dir
-    for _ in range(_levels):
-        _candidate = os.path.dirname(_candidate)
-    if os.path.isdir(os.path.join(_candidate, 'tts_module')):
-        _robot_dir = _candidate
-        break
-if _robot_dir and _robot_dir not in sys.path:
-    sys.path.insert(0, _robot_dir)
 import json
 import threading
 import rclpy
+from bloom_speech.envfile import load_env
 from rclpy.node import Node
 from std_msgs.msg import String
 import pygame
 from ament_index_python.packages import get_package_share_directory
-from tts_module.engine_azure import AzureTTSEngine
+from bloom_speech_engines.tts.engine_azure import AzureTTSEngine
 
 
 class TTSNode(Node):
@@ -32,7 +21,7 @@ class TTSNode(Node):
         tts_voice = os.environ.get('AZURE_TTS_VOICE', 'en-US-AvaNeural')
 
         if not tts_key:
-            self.get_logger().error('AZURE_TTS_KEY not set - check your .env file')
+            self.get_logger().error('AZURE_TTS_KEY not set - set it in /etc/bloom/robot.env (or BLOOM_ENV_FILE)')
 
         self.tts_engine = AzureTTSEngine(
             subscription_key=tts_key,
@@ -194,17 +183,7 @@ class TTSNode(Node):
         else:
             self.get_logger().warn('Chime sound not found')
 def main(args=None):
-    env_path = os.path.join(get_package_share_directory('bloom_speech'), '.env')
-    if os.path.exists(env_path):
-        with open(env_path) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    os.environ.setdefault(key.strip(), value.strip())
-    else:
-        print(f'WARNING: .env not found at {env_path}')
-        print('Copy .env.example to .env and fill in your credentials')
+    load_env()
 
     rclpy.init(args=args)
     node = TTSNode()

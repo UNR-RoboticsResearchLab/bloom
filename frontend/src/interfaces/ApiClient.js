@@ -382,7 +382,8 @@ export default class ApiClient {
         serialNumber: payload.serialNumber,
         manufactureDate: payload.manufactureDate,
         firmwareVersion: payload.firmwareVersion,
-        ipAddress: payload.ipAddress,
+        // The backend rejects a null IP; the robot reports its real one when it first logs in.
+        ipAddress: payload.ipAddress ?? "N/A",
         registeredUserId: payload.registeredUserId ?? null,
       }),
     });
@@ -417,6 +418,53 @@ export default class ApiClient {
 
   async getRobotsByUserId(userId) {
     return this.request(`/api/robot/user/${userId}`, { method: "GET" });
+  }
+
+  // ── Fleet / Remote Shell (Admin) ─────────────────────────────────────────
+
+  async getFleet() {
+    const res = await this.request("/api/robot/fleet", { method: "GET" });
+    return res || [];
+  }
+
+  // { channels: { prod: [...], canary: [...], dev: [...] } newest first, warnings: [...] }
+  async getReleases() {
+    const res = await this.request("/api/robot/releases", { method: "GET" });
+    return res || { channels: {}, warnings: [] };
+  }
+
+  async getShellSessions(robotId) {
+    const res = await this.request(`/api/robot/${robotId}/shell-sessions`, { method: "GET" });
+    return res || [];
+  }
+
+  async revokeRobot(robotId) {
+    return this.request(`/api/robot/${robotId}/revoke`, { method: "POST" });
+  }
+
+  // Replaces the secret immediately and returns the new one (shown once). The old secret, the
+  // robot's tokens and its live connection stop working. Resolves { robotId, secret }.
+  async rotateRobotCredentials(robotId) {
+    return this.request(`/api/robot/${robotId}/credentials`, { method: "POST" });
+  }
+
+  // Delivers a new secret to an online robot through its agent. Never returns the secret; the old
+  // one keeps working until the robot uses the new one. Rejects with 409 (offline), 502 (the agent
+  // refused) or 504 (no confirmation).
+  async pushRobotCredentials(robotId) {
+    return this.request(`/api/robot/${robotId}/credentials/push`, { method: "POST" });
+  }
+
+  // The origin a robot should use to reach the backend, for provisioning files.
+  publicBaseUrl() {
+    return new URL(this.baseUrl || window.location.origin, window.location.href).origin;
+  }
+
+  // URL of the remote shell's SignalR hub. Same host as the REST API (so the auth cookie goes with
+  // it); an empty baseUrl means same-origin, e.g. behind the CRA dev proxy.
+  shellHubUrl() {
+    const base = new URL(this.baseUrl || window.location.origin, window.location.href);
+    return `${base.origin}${base.pathname.replace(/\/$/, "")}/hubs/shell`;
   }
 
   async getRobotsByFirmwareVersion(firmwareVersion) {

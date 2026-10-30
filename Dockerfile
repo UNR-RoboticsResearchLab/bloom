@@ -18,13 +18,17 @@ FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 # Install EF tools (optional, if running migrations in container)
 ENV PATH="${PATH}:/root/.dotnet/tools"
 
+# No .git in the build context, so the version is computed outside (nbgv get-version -v SemVer2)
+# and passed in. Unset means a local build, stamped 0.0.0-local so it's never mistaken for a release.
+ARG BUILD_VERSION=0.0.0-local
+
 WORKDIR /app
 COPY backend/*.csproj ./
-RUN dotnet restore
+RUN dotnet restore -p:BuildVersion=${BUILD_VERSION}
 
 COPY backend/ ./
 RUN mkdir -p /var/dpkeysf
-RUN dotnet publish -c Release -o out
+RUN dotnet publish -c Release -o out -p:BuildVersion=${BUILD_VERSION}
 
 # Run migrations if needed - it broke on docker compose build because it requires a database connection
 # RUN dotnet ef database update
@@ -35,7 +39,9 @@ RUN dotnet tool install -g dotnet-ef
 
 WORKDIR /app
 COPY --from=build /app/out .
-COPY --from=react-build /app/frontend/build ./frontend/build
+# The app serves the SPA from wwwroot (UseStaticFiles + MapFallbackToFile). dotnet publish only puts
+# the React build there from a full checkout, which this build context is not, so copy it in.
+COPY --from=react-build /app/frontend/build ./wwwroot
 
 
 EXPOSE 5000

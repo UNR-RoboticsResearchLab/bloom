@@ -616,11 +616,20 @@ namespace bloom.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("AgentCommit")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("AgentVersion")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("FirmwareVersion")
                         .HasColumnType("longtext");
 
                     b.Property<string>("IPAddress")
                         .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<DateTime>("ManufactureDate")
                         .HasColumnType("datetime(6)");
@@ -632,8 +641,17 @@ namespace bloom.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("PendingSecretHash")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("RegisteredUserId")
                         .HasColumnType("varchar(255)");
+
+                    b.Property<string>("SecretHash")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("TokenVersion")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -806,6 +824,37 @@ namespace bloom.Migrations
                     b.HasIndex("StudentId");
 
                     b.ToTable("SLPClients", (string)null);
+                });
+
+            modelBuilder.Entity("bloom.Models.ShellSessionAudit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AdminEmail")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("AdminUserId")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("EndReason")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("EndedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("RobotId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RobotId", "StartedAt");
+
+                    b.ToTable("ShellSessionAudits", (string)null);
                 });
 
             modelBuilder.Entity("bloom.Models.StepInteraction", b =>

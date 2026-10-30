@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using bloom.Data;
 using bloom.Models;
+using bloom.Services.Robots;
 using Microsoft.AspNetCore.Identity;
 
 namespace bloom.Tests.TestHelpers
@@ -57,6 +58,18 @@ namespace bloom.Tests.TestHelpers
         }
 
         /// <summary>
+        /// Like CreateAccountAsync, but also adds the Identity "Admin" role. Account.Role alone is
+        /// just a column -- RequireRole("Admin") checks the role claim, which comes from
+        /// AspNetUserRoles.
+        /// </summary>
+        public static async Task<Account> CreateAdminAsync(UserManager<Account> userManager)
+        {
+            var account = await CreateAccountAsync(userManager, role: "Admin");
+            await userManager.AddToRoleAsync(account, "Admin");
+            return account;
+        }
+
+        /// <summary>
         /// Creates an Account by writing directly to the DbContext, skipping Identity entirely.
         /// Cheaper for pure service-layer unit tests that never touch UserManager --
         /// RobotSessionService only ever treats UserId as an opaque FK string.
@@ -75,6 +88,19 @@ namespace bloom.Tests.TestHelpers
             db.Accounts.Add(account);
             db.SaveChanges();
             return account;
+        }
+
+        /// <summary>
+        /// Creates a robot with a login secret, through the real RobotService so the hash and
+        /// TokenVersion are set exactly as provisioning does it.
+        /// </summary>
+        public static async Task<(Robot Robot, string Secret)> CreateProvisionedRobotAsync(
+            BloomDbContext db, IRobotService robots, string? name = null)
+        {
+            var robot = CreateRobot(db, name);
+            var secret = await robots.IssueSecretAsync(robot.Id)
+                ?? throw new InvalidOperationException("Failed to provision test robot.");
+            return (robot, secret);
         }
 
         public static Robot CreateRobot(BloomDbContext db, string? name = null)

@@ -3,7 +3,7 @@
 // Public proxy controller for the AutoRSR microservice.
 // No authentication required — each run is identified by a generated PID.
 
-using bloom.Services;
+using bloom.Services.Rsr;
 using Microsoft.AspNetCore.Mvc;
 
 namespace bloom.Controllers

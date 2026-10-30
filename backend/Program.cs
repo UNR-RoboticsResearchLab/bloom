@@ -2,9 +2,19 @@ using System.Net;
 using System.Reflection;
 using System.Text;
 using bloom.Models;
-using bloom.Services;
+using bloom.Services.Accounts;
+using bloom.Services.ArSr;
+using bloom.Services.Classrooms;
+using bloom.Services.Lessons;
+using bloom.Services.Robots;
+using bloom.Services.Rsr;
+using bloom.Services.SLPClients;
+using bloom.Services.SessionControl;
 using bloom.Data;
 using bloom.Repositories;
+using bloom.Services.RemoteShell;
+using bloom.Services.ReleaseCatalog;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -167,7 +177,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 
     options.Events.OnRedirectToLogin = ctx =>
     {
-        if (ctx.Request.Path.StartsWithSegments("/api"))
+        if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/hubs"))
         {
             ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return Task.CompletedTask;
@@ -177,7 +187,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
     options.Events.OnRedirectToAccessDenied = ctx =>
     {
-        if (ctx.Request.Path.StartsWithSegments("/api"))
+        if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/hubs"))
         {
             ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
             return Task.CompletedTask;
@@ -203,11 +213,30 @@ builder.Services.AddAuthentication()
                     ?? throw new InvalidOperationException("Jwt:Key is not configured.")
             ))
         };
+
+        // The backend only mints robot JWTs (RobotService.GenerateRobotJwt), so anything else is
+        // forged. Robot tokens must also carry the robot's current TokenVersion, which is what
+        // makes rotate/revoke take effect immediately instead of at expiry.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async ctx =>
+            {
+                if (ctx.Principal?.IsInRole("Robot") != true)
+                {
+                    ctx.Fail("Unrecognized token.");
+                    return;
+                }
+                var robots = ctx.HttpContext.RequestServices.GetRequiredService<IRobotService>();
+                if (!await robots.IsRobotTokenCurrentAsync(ctx.Principal))
+                    ctx.Fail("Robot token has been revoked.");
+            }
+        };
     });
 
 // =========== Add Custom Services ===========
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IRobotService, RobotService>();
+builder.Services.AddScoped<IRobotEventService, RobotEventService>();
 builder.Services.AddScoped<IRobotProfileService, RobotProfileService>();
 builder.Services.AddScoped<ILessonService, LessonService>();
 builder.Services.AddScoped<ILessonProgressService, LessonProgressService>();
@@ -238,6 +267,38 @@ builder.Services.AddSingleton<IIdleModeService, IdleModeService>();
 builder.Services.AddSingleton<IVoiceOverrideService, VoiceOverrideService>();
 builder.Services.AddSingleton<IRsrSpeechService, RsrSpeechService>();
 
+// Fleet remote shell. ShellRelay is a Singleton (process-wide tunnel/session map, like
+// InMemoryRobotStateRepository); the connection handlers live for one WebSocket request each.
+var remoteShellSection = builder.Configuration.GetSection(RemoteShellOptions.SectionName);
+var remoteShellEnabled = remoteShellSection.Get<RemoteShellOptions>()?.Enabled == true;
+builder.Services.Configure<RemoteShellOptions>(remoteShellSection);
+builder.Services.TryAddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IShellRelay, ShellRelay>();
+builder.Services.AddScoped<IShellAuditService, ShellAuditService>();
+// SignalR carries both legs. Registered even when the shell is off: the relay (and so the robot
+// controller) takes IHubContext, which only needs the services, not the mapped endpoints.
+{
+    var shell = remoteShellSection.Get<RemoteShellOptions>() ?? new RemoteShellOptions();
+    builder.Services.AddSignalR(o =>
+    {
+        o.MaximumReceiveMessageSize = 256 * 1024;  // the default 32 KB is smaller than a big paste
+        o.KeepAliveInterval = TimeSpan.FromSeconds(15);
+        // Must be at least twice the keepalive. A silent client past this is dropped, which is how a
+        // robot that vanished without a FIN (Wi-Fi gone) is noticed.
+        o.ClientTimeoutInterval = TimeSpan.FromSeconds(Math.Max(shell.AgentIdleTimeoutSeconds, 30));
+    });
+}
+
+if (remoteShellEnabled)
+{
+    // The default Jwt:Key is checked into git. With it, anyone can mint a robot token -- fine for
+    // poking at lesson endpoints in dev, not for a sudo shell on every robot.
+    var jwtKey = builder.Configuration["Jwt:Key"] ?? "";
+    if (jwtKey == "ThisIsASecretKeyForJwtTokenGeneration" || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+        throw new InvalidOperationException(
+            "RemoteShell:Enabled requires a private Jwt:Key of at least 32 bytes. Set the Jwt__Key environment variable.");
+}
+
 // AutoRSR microservice integration
 var autoRsrBaseUrl = builder.Configuration["AutoRsr:BaseUrl"] ?? "http://localhost:5050";
 builder.Services.AddHttpClient("AutoRsr", client =>
@@ -246,6 +307,19 @@ builder.Services.AddHttpClient("AutoRsr", client =>
     client.Timeout = TimeSpan.FromMinutes(10);
 });
 builder.Services.AddScoped<IRsrService, RsrService>();
+
+// OTA release list for the fleet view: versions from config plus the GitHub Releases of a repo.
+builder.Services.Configure<ReleaseCatalogOptions>(builder.Configuration.GetSection(ReleaseCatalogOptions.SectionName));
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient(ReleaseCatalogService.HttpClientName, client =>
+{
+    client.BaseAddress = new Uri("https://api.github.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("bloom-backend");  // GitHub rejects requests without one
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+    client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+});
+builder.Services.AddSingleton<IReleaseCatalogService, ReleaseCatalogService>();
 
 // Add MVC model
 builder.Services.AddControllersWithViews();
@@ -292,6 +366,20 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("JwtOrCookie", policy => policy
         .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, IdentityConstants.ApplicationScheme)
         .RequireAuthenticatedUser());
+
+    // Fleet administration: provisioning, revocation, fleet view, remote shell. Cookie only on
+    // purpose -- the backend only ever mints Robot JWTs, so a JWT claiming Admin is forged by
+    // definition and must not be able to satisfy this.
+    // Robot agent tunnel: only tokens from a RobotId + Secret login (never legacy name-only ones).
+    options.AddPolicy("RobotAgent", policy => policy
+        .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+        .RequireRole("Robot")
+        .RequireClaim(RobotService.CredentialClaim, "secret")
+        .RequireClaim(RobotService.TokenVersionClaim));
+
+    options.AddPolicy("AdminOnly", policy => policy
+        .AddAuthenticationSchemes(IdentityConstants.ApplicationScheme)
+        .RequireRole("Admin"));
 });
 
 var app = builder.Build();
@@ -311,6 +399,7 @@ else
 
 // app.UseHttpsRedirection();
 app.UseCors();
+app.UseMiddleware<ShellHubOriginCheck>();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
@@ -341,12 +430,23 @@ using (var scope = app.Services.CreateScope())
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Account>>();
     // Check if admin account exists, if not create one
-    await BloomDbContext.SeedDatabaseAdminUser(userManager);
+    await BloomDbContext.SeedDatabaseAdminUser(
+        userManager, app.Configuration["Seed:AdminPassword"], app.Environment.IsProduction());
 
     await LessonSeeder.SeedLessonsFromFilesAsync(db, userManager);
 }
 
 app.MapControllers();
+
+if (remoteShellEnabled)
+{
+    // The agent speaks only WebSockets (it connects without SignalR's negotiate step); browsers get
+    // SignalR's normal transport fallback.
+    app.MapHub<RobotAgentHub>("/hubs/robot-agent",
+            o => o.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets)
+        .RequireAuthorization("RobotAgent");
+    app.MapHub<ShellHub>("/hubs/shell").RequireAuthorization("AdminOnly");
+}
 
 app.MapFallbackToFile("index.html");
 

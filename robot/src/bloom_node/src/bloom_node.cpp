@@ -2,6 +2,7 @@
 // BehaviorCoordinator, LessonCoordinator, LessonPoller, and FeedbackPoller
 // into a single executable
 
+#include <cstdlib>
 #include <memory>
 #include <vector>
 #include <filesystem>
@@ -283,80 +284,47 @@ int main(int argc, char ** argv)
 
 	web_client->enableResponsePublisher("/status_response");
 
-	// Register and save credentials / login to get robot id to feed to sessionId
-	std::string serial_number = config_mgr->get_string("robot_serial_number").value_or("");
-	if (serial_number.empty()) {
-		char hostname[256];
-		if (gethostname(hostname, sizeof(hostname)) == 0) {
-			serial_number = hostname;
-		} else {
-			serial_number = "unknown";
-		}
-	}
-
-	nlohmann::json robotInfo = {
-		{"name", config_mgr->get_string("robot_name").value_or("Unnamed Robot")},
-		{"model", config_mgr->get_string("robot_model").value_or("Unknown Model")},
-		{"serialNumber", serial_number},
-		{"firmwareVersion", config_mgr->get_string("robot_firmware_version").value_or("N/A")},
-		{"ipAddress", config_mgr->get_string("robot_ip_address").value_or("N/A")}
-	};
+	// Credentials. Robots no longer self-register: an admin provisions the robot (POST
+	// /api/robot/register) and puts the returned id + secret in robot/.env, which bloom.service
+	// loads via EnvironmentFile. BLOOM_ROBOT_ID falls back to a robot_id cached in config.
+	const char* env_robot_id = std::getenv("BLOOM_ROBOT_ID");
+	const char* env_robot_secret = std::getenv("BLOOM_ROBOT_SECRET");
+	std::string robot_secret = env_robot_secret ? env_robot_secret : "";
 
 	std::string robotId;
-
-	if (config_mgr->get_string("robot_id").has_value()) {
+	if (env_robot_id && *env_robot_id) {
+		robotId = env_robot_id;
+	} else if (config_mgr->get_string("robot_id").has_value()) {
 		robotId = config_mgr->get_string("robot_id").value();
-		RCLCPP_INFO(node->get_logger(), "Using existing robot ID from config: %s", robotId.c_str());
-	} else {
-		RCLCPP_INFO(node->get_logger(), "No existing robot ID found in config, registering new robot");
 	}
 
-	if (robotId.empty())
-	{
-		auto registration_future = web_client->sendJsonPostAsync(
-			"/api/robot/register",
-			robotInfo,
-			{"Content-Type: application/json"},
-			[web_client, &robotId](const std::string &body, long http_code) {
-				if (http_code >= 200 && http_code < 300) {
-					RCLCPP_INFO(web_client->get_logger(), "Robot registered successfully (HTTP %ld)", http_code);
-					RCLCPP_INFO(web_client->get_logger(), "Response: %s", body.c_str());
-					// Parse robotId from response JSON
-					try {
-						auto response = nlohmann::json::parse(body);
-						if (response.contains("robot") && response["robot"].contains("id")) {
-							robotId = response["robot"]["id"].get<std::string>();
-							RCLCPP_INFO(web_client->get_logger(), "Robot ID: %s", robotId.c_str());
-						}
-					} catch (const std::exception &e) {
-						RCLCPP_WARN(web_client->get_logger(), "Failed to parse robot ID from response: %s", e.what());
-					}
+	if (robotId.empty() || robot_secret.empty()) {
+		RCLCPP_ERROR(node->get_logger(),
+			"Robot is not provisioned: set BLOOM_ROBOT_ID and BLOOM_ROBOT_SECRET in robot/.env "
+			"(from POST /api/robot/register or /api/robot/{id}/credentials)");
+	} else {
+		RCLCPP_INFO(node->get_logger(), "Using robot ID: %s", robotId.c_str());
+	}
 
-				} else {
-					RCLCPP_WARN(web_client->get_logger(), 
-						"Failed to register robot (HTTP %ld): %s", http_code, body.c_str());
-				}
-			}
-		);
-		// Wait for registration to complete before proceeding
-		registration_future.get();
-		
-		// save robot id
-		if (!robotId.empty()) {
-			RCLCPP_INFO(node->get_logger(), "Saving new robot ID to config: %s", robotId.c_str());
-			config_mgr->set("robot_id", robotId);
-		}
+	// name is only used by the backend's Robot:AllowLegacyNameOnlyLogin rollout mode.
+	nlohmann::json loginInfo = {
+		{"robotId", robotId},
+		{"secret", robot_secret},
+		{"name", config_mgr->get_string("robot_name").value_or("Unnamed Robot")},
+		{"ipAddress", config_mgr->get_string("robot_ip_address").value_or("N/A")}
+	};
+	if (robotId.empty()) {
+		loginInfo.erase("robotId");
 	}
 
 	// Login with robot credentials to get a JWT for all subsequent requests.
-	// Matches on Name + IPAddress — same fields LoginRobotAsync checks on the server.
 	std::string jwt_token;
 	auto do_login = [&]() {
 		auto login_future = web_client->sendJsonPostAsync(
 			"/api/robot/login",
-			robotInfo,
+			loginInfo,
 			{"Content-Type: application/json"},
-			[web_client, &jwt_token](const std::string &body, long http_code) {
+			[web_client, &jwt_token, &robotId, config_mgr](const std::string &body, long http_code) {
 				if (http_code >= 200 && http_code < 300) {
 					try {
 						auto response = nlohmann::json::parse(body);
@@ -366,6 +334,14 @@ int main(int argc, char ** argv)
 							RCLCPP_INFO(web_client->get_logger(), "Robot authenticated - JWT acquired");
 						} else {
 							RCLCPP_WARN(web_client->get_logger(), "Login response missing 'token' field");
+						}
+						// The backend is authoritative for the id (matters for legacy name-only login).
+						if (response.contains("robotId") && response["robotId"].is_string()) {
+							auto id = response["robotId"].get<std::string>();
+							if (id != robotId) {
+								robotId = id;
+								config_mgr->set("robot_id", robotId);
+							}
 						}
 					} catch (const std::exception &e) {
 						RCLCPP_WARN(web_client->get_logger(), "Failed to parse login response: %s", e.what());
@@ -385,7 +361,6 @@ int main(int argc, char ** argv)
 			"Robot login failed — authenticated requests will be rejected by the backend");
 	}
 
-	// Example: Start a session with a POST request to /api/robot/sessions
 	RCLCPP_INFO(node->get_logger(), "Robot ID before session creation: %s (empty=%s)",
 		robotId.c_str(), robotId.empty() ? "true" : "false");
 
@@ -406,7 +381,7 @@ int main(int argc, char ** argv)
 		session_payload.dump(),
 		std::nullopt,
 		{"Content-Type: application/json"},
-		[web_client, &session_id, &robotId, &pairing_code, config_mgr](const std::string &body, long http_code) {
+		[web_client, &session_id, &pairing_code](const std::string &body, long http_code) {
 			if (http_code >= 200 && http_code < 300) {
 				RCLCPP_INFO(web_client->get_logger(), "Session started successfully (HTTP %ld)", http_code);
 				RCLCPP_INFO(web_client->get_logger(), "Response: %s", body.c_str());
@@ -428,10 +403,10 @@ int main(int argc, char ** argv)
 					RCLCPP_WARN(web_client->get_logger(), "Failed to parse session ID from response: %s", e.what());
 				}
 			} else if (http_code == 404) {
-				RCLCPP_WARN(web_client->get_logger(),
-					"Cached robot ID not found in backend (HTTP 404) — clearing cached ID for re-registration");
-				robotId.clear();
-				config_mgr->set("robot_id", "");
+				// No more self re-registration: a deleted robot has to be re-provisioned by an admin.
+				RCLCPP_ERROR(web_client->get_logger(),
+					"Robot ID not found in backend (HTTP 404) — the robot was deleted; re-provision it "
+					"and update BLOOM_ROBOT_ID/BLOOM_ROBOT_SECRET");
 			} else {
 				RCLCPP_WARN(web_client->get_logger(), "Failed to start session (HTTP %ld): %s", http_code, body.c_str());
 			}
@@ -441,78 +416,12 @@ int main(int argc, char ** argv)
 	// Wait for session creation to complete
 	session_future.get();
 
-	// If session creation failed due to stale robot_id, re-register and retry
-	if (session_id.empty() && robotId.empty()) {
-		RCLCPP_INFO(node->get_logger(), "Re-registering robot after stale ID detected");
-		
-		auto rereg_future = web_client->sendJsonPostAsync(
-			"/api/robot/register",
-			robotInfo,
-			{"Content-Type: application/json"},
-			[web_client, &robotId, config_mgr](const std::string &body, long http_code) {
-				if (http_code >= 200 && http_code < 300) {
-					try {
-						auto response = nlohmann::json::parse(body);
-						if (response.contains("robot") && response["robot"].contains("id")) {
-							robotId = response["robot"]["id"].get<std::string>();
-							config_mgr->set("robot_id", robotId);
-							RCLCPP_INFO(web_client->get_logger(), "Re-registered with new robot ID: %s", robotId.c_str());
-						}
-					} catch (const std::exception &e) {
-						RCLCPP_WARN(web_client->get_logger(), "Failed to parse re-registration response: %s", e.what());
-					}
-				} else {
-					RCLCPP_ERROR(web_client->get_logger(), "Re-registration failed (HTTP %ld): %s", http_code, body.c_str());
-				}
-			}
-		);
-		rereg_future.get();
-
-		// Re-authenticate after re-registration so the session retry carries a valid JWT
-		jwt_token.clear();
-		do_login();
-
-		// Retry session creation with new robot ID
-		if (!robotId.empty()) {
-			nlohmann::json retry_payload = {
-				{"anonymous", false},
-				{"robotId", robotId}
-			};
-			auto retry_future = web_client->sendRequestAsync(
-				"POST",
-				"/api/robotsession/",
-				retry_payload.dump(),
-				std::nullopt,
-				{"Content-Type: application/json"},
-				[web_client, &session_id, &pairing_code](const std::string &body, long http_code) {
-					if (http_code >= 200 && http_code < 300) {
-						try {
-							auto response = nlohmann::json::parse(body);
-							if (response.contains("id")) {
-								session_id = response["id"].get<std::string>();
-								RCLCPP_INFO(web_client->get_logger(), "Session created on retry: %s", session_id.c_str());
-							}
-							if (response.contains("sessionCode")) {
-								pairing_code = response["sessionCode"].get<std::string>();
-								web_client->publishSessionCode(pairing_code);
-							}
-						} catch (const std::exception &e) {
-							RCLCPP_WARN(web_client->get_logger(), "Failed to parse retry session response: %s", e.what());
-						}
-					} else {
-						RCLCPP_ERROR(web_client->get_logger(), "Session retry failed (HTTP %ld): %s", http_code, body.c_str());
-					}
-				}
-			);
-			retry_future.get();
-		}
-		if (session_id.empty()) {
-			RCLCPP_ERROR(node->get_logger(), 
-				"FATAL: Could not establish session with backend. "
-				"Check that the backend is running and accessible at %s",
-				config_mgr->get_string("base_url").value_or("unknown").c_str());
-			// Continue anyway so other nodes keep running, but lesson functionality will be disabled
-		}
+	if (session_id.empty()) {
+		RCLCPP_ERROR(node->get_logger(),
+			"FATAL: Could not establish session with backend. "
+			"Check that the backend is running and accessible at %s",
+			config_mgr->get_string("base_url").value_or("unknown").c_str());
+		// Continue anyway so other nodes keep running, but lesson functionality will be disabled
 	}
 
 	// Create LessonCoordinator

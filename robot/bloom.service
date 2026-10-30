@@ -10,6 +10,7 @@ Group=jrkre
 
 # Azure OpenAI / TTS keys
 EnvironmentFile=-/home/jrkre/development/bloom/robot/.env
+
 # Required for bloom_face display output
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/jrkre/.Xauthority

@@ -1,0 +1,21 @@
+{
+  "backend_url": "https://bloom.example.edu",
+  "robot_id": "00000000-0000-0000-0000-000000000000",
+  "ca_file": "",
+  "expected_issuers": [],
+  "captive_check_url": "http://connectivity-check.ubuntu.com/",
+  "shell": "",
+  "ota": {
+    "enabled": false,
+    "allowed_suites": [
+      "jazzy-stable"
+    ],
+    "metapackage": "bloom-robot-core",
+    "apt_sources_path": "/etc/apt/sources.list.d/bloom-fleet.list",
+    "signing_key_path": "/etc/bloom-agent/ota-signing.pub",
+    "healthcheck_timeout_seconds": 120,
+    "idle_command": "/usr/local/bin/robot-is-idle",
+    "healthcheck_command": "/usr/local/bin/robot-healthcheck",
+    "ros_service": "bloom.service"
+  }
+}

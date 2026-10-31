@@ -9,7 +9,7 @@ name: Deploy development
 #   DEPLOY_HOST                           the server's tailnet name or 100.x address
 #   DEPLOY_USER, DEPLOY_PATH              deploy user, and the repo checkout on the server
 #   DEPLOY_SSH_KEY                        private key of a deploy-only key pair (no passphrase)
-#   DEPLOY_KNOWN_HOSTS                    ssh-keyscan -t ed25519 <DEPLOY_HOST>, run from the tailnet
+#   DEPLOY_KNOWN_HOSTS                    ssh-keyscan -t ed25519 <server>, run from the tailnet (the host name in it doesn't matter)
 # The tailnet policy must let tag:ci reach the server on port 22.
 on:
   push:
@@ -69,7 +69,16 @@ jobs:
           done
           install -m 700 -d ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
-          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # Pin the server's ed25519 key under the exact name used to connect. DEPLOY_KNOWN_HOSTS may be the
+          # whole `ssh-keyscan` line or just "ssh-ed25519 AAAA...": the host name inside it (an IP, a short
+          # name, a MagicDNS name) is ignored, so it can't fail to match DEPLOY_HOST.
+          host_key="$(printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | grep -vE '^[[:space:]]*#' \
+            | sed -nE 's/.*(^|[[:space:]])(ssh-ed25519[[:space:]]+[A-Za-z0-9+\/=]+).*/\2/p' | head -n1)"
+          if [ -z "$host_key" ]; then
+            echo "::error::DEPLOY_KNOWN_HOSTS has no ssh-ed25519 key. Run 'ssh-keyscan -t ed25519 <server>' from a tailnet machine and paste its output."
+            exit 1
+          fi
+          printf '%s %s\n' "$DEPLOY_HOST" "$host_key" > ~/.ssh/known_hosts
           # The host key is pinned (no trust-on-first-use): a changed key fails the deploy.
           # Fetch and check out first, then run the script from the new checkout.
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \

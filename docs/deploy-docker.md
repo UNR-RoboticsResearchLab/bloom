@@ -76,7 +76,7 @@ header and WebSocket upgrades. Caddy does both with `reverse_proxy 127.0.0.1:500
    | `DEPLOY_USER` | the deploy user |
    | `DEPLOY_PATH` | absolute path of the checkout, e.g. `/home/deploy/bloom` |
    | `DEPLOY_SSH_KEY` | contents of the private key `bloom-ci` |
-   | `DEPLOY_KNOWN_HOSTS` | output of `ssh-keyscan -t ed25519 <DEPLOY_HOST>`, run from a tailnet machine (pins the host key) |
+   | `DEPLOY_KNOWN_HOSTS` | output of `ssh-keyscan -t ed25519 <server>`, run from a tailnet machine. Only the `ssh-ed25519 AAAA…` key is used (it's pinned under `DEPLOY_HOST`), so the host name in the line doesn't matter. |
 
 8. **First deploy.** Push to `development`, or run `./deploy-docker.sh` on the server by hand.
    Log in as `admin@example.com` with `SEED_ADMIN_PASSWORD`, then change it.
@@ -124,7 +124,8 @@ from the app) are what CI relies on, so a broken deploy shows up as a failed run
 |---|---|
 | `Secret X is not set in the 'development' environment` | Add it as an *environment* secret on `development`, not a repository secret. |
 | Tailscale step fails or times out reaching the host | `tag:ci` isn't in `tagOwners`, the ACL doesn't allow `tag:ci` to the server on port 22, the OAuth client lacks the `auth_keys` write scope or the `tag:ci` tag, or the server is offline. |
-| `Host key verification failed` | `DEPLOY_KNOWN_HOSTS` is stale or wrong (the server was reinstalled). Re-run `ssh-keyscan -t ed25519 <host>` from the tailnet and update the secret. |
+| `DEPLOY_KNOWN_HOSTS has no ssh-ed25519 key` | The secret is empty, or holds another key type (RSA/ECDSA). Re-run `ssh-keyscan -t ed25519 <server>` from the tailnet and paste the output. |
+| `Host key verification failed` (the key is now matched by value, not name) | The server's key changed (reinstalled, or `ssh-keygen -A` re-run), or `DEPLOY_HOST` points at a different machine than the one you scanned. Re-scan and update the secret. |
 | `Permission denied (publickey)` | The public half of `DEPLOY_SSH_KEY` isn't in the deploy user's `authorized_keys`, or the secret is truncated (paste the whole file, including the `BEGIN`/`END` lines). |
 | `git fetch` fails on the server | The clone can't reach GitHub (a private fork needs a read-only deploy key on the server). |
 | `'podman compose' is not available` | No compose provider is installed. Install `docker-compose` v2 or `podman-compose` (step 1). |

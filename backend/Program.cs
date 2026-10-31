@@ -26,6 +26,10 @@ using Microsoft.AspNetCore.DataProtection;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using bloom.Services.Email;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 // Load .env (if present) into process environment variables for local development.
 // Must run before WebApplication.CreateBuilder, which snapshots env vars into IConfiguration.
@@ -151,9 +155,51 @@ builder.Services.AddIdentity<Account, IdentityRole>(options =>
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 6;
     options.Password.RequireNonAlphanumeric = false;
+    options.SignIn.RequireConfirmedAccount = true;
+    options.User.RequireUniqueEmail = true;
 })
 .AddEntityFrameworkStores<BloomDbContext>()
 .AddDefaultTokenProviders();
+
+// Email confirmation links are valid for 24 hours.
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+    options.TokenLifespan = TimeSpan.FromHours(24));
+
+// Outgoing email (SMTP) and confirmation links
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<IEmailConfirmationService, EmailConfirmationService>();
+builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
+
+// Behind a TLS reverse proxy the request arrives as plain HTTP from the proxy; honor X-Forwarded-*
+// so generated links and cookies use the public scheme and host. The proxy is not known by address
+// (it may be a container), so known networks are cleared; the server port is only published on
+// loopback / the proxy network (see docker-compose.prod.yml).
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
+        | ForwardedHeaders.XForwardedProto
+        | ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+// Limits how often confirmation / password reset emails can be requested (per client IP).
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    foreach (var policy in new[] { "resend-confirmation", "forgot-password" })
+        options.AddPolicy(policy, httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                policy + ":" + (httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"),
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 3,
+                    Window = TimeSpan.FromMinutes(10),
+                    QueueLimit = 0
+                }));
+});
 
 // Identity's application cookie: return 401/403 for API calls instead of redirecting to a login page.
 // Also relax cookie security so LAN dev (cross-origin, plain HTTP) can carry the cookie.
@@ -394,12 +440,14 @@ else
 }
 
 // app.UseHttpsRedirection();
+app.UseForwardedHeaders();
 app.UseCors();
 app.UseMiddleware<ShellHubOriginCheck>();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
+app.UseRateLimiter();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();

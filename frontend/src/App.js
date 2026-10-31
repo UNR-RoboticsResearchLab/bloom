@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Layout  from "./components/Layout";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
+import ForgotPassword from "./pages/ForgotPassword";
 import { RequireAuth, RequireRole } from "./components/RouteGuards";
 import About from "./pages/About";
 import Home from "./pages/Home";
@@ -38,7 +39,7 @@ export default function App() {
       <Routes>
         {/* Public */}
         <Route path="/" element={<Home />} />
-        {/* <Route path="/forgot-password" element={<ForgotPassword />} /> */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/about" element={<About />} />
@@ -73,7 +74,7 @@ export default function App() {
             <Route element={<RequireRole allow={["student"]} />}>
               <Route path="student" element={<StudentDashboard />} />
             </Route>
-            <Route element={<RequireRole allow={["slp"]} />}>
+            <Route element={<RequireRole allow={["slp", "admin"]} />}>
               <Route path="slp" element={<SlpDashboard />} />
             </Route>
           </Route>

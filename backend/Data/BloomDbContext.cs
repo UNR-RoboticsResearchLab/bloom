@@ -310,6 +310,7 @@ namespace bloom.Data
                     UserName = adminEmail,
                     Email = adminEmail,
                     FullName = "System Administrator",
+                    EmailConfirmed = true,
                     CreatedDate = DateTime.UtcNow,
                     Role = "Admin"
                 };
@@ -332,6 +333,7 @@ namespace bloom.Data
                     UserName = slpEmail,
                     Email = slpEmail,
                     FullName = "SLP Account",
+                    EmailConfirmed = true,
                     CreatedDate = DateTime.UtcNow,
                     Role = "SLP"
                 };

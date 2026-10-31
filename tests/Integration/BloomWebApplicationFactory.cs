@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Linq;
 using bloom.Data;
+using bloom.Services.Email;
+using bloom.Tests.TestHelpers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -9,6 +11,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace bloom.Tests.Integration
 {
@@ -104,6 +107,11 @@ namespace bloom.Tests.Integration
                 // writable on a CI runner. Ephemeral keys are fine here -- this factory (and any
                 // cookies it issues) never outlives one test class.
                 services.AddDataProtection().UseEphemeralDataProtectionProvider();
+
+                // Never talk to a real SMTP server from tests; capture the mail instead.
+                services.RemoveAll<IEmailSender>();
+                services.AddSingleton<FakeEmailSender>();
+                services.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<FakeEmailSender>());
             });
         }
 

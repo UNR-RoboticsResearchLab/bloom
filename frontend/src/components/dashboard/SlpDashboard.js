@@ -46,6 +46,7 @@ function useNotes() {
 export default function SlpDashboard() {
   const navigate = useNavigate();
   const apiClient = useApiClient();
+  const isAdmin = getSession()?.role?.toLowerCase() === "admin";
   const [selectedLessonId, setSelectedLessonId] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState("");
   useNotes();
@@ -156,7 +157,16 @@ export default function SlpDashboard() {
   }
 
   return (
-    <DashboardLayout title="SLP Dashboard">
+    <DashboardLayout
+      title="SLP Dashboard"
+      actions={
+        isAdmin ? (
+          <button onClick={() => navigate("/dashboard/admin")} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 shadow-xs hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+            Back to admin dashboard
+          </button>
+        ) : null
+      }
+    >
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg bg-white p-4 shadow">
           <div className="text-sm text-gray-600">Lessons</div>

@@ -6,6 +6,9 @@ import RobotTerminal from "./RobotTerminal";
 import AddRobotDialog from "./AddRobotDialog";
 import RobotCredentialsDialog from "./RobotCredentialsDialog";
 import DeleteRobotDialog from "./DeleteRobotDialog";
+import RevokeRobotDialog from "./RevokeRobotDialog";
+import ShellAuditDialog from "./ShellAuditDialog";
+import UserManagementCard from "./UserManagementCard";
 import { useApiClient } from "../../context/ApiClientContext";
 
 // function Stat({ label, value, unit = "", percent = null }) {
@@ -53,6 +56,8 @@ export default function AdminDashboard() {
   const [addRobotOpen, setAddRobotOpen] = useState(false);
   const [credentialsRobot, setCredentialsRobot] = useState(null);
   const [deleteRobot, setDeleteRobot] = useState(null);
+  const [revokeRobot, setRevokeRobot] = useState(null);
+  const [auditRobot, setAuditRobot] = useState(null);
   const [fleetNotice, setFleetNotice] = useState("");
   const [fleetRefresh, setFleetRefresh] = useState(0);
   // OTA versions per channel ({ prod, canary, dev }), from the backend's config and GitHub releases.
@@ -416,11 +421,20 @@ export default function AdminDashboard() {
                 onConnect={setTerminalRobot}
                 onCredentials={setCredentialsRobot}
                 onDelete={setDeleteRobot}
+                onRevoke={setRevokeRobot}
+                onAudit={setAuditRobot}
               />
             ))}
           </div>
         )}
       </section>
+
+      <UserManagementCard
+        onNotice={(msg) => {
+          setFleetNotice(msg);
+          setTimeout(() => setFleetNotice(""), 5000);
+        }}
+      />
 
       {/* Placeholder for system events log; replace with real event data from your API */}
       <section className="mt-6 rounded-lg bg-white p-4 border border-gray-200">
@@ -637,6 +651,23 @@ export default function AdminDashboard() {
             setTimeout(() => setFleetNotice(""), 5000);
           }}
         />
+      )}
+
+      {revokeRobot && (
+        <RevokeRobotDialog
+          key={revokeRobot.id}
+          robot={fleet.find((r) => r.id === revokeRobot.id) || revokeRobot}
+          onClose={() => setRevokeRobot(null)}
+          onRevoked={(robot) => {
+            setFleetRefresh((n) => n + 1);
+            setFleetNotice(`Revoked ${robot.name}.`);
+            setTimeout(() => setFleetNotice(""), 5000);
+          }}
+        />
+      )}
+
+      {auditRobot && (
+        <ShellAuditDialog key={auditRobot.id} robot={auditRobot} onClose={() => setAuditRobot(null)} />
       )}
 
       {fleetNotice && (

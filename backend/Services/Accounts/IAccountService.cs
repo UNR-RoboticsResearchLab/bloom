@@ -18,6 +18,12 @@ namespace bloom.Services.Accounts
         Task<Account?> GetByEmailAsync(string email);
         Task<IEnumerable<Account?>> GetAllAsync();
 
+        // Admin user management. Roles come from Identity (AspNetUserRoles), not Account.Role,
+        // which is only a denormalized copy.
+        Task<IReadOnlyList<(Account Account, IList<string> Roles)>> GetAllWithRolesAsync();
+        Task<IdentityResult> SetRoleAsync(Account user, string role);
+        Task<int> CountInRoleAsync(string role);
+
         // Register Accounts
         Task<IdentityResult> RegisterAdminAsync(CreateAccountDto user);
         Task<IdentityResult> RegisterFacilitatorAsync(CreateAccountDto user);

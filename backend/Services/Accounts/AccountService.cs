@@ -21,11 +21,14 @@ namespace bloom.Services.Accounts
         private BloomDbContext _dbContext;
         private UserManager<Account> _userManager;
         private SignInManager<Account> _signInManager;
+        private RoleManager<IdentityRole>? _roleManager;
 
         public AccountService(BloomDbContext dbContext,
                             UserManager<Account> userManager, 
-                            SignInManager<Account> signInManager)
+                            SignInManager<Account> signInManager,
+                            RoleManager<IdentityRole>? roleManager = null)
         {
+            _roleManager = roleManager;
             _dbContext = dbContext;
             _userManager = userManager;
             _signInManager = signInManager;
@@ -63,6 +66,49 @@ namespace bloom.Services.Accounts
         public async Task<IEnumerable<Account?>> GetAllAsync()
         {
             return await _dbContext.Accounts.ToListAsync();
+        }
+
+        public async Task<IReadOnlyList<(Account Account, IList<string> Roles)>> GetAllWithRolesAsync()
+        {
+            var accounts = await _dbContext.Accounts.AsNoTracking().OrderBy(a => a.Email).ToListAsync();
+            var roleRows = await (from ur in _dbContext.UserRoles
+                                  join r in _dbContext.Roles on ur.RoleId equals r.Id
+                                  select new { ur.UserId, r.Name }).ToListAsync();
+            var byUser = roleRows.ToLookup(x => x.UserId, x => x.Name!);
+            return accounts.Select(a => (a, (IList<string>)byUser[a.Id].ToList())).ToList();
+        }
+
+        // Replaces every Identity role with `role` and keeps Account.Role in step. UserManager
+        // rotates the security stamp, so existing sessions stop being trusted at the next validation.
+        public async Task<IdentityResult> SetRoleAsync(Account user, string role)
+        {
+            if (_roleManager != null && !await _roleManager.RoleExistsAsync(role))
+            {
+                var created = await _roleManager.CreateAsync(new IdentityRole(role));
+                if (!created.Succeeded) return created;
+            }
+
+            var current = await _userManager.GetRolesAsync(user);
+            var toRemove = current.Where(r => !string.Equals(r, role, StringComparison.Ordinal)).ToList();
+            if (toRemove.Count > 0)
+            {
+                var removed = await _userManager.RemoveFromRolesAsync(user, toRemove);
+                if (!removed.Succeeded) return removed;
+            }
+            if (!current.Contains(role))
+            {
+                var added = await _userManager.AddToRoleAsync(user, role);
+                if (!added.Succeeded) return added;
+            }
+
+            user.Role = role;
+            user.UpdatedDate = DateTime.UtcNow;
+            return await _userManager.UpdateAsync(user);
+        }
+
+        public async Task<int> CountInRoleAsync(string role)
+        {
+            return (await _userManager.GetUsersInRoleAsync(role)).Count;
         }
 
         public async Task<IdentityResult> DeleteAsync(Account user)

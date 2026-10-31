@@ -5,6 +5,8 @@
 ##   cp .env.example .env     # fill in every value; compose refuses to start with a required one missing
 ##   docker compose -f docker-compose.prod.yml up -d --build
 ##
+## Works with podman or docker (see docs/deploy-docker.md for the podman setup).
+##
 ## Runs with ASPNETCORE_ENVIRONMENT=Production: Swagger is off, the ProductionConnection strings are
 ## used, and Program.cs insists on a data-protection certificate and the secrets below.
 ## The server listens on plain HTTP on loopback only. Put a TLS reverse proxy in front of it:
@@ -21,7 +23,7 @@ x-logging: &logging
 services:
 
   mariadb-prod:
-    image: mariadb:11.7            # the backend is configured for MariaDB 11.7
+    image: docker.io/library/mariadb:11.7   # the backend is configured for MariaDB 11.7
     container_name: bloom-mariadb
     restart: unless-stopped
     environment:
@@ -43,7 +45,7 @@ services:
     logging: *logging
 
   arsr-db:
-    image: mariadb:11.7
+    image: docker.io/library/mariadb:11.7
     container_name: bloom-arsr-db
     restart: unless-stopped
     environment:
@@ -83,10 +85,6 @@ services:
         condition: service_healthy
       arsr-db:
         condition: service_healthy
-    # Optional extras (Azure OpenAI for lesson generation, ...); the app reads backend/.env itself.
-    env_file:
-      - path: backend/.env
-        required: false
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
@@ -102,12 +100,18 @@ services:
       RemoteShell__Enabled: ${REMOTE_SHELL_ENABLED:-true}
       Robot__AllowLegacyNameOnlyLogin: "false"
       Releases__GitHub__Token: ${GITHUB_RELEASES_TOKEN:-}
+      # Optional: AI lesson generation. Empty means not configured.
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_KEY: ${AZURE_OPENAI_KEY:-}
+      AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT:-}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2024-08-01-preview}
       AutoRsr__BaseUrl: ${AUTORSR_BASE_URL:-http://auto_rsr:5050}
       ArSr__MicroserviceUrl: ${ARSR_MICROSERVICE_URL:-http://arsr-service:5050}
     volumes:
       - dpkeys:/var/dpkeys
       # PKCS#12 certificate that encrypts the data-protection keys (see docs/deploy-docker.md).
-      - ${DP_CERT_FILE:-./certs/bloomserver.pfx}:/etc/bloom/certs/bloomserver.pfx:ro
+      # ",z" relabels the file for SELinux (podman on Fedora/RHEL); other hosts ignore it.
+      - ${DP_CERT_FILE:-./certs/bloomserver.pfx}:/etc/bloom/certs/bloomserver.pfx:ro,z
     networks:
       - bloom-network
     logging: *logging

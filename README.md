@@ -157,7 +157,7 @@ cd frontend && npm test                 # frontend tests
 ### Docker
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml up -d --build    # or: podman compose ... (the development server runs podman)
 ```
 
 `Dockerfile` is a multi-stage build: it builds the React app, publishes the .NET backend, and copies the React build output into the image's `wwwroot` so the backend serves both API and static frontend from one container/port. `docker-compose.prod.yml` runs it in `Production` mode alongside two MariaDB 11.7 containers (`mariadb-prod`, `arsr-db`; neither is published to the host). `arsr-service` is optional (`--profile arsr`). The backend listens on `127.0.0.1:5000` only (container `8080`); put a TLS reverse proxy in front, because robot agents connect only over https.
@@ -166,7 +166,7 @@ Copy `.env.example` to `.env` and fill it in first: database passwords, `JWT_KEY
 
 ### Development server (CI/CD)
 
-Every push to `development` that passes the tests is deployed automatically: GitHub Actions joins a Tailscale tailnet, SSHes to the server, checks out the commit, and runs `deploy-docker.sh` (database backup, `docker compose up --build`, wait for the app, report the commit to roll back to on failure). The workflow is [deploy-development.yml](.github/workflows/deploy-development.yml), which calls [ci.yml](.github/workflows/ci.yml) for the tests. Server setup, the GitHub secrets, rollback and troubleshooting: [docs/deploy-docker.md](docs/deploy-docker.md).
+Every push to `development` that passes the tests is deployed automatically: GitHub Actions joins a Tailscale tailnet, SSHes to the server, checks out the commit, and runs `deploy-docker.sh` (database backup, `compose up --build` with podman or docker, wait for the app, report the commit to roll back to on failure). The workflow is [deploy-development.yml](.github/workflows/deploy-development.yml), which calls [ci.yml](.github/workflows/ci.yml) for the tests. Server setup, the GitHub secrets, rollback and troubleshooting: [docs/deploy-docker.md](docs/deploy-docker.md).
 
 ### Without Docker (systemd)
 

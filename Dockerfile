@@ -1,4 +1,4 @@
-FROM node:18 AS react-build
+FROM docker.io/library/node:18 AS react-build
 
 WORKDIR /app
 

@@ -10,7 +10,7 @@ your Tailscale tailnet, SSHes to the server over it, checks out that commit, and
 
 ```
 push to development ─► tests ─► join tailnet ─► ssh server ─► git checkout <sha> ─► deploy-docker.sh
-                                                  backup DBs ─► docker compose up --build ─► wait for HTTP 200
+                                                  backup DBs ─► compose up --build ─► wait for HTTP 200
 ```
 
 ## The stack
@@ -28,8 +28,19 @@ header and WebSocket upgrades. Caddy does both with `reverse_proxy 127.0.0.1:500
 
 ## One-time server setup
 
-1. **Docker.** Install Docker Engine and the compose plugin, and put the deploy user in the
-   `docker` group. Install `git` and `curl`.
+1. **Container engine.** The server runs **podman** (rootless is fine); `deploy-docker.sh` uses
+   podman when it is installed and docker otherwise (force one with `CONTAINER_ENGINE=docker`).
+   Install `podman`, `git` and `curl`, plus a compose provider that `podman compose` can call:
+   the `docker-compose` v2 binary (needs `systemctl --user enable --now podman.socket`) or
+   `podman-compose`. Check with `podman compose version`. For a rootless deploy user also run, once:
+   - `sudo loginctl enable-linger <user>`: without it, the containers stop when the last SSH session
+     ends (every deploy ends with one).
+   - `systemctl --user enable --now podman-restart.service`: podman, unlike docker, doesn't restart
+     `restart: unless-stopped` containers after a reboot by itself.
+
+   On SELinux hosts (Fedora, RHEL) the certificate mount carries `:z`, which relabels the file;
+   nothing else is needed. Images are named in full (`docker.io/library/...`), so no registry
+   configuration is needed either.
 2. **Clone the repo** where `DEPLOY_PATH` will point, e.g. `~/bloom`:
    `git clone https://github.com/UNR-RoboticsResearchLab/bloom.git ~/bloom`
    (a private fork needs a read-only deploy key on the server).
@@ -72,15 +83,15 @@ header and WebSocket upgrades. Caddy does both with `reverse_proxy 127.0.0.1:500
 
 ## Day to day
 
-- **Logs:** `docker compose -f docker-compose.prod.yml logs -f bloom-server`
-- **What's running:** `docker inspect --format '{{ index .Config.Labels "bloom.commit" }}' bloom-server`
+- **Logs:** `podman logs -f bloom-server` (`docker logs` if you use docker)
+- **What's running:** `podman inspect --format '{{ index .Config.Labels "bloom.commit" }}' bloom-server`
 - **Backups:** each deploy first dumps both databases to `~/bloom-backups` (newest 7 kept). Skip with
   `./deploy-docker.sh --no-backup`.
 - **Roll back:** a failed deploy prints the previous commit. Run
   `git checkout --detach <sha> && ./deploy-docker.sh --no-backup`. Migrations that already ran are
   not undone; restore a dump if a migration has to be reverted:
-  `gunzip -c ~/bloom-backups/bloom_<time>.sql.gz | docker compose -f docker-compose.prod.yml exec -T mariadb-prod sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot'`.
-- **Optional services:** `docker compose -f docker-compose.prod.yml --profile arsr up -d --build`
+  `gunzip -c ~/bloom-backups/bloom_<time>.sql.gz | podman exec -i bloom-mariadb sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot'`.
+- **Optional services:** `podman compose -f docker-compose.prod.yml --profile arsr up -d --build`
   (needs the AutoRSR source at `ARSR_SOURCE_DIR`, default `../AutoRsr-NoBert-SARG`).
 
 ## How the pipeline runs
@@ -96,9 +107,9 @@ header and WebSocket upgrades. Caddy does both with `reverse_proxy 127.0.0.1:500
 
 `deploy-docker.sh` (run on the server) does, in order:
 
-1. Checks `.env`, the certificate and `docker compose config`, before anything is stopped.
+1. Picks the engine (podman, else docker), checks that `<engine> compose` works, then checks `.env`, the certificate and `compose config`, before anything is stopped.
 2. Dumps both databases to `~/bloom-backups` (skipped on the very first deploy, when no database is running; a failed dump aborts the deploy).
-3. `docker compose up -d --build --remove-orphans` with `BUILD_VERSION` (the `nbgv` SemVer) and the commit sha (stored as the `bloom.commit` label on the container).
+3. `<engine> compose -f docker-compose.prod.yml up -d --build` with `BUILD_VERSION` (the `nbgv` SemVer) and the commit sha (stored as the `bloom.commit` label on the container).
 4. Polls `http://127.0.0.1:5000/` for up to 120 s. The app serves `index.html` itself and runs its
    migrations before it starts listening, so a 200 means the new version is up and migrated.
 5. On success prunes dangling images; on failure prints the server's logs and the previous commit.
@@ -116,6 +127,9 @@ from the app) are what CI relies on, so a broken deploy shows up as a failed run
 | `Host key verification failed` | `DEPLOY_KNOWN_HOSTS` is stale or wrong (the server was reinstalled). Re-run `ssh-keyscan -t ed25519 <host>` from the tailnet and update the secret. |
 | `Permission denied (publickey)` | The public half of `DEPLOY_SSH_KEY` isn't in the deploy user's `authorized_keys`, or the secret is truncated (paste the whole file, including the `BEGIN`/`END` lines). |
 | `git fetch` fails on the server | The clone can't reach GitHub (a private fork needs a read-only deploy key on the server). |
+| `'podman compose' is not available` | No compose provider is installed. Install `docker-compose` v2 or `podman-compose` (step 1). |
+| Everything works, then the site is down a while after a deploy or a reboot | Rootless podman: linger and `podman-restart.service` aren't enabled (step 1). |
+| `permission denied` reading the certificate (SELinux) | The `:z` relabel didn't apply; check `ls -Z certs/`, or move the file to a path the deploy user owns. |
 | `.env is missing` / `required variable ... is missing` | Fill `.env` from `.env.example` (step 3). |
 | `data-protection certificate not found` | Create `certs/bloomserver.pfx` (step 4), or point `DP_CERT_FILE` at it. |
 | `database backup failed; not deploying` | The database container is unhealthy or out of disk. Fix it, or rerun with `--no-backup` once you accept the risk. |
@@ -127,6 +141,11 @@ migration". That is a known gap between the EF model and the migrations; the ser
 
 ## Things to know
 
+- **Tested with docker, not podman.** The compose file and `deploy-docker.sh` were run end to end
+  (two deploys, backup, readiness check) under Docker. I wrote the podman parts (engine detection,
+  compose provider, linger, SELinux relabel) to avoid anything docker-specific, but they haven't run on
+  a podman host; expect to adjust on the first deploy. Compose providers differ in what they support,
+  so if `podman-compose` rejects the file, use the `docker-compose` v2 provider.
 - Database passwords can't contain `;` (they are embedded in a connection string); hex is safe.
 - The server builds the images itself, so deploys take a few minutes. Building in CI and pulling
   from a registry would be quicker if that becomes a problem.

@@ -71,7 +71,9 @@ services:
       args:
         # CI passes the nbgv SemVer; a local build is stamped 0.0.0-local.
         BUILD_VERSION: ${BUILD_VERSION:-0.0.0-local}
-    image: bloom-server:latest
+    # CI builds the image and the deploy sets BLOOM_IMAGE to it (ghcr.io/<owner>/bloom-server:<commit>), so
+    # the server only pulls. With BLOOM_IMAGE unset, `up --build` builds it here from the checkout.
+    image: ${BLOOM_IMAGE:-bloom-server:latest}
     container_name: bloom-server
     restart: unless-stopped
     labels:

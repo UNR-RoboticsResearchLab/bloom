@@ -12,10 +12,15 @@ export const ApiClientProvider = ({ children }) => {
   // reach this app) lets it work from any LAN/remote client automatically,
   // matching the backend's CORS policy which already allows any LAN origin.
   // REACT_APP_API_PORT changes only the port (8080 by default), for a dev stack whose API is published elsewhere.
+  // A production build is served by the backend itself (usually behind a TLS proxy), so it calls
+  // the page's own origin ("" = same origin, <site>/api/...). An explicitly empty
+  // REACT_APP_API_BASE_URL means the same in any build.
   const apiPort = process.env.REACT_APP_API_PORT || "8080";
   const apiBase =
-    process.env.REACT_APP_API_BASE_URL ||
-    `${window.location.protocol}//${window.location.hostname}:${apiPort}`;
+    process.env.REACT_APP_API_BASE_URL ??
+    (process.env.NODE_ENV === "production"
+      ? ""
+      : `${window.location.protocol}//${window.location.hostname}:${apiPort}`);
   const client = new ApiClient(apiBase);
 
   return (

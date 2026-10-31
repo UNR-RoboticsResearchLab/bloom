@@ -50,7 +50,7 @@ fi
 # Values from .env that this script needs (compose reads the same file itself).
 env_value() { grep -E "^$1=" .env | tail -n1 | cut -d= -f2- || true; }
 CERT_FILE="$(env_value DP_CERT_FILE)"; CERT_FILE="${CERT_FILE:-./certs/bloomserver.pfx}"
-PORT="$(env_value BLOOM_HTTP_PORT)"; PORT="${PORT:-5000}"
+PORT="$(env_value BLOOM_HTTP_PORT)"; PORT="${PORT:-8080}"
 [ -f "$CERT_FILE" ] || die "data-protection certificate not found at $CERT_FILE (docs/deploy-docker.md, step 4)"
 
 # Catches a missing required value before anything is stopped.

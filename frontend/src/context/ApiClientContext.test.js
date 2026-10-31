@@ -31,6 +31,16 @@ describe("ApiClientProvider API address", () => {
     expect(baseFor()).toBe("http://localhost:18080");
   });
 
+  it("uses the page's own origin in a production build", () => {
+    const env = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      expect(baseFor()).toBe("");
+    } finally {
+      process.env.NODE_ENV = env;
+    }
+  });
+
   it("lets an explicit REACT_APP_API_BASE_URL win", () => {
     process.env.REACT_APP_API_PORT = "18080";
     process.env.REACT_APP_API_BASE_URL = "https://api.example.edu";

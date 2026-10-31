@@ -63,6 +63,8 @@ export default function SignIn() {
       console.error("Sign in error:", error);
       if (error.message.includes("Invalid login attempt")) {
         setErr("Invalid email or password");
+      } else if (error.message.includes("Email not confirmed")) {
+        setErr("Please confirm your email address first. Check your inbox for the confirmation link.");
       } else if (error.message.includes("HTTP 401")) {
         setErr("Invalid email or password");
       } else {

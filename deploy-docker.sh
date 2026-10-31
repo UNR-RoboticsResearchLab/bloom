@@ -118,7 +118,9 @@ done
 # Housekeeping: dangling layers, and all but the newest 3 bloom-server images (each deploy pulls a new
 # tag; the last two stay for a quick rollback). Only bloom-server is touched; other images on this
 # machine are left alone. Images still in use can't be removed and are skipped.
-"$ENGINE" image prune -f >/dev/null
+# None of this may fail a deploy that is already up (podman's prune exits 125 when a dangling image is still
+# referenced by a leftover build container, for example).
+"$ENGINE" image prune -f >/dev/null 2>&1 || echo "NOTE: could not prune dangling images (not fatal)" >&2
 "$ENGINE" images --format '{{.Repository}} {{.ID}}' \
   | awk '$1 ~ /(^|\/)bloom-server$/ && !seen[$2]++ {print $2}' | tail -n +4 \
   | xargs -r "$ENGINE" rmi >/dev/null 2>&1 || true

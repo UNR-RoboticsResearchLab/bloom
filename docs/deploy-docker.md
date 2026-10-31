@@ -152,6 +152,7 @@ from the app) are what CI relies on, so a broken deploy shows up as a failed run
 | `could not pull ghcr.io/...` / `denied` / `unauthorized` | The package isn't accessible to this repo's token: package settings → *Manage Actions access* → add the repo with Read, or make it public (setup step 8). |
 | `exec format error`, or `no matching manifest for linux/...` | The server's architecture differs from the build's. Set the repository variable `DEPLOY_ARCH=arm64` for an arm64 server, unset it for x86-64, and push again. |
 | `Build image` job fails on `type=gha` cache | Transient GitHub cache outage; re-run the job. The cache only speeds builds up. |
+| `NOTE: could not prune dangling images (not fatal)`, or an older run failing with `image is in use by a container` (exit 125) | Leftover build containers, usually from a build that was killed or cancelled, still reference old images. The deploy is not affected. List them with `podman ps -a --external`; with no build running, `buildah rm --all` removes them. |
 | `.env is missing` / `required variable ... is missing` | Fill `.env` from `.env.example` (step 3). |
 | `data-protection certificate not found` | Create `certs/bloomserver.pfx` (step 4), or point `DP_CERT_FILE` at it. |
 | `database backup failed; not deploying` | The database container is unhealthy or out of disk. Fix it, or rerun with `--no-backup` once you accept the risk. |

@@ -2,8 +2,8 @@ name: Deploy development
 
 # Deploys every push to development to the server described in docs/deploy-docker.md, once the tests
 # pass. The runner joins your Tailscale tailnet, then SSHes to the server over it, so the server
-# needs no public SSH port. It runs deploy-docker.sh (the production-mode stack) and then
-# deploy-dev-stack.sh (the hot-reload development stack from docker-compose.yml).
+# needs no public SSH port. It runs deploy-docker.sh, which builds and starts the production stack
+# (docker-compose.prod.yml: the .NET backend serving the built React app, plus the databases).
 #
 # Needs, in the "development" environment (Settings -> Environments):
 #   TS_OAUTH_CLIENT_ID, TS_OAUTH_SECRET   Tailscale OAuth client (scope: auth_keys write, tag:ci)
@@ -11,8 +11,6 @@ name: Deploy development
 #   DEPLOY_USER, DEPLOY_PATH              deploy user, and the repo checkout on the server
 #   DEPLOY_SSH_KEY                        private key of a deploy-only key pair (no passphrase)
 #   DEPLOY_KNOWN_HOSTS                    ssh-keyscan -t ed25519 <server>, run from the tailnet (the host name in it doesn't matter)
-# Optional repository variable (Settings -> Secrets and variables -> Actions -> Variables):
-#   DEPLOY_DEV_STACK                      "false" to skip the development stack (default: deploy it)
 # The tailnet policy must let tag:ci reach the server on port 22.
 on:
   push:
@@ -91,12 +89,3 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
             "$DEPLOY_USER@$DEPLOY_HOST" \
             "cd $(printf %q "$DEPLOY_PATH") && git fetch --prune origin && git checkout --force --detach $(printf %q "$GITHUB_SHA") && BUILD_VERSION=$(printf %q "$BUILD_VERSION") ./deploy-docker.sh"
-
-      # The hot-reload development stack (docker-compose.yml) next to the stack above. On by default; set the
-      # repository variable DEPLOY_DEV_STACK=false to skip it. Needs DEV_BIND in the server's .env.
-      - name: Deploy the development stack
-        if: ${{ vars.DEPLOY_DEV_STACK != 'false' }}
-        run: |
-          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
-            "$DEPLOY_USER@$DEPLOY_HOST" \
-            "cd $(printf %q "$DEPLOY_PATH") && git fetch --prune origin && git checkout --force --detach $(printf %q "$GITHUB_SHA") && ./deploy-dev-stack.sh" < /dev/null

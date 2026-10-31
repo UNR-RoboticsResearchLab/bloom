@@ -11,9 +11,11 @@ export const ApiClientProvider = ({ children }) => {
   // Falling back to the page's own hostname (same one the browser used to
   // reach this app) lets it work from any LAN/remote client automatically,
   // matching the backend's CORS policy which already allows any LAN origin.
+  // REACT_APP_API_PORT changes only the port (8080 by default), for a dev stack whose API is published elsewhere.
+  const apiPort = process.env.REACT_APP_API_PORT || "8080";
   const apiBase =
     process.env.REACT_APP_API_BASE_URL ||
-    `${window.location.protocol}//${window.location.hostname}:8080`;
+    `${window.location.protocol}//${window.location.hostname}:${apiPort}`;
   const client = new ApiClient(apiBase);
 
   return (

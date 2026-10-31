@@ -168,6 +168,10 @@ Copy `.env.example` to `.env` and fill it in first: database passwords, `JWT_KEY
 
 Every push to `development` that passes the tests is deployed automatically. GitHub Actions builds the Docker image once on a runner (layer-cached) and pushes it to `ghcr.io`; it then joins a Tailscale tailnet, SSHes to the server, checks out the commit, and runs `deploy-docker.sh`, which pulls that image (no build on the server), backs up the databases, runs `compose up` with podman or docker, wait for the app, report the commit to roll back to on failure). The workflow is [deploy-development.yml](.github/workflows/deploy-development.yml), which calls [ci.yml](.github/workflows/ci.yml) for the tests. Server setup, the GitHub secrets, rollback and troubleshooting: [docs/deploy-docker.md](docs/deploy-docker.md).
 
+### Development stack on the server
+
+The same workflow also keeps the hot-reload **development stack** (`docker-compose.yml`: React dev server, dev backend, dev databases) running on the server, next to the production-mode stack, via `deploy-dev-stack.sh`. It needs `DEV_BIND` (the Tailscale address to publish on) and `DEV_PUBLIC_ORIGINS` in the server's `.env`, and can be switched off with the repository variable `DEPLOY_DEV_STACK=false`. See [docs/deploy-docker.md](docs/deploy-docker.md#the-development-stack-on-the-server).
+
 ### Without Docker (systemd)
 
 `build.sh` and `deploy.sh` support deploying directly onto a Linux host running Bloom as a systemd service (`bloom.service`), instead of Docker:

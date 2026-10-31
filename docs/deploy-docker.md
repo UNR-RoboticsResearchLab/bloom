@@ -93,6 +93,78 @@ header and WebSocket upgrades. Caddy does both with `reverse_proxy 127.0.0.1:500
 9. **First deploy.** Push to `development`, or run `./deploy-docker.sh` on the server by hand.
    Log in as `admin@example.com` with `SEED_ADMIN_PASSWORD`, then change it.
 
+## The development stack on the server
+
+Besides the production-mode stack above, the server can run the **development stack**: the same
+`docker-compose.yml` you use locally, with the hot-reload React dev server, the backend in
+`Development` mode (Swagger), and the two dev databases. The deploy workflow updates it on every
+push, right after the main deploy (step "Deploy the development stack", which runs
+[deploy-dev-stack.sh](../deploy-dev-stack.sh)). It is on by default; set the repository variable
+`DEPLOY_DEV_STACK=false` to skip it. `auto_rsr` is not started: its source isn't in this repo and it needs an
+NVIDIA GPU.
+
+| | Production-mode stack | Development stack |
+|---|---|---|
+| Compose file | `docker-compose.prod.yml` (project `bloom-prod`) | `docker-compose.yml` (project `bloom`) |
+| Frontend | built once into the image, served by the backend | `npm start` dev server, hot reload (`frontend/src` is mounted) |
+| Backend | `Production`, secrets from `.env` | `Development`, Swagger, `appsettings.json` defaults |
+| Host ports | `127.0.0.1:5000` (behind your TLS proxy) | `3000` (frontend), `8080` (API/Swagger), `2443`, DBs `3306` / `3307` |
+| Data | volumes `bloom-prod_*` | volumes `bloom_*`; kept across deploys |
+
+Both run side by side (different container names, volumes and ports), but **3000, 8080, 2443, 3306
+and 3307 must be free on the host**.
+
+### Setup (once, on the server)
+
+Add to the server's `.env` (the same file as the production settings; see `.env.example`):
+
+```
+DEV_BIND=100.x.y.z            # this server's Tailscale address: tailscale ip -4
+DEV_DB_BIND=127.0.0.1         # keep the databases off the network
+DEV_PUBLIC_ORIGINS=http://<tailnet-name>:3000,http://100.x.y.z:3000
+DEV_ADMIN_PASSWORD=<a real password>
+```
+
+- `DEV_BIND` is **required**. Without it Docker would publish the stack, databases with the default
+  `bloomrootpassword` included, on every network interface, so `deploy-dev-stack.sh` refuses to run.
+- `DEV_PUBLIC_ORIGINS` lists the addresses you open the frontend from. The browser loads the frontend on
+  port 3000 and calls the API on port 8080 of the same host, which is a cross-origin request, and the
+  backend only accepts `localhost` and private-LAN (`10.*`, `172.16-31.*`, `192.168.*`) origins. Tailscale
+  addresses (`100.64.0.0/10`) and MagicDNS names are neither, so they must be listed (backend setting
+  `Cors:AllowedOrigins`). List every spelling you use, scheme and port included.
+- `DEV_ADMIN_PASSWORD` is used only when the dev database is first created (`admin@example.com`). Without
+  it that account gets the public default `Admin@123`; the script warns.
+- For AI lesson generation put an `AZURE_OPENAI_*` file at `backend/.env` on the server; the dev compose
+  file reads it if it exists.
+
+Then push to `development`, or run `./deploy-dev-stack.sh` on the server. Open `http://<DEV_BIND>:3000`
+from a machine on your tailnet; Swagger is at `http://<DEV_BIND>:8080/swagger/index.html`. Both ports must
+be reachable from your browser, because the frontend looks for the API on the page's own host, port 8080.
+
+### Things to know
+
+- **Trusted network only.** The dev backend uses the `Jwt:Key` from `appsettings.json`, which is public
+  (it is in git), and has the remote shell enabled. Anyone who can reach port 8080 could mint robot
+  tokens. Keep it on the tailnet, and never register real robots in the dev stack.
+- **Plain http.** That is fine inside the tailnet (it is encrypted by WireGuard), but robot agents only
+  connect over https: real robots belong on the production-mode stack behind a TLS proxy.
+- **Resources.** The React dev server takes 1 to 2 GB of RAM, plus the .NET backend and two MariaDB
+  containers. The first deploy builds both dev images and the first page load compiles the frontend, so
+  expect several minutes.
+- **Hot reload.** Each deploy's `git checkout` changes the mounted `frontend/src`, and the dev server picks it up.
+  A change to `package.json` or the backend rebuilds the image (`up --build`; unchanged layers are cached).
+- **Reset the data.** `docker compose -f docker-compose.yml down -v` deletes the dev databases (use
+  `podman compose` on the server).
+- **Podman.** As for the main stack: `podman compose` needs a compose provider, and `restart: unless-stopped`
+  needs `podman-restart.service` after a reboot (see the setup steps above).
+
+| Symptom | Cause and fix |
+|---|---|
+| `DEV_BIND is not set in .env` | Set it (above). |
+| Browser console: *blocked by CORS policy* | The address in the URL bar isn't in `DEV_PUBLIC_ORIGINS` (check scheme, host and port), or the dev backend wasn't restarted after you changed it. |
+| `port is already allocated` / `address already in use` | Something else on the server uses 3000, 8080, 2443, 3306 or 3307. |
+| `the dev stack did not come up` | The script printed both containers' logs. The React dev server compiles on its first request, so a slow first start can need a second run; the backend needs its database, so check `mariadb-dev`. |
+
 ## Day to day
 
 - **Logs:** `podman logs -f bloom-server` (`docker logs` if you use docker)

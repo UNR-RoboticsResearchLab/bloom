@@ -5,6 +5,7 @@ using bloom.Models;
 using bloom.Services.Accounts;
 using bloom.Services.ArSr;
 using bloom.Services.Classrooms;
+using bloom.Services.Cors;
 using bloom.Services.Lessons;
 using bloom.Services.Robots;
 using bloom.Services.Rsr;
@@ -334,18 +335,13 @@ builder.Services.AddSession(options =>
 
 // Enable CORS for development
 // TODO: add production check
+// localhost + private-LAN addresses are allowed; anything else (e.g. a Tailscale address a dev frontend is
+// opened from) must be listed in Cors:AllowedOrigins, comma separated (env: Cors__AllowedOrigins).
+var extraCorsOrigins = CorsOrigins.ParseList(builder.Configuration["Cors:AllowedOrigins"]);
 builder.Services.AddCors(options => {
     options.AddDefaultPolicy(policy => {
         policy
-            .SetIsOriginAllowed(origin => {
-                var uri = new Uri(origin);
-                // allow localhost + RFC1918 LAN ranges in dev
-                return uri.Host == "localhost"
-                    || uri.Host.StartsWith("127.")
-                    || uri.Host.StartsWith("192.168.")
-                    || uri.Host.StartsWith("10.")
-                    || (uri.Host.StartsWith("172.") && int.TryParse(uri.Host.Split('.')[1], out var o) && o >= 16 && o <= 31);
-            })
+            .SetIsOriginAllowed(origin => CorsOrigins.IsAllowed(origin, extraCorsOrigins))
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();

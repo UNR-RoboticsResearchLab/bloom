@@ -6,8 +6,12 @@ services:
       dockerfile: ./Dockerfile.dev
     image: bloom-react-dev:latest
     container_name: bloom-react-dev
+    # DEV_BIND / DEV_DB_BIND choose the host address the ports are published on (default: all interfaces, as
+    # before), and DEV_FRONTEND_PORT / DEV_API_PORT / DEV_HTTPS_PORT / DEV_DB_PORT / DEV_ARSR_DB_PORT the host ports
+    # (defaults: the numbers below). On a server set them in .env: see docs/deploy-docker.md, "The development
+    # stack on the server".
     ports:
-      - "3000:3000"
+      - "${DEV_BIND:-0.0.0.0}:${DEV_FRONTEND_PORT:-3000}:3000"
     volumes:
       - ./frontend/src:/app/src       # Live update for src folder
       - ./frontend/public:/app/public # Live update for public assets
@@ -26,7 +30,10 @@ services:
       - NODE_OPTIONS=--max-old-space-size=4096
       - HOST=0.0.0.0
       - PORT=3000
+      # The browser looks for the API on the page's own host at this port: keep it equal to DEV_API_PORT.
+      - REACT_APP_API_PORT=${DEV_API_PORT:-8080}
       - HTTPS=false
+    restart: unless-stopped
     networks:
       - bloom-network
   mariadb-dev:
@@ -39,7 +46,7 @@ services:
       MARIADB_USER: bloomuser
       MARIADB_PASSWORD: bloompassword
     ports:
-      - "3306:3306"
+      - "${DEV_DB_BIND:-0.0.0.0}:${DEV_DB_PORT:-3306}:3306"
     volumes:
       - db_data:/var/lib/mysql
     networks:
@@ -53,7 +60,7 @@ services:
       MARIADB_ROOT_PASSWORD: arsrrootpassword
       MARIADB_DATABASE: arsrdbl
     ports:
-      - "3307:3306"
+      - "${DEV_DB_BIND:-0.0.0.0}:${DEV_ARSR_DB_PORT:-3307}:3306"
     volumes:
       - arsr_db_data:/var/lib/mysql
     networks:
@@ -66,8 +73,8 @@ services:
     image: bloom-server-dev:latest
     container_name: bloom-server-dev
     ports:
-      - "8080:8080"
-      - "2443:2443"
+      - "${DEV_BIND:-0.0.0.0}:${DEV_API_PORT:-8080}:8080"
+      - "${DEV_BIND:-0.0.0.0}:${DEV_HTTPS_PORT:-2443}:2443"
     depends_on:
       mariadb-dev:
         condition: service_started
@@ -80,6 +87,11 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
       # - ASPNETCORE_HTTPS_PORT=2443
+      # Empty = defaults (CORS: localhost and private-LAN addresses only; seeded admin password Admin@123).
+      # On a server, set both in .env: origins the frontend is opened from (e.g. a Tailscale address), and a
+      # real admin password.
+      - Cors__AllowedOrigins=${DEV_PUBLIC_ORIGINS:-}
+      - Seed__AdminPassword=${DEV_ADMIN_PASSWORD:-}
     restart: always
     volumes:
       - dpkeys:/var/dpkeys

@@ -51,6 +51,12 @@ fi
 env_value() { grep -E "^$1=" .env | tail -n1 | cut -d= -f2- || true; }
 CERT_FILE="$(env_value DP_CERT_FILE)"; CERT_FILE="${CERT_FILE:-./certs/bloomserver.pfx}"
 PORT="$(env_value BLOOM_HTTP_PORT)"; PORT="${PORT:-8080}"
+# A reverse proxy in another container reaches bloom-server over its own network (docker-compose.proxy.yml).
+PROXY_NETWORK="$(env_value PROXY_NETWORK)"
+if [ -n "$PROXY_NETWORK" ]; then
+  "$ENGINE" network inspect "$PROXY_NETWORK" >/dev/null 2>&1 || die "PROXY_NETWORK '$PROXY_NETWORK' does not exist (see '$ENGINE network ls')"
+  COMPOSE+=(-f docker-compose.proxy.yml)
+fi
 [ -f "$CERT_FILE" ] || die "data-protection certificate not found at $CERT_FILE (docs/deploy-docker.md, step 4)"
 
 # Catches a missing required value before anything is stopped.

@@ -37,7 +37,7 @@ services:
     networks:
       - bloom-network
   mariadb-dev:
-    image: mariadb:latest
+    image: docker.io/library/mariadb:latest
     container_name: mariadb-dev
     restart: always
     environment:
@@ -53,7 +53,7 @@ services:
       - bloom-network
 
   arsr-db-dev:
-    image: mariadb:latest
+    image: docker.io/library/mariadb:latest
     container_name: arsr-db-dev
     restart: always
     environment:

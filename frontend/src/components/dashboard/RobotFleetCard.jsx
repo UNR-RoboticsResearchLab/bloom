@@ -55,7 +55,7 @@ function relativeTime(iso) {
   return new Date(iso).toLocaleDateString();
 }
 
-export default function RobotFleetCard({ robot, releases = {}, onUpdate, onConnect, onCredentials, onDelete }) {
+export default function RobotFleetCard({ robot, releases = {}, onUpdate, onConnect, onCredentials, onDelete, onRevoke, onAudit }) {
   // The agent's self-reported SemVer; bloom_node's firmwareVersion for robots without an agent yet.
   const currentVersion = robot.agentVersion || robot.firmwareVersion || null;
   const model = robot.model || "Unknown model";
@@ -225,8 +225,30 @@ export default function RobotFleetCard({ robot, releases = {}, onUpdate, onConne
         </div>
       )}
 
-      {(onCredentials || onDelete) && (
-        <div className="flex gap-2">
+      {(onCredentials || onDelete || onRevoke || onAudit) && (
+        <div className="flex flex-wrap gap-2">
+          {onAudit && (
+            <button
+              type="button"
+              onClick={() => onAudit(robot)}
+              aria-label={`Shell history for ${name}`}
+              className="flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              History
+            </button>
+          )}
+          {onRevoke && (
+            <button
+              type="button"
+              onClick={() => onRevoke(robot)}
+              disabled={robot.provisioned === false}
+              aria-label={`Revoke ${name}`}
+              title={robot.provisioned === false ? "Already has no credentials" : undefined}
+              className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 disabled:hover:bg-white"
+            >
+              Revoke
+            </button>
+          )}
           {onCredentials && (
             <button
               type="button"

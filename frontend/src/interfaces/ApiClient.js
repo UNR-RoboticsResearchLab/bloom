@@ -445,6 +445,29 @@ export default class ApiClient {
     return res || [];
   }
 
+  // ── Admin: users and roles ────────────────────────────────────────────────
+
+  async getAdminUsers() {
+    const res = await this.request("/api/admin/users", { method: "GET" });
+    return res || [];
+  }
+
+  async getAssignableRoles() {
+    const res = await this.request("/api/admin/users/roles", { method: "GET" });
+    return res || [];
+  }
+
+  async setUserRole(userId, role) {
+    return this.request(`/api/admin/users/${userId}/role`, {
+      method: "PUT",
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  async deleteAdminUser(userId) {
+    return this.request(`/api/admin/users/${userId}`, { method: "DELETE" });
+  }
+
   async revokeRobot(robotId) {
     return this.request(`/api/robot/${robotId}/revoke`, { method: "POST" });
   }

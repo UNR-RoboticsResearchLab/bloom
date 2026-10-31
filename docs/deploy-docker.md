@@ -1,0 +1,155 @@
+# Deploying the development branch to a server
+
+Every push to `development` that passes the tests is deployed by GitHub Actions: the runner joins
+your Tailscale tailnet, SSHes to the server over it, checks out that commit, and runs
+[deploy-docker.sh](../deploy-docker.sh), which builds and restarts the stack in
+[docker-compose.prod.yml](../docker-compose.prod.yml). The workflow is
+[deploy-development.yml](../.github/workflows/deploy-development.yml); it calls
+[ci.yml](../.github/workflows/ci.yml) for the tests, so `ci.yml` itself no longer runs on pushes to
+`development` (pull requests into it still do).
+
+```
+push to development ─► tests ─► join tailnet ─► ssh server ─► git checkout <sha> ─► deploy-docker.sh
+                                                  backup DBs ─► compose up --build ─► wait for HTTP 200
+```
+
+## The stack
+
+| Service | What | Reachable from |
+|---|---|---|
+| `bloom-server` | ASP.NET Core API plus the built React app, `Production` mode | host loopback `127.0.0.1:5000` |
+| `mariadb-prod` | Main database (migrations run when the server starts) | other containers only |
+| `arsr-db` | ArSr study database | other containers only |
+| `arsr-service` | Optional speech service, `--profile arsr`, built from a checkout outside this repo | other containers only |
+
+It serves plain HTTP on loopback only. **Put a TLS reverse proxy in front** (nginx, Caddy, ...):
+robot agents connect only over https, and the admin terminal needs the proxy to pass the `Host`
+header and WebSocket upgrades. Caddy does both with `reverse_proxy 127.0.0.1:5000`.
+
+## One-time server setup
+
+1. **Container engine.** The server runs **podman** (rootless is fine); `deploy-docker.sh` uses
+   podman when it is installed and docker otherwise (force one with `CONTAINER_ENGINE=docker`).
+   Install `podman`, `git` and `curl`, plus a compose provider that `podman compose` can call:
+   the `docker-compose` v2 binary (needs `systemctl --user enable --now podman.socket`) or
+   `podman-compose`. Check with `podman compose version`. For a rootless deploy user also run, once:
+   - `sudo loginctl enable-linger <user>`: without it, the containers stop when the last SSH session
+     ends (every deploy ends with one).
+   - `systemctl --user enable --now podman-restart.service`: podman, unlike docker, doesn't restart
+     `restart: unless-stopped` containers after a reboot by itself.
+
+   On SELinux hosts (Fedora, RHEL) the certificate mount carries `:z`, which relabels the file;
+   nothing else is needed. Images are named in full (`docker.io/library/...`), so no registry
+   configuration is needed either.
+2. **Clone the repo** where `DEPLOY_PATH` will point, e.g. `~/bloom`:
+   `git clone https://github.com/UNR-RoboticsResearchLab/bloom.git ~/bloom`
+   (a private fork needs a read-only deploy key on the server).
+3. **Secrets file.** `cp .env.example .env` and fill every value (`openssl rand -hex 24` for
+   passwords, `openssl rand -base64 48` for `JWT_KEY`). Compose refuses to start with one missing.
+   `.env` is gitignored; the `Jwt:Key` committed in `appsettings.json` is public and must never be
+   used on a server.
+4. **Data-protection certificate.** In Production the backend encrypts its cookie/key ring with a
+   PKCS#12 file. It only protects keys at rest, so a self-signed one is fine:
+   ```bash
+   mkdir -p certs && cd certs
+   openssl req -x509 -newkey rsa:2048 -nodes -keyout k.pem -out c.pem -days 3650 -subj "/CN=bloom-dataprotection"
+   openssl pkcs12 -export -out bloomserver.pfx -inkey k.pem -in c.pem -passout pass:YOUR_DP_CERT_PASSWORD
+   rm k.pem c.pem && chmod 600 bloomserver.pfx
+   ```
+   Use the same password for `DP_CERT_PASSWORD` in `.env`. Back this file up: without it the
+   stored keys can't be read after a rebuild and everyone is logged out.
+5. **Tailscale.** The server must be on your tailnet (`tailscale up`); the deploy job reaches it by
+   its tailnet name or `100.x` address, so port 22 needn't be public. In the Tailscale admin
+   console: define `tag:ci` under `tagOwners`, add an ACL that lets `tag:ci` reach the server on
+   port 22, and create an OAuth client (Settings → OAuth clients) with the `auth_keys` write scope
+   and the tag `tag:ci`. Keep its client ID and secret for step 7.
+6. **Deploy key for GitHub Actions.** On any machine:
+   `ssh-keygen -t ed25519 -N "" -C bloom-ci -f bloom-ci`, append `bloom-ci.pub` to the deploy
+   user's `~/.ssh/authorized_keys`, and keep `bloom-ci` (private) for the next step.
+7. **GitHub secrets.** Repo → Settings → Environments → New environment `development` (add
+   required reviewers there if you want a manual approval gate), then add these secrets:
+
+   | Secret | Value |
+   |---|---|
+   | `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | the Tailscale OAuth client from step 5 |
+   | `DEPLOY_HOST` | the server's tailnet name (MagicDNS) or `100.x` address |
+   | `DEPLOY_USER` | the deploy user |
+   | `DEPLOY_PATH` | absolute path of the checkout, e.g. `/home/deploy/bloom` |
+   | `DEPLOY_SSH_KEY` | contents of the private key `bloom-ci` |
+   | `DEPLOY_KNOWN_HOSTS` | output of `ssh-keyscan -t ed25519 <DEPLOY_HOST>`, run from a tailnet machine (pins the host key) |
+
+8. **First deploy.** Push to `development`, or run `./deploy-docker.sh` on the server by hand.
+   Log in as `admin@example.com` with `SEED_ADMIN_PASSWORD`, then change it.
+
+## Day to day
+
+- **Logs:** `podman logs -f bloom-server` (`docker logs` if you use docker)
+- **What's running:** `podman inspect --format '{{ index .Config.Labels "bloom.commit" }}' bloom-server`
+- **Backups:** each deploy first dumps both databases to `~/bloom-backups` (newest 7 kept). Skip with
+  `./deploy-docker.sh --no-backup`.
+- **Roll back:** a failed deploy prints the previous commit. Run
+  `git checkout --detach <sha> && ./deploy-docker.sh --no-backup`. Migrations that already ran are
+  not undone; restore a dump if a migration has to be reverted:
+  `gunzip -c ~/bloom-backups/bloom_<time>.sql.gz | podman exec -i bloom-mariadb sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot'`.
+- **Optional services:** `podman compose -f docker-compose.prod.yml --profile arsr up -d --build`
+  (needs the AutoRSR source at `ARSR_SOURCE_DIR`, default `../AutoRsr-NoBert-SARG`).
+
+## How the pipeline runs
+
+| | |
+|---|---|
+| **Workflow** | [deploy-development.yml](../.github/workflows/deploy-development.yml) |
+| **Starts on** | a push to `development`, or **Run workflow** by hand (it deploys the branch you pick, so run it on `development`) |
+| **Job `tests`** | calls [ci.yml](../.github/workflows/ci.yml): backend tests (.NET 9) and frontend tests (Jest). If either fails, nothing deploys. |
+| **Job `deploy`** | environment `development`; computes the version with `nbgv`; joins the tailnet as `tag:ci`; SSHes in with the pinned host key; runs `git fetch`, `git checkout --force --detach <sha>`, then `./deploy-docker.sh` from the new checkout |
+| **Concurrency** | one deploy at a time; a newer push waits instead of cancelling one half way |
+| **Never deploys** | pull requests (they only run `ci.yml`), or any branch other than `development` |
+
+`deploy-docker.sh` (run on the server) does, in order:
+
+1. Picks the engine (podman, else docker), checks that `<engine> compose` works, then checks `.env`, the certificate and `compose config`, before anything is stopped.
+2. Dumps both databases to `~/bloom-backups` (skipped on the very first deploy, when no database is running; a failed dump aborts the deploy).
+3. `<engine> compose -f docker-compose.prod.yml up -d --build` with `BUILD_VERSION` (the `nbgv` SemVer) and the commit sha (stored as the `bloom.commit` label on the container).
+4. Polls `http://127.0.0.1:5000/` for up to 120 s. The app serves `index.html` itself and runs its
+   migrations before it starts listening, so a 200 means the new version is up and migrated.
+5. On success prunes dangling images; on failure prints the server's logs and the previous commit.
+
+The pipeline is the same code path as a manual deploy: `./deploy-docker.sh` on the server does the
+same thing for whatever commit is checked out. Its own checks (secrets present, config valid, 200
+from the app) are what CI relies on, so a broken deploy shows up as a failed run.
+
+## Troubleshooting
+
+| Symptom (in the Actions log) | Cause and fix |
+|---|---|
+| `Secret X is not set in the 'development' environment` | Add it as an *environment* secret on `development`, not a repository secret. |
+| Tailscale step fails or times out reaching the host | `tag:ci` isn't in `tagOwners`, the ACL doesn't allow `tag:ci` to the server on port 22, the OAuth client lacks the `auth_keys` write scope or the `tag:ci` tag, or the server is offline. |
+| `Host key verification failed` | `DEPLOY_KNOWN_HOSTS` is stale or wrong (the server was reinstalled). Re-run `ssh-keyscan -t ed25519 <host>` from the tailnet and update the secret. |
+| `Permission denied (publickey)` | The public half of `DEPLOY_SSH_KEY` isn't in the deploy user's `authorized_keys`, or the secret is truncated (paste the whole file, including the `BEGIN`/`END` lines). |
+| `git fetch` fails on the server | The clone can't reach GitHub (a private fork needs a read-only deploy key on the server). |
+| `'podman compose' is not available` | No compose provider is installed. Install `docker-compose` v2 or `podman-compose` (step 1). |
+| Everything works, then the site is down a while after a deploy or a reboot | Rootless podman: linger and `podman-restart.service` aren't enabled (step 1). |
+| `permission denied` reading the certificate (SELinux) | The `:z` relabel didn't apply; check `ls -Z certs/`, or move the file to a path the deploy user owns. |
+| `.env is missing` / `required variable ... is missing` | Fill `.env` from `.env.example` (step 3). |
+| `data-protection certificate not found` | Create `certs/bloomserver.pfx` (step 4), or point `DP_CERT_FILE` at it. |
+| `database backup failed; not deploying` | The database container is unhealthy or out of disk. Fix it, or rerun with `--no-backup` once you accept the risk. |
+| `server did not come up` | Read the logs the script printed. Common causes: a wrong `DP_CERT_PASSWORD`, `SEED_ADMIN_PASSWORD` empty on a fresh database, a `;` in a database password, a failed migration. Then follow "Roll back" below. |
+| Site loads over `http://localhost` but not through your domain | The TLS proxy isn't forwarding to `127.0.0.1:5000`, or doesn't pass the `Host` header and WebSocket upgrades. |
+
+A fresh database logs "The model for context 'BloomDbContext' has pending changes. Add a new
+migration". That is a known gap between the EF model and the migrations; the server starts anyway.
+
+## Things to know
+
+- **Tested with docker, not podman.** The compose file and `deploy-docker.sh` were run end to end
+  (two deploys, backup, readiness check) under Docker. I wrote the podman parts (engine detection,
+  compose provider, linger, SELinux relabel) to avoid anything docker-specific, but they haven't run on
+  a podman host; expect to adjust on the first deploy. Compose providers differ in what they support,
+  so if `podman-compose` rejects the file, use the `docker-compose` v2 provider.
+- Database passwords can't contain `;` (they are embedded in a connection string); hex is safe.
+- The server builds the images itself, so deploys take a few minutes. Building in CI and pulling
+  from a registry would be quicker if that becomes a problem.
+- `RemoteShell__Enabled` defaults to on, matching `appsettings.json`. Set `REMOTE_SHELL_ENABLED=false`
+  in `.env` if the server shouldn't offer the robot shell. It also refuses to start with a weak
+  `JWT_KEY`.
+- Only pushes to `development` deploy. Pull requests run the tests and never touch the server.

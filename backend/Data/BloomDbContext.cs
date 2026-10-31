@@ -23,6 +23,7 @@ namespace bloom.Data
         public DbSet<RobotProfile> RobotProfiles { get; set; }
         public DbSet<RobotSession> RobotSessions { get; set; }
         public DbSet<RobotStateHistory> RobotStateHistorys { get; set; }
+        public DbSet<RobotEvent> RobotEvents { get; set; }
         public DbSet<LessonStep> LessonSteps { get; set; }
         public DbSet<LessonProgress> LessonProgresses { get; set; }
         public DbSet<LessonInteraction> LessonInteractions { get; set; }
@@ -31,6 +32,7 @@ namespace bloom.Data
         public DbSet<SLPClient> SLPClients { get; set; }
         public DbSet<RsrAssessment> RsrAssessments { get; set; }
         public DbSet<Behavior> Behaviors { get; set; }
+        public DbSet<ShellSessionAudit> ShellSessionAudits { get; set; }
 
         public BloomDbContext(DbContextOptions<BloomDbContext> dbContextOptions) : base(dbContextOptions)
         {
@@ -45,7 +47,34 @@ namespace bloom.Data
             // Configure tables
             builder.Entity<Account>(entity => { entity.ToTable("Accounts"); });
 
+            builder.Entity<RobotEvent>(entity =>
+            {
+                entity.ToTable("RobotEvents");
+
+                entity.HasOne(e => e.Robot)
+                    .WithMany()
+                    .HasForeignKey(e => e.RobotId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.RobotSession)
+                    .WithMany()
+                    .HasForeignKey(e => e.RobotSessionId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.Property(e => e.EventType).HasConversion<string>().HasMaxLength(32);
+
+                entity.HasIndex(e => new { e.RobotId, e.OccurredAt });
+                entity.HasIndex(e => e.RobotSessionId);
+            });
+
             builder.Entity<Robot>(entity => { entity.ToTable("Robots"); });
+
+            builder.Entity<ShellSessionAudit>(entity =>
+            {
+                entity.ToTable("ShellSessionAudits");
+                entity.Property(a => a.Id).ValueGeneratedNever();
+                entity.HasIndex(a => new { a.RobotId, a.StartedAt });
+            });
 
             builder.Entity<Lesson>(entity =>
             {
@@ -260,13 +289,22 @@ namespace bloom.Data
             }
         }
 
-        public static async Task SeedDatabaseAdminUser(UserManager<Account> userMgr)
+        // adminPassword comes from Seed:AdminPassword (env: Seed__AdminPassword). Development falls
+        // back to the old well-known password; Production refuses to create the admin without one,
+        // since Admin grants remote shell on every robot.
+        public static async Task SeedDatabaseAdminUser(UserManager<Account> userMgr, string? adminPassword, bool isProduction)
         {
-            // grab environment variables for admin user
             string adminEmail = "admin@example.com";
-            string adminPassword = "Admin@123";
             if (await userMgr.FindByEmailAsync(adminEmail) == null)
             {
+                if (string.IsNullOrWhiteSpace(adminPassword))
+                {
+                    if (isProduction)
+                        throw new InvalidOperationException(
+                            "Seed:AdminPassword is not configured. Set the Seed__AdminPassword environment variable.");
+                    adminPassword = "Admin@123";
+                }
+
                 var adminUser = new Account
                 {
                     UserName = adminEmail,

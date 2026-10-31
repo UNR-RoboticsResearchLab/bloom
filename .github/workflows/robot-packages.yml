@@ -1,0 +1,70 @@
+name: Robot packages
+
+on:
+  pull_request:
+    paths: ['robot/packaging/**', 'robot/src/**', 'version.json', '.github/workflows/robot-packages.yml']
+  push:
+    branches: [main, development]
+    paths: ['robot/packaging/**', 'robot/src/**', 'version.json', '.github/workflows/robot-packages.yml']
+  workflow_dispatch:
+
+jobs:
+  tooling-tests:
+    name: Packaging tooling + env loader tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y python3-pytest
+      - run: cd robot/packaging && python3 -m pytest -q tests
+      - run: cd robot/src/bloom_speech && python3 -m pytest -q test
+
+  build-debs:
+    name: Build .debs (linux-arm64, Ubuntu 24.04, ROS Jazzy)
+    # NOT YET RUN. A real build has only been prototyped by hand: it has never executed end to end.
+    # Manual trigger only until it has; then drop the `if` so it runs with the rest.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # nbgv needs the full history
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Version
+        id: version
+        run: |
+          dotnet tool install -g nbgv
+          echo "semver=$(nbgv get-version -v SemVer2)" >> "$GITHUB_OUTPUT"
+
+      - name: Build tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl gnupg lsb-release
+          sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" \
+            | sudo tee /etc/apt/sources.list.d/ros2.list
+          sudo apt-get update
+          sudo apt-get install -y ros-jazzy-ros-base python3-bloom python3-rosdep debhelper dh-python fakeroot \
+            build-essential cmake lintian
+          sudo rosdep init || true
+
+      - name: Build
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          cd robot/packaging
+          sudo -E env "PATH=$PATH" python3 -m bloom_packaging build --src ../src --out "$PWD/dist" \
+            --semver "${{ steps.version.outputs.semver }}" --execute --install-built
+          python3 -m bloom_packaging meta --name bloom-robot-core --semver "${{ steps.version.outputs.semver }}" \
+            --from-dir dist --out dist --extra-depends "libportaudio2, alsa-utils, pulseaudio-utils" \
+            --env-file /etc/bloom/robot.env
+
+      - name: Lint
+        run: lintian --no-tag-display-limit robot/packaging/dist/*.deb || true   # informational until baselined
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bloom-debs-${{ steps.version.outputs.semver }}
+          path: robot/packaging/dist/*.deb

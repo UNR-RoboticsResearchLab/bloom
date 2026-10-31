@@ -5,7 +5,8 @@
 // way it polls for pending lessons and step control.
 
 using bloom.Models.dto;
-using bloom.Services;
+using bloom.Services.Robots;
+using bloom.Services.SessionControl;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

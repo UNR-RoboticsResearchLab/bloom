@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Stand-in for apt-get, dpkg, dpkg-query, systemctl, robot-is-idle and robot-healthcheck. Behaviour
+# is chosen by the test through STUB_* variables; every call is appended to $STUB_LOG.
+name=$(basename "$0")
+echo "$name $*" >>"$STUB_LOG"
+
+case $name in
+  dpkg-query)
+    [[ -n ${STUB_INSTALLED:-} ]] && printf '%s' "$(cat "$STUB_INSTALLED")"
+    exit 0 ;;
+  apt-get)
+    if [[ " $* " == *" install "* && " $* " != *" --download-only "* ]]; then
+      target=${*: -1}; target=${target#*=}
+      if [[ ${STUB_INSTALL_FAIL_VERSION:-} == "$target" ]]; then exit 100; fi
+      [[ -n ${STUB_INSTALLED:-} ]] && printf '%s' "$target" >"$STUB_INSTALLED"
+      # Cancel arriving mid-install must not stop it.
+      [[ -n ${STUB_CANCEL_DURING_INSTALL:-} ]] && : >"$STUB_STATE_DIR/cancel-$FLEET_OTA_JOB_ID"
+    fi
+    [[ " $* " == *" update "* && -n ${STUB_UPDATE_FAIL:-} ]] && exit 100
+    [[ " $* " == *" --download-only "* && -n ${STUB_DOWNLOAD_FAIL:-} ]] && exit 100
+    exit 0 ;;
+  dpkg) [[ -n ${STUB_DPKG_FAIL:-} ]] && exit 1; exit 0 ;;
+  systemctl) [[ -n ${STUB_RESTART_FAIL:-} && ${STUB_RESTART_FAIL} == "$(cat "${STUB_INSTALLED:-/dev/null}" 2>/dev/null)" ]] && exit 1; exit 0 ;;
+  robot-is-idle) [[ -n ${STUB_BUSY:-} ]] && exit 1; exit 0 ;;
+  robot-healthcheck)
+    # Fails while the installed version is the one named in STUB_UNHEALTHY_VERSION.
+    [[ -n ${STUB_UNHEALTHY_VERSION:-} && $(cat "$STUB_INSTALLED") == "$STUB_UNHEALTHY_VERSION" ]] && exit 1
+    exit 0 ;;
+esac

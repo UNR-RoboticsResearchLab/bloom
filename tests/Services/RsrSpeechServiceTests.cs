@@ -3,7 +3,7 @@ using Moq;
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using bloom.Services;
+using bloom.Services.Rsr;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 

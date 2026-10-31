@@ -1,5 +1,5 @@
 using Xunit;
-using bloom.Services;
+using bloom.Services.SessionControl;
 
 namespace bloom.Tests.Services
 {

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bloom_speech_engines</name>
+  <version>0.0.1</version>
+  <description>Pluggable TTS and LLM engines shared by the Bloom robot's speech nodes and standalone demo</description>
+  <maintainer email="joshuaknight@unr.edu">jrkre</maintainer>
+  <license>MIT</license>
+
+  <!-- The Azure and OpenAI SDKs are pip-only (no rosdep key); see README.md. -->
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

@@ -54,7 +54,7 @@ export default function App() {
         
         <Route path="/add-student" element={<AddStudentCard />} />
 
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin" element={<Navigate to="/dashboard/admin" replace />} />
         <Route path="/teacher" element={<TeacherDashboard />} />
         <Route path="/student" element={<StudentDashboard />} />
         <Route path="/slp" element={<SlpDashboard />} />

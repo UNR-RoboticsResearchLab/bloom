@@ -250,3 +250,6 @@ cookies.txt
 
 # Claude Code project guidance (local-only)
 CLAUDE.md
+
+# Data-protection certificate folder for the production stack
+certs/

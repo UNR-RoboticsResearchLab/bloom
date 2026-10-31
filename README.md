@@ -38,7 +38,8 @@ The robot stack (speech, face, lesson delivery) has its own setup docs — see
 bloom/
 ├── backend/               ASP.NET Core 9 Web API (also serves the built React app)
 │   ├── Controllers/       REST endpoints (accounts, lessons, robot sessions, RSR, ...)
-│   ├── Services/          Business logic (lesson orchestration, robot, RSR, ...)
+│   ├── Services/          Business logic, one folder per feature (Accounts, Lessons, Robots, Rsr,
+│   │                      SessionControl, ReleaseCatalog, RemoteShell, ...)
 │   ├── Repositories/      Data access
 │   ├── Models/             EF Core entities + DTOs
 │   ├── Migrations/        EF Core migrations
@@ -54,7 +55,10 @@ bloom/
 │       └── blsm_unr/      Git submodule — motor control for the Blossom-style robot body
 ├── tests/                 xUnit test project for the backend (see tests/README.md)
 ├── docker-compose.yml         Dev stack (hot-reload backend + frontend, dev DBs)
-├── docker-compose.prod.yml    Production stack (backend + DB; frontend is built into the backend image)
+├── docker-compose.prod.yml    Production stack (backend + DBs; frontend is built into the backend image); secrets from .env
+├── .env.example               Template for the production stack's .env
+├── deploy-docker.sh           Server-side deploy for the Docker stack (run by CI over SSH)
+├── docs/                      Deploy pipeline, fleet dashboard, OTA design and status
 ├── Dockerfile / Dockerfile.dev   Backend (+ frontend build) images
 ├── build.sh / deploy.sh       Non-Docker production build + systemd deployment
 ├── startdocker-dev.sh / startdocker.sh   Docker convenience wrappers
@@ -120,6 +124,9 @@ Backend configuration lives in `backend/appsettings.json` (base) and `backend/ap
 - `ConnectionStrings:DevArsrConnection` / `ProdArsrConnection` — ArSr DB
 - `Jwt:Key` / `Issuer` / `Audience` / `ExpireMinutes` — auth token settings (change `Jwt:Key` before any real deployment; the checked-in value is a placeholder)
 - `AutoRsr:BaseUrl` — where the backend reaches the AutoRSR microservice
+- `Seed:AdminPassword` — password for the seeded `admin@example.com` account, used only when that account doesn't exist yet. Production refuses to create the account without it; Development falls back to `Admin@123`
+- `Robot:AllowLegacyNameOnlyLogin` — rollout only: lets robots that have no secret yet log in by name (their tokens can't open the remote shell)
+- `RemoteShell:Enabled` / `AllowedOrigins` / `SessionOpensPerMinute` — fleet remote shell (below). Off by default; it won't start with the checked-in `Jwt:Key`
 
 The robot driver has its own credentials, kept out of version control: copy `robot/.env.example` to `robot/.env` and fill in Azure OpenAI / Azure Speech keys. See [robot/README.md](robot/README.md).
 
@@ -150,12 +157,16 @@ cd frontend && npm test                 # frontend tests
 ### Docker
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml up -d --build    # or: podman compose ... (the development server runs podman)
 ```
 
-`Dockerfile` is a multi-stage build: it builds the React app, publishes the .NET backend, and copies the React build output into the final image so the backend serves both API and static frontend from one container/port. `docker-compose.prod.yml` brings that image up alongside `mariadb-prod` and `arsr-service`. Backend is published on host port `5000` (mapped from container `8080`).
+`Dockerfile` is a multi-stage build: it builds the React app, publishes the .NET backend, and copies the React build output into the image's `wwwroot` so the backend serves both API and static frontend from one container/port. `docker-compose.prod.yml` runs it in `Production` mode alongside two MariaDB 11.7 containers (`mariadb-prod`, `arsr-db`; neither is published to the host). `arsr-service` is optional (`--profile arsr`). The backend listens on `127.0.0.1:5000` only (container `8080`); put a TLS reverse proxy in front, because robot agents connect only over https.
 
-Before deploying for real: change `Jwt:Key` and the MariaDB passwords away from the checked-in defaults (currently plain values in `appsettings.json` / `docker-compose.prod.yml`).
+Copy `.env.example` to `.env` and fill it in first: database passwords, `JWT_KEY`, `SEED_ADMIN_PASSWORD` and `DP_CERT_PASSWORD`. Compose refuses to start with one missing, so the placeholder `Jwt:Key` in `appsettings.json` is never used. Production also needs a data-protection certificate at `certs/bloomserver.pfx`. Setup steps are in [docs/deploy-docker.md](docs/deploy-docker.md).
+
+### Development server (CI/CD)
+
+Every push to `development` that passes the tests is deployed automatically: GitHub Actions joins a Tailscale tailnet, SSHes to the server, checks out the commit, and runs `deploy-docker.sh` (database backup, `compose up --build` with podman or docker, wait for the app, report the commit to roll back to on failure). The workflow is [deploy-development.yml](.github/workflows/deploy-development.yml), which calls [ci.yml](.github/workflows/ci.yml) for the tests. Server setup, the GitHub secrets, rollback and troubleshooting: [docs/deploy-docker.md](docs/deploy-docker.md).
 
 ### Without Docker (systemd)
 
@@ -175,3 +186,25 @@ This path assumes `bloom.service` and the target directories already exist on th
 ## Robot
 
 The physical robot runs a separate ROS 2 workspace under `robot/`, independent of the Docker/web-app stack above. See [robot/README.md](robot/README.md) for build instructions, and note that `robot/src/blsm_unr` is a git submodule that needs `git submodule update --init --recursive` before it will build.
+
+Robots don't register themselves any more. An admin adds each one in the dashboard (Fleet → **Add robot**) and gets its id and a secret, shown only once, plus a **provisioning file** to carry to the robot. `robot/agent/deploy/provision.sh` (or `install.sh --provision-file`) applies it to both the agent and `bloom_node`'s `robot/.env` (`BLOOM_ROBOT_ID`, `BLOOM_ROBOT_SECRET`), all-or-nothing. For an existing robot, Fleet → **Credentials** either **pushes** a new secret to the robot through its live connection (the old one keeps working until the robot uses the new one, so it can't lock it out) or downloads a provisioning file. For M-SARG robots, the same screen has a form that builds the `deploy_sd.sh` command to flash an SD card with the credentials baked in ([docs/fleet-dashboard.md](docs/fleet-dashboard.md)). **Delete** (type the name to confirm) removes a robot. The same operations exist as `POST /api/robot/register`, `/{id}/credentials`, `/{id}/credentials/push` and `DELETE /api/robot/{id}`, all admin-only. Details: [robot/agent/README.md](robot/agent/README.md).
+
+## Fleet remote shell
+
+Admins can open a shell on any online robot from the **Fleet** section of the admin dashboard. Each robot runs `robot-agent` ([robot/agent/README.md](robot/agent/README.md)), which keeps an outbound TLS connection open to the backend. No inbound port and no sshd are needed, and it works through campus HTTP proxies. The backend relays the browser's xterm.js terminal over that connection. Both legs are SignalR hubs (`/hubs/robot-agent`, `/hubs/shell`); the C++ agent speaks the SignalR protocol itself, so **there is no .NET on the robots**. The agent uses only the WebSocket transport (browsers get SignalR's fallback), and the relay state is in memory, so run **one backend instance**: more would need a SignalR backplane such as Redis plus moving that state out of memory.
+
+- **Run locally:**
+  1. Set `RemoteShell__Enabled=true` and a private `Jwt__Key` of at least 32 bytes on the backend.
+  2. The agent needs HTTPS. Serve the backend with `ASPNETCORE_URLS=https://localhost:5443`, export the dev certificate with `dotnet dev-certs https --export-path dev.pem --format PEM --no-password`, and set `"ca_file"` in the agent's config to that file.
+  3. Build and run the agent as described in its README.
+- **Deploy:**
+  1. CI builds `robot-agent-<version>.tar.gz` for arm64 (`.github/workflows/robot-agent.yml`).
+  2. On the robot, `sudo ./install.sh --backend-url ... --robot-id ... --secret-file -` sets up the `bloom-ops` user (passwordless sudo) and the systemd unit.
+  3. If a robot can't connect, run `robot-agent doctor` on it.
+- **Revoke a robot:** `POST /api/robot/{id}/revoke`. This deletes its secret, stops every token it holds from working, and closes its tunnel and any open shell immediately. To restore it, issue a provisioning file from Fleet → **Credentials**.
+- **Audit:** every session is recorded with who opened it, which robot, start and end times, and the end reason: `GET /api/robot/{id}/shell-sessions`. Keystrokes are never stored.
+- One admin shell per robot at a time. A second admin is shown who has it and can take it over; that ends the first session, and the takeover is audited.
+
+### Versioning
+
+Versions come from [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) and the root `version.json`. Every build gets `1.0.<git height>`; builds off `main` get an extra `-g<commit>` suffix. Release channels (dev/canary/prod) are deliberately not part of the version, because the same artifact is promoted between channels. CI needs full history (`fetch-depth: 0`). A robot release is a `robot-v<SemVer>` git tag plus a GitHub Release, made by the manual **Robot release** workflow; the fleet card's "Target version" picker lists them per channel (`GET /api/robot/releases`). See [docs/fleet-dashboard.md](docs/fleet-dashboard.md). Docker builds have no `.git`, so they take the version as a build arg: `BUILD_VERSION=$(nbgv get-version -v SemVer2) docker compose -f docker-compose.prod.yml build`.

@@ -5,7 +5,8 @@
 // targeted by a pairing-code-resolved robotId, mirroring RsrController's public convention.
 
 using bloom.Models.dto;
-using bloom.Services;
+using bloom.Services.Robots;
+using bloom.Services.Rsr;
 using Microsoft.AspNetCore.Mvc;
 
 namespace bloom.Controllers

@@ -1,0 +1,213 @@
+#!/usr/bin/env bash
+# fleet-ota: on-demand software updater for a Bloom robot. Runs as root, in its own systemd unit
+# (launched by robot-agent via `systemd-run`), so neither an agent restart nor a crash can kill dpkg.
+#
+#   fleet-ota stage <version>    refresh our apt source, download bloom-robot-core=<version> (no install)
+#   fleet-ota apply <version>    install it, restart the ROS service, health-check, roll back on failure
+#   fleet-ota cancel <jobId>     ask a job that has not reached its point of no return to stop
+#   fleet-ota status             print state.json
+#
+# Configuration comes from the environment (robot-agent passes it with systemd-run --setenv, from
+# its own config -- never from a manifest). The job id and version are re-validated here.
+# State is written atomically to $FLEET_OTA_STATE_DIR/state.json; robot-agent watches it.
+set -euo pipefail
+
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export DEBIAN_FRONTEND=noninteractive
+umask 022
+
+JOB_ID="${FLEET_OTA_JOB_ID:-}"
+STATE_DIR="${FLEET_OTA_STATE_DIR:-/var/lib/fleet-ota}"
+APT_SOURCES="${FLEET_OTA_APT_SOURCES:-/etc/apt/sources.list.d/bloom-fleet.list}"
+METAPACKAGE="${FLEET_OTA_METAPACKAGE:-bloom-robot-core}"
+ROS_SERVICE="${FLEET_OTA_ROS_SERVICE:-bloom.service}"
+IDLE_CMD="${FLEET_OTA_IDLE_CMD:-/usr/local/bin/robot-is-idle}"
+HEALTH_CMD="${FLEET_OTA_HEALTH_CMD:-/usr/local/bin/robot-healthcheck}"
+HEALTH_TIMEOUT="${FLEET_OTA_HEALTH_TIMEOUT:-120}"
+# Command overrides exist so the tests can stub the system; the unit's environment is built by
+# robot-agent, so a manifest cannot set them.
+APT_GET="${FLEET_OTA_APT_GET:-apt-get}"
+DPKG="${FLEET_OTA_DPKG:-dpkg}"
+DPKG_QUERY="${FLEET_OTA_DPKG_QUERY:-dpkg-query}"
+SYSTEMCTL="${FLEET_OTA_SYSTEMCTL:-systemctl}"
+
+ACTION=""
+VERSION=""
+PREVIOUS=""
+LOCKED=0
+TERMINAL=0
+
+die() { echo "fleet-ota: $*" >&2; exit 64; }
+
+# ── State ────────────────────────────────────────────────────────────────
+
+json_escape() {
+  local s=$1
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  printf '%s' "$s" | tr -d '\000-\037'
+}
+
+# write_state <state> <percent> <detail>
+write_state() {
+  local tmp
+  tmp=$(mktemp "$STATE_DIR/.state.XXXXXX")
+  printf '{"jobId":"%s","action":"%s","version":"%s","previousVersion":"%s","state":"%s","percent":%d,"detail":"%s","updatedAt":"%s"}\n' \
+    "$JOB_ID" "$ACTION" "$VERSION" "$PREVIOUS" "$1" "$2" "$(json_escape "$3")" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$tmp"
+  chmod 0644 "$tmp"
+  mv -f "$tmp" "$STATE_DIR/state.json"
+  echo "fleet-ota job=$JOB_ID state=$1 percent=$2 detail=$3"
+}
+
+# finish <terminal state> <percent> <detail>: the last write of a job.
+finish() {
+  write_state "$@"
+  TERMINAL=1
+  case $1 in success | deferred | cancelled | staged) exit 0 ;; *) exit 1 ;; esac
+}
+
+# shellcheck disable=SC2329  # invoked through the EXIT trap
+on_exit() {
+  local rc=$?
+  if [[ $LOCKED -eq 1 && $TERMINAL -eq 0 ]]; then
+    # A set -e abort or a signal. If this was mid-install the next run's `dpkg --configure -a` repairs it.
+    TERMINAL=1
+    write_state failed 0 "updater aborted unexpectedly (exit $rc)" || true
+  fi
+  [[ -n $JOB_ID && -d $STATE_DIR ]] && rm -f "$STATE_DIR/cancel-$JOB_ID"
+  return 0
+}
+
+# ── Helpers ──────────────────────────────────────────────────────────────
+
+# Only our sources file is consulted, and package authentication is never relaxed.
+apt_opts() {
+  printf '%s\n' -y -q \
+    -o "Dir::Etc::sourcelist=$APT_SOURCES" -o "Dir::Etc::sourceparts=-" -o "APT::Get::List-Cleanup=0" \
+    -o "APT::Get::AllowUnauthenticated=false" -o "Dpkg::Options::=--force-confold"
+}
+
+run_apt() {
+  local opts=()
+  mapfile -t opts < <(apt_opts)
+  "$APT_GET" "${opts[@]}" "$@"
+}
+
+installed_version() {
+  # shellcheck disable=SC2016  # ${Version} is dpkg-query's format, not ours
+  "$DPKG_QUERY" -W -f='${Version}' "$METAPACKAGE" 2>/dev/null || true
+}
+
+# Honoured only before the point of no return (the first dpkg install of an apply).
+abort_if_cancelled() {
+  if [[ -e "$STATE_DIR/cancel-$JOB_ID" ]]; then
+    finish cancelled 0 "cancelled: $1"
+  fi
+}
+
+recover_dpkg() {
+  "$DPKG" --configure -a || finish failed 0 "dpkg --configure -a failed; the package database needs attention"
+}
+
+# ── Actions ──────────────────────────────────────────────────────────────
+
+do_stage() {
+  write_state staging 5 "recovering any interrupted install"
+  recover_dpkg
+  abort_if_cancelled "before refreshing package lists"
+
+  write_state staging 15 "refreshing the package list from the fleet source"
+  run_apt update || finish failed 15 "apt-get update failed"
+  abort_if_cancelled "before downloading"
+
+  write_state staging 40 "downloading $METAPACKAGE=$VERSION"
+  run_apt install --download-only --allow-downgrades "$METAPACKAGE=$VERSION" \
+    || finish failed 40 "downloading $METAPACKAGE=$VERSION failed"
+  finish staged 100 "$METAPACKAGE=$VERSION downloaded; the robot is unchanged"
+}
+
+rollback() {
+  local reason=$1
+  if [[ -z $PREVIOUS ]]; then
+    finish failed 0 "$reason; no previous version was installed, so there is nothing to roll back to"
+  fi
+  write_state applying 70 "$reason; rolling back to $PREVIOUS"
+  "$DPKG" --configure -a || true
+  if run_apt install --allow-downgrades "$METAPACKAGE=$PREVIOUS" && "$SYSTEMCTL" restart "$ROS_SERVICE"; then
+    finish rolled_back 100 "$reason; restored $METAPACKAGE=$PREVIOUS"
+  fi
+  finish failed 0 "$reason; rolling back to $PREVIOUS ALSO failed"
+}
+
+do_apply() {
+  write_state queued 0 "preparing"
+  recover_dpkg
+
+  [[ -x $IDLE_CMD ]] || finish failed 0 "idle check $IDLE_CMD is not executable"
+  if ! "$IDLE_CMD"; then
+    finish deferred 0 "robot is not idle; try again later"
+  fi
+
+  PREVIOUS=$(installed_version)
+  if [[ $PREVIOUS == "$VERSION" ]]; then
+    finish success 100 "$METAPACKAGE is already at $VERSION"
+  fi
+  abort_if_cancelled "before installing"
+
+  # Point of no return: from here a cancel request is ignored.
+  write_state applying 20 "installing $METAPACKAGE=$VERSION (was ${PREVIOUS:-not installed})"
+  if ! run_apt install --allow-downgrades "$METAPACKAGE=$VERSION"; then
+    rollback "install of $VERSION failed"
+  fi
+
+  write_state applying 60 "restarting $ROS_SERVICE"
+  if ! "$SYSTEMCTL" restart "$ROS_SERVICE"; then
+    rollback "restarting $ROS_SERVICE failed"
+  fi
+
+  write_state healthcheck 80 "running the health check (up to ${HEALTH_TIMEOUT}s)"
+  if [[ -x $HEALTH_CMD ]] && timeout "$HEALTH_TIMEOUT" "$HEALTH_CMD"; then
+    finish success 100 "$METAPACKAGE=$VERSION is healthy"
+  fi
+  rollback "health check failed after installing $VERSION"
+}
+
+# ── Entry ────────────────────────────────────────────────────────────────
+
+[[ $# -ge 1 ]] || die "usage: fleet-ota stage|apply <version> | cancel <jobId> | status"
+COMMAND=$1
+
+[[ $METAPACKAGE =~ ^[a-z0-9][a-z0-9+.-]+$ ]] || die "invalid metapackage name"
+[[ $HEALTH_TIMEOUT =~ ^[0-9]{1,5}$ ]] || die "invalid health check timeout"
+mkdir -p "$STATE_DIR"
+
+case $COMMAND in
+  status)
+    cat "$STATE_DIR/state.json" 2>/dev/null || echo '{}'
+    exit 0
+    ;;
+  cancel)
+    [[ $# -eq 2 && $2 =~ ^[A-Za-z0-9_-]{1,64}$ ]] || die "usage: fleet-ota cancel <jobId>"
+    : >"$STATE_DIR/cancel-$2"
+    exit 0
+    ;;
+  stage | apply)
+    [[ $# -eq 2 ]] || die "usage: fleet-ota $COMMAND <version>"
+    [[ $2 =~ ^[0-9][A-Za-z0-9.+~-]{0,63}$ ]] || die "invalid version"
+    [[ $JOB_ID =~ ^[A-Za-z0-9_-]{1,64}$ ]] || die "FLEET_OTA_JOB_ID is missing or invalid"
+    ACTION=$COMMAND
+    VERSION=$2
+    ;;
+  *) die "unknown command: $COMMAND" ;;
+esac
+
+trap on_exit EXIT
+trap '' HUP
+
+# One update at a time, machine-wide. Not written to state.json when this fails: that file belongs
+# to the job that holds the lock.
+exec 9>"$STATE_DIR/lock"
+flock -n 9 || die "another update is already running"
+LOCKED=1
+
+if [[ $ACTION == stage ]]; then do_stage; else do_apply; fi

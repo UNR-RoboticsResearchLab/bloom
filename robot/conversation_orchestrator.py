@@ -14,14 +14,13 @@ import threading
 import subprocess
 import platform
 
-# Add module paths
-sys.path.append(os.path.join(os.path.dirname(__file__), 'stt_module'))
-sys.path.append(os.path.join(os.path.dirname(__file__), 'tts_module'))
-sys.path.append(os.path.join(os.path.dirname(__file__), 'llm_module'))
-
+# Engines come from the bloom_speech_engines package:
+#   pip install -e 'src/bloom_speech_engines[azure,llm]'
+# DEFUNCT: stt_module no longer exists in the repo, so the next import fails and this demo cannot
+# start until its STT step is replaced or removed. The ROS2 stack (bloom_speech/stt_node) is unaffected.
 from stt_module.engine_azure import AzureSTTEngine
-from tts_module.engine_azure import AzureTTSEngine
-from llm_module.engine_azure_openai import AzureOpenAIEngine
+from bloom_speech_engines.tts.engine_azure import AzureTTSEngine
+from bloom_speech_engines.llm.engine_azure_openai import AzureOpenAIEngine
 
 class BloomOrchestrator:
     def __init__(self):
@@ -29,8 +28,8 @@ class BloomOrchestrator:
         
         # Import configs from each module
         from stt_module import config as stt_config
-        from tts_module import config as tts_config
-        from llm_module import config as llm_config
+        from bloom_speech_engines.tts import config as tts_config
+        from bloom_speech_engines.llm import config as llm_config
         
         # System prompt for Bloom's personality
         self.system_prompt = """You are Bloom, a friendly robot helper designed to have conversations with children. You are patient, warm, and genuinely interested in what they have to say.

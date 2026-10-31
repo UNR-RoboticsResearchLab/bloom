@@ -1,10 +1,13 @@
 // RobotFleetCard.jsx
-// One robot in the admin fleet-monitoring grid: model, the software version it
-// last reported, and a channel/version picker that pushes an OTA update.
+// One robot in the admin fleet-monitoring grid: model, online status and the
+// agent version it last reported, a Connect button for the remote shell, and a
+// channel/version picker for OTA updates.
 //
-// Presentational only — the parent owns data loading and the actual OTA call.
-// Pass `onUpdate(robot, { channel, version })` returning a promise; the card
-// handles its own pending/error/confirm state around it.
+// Presentational only — the parent owns data loading, the terminal and the
+// actual OTA call. `robot` is a RobotFleetDto (GET /api/robot/fleet).
+// `onConnect(robot)` opens a shell. `onUpdate(robot, { channel, version })`
+// returns a promise; without it (until OTA lands) the update button stays
+// disabled.
 
 import React, { useEffect, useMemo, useState } from "react";
 import Card from "../ui/Card";
@@ -43,10 +46,21 @@ function ModelIcon({ model }) {
 }
 
 // releases: { prod: ["1.4.2", ...], canary: [...], dev: [...] }, newest first.
-export default function RobotFleetCard({ robot, releases = {}, onUpdate }) {
-  const currentVersion = robot.firmwareVersion || robot.FirmwareVersion || null;
-  const model = robot.model || robot.Model || "Unknown model";
-  const name = robot.name || robot.Name;
+function relativeTime(iso) {
+  if (!iso) return "never";
+  const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+export default function RobotFleetCard({ robot, releases = {}, onUpdate, onConnect, onCredentials, onDelete }) {
+  // The agent's self-reported SemVer; bloom_node's firmwareVersion for robots without an agent yet.
+  const currentVersion = robot.agentVersion || robot.firmwareVersion || null;
+  const model = robot.model || "Unknown model";
+  const name = robot.name;
+  const online = !!robot.online;
 
   const [channel, setChannel] = useState("prod");
   const versions = useMemo(() => releases[channel] || [], [releases, channel]);
@@ -91,12 +105,51 @@ export default function RobotFleetCard({ robot, releases = {}, onUpdate }) {
           <h3 className="truncate text-base font-semibold text-gray-900">{name}</h3>
           <p className="truncate text-sm text-gray-500">{model}</p>
         </div>
+        <span
+          className={[
+            "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+            online ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600",
+          ].join(" ")}
+          title={online ? "Agent connected" : `Last seen ${relativeTime(robot.lastSeenAt)}`}
+        >
+          <span className={["h-2 w-2 rounded-full", online ? "bg-green-500" : "bg-gray-400"].join(" ")} />
+          {online ? "Online" : "Offline"}
+        </span>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Running</span>
-        <span className="font-mono text-sm text-gray-900">{currentVersion || "—"}</span>
+      <div className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Running</span>
+          <span className="font-mono text-sm text-gray-900" title={robot.agentCommit || undefined}>
+            {currentVersion || "—"}
+          </span>
+        </div>
+        {!online && (
+          <span className="text-right text-xs text-gray-500">Last seen {relativeTime(robot.lastSeenAt)}</span>
+        )}
+        {robot.provisioned === false && (
+          <span className="text-right text-xs text-amber-700">No credentials — can't log in</span>
+        )}
       </div>
+
+      {onConnect && (
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => onConnect(robot)}
+            disabled={!online}
+            className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+          >
+            {robot.shellHeldBy ? "Connect (in use)" : "Connect"}
+          </button>
+          {robot.shellHeldBy && (
+            <span className="text-xs text-gray-500">
+              Shell open by {robot.shellHeldBy}
+              {robot.shellSince ? ` since ${new Date(robot.shellSince).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <div className="flex gap-1 rounded-lg bg-gray-100 p-1" role="radiogroup" aria-label="Release channel">
@@ -171,6 +224,33 @@ export default function RobotFleetCard({ robot, releases = {}, onUpdate }) {
           </button>
         </div>
       )}
+
+      {(onCredentials || onDelete) && (
+        <div className="flex gap-2">
+          {onCredentials && (
+            <button
+              type="button"
+              onClick={() => onCredentials(robot)}
+              aria-label={`Credentials for ${name}`}
+              className="flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              Credentials
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(robot)}
+              aria-label={`Delete ${name}`}
+              className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      )}
+
+      {!onUpdate && <p className="-mt-2 text-xs text-gray-500">OTA updates aren't available yet.</p>}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
     </Card>

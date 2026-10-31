@@ -1,11 +1,13 @@
 # ClientApp/Dockerfile.dev
-FROM node:20-alpine
+FROM docker.io/library/node:20-alpine
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install --silent
+# From the lockfile, as CI does: `npm install` re-resolves the whole tree from the registry on every build.
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund --silent
 
 COPY . .
 

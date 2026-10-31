@@ -52,6 +52,13 @@ export default class ApiClient {
     });
   }
 
+  async forgotPassword(email) {
+    return this.request("/api/user/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
   // ── User / Profile ────────────────────────────────────────────────────────
 
   async getMe() {

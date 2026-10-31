@@ -71,7 +71,9 @@ services:
       args:
         # CI passes the nbgv SemVer; a local build is stamped 0.0.0-local.
         BUILD_VERSION: ${BUILD_VERSION:-0.0.0-local}
-    image: bloom-server:latest
+    # CI builds the image and the deploy sets BLOOM_IMAGE to it (ghcr.io/<owner>/bloom-server:<commit>), so
+    # the server only pulls. With BLOOM_IMAGE unset, `up --build` builds it here from the checkout.
+    image: ${BLOOM_IMAGE:-bloom-server:latest}
     container_name: bloom-server
     restart: unless-stopped
     labels:
@@ -79,7 +81,7 @@ services:
     ports:
       # Loopback only: the TLS proxy on the host forwards to this. Set BLOOM_BIND=0.0.0.0 only if
       # nothing sits in front.
-      - "${BLOOM_BIND:-127.0.0.1}:${BLOOM_HTTP_PORT:-5000}:8080"
+      - "${BLOOM_BIND:-127.0.0.1}:${BLOOM_HTTP_PORT:-8080}:8080"
     depends_on:
       mariadb-prod:
         condition: service_healthy
@@ -100,6 +102,13 @@ services:
       RemoteShell__Enabled: ${REMOTE_SHELL_ENABLED:-true}
       Robot__AllowLegacyNameOnlyLogin: "false"
       Releases__GitHub__Token: ${GITHUB_RELEASES_TOKEN:-}
+      # Outgoing email for account confirmation. Empty SMTP_HOST means email is not configured.
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__User: ${SMTP_USER:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Smtp__From: ${SMTP_FROM:-}
+      App__PublicBaseUrl: ${PUBLIC_BASE_URL:-}
       # Optional: AI lesson generation. Empty means not configured.
       AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
       AZURE_OPENAI_KEY: ${AZURE_OPENAI_KEY:-}

@@ -2,14 +2,15 @@ name: Deploy development
 
 # Deploys every push to development to the server described in docs/deploy-docker.md, once the tests
 # pass. The runner joins your Tailscale tailnet, then SSHes to the server over it, so the server
-# needs no public SSH port.
+# needs no public SSH port. It runs deploy-docker.sh, which builds and starts the production stack
+# (docker-compose.prod.yml: the .NET backend serving the built React app, plus the databases).
 #
 # Needs, in the "development" environment (Settings -> Environments):
 #   TS_OAUTH_CLIENT_ID, TS_OAUTH_SECRET   Tailscale OAuth client (scope: auth_keys write, tag:ci)
 #   DEPLOY_HOST                           the server's tailnet name or 100.x address
 #   DEPLOY_USER, DEPLOY_PATH              deploy user, and the repo checkout on the server
 #   DEPLOY_SSH_KEY                        private key of a deploy-only key pair (no passphrase)
-#   DEPLOY_KNOWN_HOSTS                    ssh-keyscan -t ed25519 <DEPLOY_HOST>, run from the tailnet
+#   DEPLOY_KNOWN_HOSTS                    ssh-keyscan -t ed25519 <server>, run from the tailnet (the host name in it doesn't matter)
 # The tailnet policy must let tag:ci reach the server on port 22.
 on:
   push:
@@ -31,6 +32,12 @@ jobs:
     needs: tests
     runs-on: ubuntu-latest
     environment: development
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,23 +62,30 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
 
-      - name: Deploy over SSH
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
-          BUILD_VERSION: ${{ steps.version.outputs.semver }}
+      - name: Prepare SSH
         run: |
           for v in DEPLOY_HOST DEPLOY_USER DEPLOY_PATH DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS; do
             [ -n "${!v}" ] || { echo "::error::Secret $v is not set in the 'development' environment"; exit 1; }
           done
           install -m 700 -d ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
-          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          # The host key is pinned (no trust-on-first-use): a changed key fails the deploy.
-          # Fetch and check out first, then run the script from the new checkout.
+          # Pin the server's ed25519 key under the exact name used to connect. DEPLOY_KNOWN_HOSTS may be the
+          # whole `ssh-keyscan` line or just "ssh-ed25519 AAAA...": the host name inside it (an IP, a short
+          # name, a MagicDNS name) is ignored, so it can't fail to match DEPLOY_HOST. The key is pinned (no
+          # trust-on-first-use): a changed key fails the deploy.
+          host_key="$(printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | grep -vE '^[[:space:]]*#' \
+            | sed -nE 's/.*(^|[[:space:]])(ssh-ed25519[[:space:]]+[A-Za-z0-9+\/=]+).*/\2/p' | head -n1)"
+          if [ -z "$host_key" ]; then
+            echo "::error::DEPLOY_KNOWN_HOSTS has no ssh-ed25519 key. Run 'ssh-keyscan -t ed25519 <server>' from a tailnet machine and paste its output."
+            exit 1
+          fi
+          printf '%s %s\n' "$DEPLOY_HOST" "$host_key" > ~/.ssh/known_hosts
+
+      # Fetch and check out first, then run the script from the new checkout.
+      - name: Deploy over SSH
+        env:
+          BUILD_VERSION: ${{ steps.version.outputs.semver }}
+        run: |
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
             "$DEPLOY_USER@$DEPLOY_HOST" \
             "cd $(printf %q "$DEPLOY_PATH") && git fetch --prune origin && git checkout --force --detach $(printf %q "$GITHUB_SHA") && BUILD_VERSION=$(printf %q "$BUILD_VERSION") ./deploy-docker.sh"

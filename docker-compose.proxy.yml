@@ -1,0 +1,13 @@
+# Optional overlay: attaches bloom-server to the network of a reverse proxy that runs in a container
+# (e.g. an nginx from another compose project), so the proxy can reach it as http://bloom-server:8080.
+# deploy-docker.sh adds this file when PROXY_NETWORK is set in .env; the network must already exist
+# (`podman network ls`). Without it, bloom-server is reachable only on 127.0.0.1:${BLOOM_HTTP_PORT}.
+services:
+  bloom-server:
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:?set PROXY_NETWORK in .env}

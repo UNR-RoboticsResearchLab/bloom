@@ -1,12 +1,17 @@
-FROM docker.io/library/node:18 AS react-build
+# Node 20 matches CI (ci.yml), and some frontend dependencies require it.
+FROM docker.io/library/node:20 AS react-build
 
 WORKDIR /app
 
-# Copy React app source files
-COPY frontend/package.json ./frontend/package.json
+# Install from the lockfile, as CI does: `npm install` without package-lock.json re-resolves the whole
+# dependency tree from the registry on every build, which is slow and not reproducible. The cache mount
+# keeps downloaded packages between builds on the same machine; the layer itself is cached until
+# package.json or the lockfile change.
+COPY frontend/package.json frontend/package-lock.json ./frontend/
 
 WORKDIR /app/frontend
-RUN npm install
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
 
 COPY frontend/ ./
 RUN npm run build

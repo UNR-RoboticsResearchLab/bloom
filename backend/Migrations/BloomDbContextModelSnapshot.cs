@@ -660,6 +660,63 @@ namespace bloom.Migrations
                     b.ToTable("Robots", (string)null);
                 });
 
+            modelBuilder.Entity("bloom.Models.RobotEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Code")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<bool>("IsResolved")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ResolutionNotes")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("RobotId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("RobotSessionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Source")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RobotSessionId");
+
+                    b.HasIndex("RobotId", "OccurredAt");
+
+                    b.ToTable("RobotEvents", (string)null);
+                });
+
             modelBuilder.Entity("bloom.Models.RobotProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1133,6 +1190,24 @@ namespace bloom.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("RegisteredUser");
+                });
+
+            modelBuilder.Entity("bloom.Models.RobotEvent", b =>
+                {
+                    b.HasOne("bloom.Models.Robot", "Robot")
+                        .WithMany()
+                        .HasForeignKey("RobotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("bloom.Models.RobotSession", "RobotSession")
+                        .WithMany()
+                        .HasForeignKey("RobotSessionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Robot");
+
+                    b.Navigation("RobotSession");
                 });
 
             modelBuilder.Entity("bloom.Models.RobotProfile", b =>

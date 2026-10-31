@@ -1,16 +1,18 @@
 # Deploying the development branch to a server
 
-Every push to `development` that passes the tests is deployed by GitHub Actions: the runner joins
-your Tailscale tailnet, SSHes to the server over it, checks out that commit, and runs
-[deploy-docker.sh](../deploy-docker.sh), which builds and restarts the stack in
-[docker-compose.prod.yml](../docker-compose.prod.yml). The workflow is
+Every push to `development` that passes the tests is deployed by GitHub Actions. A GitHub runner
+builds the Docker image (with a layer cache) and pushes it to GitHub's container registry; the
+deploy job then joins your Tailscale tailnet, SSHes to the server over it, checks out that commit,
+and runs [deploy-docker.sh](../deploy-docker.sh), which **pulls** that image and restarts the stack
+in [docker-compose.prod.yml](../docker-compose.prod.yml). The server never builds anything. The workflow is
 [deploy-development.yml](../.github/workflows/deploy-development.yml); it calls
 [ci.yml](../.github/workflows/ci.yml) for the tests, so `ci.yml` itself no longer runs on pushes to
 `development` (pull requests into it still do).
 
 ```
-push to development ─► tests ─► join tailnet ─► ssh server ─► git checkout <sha> ─► deploy-docker.sh
-                                                  backup DBs ─► compose up --build ─► wait for HTTP 200
+push to development ─► tests ─► build image, push to ghcr.io/<owner>/bloom-server:<sha>
+                              └► join tailnet ─► ssh server ─► git checkout <sha> ─► deploy-docker.sh
+                                                  pull image ─► backup DBs ─► compose up ─► wait for HTTP 200
 ```
 
 ## The stack
@@ -76,19 +78,105 @@ header and WebSocket upgrades. Caddy does both with `reverse_proxy 127.0.0.1:500
    | `DEPLOY_USER` | the deploy user |
    | `DEPLOY_PATH` | absolute path of the checkout, e.g. `/home/deploy/bloom` |
    | `DEPLOY_SSH_KEY` | contents of the private key `bloom-ci` |
-   | `DEPLOY_KNOWN_HOSTS` | output of `ssh-keyscan -t ed25519 <DEPLOY_HOST>`, run from a tailnet machine (pins the host key) |
+   | `DEPLOY_KNOWN_HOSTS` | output of `ssh-keyscan -t ed25519 <server>`, run from a tailnet machine. Only the `ssh-ed25519 AAAA…` key is used (it's pinned under `DEPLOY_HOST`), so the host name in the line doesn't matter. |
 
-8. **First deploy.** Push to `development`, or run `./deploy-docker.sh` on the server by hand.
+8. **Image registry and architecture.** Nothing to set up on the server: the deploy job hands it a
+   short-lived token for the pull, and the server logs in, pulls and logs out. The image is
+   `ghcr.io/<owner>/bloom-server:<commit>`. Two things to know:
+   - **Architecture.** The image is built natively on the runner. If the server is **arm64**, add a
+     repository variable (Settings → Secrets and variables → Actions → Variables) `DEPLOY_ARCH=arm64`
+     so it builds on an arm runner; leave it unset for x86-64. A mismatch shows as `exec format error`
+     or `no matching manifest`.
+   - **Package access.** The first push creates the package. If the pull is denied, open the package
+     (repo → Packages → bloom-server → Package settings), and under *Manage Actions access* add this
+     repository with Read (or make the package public).
+9. **First deploy.** Push to `development`, or run `./deploy-docker.sh` on the server by hand.
    Log in as `admin@example.com` with `SEED_ADMIN_PASSWORD`, then change it.
+
+## The development stack on the server
+
+Besides the production-mode stack above, the server can run the **development stack**: the same
+`docker-compose.yml` you use locally, with the hot-reload React dev server, the backend in
+`Development` mode (Swagger), and the two dev databases. The deploy workflow updates it on every
+push, right after the main deploy (step "Deploy the development stack", which runs
+[deploy-dev-stack.sh](../deploy-dev-stack.sh)). It is on by default; set the repository variable
+`DEPLOY_DEV_STACK=false` to skip it. `auto_rsr` is not started: its source isn't in this repo and it needs an
+NVIDIA GPU.
+
+| | Production-mode stack | Development stack |
+|---|---|---|
+| Compose file | `docker-compose.prod.yml` (project `bloom-prod`) | `docker-compose.yml` (project `bloom`) |
+| Frontend | built once into the image, served by the backend | `npm start` dev server, hot reload (`frontend/src` is mounted) |
+| Backend | `Production`, secrets from `.env` | `Development`, Swagger, `appsettings.json` defaults |
+| Host ports | `127.0.0.1:5000` (behind your TLS proxy) | `3000` (frontend), `8080` (API/Swagger), `2443`, DBs `3306` / `3307` |
+| Data | volumes `bloom-prod_*` | volumes `bloom_*`; kept across deploys |
+
+Both run side by side (different container names, volumes and ports), but **3000, 8080, 2443, 3306
+and 3307 must be free on the host**.
+
+### Setup (once, on the server)
+
+Add to the server's `.env` (the same file as the production settings; see `.env.example`):
+
+```
+DEV_BIND=100.x.y.z            # this server's Tailscale address: tailscale ip -4
+DEV_DB_BIND=127.0.0.1         # keep the databases off the network
+DEV_PUBLIC_ORIGINS=http://<tailnet-name>:3000,http://100.x.y.z:3000
+DEV_ADMIN_PASSWORD=<a real password>
+```
+
+- `DEV_BIND` is **required**. Without it Docker would publish the stack, databases with the default
+  `bloomrootpassword` included, on every network interface, so `deploy-dev-stack.sh` refuses to run.
+- `DEV_PUBLIC_ORIGINS` lists the addresses you open the frontend from. The browser loads the frontend on
+  port 3000 and calls the API on port 8080 of the same host, which is a cross-origin request, and the
+  backend only accepts `localhost` and private-LAN (`10.*`, `172.16-31.*`, `192.168.*`) origins. Tailscale
+  addresses (`100.64.0.0/10`) and MagicDNS names are neither, so they must be listed (backend setting
+  `Cors:AllowedOrigins`). List every spelling you use, scheme and port included.
+- `DEV_ADMIN_PASSWORD` is used only when the dev database is first created (`admin@example.com`). Without
+  it that account gets the public default `Admin@123`; the script warns.
+- For AI lesson generation put an `AZURE_OPENAI_*` file at `backend/.env` on the server; the dev compose
+  file reads it if it exists.
+
+Then push to `development`, or run `./deploy-dev-stack.sh` on the server. Open `http://<DEV_BIND>:3000`
+from a machine on your tailnet; Swagger is at `http://<DEV_BIND>:8080/swagger/index.html`. Both ports must
+be reachable from your browser, because the frontend looks for the API on the page's own host, port 8080.
+
+### Things to know
+
+- **Trusted network only.** The dev backend uses the `Jwt:Key` from `appsettings.json`, which is public
+  (it is in git), and has the remote shell enabled. Anyone who can reach port 8080 could mint robot
+  tokens. Keep it on the tailnet, and never register real robots in the dev stack.
+- **Plain http.** That is fine inside the tailnet (it is encrypted by WireGuard), but robot agents only
+  connect over https: real robots belong on the production-mode stack behind a TLS proxy.
+- **Resources.** The React dev server takes 1 to 2 GB of RAM, plus the .NET backend and two MariaDB
+  containers. The first deploy builds both dev images and the first page load compiles the frontend, so
+  expect several minutes.
+- **Hot reload.** Each deploy's `git checkout` changes the mounted `frontend/src`, and the dev server picks it up.
+  A change to `package.json` or the backend rebuilds the image (`up --build`; unchanged layers are cached).
+- **Reset the data.** `docker compose -f docker-compose.yml down -v` deletes the dev databases (use
+  `podman compose` on the server).
+- **Podman.** As for the main stack: `podman compose` needs a compose provider, and `restart: unless-stopped`
+  needs `podman-restart.service` after a reboot (see the setup steps above).
+
+| Symptom | Cause and fix |
+|---|---|
+| `DEV_BIND is not set in .env` | Set it (above). |
+| Browser console: *blocked by CORS policy* | The address in the URL bar isn't in `DEV_PUBLIC_ORIGINS` (check scheme, host and port), or the dev backend wasn't restarted after you changed it. |
+| `port is already allocated` / `address already in use` | Something else on the server uses 3000, 8080, 2443, 3306 or 3307. |
+| `the dev stack did not come up` | The script printed both containers' logs. The React dev server compiles on its first request, so a slow first start can need a second run; the backend needs its database, so check `mariadb-dev`. |
 
 ## Day to day
 
 - **Logs:** `podman logs -f bloom-server` (`docker logs` if you use docker)
 - **What's running:** `podman inspect --format '{{ index .Config.Labels "bloom.commit" }}' bloom-server`
+- **Images on the server:** only `bloom-server` images are kept, the newest 3 (each deploy pulls a new tag).
+  Other images on the machine are never touched.
 - **Backups:** each deploy first dumps both databases to `~/bloom-backups` (newest 7 kept). Skip with
   `./deploy-docker.sh --no-backup`.
-- **Roll back:** a failed deploy prints the previous commit. Run
-  `git checkout --detach <sha> && ./deploy-docker.sh --no-backup`. Migrations that already ran are
+- **Roll back:** a failed deploy prints the exact command, which looks like
+  `git checkout --detach <sha> && BLOOM_IMAGE=ghcr.io/<owner>/bloom-server:<sha> ./deploy-docker.sh --no-backup`.
+  The old image is reused from the server if it is still there, otherwise pulled (that needs the
+  registry reachable and, for a private package, a login: `podman login ghcr.io`). Migrations that already ran are
   not undone; restore a dump if a migration has to be reverted:
   `gunzip -c ~/bloom-backups/bloom_<time>.sql.gz | podman exec -i bloom-mariadb sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot'`.
 - **Optional services:** `podman compose -f docker-compose.prod.yml --profile arsr up -d --build`
@@ -101,21 +189,23 @@ header and WebSocket upgrades. Caddy does both with `reverse_proxy 127.0.0.1:500
 | **Workflow** | [deploy-development.yml](../.github/workflows/deploy-development.yml) |
 | **Starts on** | a push to `development`, or **Run workflow** by hand (it deploys the branch you pick, so run it on `development`) |
 | **Job `tests`** | calls [ci.yml](../.github/workflows/ci.yml): backend tests (.NET 9) and frontend tests (Jest). If either fails, nothing deploys. |
-| **Job `deploy`** | environment `development`; computes the version with `nbgv`; joins the tailnet as `tag:ci`; SSHes in with the pinned host key; runs `git fetch`, `git checkout --force --detach <sha>`, then `./deploy-docker.sh` from the new checkout |
+| **Job `image`** | computes the version with `nbgv`; builds the [Dockerfile](../Dockerfile) with Buildx on a runner of the server's architecture (npm and NuGet layers are cached between runs in the GitHub cache); pushes `ghcr.io/<owner>/bloom-server:<commit>` |
+| **Job `deploy`** | environment `development`; joins the tailnet as `tag:ci`; SSHes in with the pinned host key; runs `git fetch`, `git checkout --force --detach <sha>`, then `./deploy-docker.sh` from the new checkout with `BLOOM_IMAGE` set to that image and the job's registry token on stdin |
 | **Concurrency** | one deploy at a time; a newer push waits instead of cancelling one half way |
 | **Never deploys** | pull requests (they only run `ci.yml`), or any branch other than `development` |
 
 `deploy-docker.sh` (run on the server) does, in order:
 
-1. Picks the engine (podman, else docker), checks that `<engine> compose` works, then checks `.env`, the certificate and `compose config`, before anything is stopped.
-2. Dumps both databases to `~/bloom-backups` (skipped on the very first deploy, when no database is running; a failed dump aborts the deploy).
-3. `<engine> compose -f docker-compose.prod.yml up -d --build` with `BUILD_VERSION` (the `nbgv` SemVer) and the commit sha (stored as the `bloom.commit` label on the container).
-4. Polls `http://127.0.0.1:5000/` for up to 120 s. The app serves `index.html` itself and runs its
+1. Picks the engine (podman, else docker), checks that `<engine> compose` works, logs in to the registry with the token from stdin (and logs out when done), then checks `.env`, the certificate and `compose config`, before anything is stopped.
+2. **Pulls the image.** A missing image stops the deploy here, before anything is stopped or dumped. (If the registry can't be reached but the image is already on the server, as in a rollback, it carries on with that copy.)
+3. Dumps both databases to `~/bloom-backups` (skipped on the very first deploy, when no database is running; a failed dump aborts the deploy).
+4. `<engine> compose -f docker-compose.prod.yml up -d --no-build` with the pulled image. The commit sha is stored as the `bloom.commit` label on the container.
+5. Polls `http://127.0.0.1:5000/` for up to 120 s. The app serves `index.html` itself and runs its
    migrations before it starts listening, so a 200 means the new version is up and migrated.
-5. On success prunes dangling images; on failure prints the server's logs and the previous commit.
+6. On success prunes dangling images and old `bloom-server` images; on failure prints the server's logs and the previous commit.
 
-The pipeline is the same code path as a manual deploy: `./deploy-docker.sh` on the server does the
-same thing for whatever commit is checked out. Its own checks (secrets present, config valid, 200
+A manual `./deploy-docker.sh` on the server, with `BLOOM_IMAGE` unset, builds the image from the
+checkout instead (slow; that is the old behaviour, kept for a server with no registry access). Its own checks (secrets present, config valid, 200
 from the app) are what CI relies on, so a broken deploy shows up as a failed run.
 
 ## Troubleshooting
@@ -124,12 +214,17 @@ from the app) are what CI relies on, so a broken deploy shows up as a failed run
 |---|---|
 | `Secret X is not set in the 'development' environment` | Add it as an *environment* secret on `development`, not a repository secret. |
 | Tailscale step fails or times out reaching the host | `tag:ci` isn't in `tagOwners`, the ACL doesn't allow `tag:ci` to the server on port 22, the OAuth client lacks the `auth_keys` write scope or the `tag:ci` tag, or the server is offline. |
-| `Host key verification failed` | `DEPLOY_KNOWN_HOSTS` is stale or wrong (the server was reinstalled). Re-run `ssh-keyscan -t ed25519 <host>` from the tailnet and update the secret. |
+| `DEPLOY_KNOWN_HOSTS has no ssh-ed25519 key` | The secret is empty, or holds another key type (RSA/ECDSA). Re-run `ssh-keyscan -t ed25519 <server>` from the tailnet and paste the output. |
+| `Host key verification failed` (the key is now matched by value, not name) | The server's key changed (reinstalled, or `ssh-keygen -A` re-run), or `DEPLOY_HOST` points at a different machine than the one you scanned. Re-scan and update the secret. |
 | `Permission denied (publickey)` | The public half of `DEPLOY_SSH_KEY` isn't in the deploy user's `authorized_keys`, or the secret is truncated (paste the whole file, including the `BEGIN`/`END` lines). |
 | `git fetch` fails on the server | The clone can't reach GitHub (a private fork needs a read-only deploy key on the server). |
 | `'podman compose' is not available` | No compose provider is installed. Install `docker-compose` v2 or `podman-compose` (step 1). |
 | Everything works, then the site is down a while after a deploy or a reboot | Rootless podman: linger and `podman-restart.service` aren't enabled (step 1). |
 | `permission denied` reading the certificate (SELinux) | The `:z` relabel didn't apply; check `ls -Z certs/`, or move the file to a path the deploy user owns. |
+| `could not pull ghcr.io/...` / `denied` / `unauthorized` | The package isn't accessible to this repo's token: package settings → *Manage Actions access* → add the repo with Read, or make it public (setup step 8). |
+| `exec format error`, or `no matching manifest for linux/...` | The server's architecture differs from the build's. Set the repository variable `DEPLOY_ARCH=arm64` for an arm64 server, unset it for x86-64, and push again. |
+| `Build image` job fails on `type=gha` cache | Transient GitHub cache outage; re-run the job. The cache only speeds builds up. |
+| `NOTE: could not prune dangling images (not fatal)`, or an older run failing with `image is in use by a container` (exit 125) | Leftover build containers, usually from a build that was killed or cancelled, still reference old images. The deploy is not affected. List them with `podman ps -a --external`; with no build running, `buildah rm --all` removes them. |
 | `.env is missing` / `required variable ... is missing` | Fill `.env` from `.env.example` (step 3). |
 | `data-protection certificate not found` | Create `certs/bloomserver.pfx` (step 4), or point `DP_CERT_FILE` at it. |
 | `database backup failed; not deploying` | The database container is unhealthy or out of disk. Fix it, or rerun with `--no-backup` once you accept the risk. |
@@ -142,13 +237,16 @@ migration". That is a known gap between the EF model and the migrations; the ser
 ## Things to know
 
 - **Tested with docker, not podman.** The compose file and `deploy-docker.sh` were run end to end
-  (two deploys, backup, readiness check) under Docker. I wrote the podman parts (engine detection,
+  under Docker (builds, a pull-based deploy from a local registry, a redeploy with backup, a bad-tag
+  failure, the registry login and logout). I wrote the podman parts (engine detection,
   compose provider, linger, SELinux relabel) to avoid anything docker-specific, but they haven't run on
   a podman host; expect to adjust on the first deploy. Compose providers differ in what they support,
   so if `podman-compose` rejects the file, use the `docker-compose` v2 provider.
 - Database passwords can't contain `;` (they are embedded in a connection string); hex is safe.
-- The server builds the images itself, so deploys take a few minutes. Building in CI and pulling
-  from a registry would be quicker if that becomes a problem.
+- CI builds the image, so deploys are quick once the layers are cached: a change that doesn't touch
+  `frontend/package.json` or `backend/*.csproj` skips the `npm install` and NuGet restore.
+- The image holds the build version (`nbgv`) and is tagged with the commit, so what runs on the
+  server is exactly what the tests passed on.
 - `RemoteShell__Enabled` defaults to on, matching `appsettings.json`. Set `REMOTE_SHELL_ENABLED=false`
   in `.env` if the server shouldn't offer the robot shell. It also refuses to start with a weak
   `JWT_KEY`.

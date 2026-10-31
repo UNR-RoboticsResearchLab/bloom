@@ -9,6 +9,7 @@ import DeleteRobotDialog from "./DeleteRobotDialog";
 import RevokeRobotDialog from "./RevokeRobotDialog";
 import ShellAuditDialog from "./ShellAuditDialog";
 import UserManagementCard from "./UserManagementCard";
+import { useNavigate } from "react-router-dom";
 import { useApiClient } from "../../context/ApiClientContext";
 
 // function Stat({ label, value, unit = "", percent = null }) {
@@ -50,6 +51,7 @@ const FLEET_POLL_MS = 10000;
 
 export default function AdminDashboard() {
   const api = useApiClient();
+  const navigate = useNavigate();
   const [fleet, setFleet] = useState([]);
   const [fleetError, setFleetError] = useState("");
   const [terminalRobot, setTerminalRobot] = useState(null);
@@ -363,7 +365,14 @@ export default function AdminDashboard() {
   }
 
   return (
-    <DashboardLayout title="Admin Dashboard">
+    <DashboardLayout
+      title="Admin Dashboard"
+      actions={
+        <button onClick={() => navigate("/dashboard/slp")} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 shadow-xs hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+          View SLP dashboard
+        </button>
+      }
+    >
       {/* <div className="mb-4 flex items-center justify-between">
         <div className="text-sm text-gray-600">Last updated: {readings.updatedAt}</div>
         <div className="flex items-center gap-2">

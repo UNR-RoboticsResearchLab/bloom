@@ -11,6 +11,7 @@
     <SpaProxyServerUrl>https://localhost:44498</SpaProxyServerUrl>
     <!-- <SpaProxyLaunchCommand>npm start</SpaProxyLaunchCommand> -->
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>bloom-backend-8f3c2a1e</UserSecretsId>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -29,6 +30,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MailKit" Version="4.*" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.10" />

@@ -8,10 +8,12 @@ using bloom.Data;
 using bloom.Models;
 using bloom.Models.dto;
 using bloom.Services.Accounts;
+using bloom.Services.Email;
 using bloom.Services.SLPClients;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace bloom.Controllers
@@ -30,17 +32,23 @@ namespace bloom.Controllers
         private readonly ISLPClientService _slpClientService;
         private readonly BloomDbContext _context;
         private readonly ILogger<UserController> _logger;
+        private readonly IEmailConfirmationService _emailConfirmation;
+        private readonly IPasswordResetService _passwordReset;
 
         public UserController(
             IAccountService accountService,
             ISLPClientService slpClientService,
             BloomDbContext context,
-            ILogger<UserController> logger)
+            ILogger<UserController> logger,
+            IEmailConfirmationService emailConfirmation,
+            IPasswordResetService passwordReset)
         {
             _accountService = accountService;
             _slpClientService = slpClientService;
             _context = context;
             _logger = logger;
+            _emailConfirmation = emailConfirmation;
+            _passwordReset = passwordReset;
         }
 
         #region Auth
@@ -61,6 +69,13 @@ namespace bloom.Controllers
                 return BadRequest(new { Message = "Email and Password are required." });
 
             var res = await _accountService.SignInAsync(account.Email, account.Password);
+            if (res.IsNotAllowed)
+                return BadRequest(new
+                {
+                    Message = "Email not confirmed. Check your inbox for the confirmation link, or request a new one.",
+                    Code = "EmailNotConfirmed"
+                });
+
             if (!res.Succeeded)
                 return BadRequest(new { Message = "Invalid login attempt." });
 
@@ -125,9 +140,24 @@ namespace bloom.Controllers
             if (newUser == null)
                 return BadRequest(new { Message = "An error occurred during account creation." });
 
+            // The account exists either way; if mail fails the user can request another link.
+            var emailSent = true;
+            try
+            {
+                await _emailConfirmation.SendConfirmationAsync(newUser);
+            }
+            catch (Exception ex)
+            {
+                emailSent = false;
+                _logger.LogError(ex, "Could not send confirmation email for account {UserId}", newUser.Id);
+            }
+
             return Ok(new
             {
-                Message = "Creation Success",
+                Message = emailSent
+                    ? "Creation Success. Check your email to confirm your account."
+                    : "Creation Success, but the confirmation email could not be sent. Request a new one from the sign-in page.",
+                EmailSent = emailSent,
                 User = new
                 {
                     newUser.Id,
@@ -139,6 +169,111 @@ namespace bloom.Controllers
                 }
             });
         }
+
+        /// <summary>
+        /// Confirms an email address from the link in the confirmation email. Returns an HTML page.
+        /// </summary>
+        [HttpGet("confirm-email")]
+        public async Task<ContentResult> ConfirmEmail([FromQuery] string? userId, [FromQuery] string? token)
+        {
+            var confirmed = await _emailConfirmation.ConfirmEmailAsync(userId ?? "", token ?? "");
+            return Content(confirmed
+                ? ConfirmationPage("Email confirmed", "Thanks! Your email address is confirmed and you can now sign in to Bloom.")
+                : ConfirmationPage("Confirmation failed", "This confirmation link is invalid or has expired. Sign in to Bloom to request a new one."),
+                "text/html");
+        }
+
+        /// <summary>
+        /// Sends a new confirmation email if the address belongs to an unconfirmed account.
+        /// Always answers the same so it cannot be used to discover registered addresses.
+        /// </summary>
+        [HttpPost("resend-confirmation")]
+        [EnableRateLimiting("resend-confirmation")]
+        public async Task<IActionResult> ResendConfirmation([FromBody] ResendConfirmationDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                await _emailConfirmation.ResendConfirmationAsync(dto.Email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Could not resend confirmation email");
+            }
+
+            return Ok(new { Message = "If that address belongs to an unconfirmed account, a new confirmation email has been sent." });
+        }
+
+        /// <summary>
+        /// Emails a password reset link. Always answers the same so it cannot be used to discover
+        /// registered addresses.
+        /// </summary>
+        [HttpPost("forgot-password")]
+        [EnableRateLimiting("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                await _passwordReset.SendResetLinkAsync(dto.Email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Could not send password reset email");
+            }
+
+            return Ok(new { Message = "If that address belongs to an account, an email with instructions has been sent." });
+        }
+
+        /// <summary>
+        /// The page the reset link opens: a form for choosing a new password.
+        /// </summary>
+        [HttpGet("reset-password")]
+        public ContentResult ResetPasswordForm([FromQuery] string? userId, [FromQuery] string? token) =>
+            Content(ResetPasswordPage(userId ?? "", token ?? "", null), "text/html");
+
+        /// <summary>
+        /// Submitted by the reset form.
+        /// </summary>
+        [HttpPost("reset-password")]
+        [Consumes("application/x-www-form-urlencoded")]
+        public async Task<ContentResult> ResetPassword([FromForm] string? userId, [FromForm] string? token, [FromForm] string? password)
+        {
+            if (string.IsNullOrEmpty(password))
+                return Content(ResetPasswordPage(userId ?? "", token ?? "", "Enter a new password."), "text/html");
+
+            var result = await _passwordReset.ResetPasswordAsync(userId ?? "", token ?? "", password);
+            if (!result.Succeeded)
+                return Content(ResetPasswordPage(userId ?? "", token ?? "",
+                    string.Join(" ", result.Errors.Select(e => e.Description))), "text/html");
+
+            return Content(ConfirmationPage("Password changed", "Your password has been updated. You can now sign in to Bloom."), "text/html");
+        }
+
+        private static string ResetPasswordPage(string userId, string token, string? error)
+        {
+            Func<string, string> enc = System.Net.WebUtility.HtmlEncode;
+            var errorHtml = error == null ? "" : $"<p style=\"color:#b91c1c\">{enc(error)}</p>";
+            return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
+                "<title>Reset password - Bloom</title></head>" +
+                "<body style=\"font-family:sans-serif;max-width:24rem;margin:6rem auto;padding:0 1rem;text-align:center\">" +
+                $"<h1>Choose a new password</h1>{errorHtml}" +
+                "<form method=\"post\" action=\"/api/user/reset-password\">" +
+                $"<input type=\"hidden\" name=\"userId\" value=\"{enc(userId)}\">" +
+                $"<input type=\"hidden\" name=\"token\" value=\"{enc(token)}\">" +
+                "<p><input type=\"password\" name=\"password\" placeholder=\"New password\" autocomplete=\"new-password\" required style=\"width:100%;padding:.5rem;box-sizing:border-box\"></p>" +
+                "<p><button type=\"submit\" style=\"padding:.5rem 1rem\">Change password</button></p></form></body></html>";
+        }
+
+        private static string ConfirmationPage(string title, string message) =>
+            "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
+            $"<title>{title} - Bloom</title></head>" +
+            "<body style=\"font-family:sans-serif;max-width:32rem;margin:6rem auto;padding:0 1rem;text-align:center\">" +
+            $"<h1>{title}</h1><p>{message}</p><p><a href=\"/sign-in\">Go to sign in</a></p></body></html>";
 
         /// <summary>
         /// Creates a student account with a system-generated password and automatically links them as an SLP client.
@@ -166,9 +301,24 @@ namespace bloom.Controllers
             if (slpId != null)
                 await _slpClientService.CreateAsync(newUser.FullName ?? newUser.Email ?? newUser.Id, slpId, newUser.Id);
 
+            // The student must confirm the address before they can sign in with the temporary password.
+            var emailSent = true;
+            try
+            {
+                await _emailConfirmation.SendConfirmationAsync(newUser, generatedPassword);
+            }
+            catch (Exception ex)
+            {
+                emailSent = false;
+                _logger.LogError(ex, "Could not send confirmation email for student {UserId}", newUser.Id);
+            }
+
             return Ok(new
             {
-                Message = "Student account created successfully.",
+                Message = emailSent
+                    ? "Student account created successfully. A confirmation email with the temporary password was sent to the student."
+                    : "Student account created, but the confirmation email could not be sent. The student can request a new one.",
+                EmailSent = emailSent,
                 User = new
                 {
                     newUser.Id,

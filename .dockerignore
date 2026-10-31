@@ -1,3 +1,11 @@
 .ClientApp/
-bin
-obj
+**/bin
+**/obj
+# The image only copies backend/ and frontend/; keep the rest out of the build context.
+.git
+.github
+robot
+docs
+tests
+frontend/node_modules
+frontend/build

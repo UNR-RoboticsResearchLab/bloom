@@ -1,0 +1,3 @@
+# Keep the host's installs out of the image: npm ci builds node_modules inside it.
+node_modules
+build

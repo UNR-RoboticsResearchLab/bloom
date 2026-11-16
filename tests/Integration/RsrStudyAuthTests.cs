@@ -18,6 +18,36 @@ public class RsrStudyAuthTests : IClassFixture<BloomWebApplicationFactory>
     private readonly BloomWebApplicationFactory _factory;
     public RsrStudyAuthTests(BloomWebApplicationFactory factory) { _factory = factory; }
     [Fact]
+    public async Task OnlyStudyAdminsCanSaveAndDownloadAnimationBehaviors()
+    {
+        const string endpoint = "/api/rsr-study/animation-behaviors";
+        var payload = new {
+            name = "Wave",
+            script = new[] { new { at = 0.0, duration = 0.0, pose = new { arm_left = 10 } } },
+            expressions = new[] { new { at = 0.0, duration = 1.0, name = "happy" } }
+        };
+        using var client = _factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync(endpoint, payload)).StatusCode);
+        await Login(client, await Account("Researcher"));
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync(endpoint, payload)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(endpoint)).StatusCode);
+        await Login(client, await Account("Admin"));
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(endpoint,
+            new { name = "Empty", script = Array.Empty<object>(), expressions = Array.Empty<object>() })).StatusCode);
+        var created = await client.PostAsJsonAsync(endpoint, payload);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var saved = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var id = saved.GetProperty("id").GetGuid();
+        var list = await client.GetStringAsync(endpoint);
+        Assert.Contains(id.ToString(), list);
+        var restored = await client.GetFromJsonAsync<JsonElement>(endpoint + "/" + id);
+        Assert.Equal(10, restored.GetProperty("script")[0].GetProperty("pose").GetProperty("arm_left").GetInt32());
+        Assert.Equal("happy", restored.GetProperty("expressions")[0].GetProperty("name").GetString());
+        await client.PostAsync("/api/rsr-study/auth/logout", null);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(endpoint + "/" + id)).StatusCode);
+    }
+
+    [Fact]
     public async Task ServerProvisioningCreatesAdminWithoutPromotingExistingResearcher()
     {
         using var scope = _factory.Services.CreateScope();

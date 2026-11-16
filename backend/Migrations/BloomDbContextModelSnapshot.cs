@@ -740,6 +740,17 @@ namespace bloom.Migrations
                     b.ToTable("RobotStateHistories", (string)null);
                 });
 
+            modelBuilder.Entity("bloom.Models.RsrAnimationBehavior", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("char(36)");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("datetime(6)");
+                    b.Property<string>("CreatedById").IsRequired().HasMaxLength(255).HasColumnType("varchar(255)");
+                    b.Property<string>("Name").IsRequired().HasMaxLength(120).HasColumnType("varchar(120)");
+                    b.Property<string>("PayloadJson").IsRequired().HasColumnType("longtext");
+                    b.HasKey("Id");
+                    b.ToTable("RsrAnimationBehaviors");
+                });
+
             modelBuilder.Entity("bloom.Models.RsrAssessment", b =>
                 {
                     b.Property<Guid>("Id")

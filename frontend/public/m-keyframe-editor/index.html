@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M Robot — Keyframe Animator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="toolbar">
+  <div class="toolbar-group">
+    <strong class="brand">M Robot Keyframe Animator</strong>
+  </div>
+
+  <div class="toolbar-group">
+    <label>Robot URL
+      <input id="robotUrl" type="text" placeholder="http://192.168.1.50:5000" size="26">
+    </label>
+    <button id="btnConnect">Test Connection</button>
+    <span id="connDot" class="dot dot-unknown" title="unknown"></span>
+    <span id="connLabel" class="conn-label">not tested</span>
+  </div>
+
+  <div class="toolbar-group">
+    <label>Duration (s)
+      <input id="totalDuration" type="number" min="0.5" max="30" step="0.1" value="3">
+    </label>
+    <label>Speed
+      <input id="speedScale" type="number" min="0.1" max="5" step="0.1" value="1">
+    </label>
+  </div>
+
+  <div class="toolbar-group">
+    <button id="btnPreview">▶ Preview</button>
+    <button id="btnSend" class="primary">Send to Robot</button>
+  </div>
+
+  <div class="toolbar-group">
+    <label>Static Behavior
+      <select id="staticBehaviorSelect">
+        <option value="">(connect to load)</option>
+      </select>
+    </label>
+    <button id="btnPlayStatic">▶ Play Static</button>
+  </div>
+
+  <div class="toolbar-group">
+    <label>Name
+      <input id="animName" type="text" placeholder="e.g. happy, wave" size="16">
+    </label>
+    <button id="btnSaveBloom" hidden>Save to Bloom</button>
+    <button id="btnExport">Export JSON</button>
+    <button id="btnImport">Import JSON</button>
+    <input id="importFile" type="file" accept="application/json" hidden>
+    <button id="btnClear">Clear All</button>
+  </div>
+</header>
+
+<nav id="modeTabs" class="mode-tabs">
+  <button class="mode-tab active" data-mode="timeline">Timeline</button>
+  <button class="mode-tab" data-mode="live">Live Control</button>
+</nav>
+
+<div id="statusLine" class="status-line"></div>
+
+<main id="timeline">
+  <div id="ruler"></div>
+  <div id="tracks"></div>
+  <div id="playhead" class="playhead" hidden></div>
+</main>
+
+<section id="liveControl" class="live-control" hidden>
+  <div class="live-toolbar">
+    <label class="live-toggle">
+      <input id="liveSendToggle" type="checkbox" checked>
+      Live send while dragging
+    </label>
+    <button id="btnSyncPose">⟳ Sync from Robot</button>
+    <button id="btnCenterAll">Center All</button>
+  </div>
+
+  <div id="liveMotors" class="live-motors"></div>
+
+  <div class="live-capture">
+    <label>Insert at time (s)
+      <input id="captureTime" type="number" min="0" step="0.05" value="0">
+    </label>
+    <button id="btnCapture" class="primary">Add Keyframes at Time</button>
+    <p class="hint">Jog the sliders above to pose the robot live, then capture
+      that pose as a keyframe on every track at the given time.</p>
+  </div>
+</section>
+
+<aside id="inspector" hidden>
+  <h3>Keyframe</h3>
+  <div id="inspectorMotorFields">
+    <label>Motor <span id="insMotor"></span></label>
+    <label>Time (s)
+      <input id="insTime" type="number" step="0.05" min="0">
+    </label>
+    <label>Angle (deg)
+      <input id="insAngle" type="number" step="0.5">
+    </label>
+    <label>Easing
+      <select id="insEasing">
+        <option value="easeInOutSine">easeInOutSine (default)</option>
+        <option value="linear">linear</option>
+        <option value="easeInOutQuad">easeInOutQuad</option>
+        <option value="easeInOutCubic">easeInOutCubic</option>
+        <option value="easeInOutPoly">easeInOutPoly</option>
+        <option value="easeOutElastic">easeOutElastic</option>
+      </select>
+    </label>
+  </div>
+  <div id="inspectorExprFields" hidden>
+    <label>Expression
+      <select id="insExprName">
+        <option value="neutral">Neutral</option>
+        <option value="happy">Happy</option>
+        <option value="sad">Sad</option>
+        <option value="surprised">Surprised</option>
+        <option value="blink">Blink</option>
+      </select>
+    </label>
+    <label>Start (s)
+      <input id="insExprTime" type="number" step="0.05" min="0">
+    </label>
+    <label>Duration (s)
+      <input id="insExprDuration" type="number" step="0.05" min="0.05">
+    </label>
+  </div>
+  <button id="btnDeletePoint" class="danger">Delete</button>
+  <p class="hint">Tap empty space on a track to add a keyframe or expression
+    block. Drag to move; drag a block's right edge to resize. Tap an item to
+    edit it here.</p>
+</aside>
+
+<script src="editor.js"></script>
+</body>
+</html>

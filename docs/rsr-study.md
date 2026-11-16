@@ -172,3 +172,25 @@ prompts use the web update immediately after reloading the study page.
 
 Physical M playback, microphone placement, and the study's final three condition
 protocols still require an operator/hardware rehearsal before participant use.
+
+## M Keyframe Animator
+
+From the study dashboard, select **M Keyframe Animator**. The editor is served
+by Bloom, while **Test Connection** and **Send to Robot** connect from the
+researcher's browser to M's animation bridge. If using the lab's SSH tunnel,
+leave the Robot URL at `http://127.0.0.1:5500`. Allow local network access in
+your browser if prompted. The Bloom server does not relay motion commands.
+
+Researchers can import and export JSON. Study administrators can also enter
+a name and select **Save to Bloom**. Each save creates a separate database
+record with its motor keyframes, expression timeline, author account ID, and
+creation time. Administrators can download the last 100 saves from the shared
+study library and import them back into the editor. Saving does not move M or
+publish to its static behavior menu. Temporary-password setup must be finished
+before using the animator from the study dashboard.
+
+The study database creates a separate animation table through the normal
+backend migration on startup. The existing lesson behavior catalog is separate.
+The embedded editor in `frontend/public/m-keyframe-editor/` is a copy of the
+M-SARG editor in `src/m_sarg/web/keyframe_editor/`; update the copy when
+changing the embedded editor.

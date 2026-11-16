@@ -1,0 +1,426 @@
+:root {
+  --bg: #1b1d23;
+  --panel: #23262e;
+  --border: #383c46;
+  --text: #e6e8ee;
+  --muted: #9098a8;
+  --accent: #4f8cff;
+  --danger: #e35d5d;
+  --track-h: 70px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand {
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+input, select, button {
+  font: inherit;
+  color: var(--text);
+  background: #2c303a;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+
+input[type="number"] { width: 64px; }
+
+button {
+  cursor: pointer;
+  background: #333844;
+  /* 44px is the iOS/Android-recommended minimum touch target -- the desktop
+     buttons were sized for a mouse pointer and are too small to reliably
+     tap on a phone. */
+  min-height: 40px;
+}
+button:hover { background: #3c4250; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #0b1220; font-weight: 600; }
+button.primary:hover { filter: brightness(1.08); }
+button.danger { background: var(--danger); border-color: var(--danger); color: #200; width: 100%; }
+
+/* ---------------------------------------------------------------------
+   Mode tabs (Timeline / Live Control)
+--------------------------------------------------------------------- */
+.mode-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 16px 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.mode-tab {
+  flex: 1;
+  max-width: 220px;
+  padding: 10px 16px;
+  min-height: 44px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+.mode-tab.active {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+.mode-tab:hover { color: var(--text); }
+
+.dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--muted); display: inline-block;
+}
+.dot-ok { background: #4fd67a; }
+.dot-bad { background: var(--danger); }
+.conn-label { font-size: 12px; color: var(--muted); }
+
+.status-line {
+  min-height: 22px;
+  padding: 4px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.status-line.ok { color: #4fd67a; }
+.status-line.err { color: var(--danger); }
+
+main#timeline {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+  padding: 8px 16px 40px;
+}
+
+#ruler {
+  position: sticky;
+  top: 0;
+  height: 22px;
+  background: var(--bg);
+  z-index: 3;
+  border-bottom: 1px solid var(--border);
+  margin-left: 150px;
+}
+.ruler-tick {
+  position: absolute;
+  top: 2px;
+  font-size: 10px;
+  color: var(--muted);
+  transform: translateX(-50%);
+}
+
+.track {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+}
+
+.track-label {
+  width: 150px;
+  flex: none;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+  z-index: 2;
+}
+.track-label strong { color: var(--text); font-size: 13px; }
+
+.track-lane {
+  position: relative;
+  height: var(--track-h);
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 40px);
+  cursor: copy;
+}
+
+.track-lane .zero-line {
+  position: absolute;
+  left: 0; right: 0;
+  border-top: 1px dashed #454a56;
+}
+
+.kf-path {
+  position: absolute;
+  top: 0; left: 0;
+  pointer-events: none;
+}
+
+.kf-point {
+  /* The hit target (28px) is deliberately bigger than the visible diamond
+     (12px, drawn via ::before) -- a phone finger needs a real tap target,
+     not just the mouse-era mark itself, and touch-action:none stops the
+     page from trying to pan/zoom instead of starting the drag. */
+  position: absolute;
+  width: 28px; height: 28px;
+  margin-left: -14px; margin-top: -14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+}
+.kf-point::before {
+  content: '';
+  width: 12px; height: 12px;
+  background: var(--accent);
+  border: 2px solid #0b1220;
+  border-radius: 3px;
+  transform: rotate(45deg);
+}
+.kf-point:hover::before { filter: brightness(1.2); }
+.kf-point.selected::before { background: #ffb44f; box-shadow: 0 0 0 3px rgba(255,180,79,0.35); }
+.kf-point.dragging { cursor: grabbing; }
+
+.expr-lane {
+  cursor: copy;
+}
+
+.expr-block {
+  position: absolute;
+  top: 12px;
+  height: calc(var(--track-h) - 24px);
+  min-width: 4px;
+  border-radius: 6px;
+  color: #0b1220;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: grab;
+  touch-action: none;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.25) inset;
+}
+.expr-block:hover { filter: brightness(1.1); }
+.expr-block.selected { box-shadow: 0 0 0 2px #ffb44f inset; }
+.expr-block.active { box-shadow: 0 0 0 3px #fff inset; }
+.expr-block.dragging { cursor: grabbing; }
+
+.expr-resize-handle {
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 10px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.playhead {
+  position: absolute;
+  top: 22px;
+  bottom: 0;
+  width: 2px;
+  background: #ffb44f;
+  z-index: 4;
+  pointer-events: none;
+}
+
+aside#inspector {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 220px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+aside#inspector h3 { margin: 0 0 4px; font-size: 13px; }
+aside#inspector label { flex-direction: column; align-items: stretch; }
+aside#inspector input, aside#inspector select { width: 100%; }
+.hint { font-size: 11px; color: var(--muted); margin: 4px 0 0; }
+
+/* ---------------------------------------------------------------------
+   Live Control panel
+--------------------------------------------------------------------- */
+.live-control {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.live-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.live-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text);
+}
+.live-toggle input { width: 20px; height: 20px; }
+
+.live-motors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.live-motor {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.live-motor-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+}
+.live-motor-head strong { color: var(--text); }
+.live-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* type=range needs its own touch-action and a much taller thumb than the
+   desktop default to be comfortably draggable with a finger. */
+.live-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 36px;
+  background: transparent;
+  touch-action: none;
+  padding: 0;
+}
+.live-slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: #383c46;
+}
+.live-slider::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: #383c46;
+}
+.live-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 28px; height: 28px;
+  margin-top: -10px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #0b1220;
+}
+.live-slider::-moz-range-thumb {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #0b1220;
+}
+
+.live-capture {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.live-capture .hint { flex-basis: 100%; margin-top: 0; }
+
+/* ---------------------------------------------------------------------
+   Mobile layout
+--------------------------------------------------------------------- */
+@media (max-width: 720px) {
+  #toolbar {
+    gap: 10px;
+    padding: 8px 10px;
+  }
+  .toolbar-group {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+  .brand { font-size: 13px; }
+
+  .mode-tabs { padding: 8px 10px 0; }
+  .mode-tab { max-width: none; }
+
+  main#timeline { padding: 8px 8px 40px; }
+
+  /* The 150px label column is fine on a desktop-width lane but eats most
+     of a phone screen -- shrink it and let the label text wrap instead. */
+  .track-label {
+    width: 84px;
+    padding: 6px;
+    font-size: 10px;
+  }
+  .track-label strong { font-size: 11px; }
+  #ruler { margin-left: 84px; }
+
+  /* A fixed bottom-right floating card works on a desktop-size viewport
+     but covers the whole lane on a phone -- pin it as a full-width bottom
+     sheet instead. */
+  aside#inspector {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    border-radius: 12px 12px 0 0;
+    max-height: 45vh;
+  }
+
+  .live-motors { grid-template-columns: 1fr; }
+}

@@ -32,6 +32,7 @@ import RsrStudyChild from "./pages/RsrStudy/RsrStudyChild";
 import RsrStudyLogin from "./pages/RsrStudy/RsrStudyLogin";
 import RsrResearcherAccounts from "./pages/RsrStudy/RsrResearcherAccounts";
 import RsrStudyPassword from "./pages/RsrStudy/RsrStudyPassword";
+import RsrAnimationEditor from "./pages/RsrStudy/RsrAnimationEditor";
 import StudyAccess from "./pages/RsrStudy/StudyAccess";
 
 import ArSrStudy       from "./pages/ArSr/ArSrStudy";
@@ -49,6 +50,7 @@ export default function App() {
         </Route>
         <Route element={<StudyAccess />}>
           <Route path="/rsr-study" element={<RsrStudyAdmin />} />
+          <Route path="/rsr-study/animator" element={<RsrAnimationEditor />} />
         </Route>
         <Route element={<StudyAccess adminOnly />}>
           <Route path="/rsr-study/accounts" element={<RsrResearcherAccounts />} />

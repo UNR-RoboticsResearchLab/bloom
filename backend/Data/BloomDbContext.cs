@@ -30,6 +30,7 @@ namespace bloom.Data
         public DbSet<StepInteraction> StepInteractions { get; set; }
         public DbSet<SLPClient> SLPClients { get; set; }
         public DbSet<RsrAssessment> RsrAssessments { get; set; }
+        public DbSet<RsrAnimationBehavior> RsrAnimationBehaviors { get; set; }
         public DbSet<Behavior> Behaviors { get; set; }
 
         public BloomDbContext(DbContextOptions<BloomDbContext> dbContextOptions) : base(dbContextOptions)

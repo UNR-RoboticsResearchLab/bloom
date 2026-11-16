@@ -5,6 +5,7 @@ import { signInSession, signOut } from '../../utils/auth';
 
 export default function StudyAccess({ adminOnly = false, passwordSetup = false }) {
   const api = useApiClient();
+  const [user, setUser] = useState(null);
   const [access, setAccess] = useState('checking');
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -17,6 +18,7 @@ export default function StudyAccess({ adminOnly = false, passwordSetup = false }
         signOut(); setAccess('login'); return;
       }
       signInSession(user);
+      setUser(user);
       if (user.mustChangePassword && !passwordSetup) { setAccess("password"); return; }
       setAccess(adminOnly && user.role?.toLowerCase() !== 'admin' ? 'researcher' : 'allowed');
     }).catch(error => {
@@ -31,5 +33,5 @@ export default function StudyAccess({ adminOnly = false, passwordSetup = false }
   if (access === 'researcher') return <Navigate to="/rsr-study" replace />;
   if (access === 'checking') return <p role="status">Checking researcher access…</p>;
   if (access === 'error') return <div role="alert"><p>Could not verify study access. Check the connection and try again.</p><button onClick={() => setAttempt(n => n+1)}>Retry</button></div>;
-  return <Outlet />;
+  return <Outlet context={{ user }} />;
 }

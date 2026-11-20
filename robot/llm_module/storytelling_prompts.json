@@ -1,0 +1,93 @@
+{
+  "format_version": 1,
+  "prompt_set_version": "ao-prototype-1",
+  "source_workbook": "Narrative and Expository Prompts AO(1).xlsx",
+  "notes": "Source text is verbatim; spoken_prompt normalizes whitespace and obvious typographical errors. Support prompts are proposed prototype additions, not from the workbook. Researcher assigns IDs; no child topic selection.",
+  "tasks": [
+
+    {
+      "id": "pet_care_expository",
+      "genre": "expository",
+      "topic": "PET/ANIMAL",
+      "source_sheet": "ALL",
+      "source_cell": "C3",
+      "source_text": "Animals play a role in people's lives. Your friend does not know how to take care of his new pet.  Tell your friend at ;least three ways how to take care of his new pet.",
+      "spoken_prompt": "Animals play a role in people's lives. Your friend does not know how to take care of his new pet. Tell your friend at least three ways how to take care of his new pet.",
+      "start_support": "What is one thing the new pet would need?",
+      "continuation_support": [
+        "What else could someone do to take care of the pet?",
+        "Can you tell me a little more about one of those ideas?"
+      ]
+    },
+    {
+      "id": "car_wash_expository",
+      "genre": "expository",
+      "topic": "HEALTH/FOOD/EXERCISE",
+      "source_sheet": "ALL",
+      "source_cell": "C4",
+      "source_text": "People use water every day for different reasons. Your little sister does not know how to wash a car. Tell your sister at least three steps to wash the car. ",
+      "spoken_prompt": "People use water every day for different reasons. Your little sister does not know how to wash a car. Tell your sister at least three steps to wash the car.",
+      "start_support": "What would you do first to wash the car?",
+      "continuation_support": [
+        "What would you do next to wash the car?",
+        "Is there anything else you would do to finish washing the car?"
+      ]
+    },
+    {
+      "id": "birthday_expository",
+      "genre": "expository",
+      "topic": "BIRTHDAY",
+      "source_sheet": "ALL",
+      "source_cell": "C5",
+      "source_text": "Everybody has a birthday.  Your mom's 40th birthday party is coming up and you are planning the party.  Tell me at least three ways  how you are going to plan your mom's 40th birthday party.",
+      "spoken_prompt": "Everybody has a birthday. Your mom's 40th birthday party is coming up and you are planning the party. Tell me at least three ways how you are going to plan your mom's 40th birthday party.",
+      "start_support": "What would you do first to get the party ready?",
+      "continuation_support": [
+        "What else would you do to get the party ready?",
+        "Can you tell me a little more about your plan?"
+      ]
+    },
+    {
+      "id": "recess_game_expository",
+      "genre": "expository",
+      "topic": "RECESS",
+      "source_sheet": "ALL",
+      "source_cell": "C6",
+      "source_text": "Recess is a time when you can play with your friends.   There is a new kid at school and he doesn't know how to play your favorite recess game.  Give your new friend at least 3 directions how to play the game.",
+      "spoken_prompt": "Recess is a time when you can play with your friends. There is a new kid at school and he doesn't know how to play your favorite recess game. Give your new friend at least 3 directions how to play the game.",
+      "start_support": "What is the first thing someone needs to know to play the game?",
+      "continuation_support": [
+        "What else does someone need to know to play the game?",
+        "Can you tell me a little more about how to play?"
+      ]
+    },
+    {
+      "id": "superhero_expository",
+      "genre": "expository",
+      "topic": "SUPERHERO",
+      "source_sheet": "ALL",
+      "source_cell": "C7",
+      "source_text": "Superheros have special powers that they use for good reasons. You have been given special superhero powers.  Describe your superhero powers to me and tell me at least three ways you are going to use your superpowers. ",
+      "spoken_prompt": "Superheroes have special powers that they use for good reasons. You have been given special superhero powers. Describe your superhero powers to me and tell me at least three ways you are going to use your superpowers.",
+      "start_support": "What is one power you would like to describe?",
+      "continuation_support": [
+        "What is another way you would use your powers?",
+        "Can you tell me a little more about one of those ideas?"
+      ]
+    },
+    {
+      "id": "planet_expository",
+      "genre": "expository",
+      "topic": "SCIENCE",
+      "source_sheet": "ALL",
+      "source_cell": "C8",
+      "source_text": "Our solar system is composed of 8 planet that revolve around the sun. You have just discovered a planet that no one has ever seen before. Describe the planet to me and tell me at least three characteristics about your planet.  ",
+      "spoken_prompt": "Our solar system is composed of 8 planets that revolve around the sun. You have just discovered a planet that no one has ever seen before. Describe the planet to me and tell me at least three characteristics about your planet.",
+      "start_support": "What is one thing you would like to describe about the planet?",
+      "continuation_support": [
+        "What else would you like to describe about your planet?",
+        "Can you tell me a little more about one of those details?"
+      ]
+    }
+  ]
+}
